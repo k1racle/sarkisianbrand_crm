@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@/*": ["src/*"],
+      "@auth/*": ["src/auth/*"],
+      "@products/*": ["src/products/*"],
+      "@cart/*": ["src/cart/*"],
+      "@orders/*": ["src/orders/*"],
+      "@shipping/*": ["src/shipping/*"],
+      "@1c-sync/*": ["src/1c-sync/*"],
+      "@admin/*": ["src/admin/*"],
+      "@seo/*": ["src/seo/*"],
+      "@channels/*": ["src/channels/*"],
+      "@b2b/*": ["src/b2b/*"],
+      "@bots/*": ["src/bots/*"],
+      "@loyalty/*": ["src/loyalty/*"],
+      "@booking/*": ["src/booking/*"],
+      "@lms/*": ["src/lms/*"],
+      "@crm/*": ["src/crm/*"],
+      "@common/*": ["src/common/*"]
+    }
+  },
+  "include": ["src/**/*", "prisma/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
+}
