@@ -1,0 +1,497 @@
+// Sarkisian Brand Backend - Prisma Schema
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== ENUMS =====================
+
+enum UserRole {
+  ADMIN
+  MANAGER_B2B
+  MANAGER_SALES
+  SUPERVISOR
+  CURATOR
+  WAREHOUSE
+  CUSTOMER_B2C
+  CUSTOMER_B2B
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PAYMENT_WAITING
+  PAID
+  ASSEMBLING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  OVERDUE
+}
+
+enum Currency {
+  RUB
+  USD
+  EUR
+  KZT
+}
+
+enum Locale {
+  ru
+  en
+  kz
+}
+
+// ===================== CORE MODELS =====================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  phone     String?  @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      UserRole @default(CUSTOMER_B2C)
+  
+  locale    Locale   @default(ru)
+  country   String?  @default("RU")
+  city      String?
+  
+  b2bProfile    B2BProfile?
+  orders        Order[]
+  cart          Cart?
+  tasksAssigned Task[] @relation("AssignedTasks")
+  tasksCreated  Task[] @relation("CreatedTasks")
+  interactions  Interaction[]
+  sessions      Session[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  expiresAt    DateTime
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+}
+
+model B2BProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  companyName     String?
+  inn             String?  @unique
+  kpp             String?
+  legalAddress    String?
+  managerId       String?
+  manager         User?    @relation("B2BManagerClients", fields: [managerId], references: [id])
+  
+  discountTier   Float     @default(0.0)
+  creditLimit    Decimal   @default(0.00) @db.Decimal(15, 2)
+  isVerified     Boolean   @default(false)
+  
+  orders         Order[]
+  leads          Lead[]
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// ===================== CATALOG =====================
+
+model Category {
+  id          String   @id @default(uuid())
+  parentId    String?
+  parent      Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  
+  nameRu      String
+  nameEn      String?
+  slug        String   @unique
+  description Json?
+  imageUrl    String?
+  
+  products    ProductCategory[]
+  seo         SeoData?
+  
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  sku         String   @unique
+  vendorCode  String?
+  
+  nameRu      String
+  nameEn      String?
+  descriptionRu String?
+  descriptionEn String?
+  slug        String   @unique
+  
+  basePrice   Decimal  @db.Decimal(15, 2)
+  currency    Currency @default(RUB)
+  
+  variants    ProductVariant[]
+  categories  ProductCategory[]
+  images      ProductImage[]
+  
+  externalId  String?  @unique
+  isSynced    Boolean  @default(false)
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  seo         SeoData?
+  
+  @@index([slug])
+  @@index([externalId])
+}
+
+model ProductVariant {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  name        String
+  options     Json
+  
+  price       Decimal  @db.Decimal(15, 2)
+  stock       Int      @default(0)
+  reserved    Int      @default(0)
+  
+  sku         String   @unique
+  
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  
+  @@index([productId])
+}
+
+model ProductCategory {
+  productId String
+  categoryId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category  Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  isPrimary Boolean  @default(false)
+  
+  @@id([productId, categoryId])
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+}
+
+// ===================== CART & ORDERS =====================
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+  
+  items     CartItem[]
+  total     Decimal  @default(0.00) @db.Decimal(15, 2)
+  
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  
+  quantity  Int      @default(1)
+  
+  @@unique([cartId, variantId])
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNumber String      @unique
+  
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  
+  b2bProfileId String?
+  b2bProfile   B2BProfile? @relation(fields: [b2bProfileId], references: [id])
+  
+  status      OrderStatus @default(NEW)
+  
+  items       OrderItem[]
+  totalAmount Decimal     @db.Decimal(15, 2)
+  discountAmount Decimal  @default(0.00) @db.Decimal(15, 2)
+  finalAmount Decimal     @db.Decimal(15, 2)
+  currency    Currency    @default(RUB)
+  
+  shippingAddress Json
+  shippingProvider String?
+  shippingCost    Decimal @default(0.00) @db.Decimal(15, 2)
+  trackingNumber  String?
+  
+  paymentStatus   String  @default("PENDING")
+  paymentMethod   String?
+  
+  sourceChannel   String  @default("WEB")
+  managerId       String?
+  manager         User?   @relation("ManagerOrders", fields: [managerId], references: [id])
+  
+  comments        String?
+  internalNotes   String?
+  
+  externalId      String? @unique
+  isSynced1C      Boolean @default(false)
+  
+  history         OrderStatusHistory[]
+  payments        Payment[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([orderNumber])
+  @@index([userId])
+  @@index([status])
+  @@index([externalId])
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  
+  productName   String
+  variantName   String
+  price         Decimal  @db.Decimal(15, 2)
+  quantity      Int
+  total         Decimal  @db.Decimal(15, 2)
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  comment    String?
+  changedBy  String?
+  
+  createdAt DateTime    @default(now())
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  
+  amount        Decimal  @db.Decimal(15, 2)
+  currency      Currency @default(RUB)
+  provider      String
+  transactionId String?  @unique
+  status        String
+  metadata      Json?
+  
+  createdAt     DateTime @default(now())
+}
+
+// ===================== CRM =====================
+
+model Lead {
+  id          String     @id @default(uuid())
+  b2bProfileId String?
+  b2bProfile   B2BProfile? @relation(fields: [b2bProfileId], references: [id])
+  
+  source      String
+  status      LeadStatus @default(NEW)
+  
+  contactName String
+  contactPhone String
+  contactEmail String?
+  message     String?
+  
+  managerId   String?
+  manager     User?      @relation("ManagerLeads", fields: [managerId], references: [id])
+  
+  interactions Interaction[]
+  tasks        Task[]
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Interaction {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  
+  type      String
+  content   String
+  metadata  Json?
+  
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  
+  status      TaskStatus @default(TODO)
+  priority    String     @default("MEDIUM")
+  
+  dueDate     DateTime?
+  
+  assignedToId String
+  assignedTo   User       @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  
+  createdById  String
+  createdBy    User       @relation("CreatedTasks", fields: [createdById], references: [id])
+  
+  leadId      String?
+  lead        Lead?      @relation(fields: [leadId], references: [id])
+  
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+}
+
+// ===================== INTEGRATIONS =====================
+
+model SyncLog {
+  id        String   @id @default(uuid())
+  system    String
+  action    String
+  status    String
+  message   String?
+  details   Json?
+  createdAt DateTime @default(now())
+  
+  @@index([system])
+  @@index([createdAt])
+}
+
+model IdempotencyKey {
+  key        String   @id
+  requestId  String
+  response   Json?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  
+  @@index([expiresAt])
+}
+
+// ===================== SEO =====================
+
+model SeoData {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String   @unique
+  metaTitle   String?
+  metaDesc    String?
+  canonical   String?
+  ogImage     String?
+  
+  updatedAt   DateTime @updatedAt
+}
+
+// ===================== LMS =====================
+
+model Course {
+  id          String   @id @default(uuid())
+  titleRu     String
+  titleEn     String?
+  description Json?
+  price       Decimal  @db.Decimal(15, 2)
+  isActive    Boolean  @default(true)
+  lessons     Lesson[]
+  enrollments Enrollment[]
+}
+
+model Lesson {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  title     String
+  videoUrl  String?
+  content   String?
+  sortOrder Int      @default(0)
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  progress  Int      @default(0)
+  isCompleted Boolean @default(false)
+  certificateIssued Boolean @default(false)
+  enrolledAt DateTime @default(now())
+  
+  @@unique([userId, courseId])
+}
+
+// ===================== BOOKING =====================
+
+model Service {
+  id        String   @id @default(uuid())
+  titleRu   String
+  duration  Int
+  price     Decimal  @db.Decimal(15, 2)
+  isActive  Boolean  @default(true)
+  bookings  Booking[]
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id])
+  userId    String
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("CONFIRMED")
+  createdAt DateTime @default(now())
+}
