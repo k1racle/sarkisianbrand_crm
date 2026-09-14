@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - основная база данных
+  db:
+    image: postgres:15-alpine
+    container_name: sb_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sarkisian_user
+      POSTGRES_PASSWORD: secure_password_change_me
+      POSTGRES_DB: sarkisian_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - sb_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sarkisian_user -d sarkisian_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - кэш, очереди, сессии, корзины гостей
+  redis:
+    image: redis:7-alpine
+    container_name: sb_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sb_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (NestJS)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sb_api
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - sb_network
+    command: npm run start:dev
+
+volumes:
+  pgdata:
+  redis_data:
+
+networks:
+  sb_network:
+    driver: bridge

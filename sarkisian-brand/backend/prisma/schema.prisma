@@ -1,0 +1,530 @@
+// schema.prisma
+// Ядро данных экосистемы Sarkisian Brand
+// Версия: 0.1.0 (MVP Foundation)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// ENUMS & TYPES
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  MANAGER_B2B
+  MANAGER_SALES
+  WAREHOUSE_MANAGER
+  CONTENT_MANAGER
+  CUSTOMER // B2C
+  B2B_PARTNER // B2B Master/Salon
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PAYMENT_WAITING
+  PAID
+  ASSEMBLING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum Currency {
+  RUB
+  USD
+  EUR
+  KZT
+}
+
+enum Locale {
+  ru
+  en
+  kz
+}
+
+// ==========================================
+// CORE: USERS & AUTH
+// ==========================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  phone     String?  @unique
+  passwordHash String
+  roles     UserRole[] // Array of roles for flexibility
+  isVerified Boolean  @default(false)
+  
+  // Profile Data
+  firstName String?
+  lastName  String?
+  middleName String?
+  avatarUrl String?
+  
+  // B2B Specifics
+  companyName String?
+  inn         String? // Tax ID
+  kpp         String?
+  legalAddress String?
+  b2bStatus   String?  @default("PENDING") // PENDING, ACTIVE, BLOCKED
+  managerId   String?  // Personal manager ID (self-reference)
+  manager     User?    @relation("B2BManager", fields: [managerId], references: [id])
+  clients     User[]   @relation("B2BManager")
+
+  // Localization Context
+  defaultLocale Locale @default(ru)
+  defaultCurrency Currency @default(RUB)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  // Relations
+  addresses Address[]
+  orders    Order[]
+  carts     Cart[]
+  leads     Lead[]
+  tasks     Task[]
+  auditLogs AuditLog[]
+  
+  @@index([email])
+  @@index([phone])
+  @@index([b2bStatus])
+}
+
+// ==========================================
+// CATALOG & INVENTORY
+// ==========================================
+
+model Category {
+  id          String   @id @default(uuid())
+  parentId    String?
+  parent      Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  
+  slug        String   @unique
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  // i18n Content (JSONB)
+  // Structure: { "ru": { "name": "...", "description": "...", "metaTitle": "..." }, "en": ... }
+  content     Json     
+  
+  seoData     Json?    // meta tags, canonical
+  
+  products    ProductCategory[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  sku         String   @unique // Article
+  vendorCode  String?  // Manufacturer code
+  
+  isActive    Boolean  @default(false) // Hidden by default until synced
+  isFavorite  Boolean  @default(false)
+  
+  // Base info (fallback if locale missing)
+  name        String
+  description String?  @db.Text
+  
+  // i18n Content override (JSONB)
+  content     Json?    
+  
+  seoData     Json?
+  
+  variants    ProductVariant[]
+  categories  ProductCategory[]
+  
+  // Sync Meta
+  externalId  String?  // ID from 1C or Marketplace
+  sourceSystem String? @default("1C") // 1C, MANUAL, IMPORT
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([sku])
+  @@index([externalId])
+  @@index([isActive])
+}
+
+model ProductVariant {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  sku         String   @unique // Variant SKU
+  barcode     String?  @unique // EAN-13, etc.
+  
+  options     Json     // { "color": "red", "size": "50ml" }
+  
+  prices      ProductPrice[]
+  stocks      ProductStock[]
+  
+  images      ProductImage[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([barcode])
+}
+
+model ProductPrice {
+  id          String   @id @default(uuid())
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  priceType   String   @default("RETAIL") // RETAIL, B2B, WHOLESALE
+  currency    Currency @default(RUB)
+  value       Decimal  @db.Decimal(19, 4)
+  
+  validFrom   DateTime?
+  validTo     DateTime?
+  
+  @@unique([variantId, priceType, currency])
+  @@index([variantId])
+}
+
+model ProductStock {
+  id          String   @id @default(uuid())
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  warehouseId String
+  warehouseName String // Name from 1C
+  
+  quantity    Int      @default(0)
+  reserved    Int      @default(0) // Reserved in active carts/orders
+  
+  updatedAt   DateTime @updatedAt
+
+  @@unique([variantId, warehouseId])
+  @@index([variantId])
+}
+
+model ProductCategory {
+  productId   String
+  categoryId  String
+  product     Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  isPrimary   Boolean    @default(false)
+  
+  @@id([productId, categoryId])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+}
+
+// ==========================================
+// ORDERS & CART
+// ==========================================
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?  @unique // For guests
+  
+  items     CartItem[]
+  
+  totalAmount Decimal  @default(0)
+  currency    Currency @default(RUB)
+  
+  expiresAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  // Snapshot of data at add time to prevent price drift before checkout
+  name      String
+  price     Decimal
+  quantity  Int
+  
+  createdAt DateTime @default(now())
+
+  @@index([cartId])
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  orderNumber String   @unique // Human readable: SB-2026-00123
+  status      OrderStatus @default(NEW)
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  // Snapshots
+  customerName String
+  customerEmail String
+  customerPhone String
+  companyName? String
+  inn?         String
+  
+  shippingAddressId String?
+  shippingAddress Address? @relation(fields: [shippingAddressId], references: [id])
+  
+  items       OrderItem[]
+  payments    Payment[]
+  shipments   Shipment[]
+  
+  totals      Json     // { subtotal, shipping, discount, tax, total }
+  
+  comments    String?  @db.Text
+  internalNote String? @db.Text // For managers
+  
+  // Source
+  channel     String   @default("WEB") // WEB, TG_BOT, MARKETPLACE_OZON, 1C
+  externalId  String?  // ID from marketplace or 1C
+  
+  // CRM Link
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  managerId   String?
+  manager     User?    @relation(fields: [managerId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderNumber])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  // Full snapshot
+  name      String
+  sku       String
+  price     Decimal
+  quantity  Int
+  discount  Decimal  @default(0)
+  total     Decimal
+  
+  @@index([orderId])
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  
+  provider    String   // YOOKASSA, CLOUD_PAYMENTS
+  transactionId String?
+  amount      Decimal
+  currency    Currency
+  status      String   // PENDING, SUCCESS, FAILED, REFUNDED
+  payload     Json?    // Raw webhook data
+  
+  createdAt   DateTime @default(now())
+  paidAt      DateTime?
+
+  @@index([orderId])
+  @@index([transactionId])
+}
+
+model Shipment {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  
+  provider    String   // CDEK, BOXBERRY
+  trackingNumber String?
+  status      String   // CREATED, IN_TRANSIT, DELIVERED
+  cost        Decimal?
+  
+  createdAt   DateTime @default(now())
+  deliveredAt DateTime?
+
+  @@index([orderId])
+  @@index([trackingNumber])
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      String   // SHIPPING, BILLING, WAREHOUSE
+  isDefault Boolean  @default(false)
+  
+  country   String
+  region    String?
+  city      String
+  street    String
+  building  String
+  apartment String?
+  zip       String?
+  
+  latitude  Decimal?
+  longitude Decimal?
+  
+  orders    Order[]
+  
+  @@index([userId])
+}
+
+// ==========================================
+// CRM MODULE
+// ==========================================
+
+model Lead {
+  id          String   @id @default(uuid())
+  title       String   // e.g., "Order #123" or "Inquiry from TG"
+  status      LeadStatus @default(NEW)
+  source      String   // WEB_FORM, TG_BOT, MARKETPLACE, CALL
+  
+  customerId  String?
+  customer    User?    @relation(fields: [customerId], references: [id])
+  
+  contactName String?
+  contactPhone String?
+  contactEmail String?
+  
+  budget      Decimal?
+  probability Int      @default(0) // 0-100%
+  
+  assignedTo  String?  // Manager ID
+  assignedUser User?   @relation(fields: [assignedTo], references: [id])
+  
+  tasks       Task[]
+  interactions Interaction[]
+  orders      Order[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  closedAt    DateTime?
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([customerId])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  
+  assignedTo  String
+  assignee    User     @relation(fields: [assignedTo], references: [id])
+  
+  dueDate     DateTime?
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+  
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([assignedTo])
+  @@index([isCompleted])
+  @@index([dueDate])
+}
+
+model Interaction {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  
+  type        String   // CALL, MESSAGE, EMAIL, MEETING, NOTE
+  direction   String?  // INBOUND, OUTBOUND
+  content     String   @db.Text
+  metadata    Json?    // Link to TG message_id, call recording URL
+  
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+}
+
+// ==========================================
+// INTEGRATION LOGS & AUDIT
+// ==========================================
+
+model IntegrationLog {
+  id          String   @id @default(uuid())
+  system      String   // 1C, OZON, WB, TELEGRAM
+  operation   String   // IMPORT_PRODUCTS, EXPORT_ORDER, SYNC_STOCKS
+  status      String   // SUCCESS, ERROR, WARNING
+  requestId   String?  // External request ID
+  payload     Json?    // Request/Response snapshot
+  errorMessage String? @db.Text
+  durationMs  Int?
+  
+  createdAt   DateTime @default(now())
+
+  @@index([system])
+  @@index([operation])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT
+  entity      String   // ORDER, PRODUCT, USER
+  entityId    String?
+  
+  changes     Json?    // { old: {...}, new: {...} }
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+
+  @@index([entity])
+  @@index([userId])
+  @@index([createdAt])
+}
