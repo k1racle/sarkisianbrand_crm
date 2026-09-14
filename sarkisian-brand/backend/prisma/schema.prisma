@@ -1,0 +1,695 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  MANAGER_B2B
+  MANAGER_SALES
+  HEAD_OF_SALES
+  TUTOR
+  WAREHOUSE_STAFF
+  B2B_CLIENT
+  B2C_CLIENT
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PAYMENT_PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum Currency {
+  RUB
+  USD
+  EUR
+  KZT
+}
+
+enum Locale {
+  ru
+  en
+  kz
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum ShippingStatus {
+  PENDING
+  CALCULATED
+  CREATED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+}
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  phone     String?  @unique
+  password  String
+  firstName String
+  lastName  String
+  middleName String?
+  
+  roles     UserRole[]
+  locale    Locale   @default(ru)
+  currency  Currency @default(RUB)
+  country   String   @default("RU")
+  city      String?
+  
+  isActive  Boolean  @default(true)
+  isVerified Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLoginAt DateTime?
+  
+  // Relations
+  b2bProfile    B2BProfile?
+  orders        Order[]
+  cart          Cart?
+  leads         Lead[]          @relation("LeadManager")
+  tasksAssigned Task[]          @relation("TaskAssignee")
+  tasksCreated  Task[]          @relation("TaskCreator")
+  interactions  Interaction[]
+  bookings      Booking[]
+  enrollments   Enrollment[]
+  auditLogs     AuditLog[]
+  managedB2Bs   B2BProfile[]    @relation("LeadManager")
+  
+  refreshToken  String?
+  
+  @@index([email])
+  @@index([phone])
+  @@index([roles])
+}
+
+model B2BProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  
+  companyName     String
+  inn             String?  @unique
+  kpp             String?
+  ogrn            String?
+  legalAddress    String
+  postalAddress   String?
+  
+  managerId       String?
+  manager         User?    @relation("LeadManager", fields: [managerId], references: [id])
+  
+  discountPercent Float    @default(0)
+  creditLimit     Decimal  @default(0) @db.Decimal(15, 2)
+  currentDebt     Decimal  @default(0) @db.Decimal(15, 2)
+  
+  status          String   @default("pending") // pending, active, blocked
+  verifiedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  orders          Order[]
+  leads           Lead[]
+  
+  @@index([userId])
+  @@index([inn])
+  @@index([managerId])
+}
+
+// ============================================
+// PRODUCTS & CATALOG
+// ============================================
+
+model Category {
+  id          String   @id @default(uuid())
+  name        Json     // {ru: "...", en: "...", kz: "..."}
+  slug        String   @unique
+  description Json?
+  parentId    String?
+  parent      Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  seoTitle    String?
+  seoDescription String?
+  seoKeywords String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  products    Product[]
+  
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  sku         String   @unique
+  name        Json
+  description Json?
+  
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  
+  brand       String?
+  vendorCode  String?
+  
+  isActive    Boolean  @default(true)
+  isFavorite Boolean  @default(false)
+  isNew      Boolean  @default(false)
+  
+  basePrice   Decimal  @db.Decimal(15, 2)
+  currency    Currency @default(RUB)
+  
+  weight      Float?   // grams
+  dimensions  Json?    // {length, width, height}
+  
+  seoTitle    String?
+  seoDescription String?
+  seoKeywords String?
+  canonicalUrl String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  variants    ProductVariant[]
+  images      ProductImage[]
+  orderItems  OrderItem[]
+  
+  @@index([sku])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model ProductVariant {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  
+  name        Json     // e.g., color, size
+  sku         String   @unique
+  
+  price       Decimal  @db.Decimal(15, 2)
+  comparePrice Decimal? @db.Decimal(15, 2)
+  cost        Decimal? @db.Decimal(15, 2)
+  currency    Currency @default(RUB)
+  
+  stock       Int      @default(0)
+  reserved    Int      @default(0)
+  
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([sku])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  url       String
+  alt       Json?
+  sortOrder Int      @default(0)
+  isMain    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([productId])
+}
+
+// ============================================
+// CART & ORDERS
+// ============================================
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+  sessionId String?  @unique // for guest carts
+  
+  items     CartItem[]
+  
+  currency  Currency @default(RUB)
+  total     Decimal  @default(0) @db.Decimal(15, 2)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  sku       String
+  name      Json
+  price     Decimal  @db.Decimal(15, 2)
+  quantity  Int
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([cartId])
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  orderNumber String   @unique // Human-readable: SB-2026-00001
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  b2bProfileId String?
+  b2bProfile   B2BProfile? @relation(fields: [b2bProfileId], references: [id])
+  
+  status      OrderStatus @default(NEW)
+  
+  items       OrderItem[]
+  
+  subtotal    Decimal  @db.Decimal(15, 2)
+  shippingCost Decimal @default(0) @db.Decimal(15, 2)
+  discount    Decimal  @default(0) @db.Decimal(15, 2)
+  total       Decimal  @db.Decimal(15, 2)
+  
+  currency    Currency @default(RUB)
+  
+  // Shipping
+  shippingMethod String?
+  shippingProvider String?
+  shippingAddress Json
+  trackingNumber String?
+  shippingStatus ShippingStatus @default(PENDING)
+  
+  // Payment
+  paymentStatus PaymentStatus @default(PENDING)
+  payments      Payment[]
+  
+  // Channel
+  channel     String   @default("website") // website, telegram, ozon, wb, etc.
+  externalId  String?  // ID from marketplace or external system
+  
+  notes       String?
+  managerNote String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  confirmedAt DateTime?
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  
+  @@index([orderNumber])
+  @@index([userId])
+  @@index([status])
+  @@index([channel])
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  
+  productId String
+  product   Product? @relation(fields: [productId], references: [id])
+  variantId String
+  sku       String
+  name      Json     // Snapshot at order time
+  price     Decimal  @db.Decimal(15, 2) // Snapshot at order time
+  quantity  Int
+  
+  total     Decimal  @db.Decimal(15, 2)
+  
+  @@index([orderId])
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  
+  provider    String   // yookassa, cloudpayments, etc.
+  providerPaymentId String?
+  
+  amount      Decimal  @db.Decimal(15, 2)
+  currency    Currency @default(RUB)
+  status      PaymentStatus @default(PENDING)
+  
+  metadata    Json?    // Provider response data
+  
+  createdAt   DateTime @default(now())
+  paidAt      DateTime?
+  
+  @@index([orderId])
+  @@index([providerPaymentId])
+}
+
+// ============================================
+// CRM MODULE
+// ============================================
+
+model Lead {
+  id          String   @id @default(uuid())
+  source      String   // website, telegram, instagram, etc.
+  status      LeadStatus @default(NEW)
+  
+  contactName String
+  contactPhone String?
+  contactEmail String?
+  company     String?
+  message     String?
+  
+  managerId   String?
+  manager     User?    @relation("LeadManager", fields: [managerId], references: [id])
+  
+  b2bProfileId String?
+  b2bProfile   B2BProfile? @relation(fields: [b2bProfileId], references: [id])
+  
+  value       Decimal? @db.Decimal(15, 2)
+  probability Int      @default(0) // 0-100
+  
+  closedAt    DateTime?
+  lostReason  String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  tasks       Task[]
+  interactions Interaction[]
+  
+  @@index([status])
+  @@index([managerId])
+  @@index([source])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  
+  type        String   // call, meeting, email, followup, etc.
+  priority    String   @default("normal") // low, normal, high, urgent
+  
+  status      String   @default("pending") // pending, completed, cancelled
+  
+  dueDate     DateTime?
+  completedAt DateTime?
+  
+  assigneeId  String?
+  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  
+  creatorId   String
+  creator     User     @relation("TaskCreator", fields: [creatorId], references: [id])
+  
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  
+  relatedEntityType String? // order, user, b2b_profile
+  relatedEntityId   String?
+  
+  reminderSent Boolean @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Interaction {
+  id          String   @id @default(uuid())
+  type        String   // call, email, telegram, whatsapp, meeting
+  
+  direction   String   @default("inbound") // inbound, outbound
+  
+  subject     String?
+  content     String?
+  metadata    Json?
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([leadId])
+  @@index([type])
+}
+
+// ============================================
+// BOOKING & LMS (Skeleton)
+// ============================================
+
+model Master {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  // Additional master-specific fields
+  
+  services  Service[]
+  bookings  Booking[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        Json
+  description Json?
+  duration    Int      // minutes
+  price       Decimal  @db.Decimal(15, 2)
+  
+  masterId    String
+  master      Master   @relation(fields: [masterId], references: [id])
+  
+  isActive    Boolean  @default(true)
+  
+  bookings    Booking[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id])
+  
+  masterId  String
+  master    Master   @relation(fields: [masterId], references: [id])
+  
+  userId    String
+  user      User?    @relation(fields: [userId], references: [id])
+  
+  startTime DateTime
+  endTime   DateTime
+  
+  status    String   @default("pending") // pending, confirmed, cancelled, completed
+  
+  notes     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([masterId])
+  @@index([startTime])
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  name        Json
+  description Json?
+  price       Decimal  @db.Decimal(15, 2)
+  
+  isActive    Boolean  @default(true)
+  
+  modules     Module[]
+  enrollments Enrollment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Module {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  
+  name      Json
+  sortOrder Int      @default(0)
+  
+  lessons   Lesson[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lesson {
+  id        String   @id @default(uuid())
+  moduleId  String
+  module    Module   @relation(fields: [moduleId], references: [id])
+  
+  name      Json
+  videoUrl  String?  // Kinescope or other provider
+  content   Json?
+  
+  sortOrder Int      @default(0)
+  duration  Int?     // minutes
+  
+  homeworks Homework[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  
+  userId    String
+  user      User?    @relation(fields: [userId], references: [id])
+  
+  progress  Int      @default(0) // percentage
+  status    String   @default("active") // active, completed, dropped
+  
+  enrolledAt DateTime @default(now())
+  completedAt DateTime?
+  
+  @@unique([courseId, userId])
+}
+
+model Homework {
+  id        String   @id @default(uuid())
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  
+  enrollmentId String
+  // Reference to enrollment
+  
+  content   String?
+  files     Json?
+  
+  status    String   @default("pending") // pending, submitted, graded
+  grade     Int?
+  feedback  String?
+  
+  submittedAt DateTime?
+  gradedAt    DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// INTEGRATION & AUDIT
+// ============================================
+
+model SyncLog {
+  id        String   @id @default(uuid())
+  source    String   // 1c, ozon, wb, etc.
+  action    String   // create, update, delete
+  entity    String   // product, order, stock, etc.
+  
+  externalId String?
+  internalId String?
+  
+  status    String   @default("success") // success, error
+  errorMessage String?
+  
+  requestData  Json?
+  responseData Json?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([source])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  endpoint  String
+  
+  response  Json?
+  
+  expiresAt DateTime
+  
+  createdAt DateTime @default(now())
+  
+  @@index([key])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  
+  action    String   // create, update, delete, login, export, etc.
+  entity    String   // order, product, user, etc.
+  entityId  String?
+  
+  oldValue  Json?
+  newValue  Json?
+  
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
