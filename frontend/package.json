@@ -1,0 +1,17 @@
+{
+  "name": "sarkisian-brand-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview"
+  },
+  "dependencies": {
+    "@nuxtjs/google-fonts": "^3.2.0",
+    "@lucide/vue": "^1.46.0",
+    "nuxt": "^3.13.2",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,50 @@
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
+import { LoginDto, RefreshTokenDto, RegisterDto } from './dto/auth.dto';
+
+@Injectable()
+export class AuthService {
+  constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService, private readonly config: ConfigService) {}
+
+  async register(dto: RegisterDto) {
+    const existing = await this.prisma.user.findFirst({ where: { OR: [{ email: dto.email }, ...(dto.phone ? [{ phone: dto.phone }] : [])] } });
+    if (existing) throw new ConflictException('Пользователь с такими данными уже существует');
+    const user = await this.prisma.user.create({ data: { email: dto.email, phone: dto.phone, firstName: dto.firstName, lastName: dto.lastName, password: await bcrypt.hash(dto.password, 12), role: UserRole.CUSTOMER_B2C } });
+    return { user: this.publicUser(user), ...(await this.issueTokens(user.id, user.role)) };
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user || !(await bcrypt.compare(dto.password, user.password))) throw new UnauthorizedException('Неверный email или пароль');
+    return { user: this.publicUser(user), ...(await this.issueTokens(user.id, user.role)) };
+  }
+
+  async refresh(dto: RefreshTokenDto) {
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string; sid: string }>(dto.refreshToken, { secret: this.config.getOrThrow('JWT_REFRESH_SECRET') });
+      const session = await this.prisma.session.findUnique({ where: { id: payload.sid }, include: { user: true } });
+      if (!session || session.expiresAt < new Date() || !(await bcrypt.compare(dto.refreshToken, session.refreshToken))) throw new UnauthorizedException('Refresh-токен недействителен');
+      await this.prisma.session.delete({ where: { id: session.id } });
+      return this.issueTokens(session.user.id, session.user.role);
+    } catch { throw new UnauthorizedException('Refresh-токен недействителен'); }
+  }
+
+  private async issueTokens(userId: string, role: UserRole) {
+    const sid = randomUUID();
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwt.signAsync({ sub: userId, role }, { secret: this.config.getOrThrow('JWT_SECRET'), expiresIn: this.config.get('JWT_EXPIRATION', '15m') }),
+      this.jwt.signAsync({ sub: userId, sid, role }, { secret: this.config.getOrThrow('JWT_REFRESH_SECRET'), expiresIn: this.config.get('JWT_REFRESH_EXPIRATION', '7d') }),
+    ]);
+    await this.prisma.session.create({ data: { id: sid, userId, refreshToken: await bcrypt.hash(refreshToken, 12), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } });
+    return { accessToken, refreshToken };
+  }
+
+  private publicUser(user: { id: string; email: string; phone: string | null; firstName: string | null; lastName: string | null; role: UserRole }) {
+    return { id: user.id, email: user.email, phone: user.phone, firstName: user.firstName, lastName: user.lastName, role: user.role };
+  }
+}

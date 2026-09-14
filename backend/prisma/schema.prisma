@@ -86,6 +86,11 @@ model User {
   tasksCreated  Task[] @relation("CreatedTasks")
   interactions  Interaction[]
   sessions      Session[]
+  managedB2BClients B2BProfile[] @relation("B2BManagerClients")
+  managedOrders Order[] @relation("ManagerOrders")
+  managedLeads Lead[] @relation("ManagerLeads")
+  enrollments Enrollment[]
+  bookings Booking[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,6 +196,7 @@ model ProductVariant {
   price       Decimal  @db.Decimal(15, 2)
   stock       Int      @default(0)
   reserved    Int      @default(0)
+  isActive    Boolean  @default(true)
   
   sku         String   @unique
   
@@ -226,8 +232,10 @@ model Cart {
   id        String   @id @default(uuid())
   userId    String?  @unique
   user      User?    @relation(fields: [userId], references: [id])
+  sessionId String?  @unique
   
   items     CartItem[]
+  currency  Currency @default(RUB)
   total     Decimal  @default(0.00) @db.Decimal(15, 2)
   
   updatedAt DateTime @updatedAt
@@ -430,6 +438,10 @@ model SeoData {
   id          String   @id @default(uuid())
   entityType  String
   entityId    String   @unique
+  categoryId  String?  @unique
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  productId   String?  @unique
+  product     Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
   metaTitle   String?
   metaDesc    String?
   canonical   String?
@@ -464,6 +476,7 @@ model Lesson {
 model Enrollment {
   id        String   @id @default(uuid())
   userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String
   course    Course   @relation(fields: [courseId], references: [id])
   progress  Int      @default(0)
@@ -490,6 +503,7 @@ model Booking {
   serviceId String
   service   Service  @relation(fields: [serviceId], references: [id])
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   startTime DateTime
   endTime   DateTime
   status    String   @default("CONFIRMED")
