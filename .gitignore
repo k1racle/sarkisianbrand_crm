@@ -1,6 +1,7 @@
 ```
 # Dependencies
 node_modules/
+.screenshots/
 
 # Build outputs
 dist/

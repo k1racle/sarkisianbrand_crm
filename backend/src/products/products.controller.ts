@@ -1,5 +1,9 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { CreateCategoryDto, CreateProductDto } from './dto/product.dto';
 import { ProductsService } from './products.service';
 
@@ -23,8 +27,16 @@ export class ProductsController {
   findBySlug(@Param('slug') slug: string) { return this.products.findBySlug(slug); }
 
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'CONTENT_MANAGER')
+  @Permissions('catalog.write')
   create(@Body() dto: CreateProductDto) { return this.products.create(dto); }
 
   @Post('categories')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'CONTENT_MANAGER')
+  @Permissions('catalog.write')
   createCategory(@Body() dto: CreateCategoryDto) { return this.products.createCategory(dto); }
 }

@@ -14,13 +14,60 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  CONTENT_MANAGER
   MANAGER_B2B
   MANAGER_SALES
+  MARKETPLACE_MANAGER
   SUPERVISOR
+  EXECUTIVE
+  IT_SUPPORT
   CURATOR
   WAREHOUSE
   CUSTOMER_B2C
   CUSTOMER_B2B
+}
+
+enum TicketSource {
+  EMPLOYEE
+  B2C
+  B2B
+  SYSTEM
+}
+
+enum TicketStatus {
+  NEW
+  OPEN
+  WAITING_REQUESTER
+  WAITING_INTERNAL
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CustomerStatus {
+  ACTIVE
+  BLOCKED
+  ARCHIVED
+}
+
+enum OrganizationStatus {
+  PROSPECT
+  ACTIVE
+  ON_HOLD
+  ARCHIVED
+}
+
+enum OrganizationMemberRole {
+  OWNER
+  BUYER
+  ACCOUNTANT
+  EMPLOYEE
 }
 
 enum OrderStatus {
@@ -33,6 +80,34 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   REFUNDED
+}
+
+enum OrderSource {
+  WEB
+  B2B
+  WILDBERRIES
+  OZON
+  YANDEX_MARKET
+  MEGAMARKET
+  MANUAL
+  ONE_C
+}
+
+enum MarketplaceChannel {
+  WILDBERRIES
+  OZON
+  YANDEX_MARKET
+  MEGAMARKET
+}
+
+enum MarketplaceOrderStatus {
+  NEW
+  CONFIRMED
+  ASSEMBLING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
 }
 
 enum LeadStatus {
@@ -64,6 +139,20 @@ enum Locale {
   kz
 }
 
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
+enum JobRunStatus {
+  WAITING
+  ACTIVE
+  RETRYING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 // ===================== CORE MODELS =====================
 
 model User {
@@ -74,30 +163,95 @@ model User {
   firstName String?
   lastName  String?
   role      UserRole @default(CUSTOMER_B2C)
-  
-  locale    Locale   @default(ru)
-  country   String?  @default("RU")
-  city      String?
-  
-  b2bProfile    B2BProfile?
-  orders        Order[]
-  cart          Cart?
-  tasksAssigned Task[] @relation("AssignedTasks")
-  tasksCreated  Task[] @relation("CreatedTasks")
-  interactions  Interaction[]
-  sessions      Session[]
-  managedB2BClients B2BProfile[] @relation("B2BManagerClients")
-  managedOrders Order[] @relation("ManagerOrders")
-  managedLeads Lead[] @relation("ManagerLeads")
-  enrollments Enrollment[]
-  bookings Booking[]
-  
+  isActive  Boolean  @default(true)
+
+  locale  Locale  @default(ru)
+  country String? @default("RU")
+  city    String?
+
+  b2bProfile              B2BProfile?
+  orders                  Order[]
+  cart                    Cart?
+  tasksAssigned           Task[]               @relation("AssignedTasks")
+  tasksCreated            Task[]               @relation("CreatedTasks")
+  interactions            Interaction[]
+  sessions                Session[]
+  managedB2BClients       B2BProfile[]         @relation("B2BManagerClients")
+  managedOrders           Order[]              @relation("ManagerOrders")
+  managedLeads            Lead[]               @relation("ManagerLeads")
+  enrollments             Enrollment[]
+  bookings                Booking[]
+  loyaltyAccount          LoyaltyAccount?
+  ticketsRequested        HelpdeskTicket[]     @relation("TicketRequester")
+  ticketsAssigned         HelpdeskTicket[]     @relation("TicketAssignee")
+  ticketComments          HelpdeskComment[]
+  customer                Customer?
+  organizationMemberships OrganizationMember[]
+  managedOrganizations    Organization[]       @relation("OrganizationAccountManager")
+  permissionOverrides     UserPermission[]
+  auditLogs               AuditLog[]           @relation("AuditActor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([email])
   @@index([phone])
   @@index([role])
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  key         String           @unique
+  resource    String
+  action      String
+  description String?
+  roles       RolePermission[]
+  users       UserPermission[]
+  createdAt   DateTime         @default(now())
+
+  @@unique([resource, action])
+  @@index([resource])
+}
+
+model RolePermission {
+  role         UserRole
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([role, permissionId])
+  @@index([permissionId])
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  effect       PermissionEffect @default(ALLOW)
+  scope        Json?
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@index([permissionId])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  actorId       String?
+  actor         User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action        String
+  resource      String
+  resourceId    String?
+  route         String?
+  correlationId String?
+  ipAddress     String?
+  userAgent     String?
+  payload       Json?
+  result        Json?
+  createdAt     DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([resource, createdAt])
+  @@index([createdAt])
 }
 
 model Session {
@@ -112,108 +266,197 @@ model Session {
 }
 
 model B2BProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id])
-  companyName     String?
-  inn             String?  @unique
-  kpp             String?
-  legalAddress    String?
-  managerId       String?
-  manager         User?    @relation("B2BManagerClients", fields: [managerId], references: [id])
-  
-  discountTier   Float     @default(0.0)
-  creditLimit    Decimal   @default(0.00) @db.Decimal(15, 2)
-  isVerified     Boolean   @default(false)
-  
-  orders         Order[]
-  leads          Lead[]
-  
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id])
+  companyName  String?
+  inn          String? @unique
+  kpp          String?
+  legalAddress String?
+  managerId    String?
+  manager      User?   @relation("B2BManagerClients", fields: [managerId], references: [id])
+
+  discountTier Float   @default(0.0)
+  creditLimit  Decimal @default(0.00) @db.Decimal(15, 2)
+  isVerified   Boolean @default(false)
+
+  orders Order[]
+  leads  Lead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id              String         @id @default(uuid())
+  userId          String?        @unique
+  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firstName       String?
+  lastName        String?
+  email           String?
+  phone           String?
+  normalizedEmail String?
+  normalizedPhone String?
+  status          CustomerStatus @default(ACTIVE)
+  segment         String?
+  source          String         @default("WEB")
+
+  externalIdentities      CustomerExternalIdentity[]
+  organizationMemberships OrganizationMember[]
+  orders                  Order[]
+  leads                   Lead[]
+  interactions            Interaction[]
+  helpdeskTickets         HelpdeskTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([normalizedEmail])
+  @@index([normalizedPhone])
+  @@index([status, segment])
+}
+
+model CustomerExternalIdentity {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  provider   String
+  externalId String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([customerId])
+}
+
+model Organization {
+  id               String             @id @default(uuid())
+  name             String
+  legalName        String?
+  inn              String?            @unique
+  kpp              String?
+  legalAddress     String?
+  status           OrganizationStatus @default(PROSPECT)
+  discountTier     Float              @default(0)
+  creditLimit      Decimal            @default(0.00) @db.Decimal(15, 2)
+  accountManagerId String?
+  accountManager   User?              @relation("OrganizationAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+
+  members         OrganizationMember[]
+  orders          Order[]
+  leads           Lead[]
+  helpdeskTickets HelpdeskTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([accountManagerId])
+}
+
+model OrganizationMember {
+  id             String                 @id @default(uuid())
+  organizationId String
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  role           OrganizationMemberRole @default(EMPLOYEE)
+  jobTitle       String?
+  canOrder       Boolean                @default(true)
+  canSeeFinance  Boolean                @default(false)
+  isActive       Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([customerId])
 }
 
 // ===================== CATALOG =====================
 
 model Category {
-  id          String   @id @default(uuid())
-  parentId    String?
-  parent      Category? @relation("CategoryTree", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryTree")
-  
+  id       String     @id @default(uuid())
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
   nameRu      String
   nameEn      String?
-  slug        String   @unique
+  slug        String  @unique
   description Json?
   imageUrl    String?
-  
-  products    ProductCategory[]
-  seo         SeoData?
-  
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
+
+  products ProductCategory[]
+  seo      SeoData?
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
 }
 
 model Product {
-  id          String   @id @default(uuid())
-  sku         String   @unique
-  vendorCode  String?
-  
-  nameRu      String
-  nameEn      String?
+  id         String  @id @default(uuid())
+  sku        String  @unique
+  vendorCode String?
+
+  nameRu        String
+  nameEn        String?
   descriptionRu String?
   descriptionEn String?
-  slug        String   @unique
-  
-  basePrice   Decimal  @db.Decimal(15, 2)
-  currency    Currency @default(RUB)
-  
-  variants    ProductVariant[]
-  categories  ProductCategory[]
-  images      ProductImage[]
-  
-  externalId  String?  @unique
-  isSynced    Boolean  @default(false)
-  
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  seo         SeoData?
-  
+  slug          String  @unique
+
+  basePrice Decimal  @db.Decimal(15, 2)
+  currency  Currency @default(RUB)
+
+  variants   ProductVariant[]
+  categories ProductCategory[]
+  images     ProductImage[]
+
+  externalId String? @unique
+  isSynced   Boolean @default(false)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seo SeoData?
+
   @@index([slug])
   @@index([externalId])
 }
 
 model ProductVariant {
-  id          String   @id @default(uuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  name        String
-  options     Json
-  
-  price       Decimal  @db.Decimal(15, 2)
-  stock       Int      @default(0)
-  reserved    Int      @default(0)
-  isActive    Boolean  @default(true)
-  
-  sku         String   @unique
-  
-  orderItems  OrderItem[]
-  cartItems   CartItem[]
-  
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  name    String
+  options Json
+
+  price    Decimal @db.Decimal(15, 2)
+  stock    Int     @default(0)
+  reserved Int     @default(0)
+  isActive Boolean @default(true)
+
+  sku String @unique
+
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
   @@index([productId])
 }
 
 model ProductCategory {
-  productId String
+  productId  String
   categoryId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  category  Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  isPrimary Boolean  @default(false)
-  
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  isPrimary Boolean @default(false)
+
   @@id([productId, categoryId])
 }
 
@@ -229,182 +472,336 @@ model ProductImage {
 // ===================== CART & ORDERS =====================
 
 model Cart {
-  id        String   @id @default(uuid())
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id])
-  sessionId String?  @unique
-  
-  items     CartItem[]
-  currency  Currency @default(RUB)
-  total     Decimal  @default(0.00) @db.Decimal(15, 2)
-  
+  id        String  @id @default(uuid())
+  userId    String? @unique
+  user      User?   @relation(fields: [userId], references: [id])
+  sessionId String? @unique
+
+  items    CartItem[]
+  currency Currency   @default(RUB)
+  total    Decimal    @default(0.00) @db.Decimal(15, 2)
+
   updatedAt DateTime @updatedAt
 }
 
 model CartItem {
-  id        String   @id @default(uuid())
-  cartId    String
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  cartId String
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
   variantId String
   variant   ProductVariant @relation(fields: [variantId], references: [id])
-  
-  quantity  Int      @default(1)
-  
+
+  quantity Int @default(1)
+
   @@unique([cartId, variantId])
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  orderNumber String      @unique
-  
-  userId      String?
-  user        User?       @relation(fields: [userId], references: [id])
-  
+  id          String @id @default(uuid())
+  orderNumber String @unique
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
   b2bProfileId String?
   b2bProfile   B2BProfile? @relation(fields: [b2bProfileId], references: [id])
-  
-  status      OrderStatus @default(NEW)
-  
-  items       OrderItem[]
-  totalAmount Decimal     @db.Decimal(15, 2)
-  discountAmount Decimal  @default(0.00) @db.Decimal(15, 2)
-  finalAmount Decimal     @db.Decimal(15, 2)
-  currency    Currency    @default(RUB)
-  
-  shippingAddress Json
+
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  status OrderStatus @default(NEW)
+  source OrderSource @default(WEB)
+
+  externalOrderId String?
+  buyerName       String?
+  buyerEmail      String?
+  buyerPhone      String?
+  sourcePayload   Json?
+  deliveryDate    DateTime?
+
+  items          OrderItem[]
+  totalAmount    Decimal     @db.Decimal(15, 2)
+  discountAmount Decimal     @default(0.00) @db.Decimal(15, 2)
+  finalAmount    Decimal     @db.Decimal(15, 2)
+  currency       Currency    @default(RUB)
+
+  shippingAddress  Json
   shippingProvider String?
-  shippingCost    Decimal @default(0.00) @db.Decimal(15, 2)
-  trackingNumber  String?
-  
-  paymentStatus   String  @default("PENDING")
-  paymentMethod   String?
-  
-  sourceChannel   String  @default("WEB")
-  managerId       String?
-  manager         User?   @relation("ManagerOrders", fields: [managerId], references: [id])
-  
-  comments        String?
-  internalNotes   String?
-  
-  externalId      String? @unique
-  isSynced1C      Boolean @default(false)
-  
-  history         OrderStatusHistory[]
-  payments        Payment[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  shippingCost     Decimal @default(0.00) @db.Decimal(15, 2)
+  trackingNumber   String?
+
+  paymentStatus String  @default("PENDING")
+  paymentMethod String?
+
+  sourceChannel String  @default("WEB")
+  managerId     String?
+  manager       User?   @relation("ManagerOrders", fields: [managerId], references: [id])
+
+  comments      String?
+  internalNotes String?
+
+  externalId String? @unique
+  isSynced1C Boolean @default(false)
+
+  history            OrderStatusHistory[]
+  payments           Payment[]
+  helpdeskTickets    HelpdeskTicket[]
+  marketplaceStaging MarketplaceOrder?    @relation("CanonicalMarketplaceOrder")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, externalOrderId])
   @@index([orderNumber])
   @@index([userId])
+  @@index([customerId])
+  @@index([organizationId])
   @@index([status])
+  @@index([source, status])
   @@index([externalId])
 }
 
+model LoyaltyAccount {
+  id        String               @id @default(uuid())
+  userId    String               @unique
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Int                  @default(0)
+  level     String               @default("START")
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  entries   LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id        String         @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount    Int
+  type      String
+  reason    String
+  orderId   String?
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+model MarketplaceOrder {
+  id               String                 @id @default(uuid())
+  channel          MarketplaceChannel
+  externalId       String
+  status           MarketplaceOrderStatus @default(NEW)
+  buyerName        String?
+  buyerEmail       String?
+  buyerPhone       String?
+  buyerExternalId  String?
+  totalAmount      Decimal                @db.Decimal(15, 2)
+  currency         Currency               @default(RUB)
+  deliveryDate     DateTime?
+  trackingNumber   String?
+  items            Json
+  payload          Json?
+  internalNote     String?
+  canonicalOrderId String?                @unique
+  canonicalOrder   Order?                 @relation("CanonicalMarketplaceOrder", fields: [canonicalOrderId], references: [id], onDelete: SetNull)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@unique([channel, externalId])
+  @@index([channel, status])
+  @@index([createdAt])
+}
+
+model MarketplaceIntegration {
+  id          String             @id @default(uuid())
+  channel     MarketplaceChannel @unique
+  shopName    String?
+  isActive    Boolean            @default(false)
+  credentials Json?
+  lastSyncAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
 model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
-  
-  productName   String
-  variantName   String
-  price         Decimal  @db.Decimal(15, 2)
-  quantity      Int
-  total         Decimal  @db.Decimal(15, 2)
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  externalSku String?
+  offerId     String?
+
+  productName String
+  variantName String
+  price       Decimal @db.Decimal(15, 2)
+  quantity    Int
+  total       Decimal @db.Decimal(15, 2)
 }
 
 model OrderStatusHistory {
-  id        String      @id @default(uuid())
-  orderId   String
-  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   fromStatus OrderStatus?
   toStatus   OrderStatus
   comment    String?
   changedBy  String?
-  
-  createdAt DateTime    @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 model Payment {
-  id            String   @id @default(uuid())
-  orderId       String
-  order         Order    @relation(fields: [orderId], references: [id])
-  
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
   amount        Decimal  @db.Decimal(15, 2)
   currency      Currency @default(RUB)
   provider      String
   transactionId String?  @unique
   status        String
   metadata      Json?
-  
-  createdAt     DateTime @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 // ===================== CRM =====================
 
 model Lead {
-  id          String     @id @default(uuid())
-  b2bProfileId String?
-  b2bProfile   B2BProfile? @relation(fields: [b2bProfileId], references: [id])
-  
-  source      String
-  status      LeadStatus @default(NEW)
-  
-  contactName String
+  id             String        @id @default(uuid())
+  b2bProfileId   String?
+  b2bProfile     B2BProfile?   @relation(fields: [b2bProfileId], references: [id])
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  source String
+  status LeadStatus @default(NEW)
+
+  contactName  String
   contactPhone String
   contactEmail String?
-  message     String?
-  
-  managerId   String?
-  manager     User?      @relation("ManagerLeads", fields: [managerId], references: [id])
-  
+  message      String?
+
+  managerId String?
+  manager   User?   @relation("ManagerLeads", fields: [managerId], references: [id])
+
   interactions Interaction[]
   tasks        Task[]
-  
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([organizationId])
 }
 
 model Interaction {
-  id        String   @id @default(uuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  leadId    String?
-  lead      Lead?    @relation(fields: [leadId], references: [id])
-  
-  type      String
-  content   String
-  metadata  Json?
-  
+  id         String    @id @default(uuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  leadId     String?
+  lead       Lead?     @relation(fields: [leadId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  type     String
+  content  String
+  metadata Json?
+
   createdAt DateTime @default(now())
+
+  @@index([customerId])
 }
 
 model Task {
-  id          String     @id @default(uuid())
+  id          String  @id @default(uuid())
   title       String
   description String?
-  
-  status      TaskStatus @default(TODO)
-  priority    String     @default("MEDIUM")
-  
-  dueDate     DateTime?
-  
+
+  status   TaskStatus @default(TODO)
+  priority String     @default("MEDIUM")
+
+  dueDate DateTime?
+
   assignedToId String
-  assignedTo   User       @relation("AssignedTasks", fields: [assignedToId], references: [id])
-  
-  createdById  String
-  createdBy    User       @relation("CreatedTasks", fields: [createdById], references: [id])
-  
-  leadId      String?
-  lead        Lead?      @relation(fields: [leadId], references: [id])
-  
-  createdAt   DateTime   @default(now())
+  assignedTo   User   @relation("AssignedTasks", fields: [assignedToId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("CreatedTasks", fields: [createdById], references: [id])
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  createdAt   DateTime  @default(now())
   completedAt DateTime?
+}
+
+// ===================== HELPDESK =====================
+
+model HelpdeskTicket {
+  id          String         @id @default(uuid())
+  number      String         @unique
+  subject     String
+  description String
+  source      TicketSource
+  status      TicketStatus   @default(NEW)
+  priority    TicketPriority @default(MEDIUM)
+  queue       String         @default("Первая линия")
+
+  requesterUserId String?
+  requesterUser   User?   @relation("TicketRequester", fields: [requesterUserId], references: [id])
+  requesterName   String?
+  requesterEmail  String?
+
+  assignedToId String?
+  assignedTo   User?   @relation("TicketAssignee", fields: [assignedToId], references: [id])
+
+  orderId         String?
+  order           Order?        @relation(fields: [orderId], references: [id])
+  organizationRef String?
+  customerId      String?
+  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  affectedService String?
+
+  firstResponseDueAt DateTime?
+  resolutionDueAt    DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+
+  comments  HelpdeskComment[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([status, priority])
+  @@index([queue, assignedToId])
+  @@index([requesterUserId])
+  @@index([customerId])
+  @@index([organizationId])
+  @@index([createdAt])
+}
+
+model HelpdeskComment {
+  id         String         @id @default(uuid())
+  ticketId   String
+  ticket     HelpdeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     User?          @relation(fields: [authorId], references: [id])
+  body       String
+  isInternal Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+
+  @@index([ticketId, createdAt])
 }
 
 // ===================== INTEGRATIONS =====================
@@ -417,85 +814,110 @@ model SyncLog {
   message   String?
   details   Json?
   createdAt DateTime @default(now())
-  
+
   @@index([system])
   @@index([createdAt])
 }
 
+model JobRun {
+  id            String       @id @default(uuid())
+  queueName     String
+  jobName       String
+  externalJobId String?      @unique
+  status        JobRunStatus @default(WAITING)
+  progress      Int          @default(0)
+  attempts      Int          @default(0)
+  maxAttempts   Int          @default(4)
+  input         Json?
+  result        Json?
+  error         String?
+  correlationId String       @default(uuid())
+  initiatedById String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  nextRetryAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status, createdAt])
+  @@index([queueName, jobName])
+  @@index([correlationId])
+}
+
 model IdempotencyKey {
-  key        String   @id
-  requestId  String
-  response   Json?
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  
+  key       String   @id
+  requestId String
+  response  Json?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
   @@index([expiresAt])
 }
 
 // ===================== SEO =====================
 
 model SeoData {
-  id          String   @id @default(uuid())
-  entityType  String
-  entityId    String   @unique
-  categoryId  String?  @unique
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  productId   String?  @unique
-  product     Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
-  metaTitle   String?
-  metaDesc    String?
-  canonical   String?
-  ogImage     String?
-  
-  updatedAt   DateTime @updatedAt
+  id         String    @id @default(uuid())
+  entityType String
+  entityId   String    @unique
+  categoryId String?   @unique
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  productId  String?   @unique
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  metaTitle  String?
+  metaDesc   String?
+  canonical  String?
+  ogImage    String?
+
+  updatedAt DateTime @updatedAt
 }
 
 // ===================== LMS =====================
 
 model Course {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   titleRu     String
   titleEn     String?
   description Json?
-  price       Decimal  @db.Decimal(15, 2)
-  isActive    Boolean  @default(true)
+  price       Decimal      @db.Decimal(15, 2)
+  isActive    Boolean      @default(true)
   lessons     Lesson[]
   enrollments Enrollment[]
 }
 
 model Lesson {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
+  course    Course  @relation(fields: [courseId], references: [id])
   title     String
   videoUrl  String?
   content   String?
-  sortOrder Int      @default(0)
+  sortOrder Int     @default(0)
 }
 
 model Enrollment {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
-  progress  Int      @default(0)
-  isCompleted Boolean @default(false)
-  certificateIssued Boolean @default(false)
-  enrolledAt DateTime @default(now())
-  
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId          String
+  course            Course   @relation(fields: [courseId], references: [id])
+  progress          Int      @default(0)
+  isCompleted       Boolean  @default(false)
+  certificateIssued Boolean  @default(false)
+  enrolledAt        DateTime @default(now())
+
   @@unique([userId, courseId])
 }
 
 // ===================== BOOKING =====================
 
 model Service {
-  id        String   @id @default(uuid())
-  titleRu   String
-  duration  Int
-  price     Decimal  @db.Decimal(15, 2)
-  isActive  Boolean  @default(true)
-  bookings  Booking[]
+  id       String    @id @default(uuid())
+  titleRu  String
+  duration Int
+  price    Decimal   @db.Decimal(15, 2)
+  isActive Boolean   @default(true)
+  bookings Booking[]
 }
 
 model Booking {

@@ -640,6 +640,18 @@ const _inlineRuntimeConfig = {
       "/__nuxt_error": {
         "cache": false
       },
+      "/admin": {
+        "redirect": {
+          "to": "/admin-workspace",
+          "statusCode": 307
+        }
+      },
+      "/marketplaces": {
+        "redirect": {
+          "to": "/crm-marketplaces",
+          "statusCode": 307
+        }
+      },
       "/_nuxt/builds/meta/**": {
         "headers": {
           "cache-control": "public, max-age=31536000, immutable"

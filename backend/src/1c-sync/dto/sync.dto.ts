@@ -1,4 +1,5 @@
-import { IsArray, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 export class OneCProductDto {
   @IsString() externalId!: string;
@@ -10,5 +11,8 @@ export class OneCProductDto {
 }
 
 export class OneCProductsSyncDto {
-  @IsArray() products!: OneCProductDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OneCProductDto)
+  products!: OneCProductDto[];
 }

@@ -8,7 +8,7 @@ export class CrmService {
 
   async dashboard() {
     const [customers, openLeads, activeTasks, orders] = await this.prisma.$transaction([
-      this.prisma.user.count(),
+      this.prisma.customer.count(),
       this.prisma.lead.count({ where: { status: { notIn: ['WON', 'LOST'] } } }),
       this.prisma.task.count({ where: { status: { not: 'DONE' } } }),
       this.prisma.order.count(),
@@ -16,16 +16,26 @@ export class CrmService {
     return { customers, openLeads, activeTasks, orders };
   }
 
-  customers() {
-    return this.prisma.user.findMany({ select: { id: true, email: true, phone: true, firstName: true, lastName: true, role: true, createdAt: true, b2bProfile: true, _count: { select: { orders: true, interactions: true } } }, orderBy: { createdAt: 'desc' } });
+  async customers() {
+    const customers = await this.prisma.customer.findMany({ include: { user: { select: { role: true } }, organizationMemberships: { where: { isActive: true }, include: { organization: true } }, _count: { select: { orders: true, interactions: true } } }, orderBy: { createdAt: 'desc' } });
+    return customers.map(({ user, organizationMemberships, ...customer }) => ({ ...customer, role: user?.role || 'CUSTOMER_B2C', b2bProfile: organizationMemberships[0]?.organization || null }));
   }
 
   leads() {
-    return this.prisma.lead.findMany({ include: { b2bProfile: true, manager: { select: { id: true, firstName: true, lastName: true, email: true } }, interactions: true, tasks: true }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.lead.findMany({ include: { b2bProfile: true, customer: true, organization: true, manager: { select: { id: true, firstName: true, lastName: true, email: true } }, interactions: true, tasks: true }, orderBy: { createdAt: 'desc' } });
   }
 
-  createLead(dto: CreateLeadDto) {
-    return this.prisma.lead.create({ data: { source: dto.source, contactName: dto.contactName, contactPhone: dto.contactPhone, contactEmail: dto.contactEmail, message: dto.message, status: dto.status, managerId: dto.managerId } });
+  async createLead(dto: CreateLeadDto) {
+    const normalizedEmail = dto.contactEmail?.trim().toLowerCase() || null;
+    const normalizedPhone = dto.contactPhone.replace(/\D/g, '') || null;
+    return this.prisma.$transaction(async (tx) => {
+      let customer = await tx.customer.findFirst({ where: { OR: [normalizedEmail ? { normalizedEmail } : {}, normalizedPhone ? { normalizedPhone } : {}].filter((item) => Object.keys(item).length) } });
+      if (!customer) {
+        const names = dto.contactName.trim().split(/\s+/);
+        customer = await tx.customer.create({ data: { firstName: names.shift() || dto.contactName, lastName: names.join(' ') || null, email: dto.contactEmail, phone: dto.contactPhone, normalizedEmail, normalizedPhone, segment: 'Лид', source: dto.source } });
+      }
+      return tx.lead.create({ data: { source: dto.source, contactName: dto.contactName, contactPhone: dto.contactPhone, contactEmail: dto.contactEmail, message: dto.message, status: dto.status, managerId: dto.managerId, customerId: customer.id } });
+    });
   }
 
   tasks() {

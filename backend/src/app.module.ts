@@ -13,6 +13,17 @@ import { OneCSyncModule } from './1c-sync/1c-sync.module';
 import { SeoModule } from './seo/seo.module';
 import { AdminModule } from './admin/admin.module';
 import { B2BModule } from './b2b/b2b.module';
+import { MarketplacesModule } from './marketplaces/marketplaces.module';
+import { LoyaltyModule } from './loyalty/loyalty.module';
+import { HelpdeskModule } from './helpdesk/helpdesk.module';
+import { LeadershipModule } from './leadership/leadership.module';
+import { Customer360Module } from './customer360/customer360.module';
+import { OmsModule } from './oms/oms.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditModule } from './audit/audit.module';
+import { AuditInterceptor } from './audit/audit.interceptor';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
+import { BackgroundJobsModule } from './background-jobs/background-jobs.module';
 
 @Module({
   imports: [
@@ -31,6 +42,7 @@ import { B2BModule } from './b2b/b2b.module';
     ]),
     
     PrismaModule,
+    BackgroundJobsModule,
     AuthModule,
     CartModule,
     OrdersModule,
@@ -42,6 +54,15 @@ import { B2BModule } from './b2b/b2b.module';
     AdminModule,
     B2BModule,
     ProductsModule,
+    MarketplacesModule,
+    LoyaltyModule,
+    HelpdeskModule,
+    LeadershipModule,
+    Customer360Module,
+    OmsModule,
+    AuditModule,
+    SystemSettingsModule,
   ],
+  providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })
 export class AppModule {}

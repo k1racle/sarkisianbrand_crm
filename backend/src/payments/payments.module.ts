@@ -3,6 +3,7 @@ import { PaymentsController } from './payments.controller';
 import { PaymentGateway } from './payment-gateway';
 import { PaymentsService } from './payments.service';
 import { YooKassaGateway } from './yookassa.gateway';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
-@Module({ controllers: [PaymentsController], providers: [PaymentsService, YooKassaGateway, { provide: PaymentGateway, useExisting: YooKassaGateway }] })
+@Module({ imports: [LoyaltyModule], controllers: [PaymentsController], providers: [PaymentsService, YooKassaGateway, { provide: PaymentGateway, useExisting: YooKassaGateway }] })
 export class PaymentsModule {}

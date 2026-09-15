@@ -14,6 +14,13 @@ type HydrationStrategies = {
 type LazyComponent<T> = DefineComponent<HydrationStrategies, {}, {}, {}, {}, {}, {}, { hydrated: () => void }> & T
 
 
+export const AdminNewProduct: typeof import("../components/AdminNewProduct.vue")['default']
+export const AdminOrderDrawer: typeof import("../components/AdminOrderDrawer.vue")['default']
+export const AdminProductEditor: typeof import("../components/AdminProductEditor.vue")['default']
+export const ConsoleRail: typeof import("../components/ConsoleRail.vue")['default']
+export const MarketplaceRail: typeof import("../components/MarketplaceRail.vue")['default']
+export const WorkspaceContextMenu: typeof import("../components/WorkspaceContextMenu.vue")['default']
+export const WorkspaceLoading: typeof import("../components/WorkspaceLoading.vue")['default']
 export const NuxtWelcome: typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']
 export const NuxtLayout: typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
 export const NuxtErrorBoundary: typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -37,6 +44,13 @@ export const Head: typeof import("../node_modules/nuxt/dist/head/runtime/compone
 export const Html: typeof import("../node_modules/nuxt/dist/head/runtime/components")['Html']
 export const Body: typeof import("../node_modules/nuxt/dist/head/runtime/components")['Body']
 export const NuxtIsland: typeof import("../node_modules/nuxt/dist/app/components/nuxt-island")['default']
+export const LazyAdminNewProduct: LazyComponent<typeof import("../components/AdminNewProduct.vue")['default']>
+export const LazyAdminOrderDrawer: LazyComponent<typeof import("../components/AdminOrderDrawer.vue")['default']>
+export const LazyAdminProductEditor: LazyComponent<typeof import("../components/AdminProductEditor.vue")['default']>
+export const LazyConsoleRail: LazyComponent<typeof import("../components/ConsoleRail.vue")['default']>
+export const LazyMarketplaceRail: LazyComponent<typeof import("../components/MarketplaceRail.vue")['default']>
+export const LazyWorkspaceContextMenu: LazyComponent<typeof import("../components/WorkspaceContextMenu.vue")['default']>
+export const LazyWorkspaceLoading: LazyComponent<typeof import("../components/WorkspaceLoading.vue")['default']>
 export const LazyNuxtWelcome: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
 export const LazyNuxtLayout: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
 export const LazyNuxtErrorBoundary: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>
