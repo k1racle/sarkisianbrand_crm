@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ShieldX,
   Tags,
+  Trash2,
   X,
 } from "@lucide/vue";
 import type {
@@ -29,6 +30,7 @@ const icons: Record<ContextMenuIcon, any> = {
   copy: Clipboard,
   refresh: RefreshCw,
   archive: Archive,
+  trash: Trash2,
   block: ShieldX,
   status: Tags,
   external: ExternalLink,

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,6 +23,15 @@ export class ProductsController {
 
   @Get('categories')
   categories() { return this.products.categories(); }
+
+  @Get('storefront-content')
+  storefrontContent() { return this.products.storefrontContent(); }
+
+  @Get('storefront-media/:fileName')
+  async storefrontMedia(@Param('fileName') fileName: string, @Res() response: Response) {
+    const media = await this.products.storefrontMedia(fileName);
+    response.type(media.contentType).send(media.buffer);
+  }
 
   @Get(':slug')
   findBySlug(@Param('slug') slug: string) { return this.products.findBySlug(slug); }

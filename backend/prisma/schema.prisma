@@ -70,6 +70,19 @@ enum OrganizationMemberRole {
   EMPLOYEE
 }
 
+enum B2BClientStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum B2BBookingStatus {
+  NEW
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum OrderStatus {
   NEW
   CONFIRMED
@@ -120,10 +133,25 @@ enum LeadStatus {
 }
 
 enum TaskStatus {
+  BACKLOG
   TODO
   IN_PROGRESS
+  REVIEW
   DONE
   OVERDUE
+  CANCELLED
+}
+
+enum CrmChatType {
+  TEAM
+  PRIVATE
+}
+
+enum PlatformChatAttachmentKind {
+  FILE
+  IMAGE
+  AUDIO
+  ENTITY
 }
 
 enum Currency {
@@ -139,6 +167,33 @@ enum Locale {
   kz
 }
 
+enum ProfileChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DataEntityType {
+  USER
+  CUSTOMER
+  ORGANIZATION
+  PRODUCT
+  CATEGORY
+  LEAD
+  TASK
+  HELPDESK_TICKET
+  B2B_CLIENT
+  B2B_SERVICE
+  BOT_COMMAND
+}
+
+enum TrashEntryStatus {
+  TRASHED
+  RESTORED
+  PURGED
+}
+
 enum PermissionEffect {
   ALLOW
   DENY
@@ -151,6 +206,45 @@ enum JobRunStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum IntegrationCategory {
+  MARKETPLACE
+  DELIVERY
+  ERP
+  PAYMENT
+  FISCAL
+  COMMUNICATION
+  BOT
+}
+
+enum IntegrationStatus {
+  NOT_CONFIGURED
+  DISABLED
+  CONFIGURED
+  CONNECTED
+  ERROR
+}
+
+enum IntegrationEnvironment {
+  TEST
+  PRODUCTION
+}
+
+enum BotAudience {
+  EMPLOYEE
+  B2C
+  B2B
+}
+
+enum BotEventStatus {
+  RECEIVED
+  QUEUED
+  PROCESSING
+  REQUIRES_AUTH
+  COMPLETED
+  IGNORED
+  FAILED
 }
 
 // ===================== CORE MODELS =====================
@@ -168,17 +262,30 @@ model User {
   locale  Locale  @default(ru)
   country String? @default("RU")
   city    String?
+  timezone               String   @default("Europe/Moscow")
+  avatarStorageKey       String?
+  notificationPreferences Json?
+  forcePasswordChange    Boolean  @default(false)
+  passwordChangedAt      DateTime?
 
   b2bProfile              B2BProfile?
   orders                  Order[]
   cart                    Cart?
   tasksAssigned           Task[]               @relation("AssignedTasks")
   tasksCreated            Task[]               @relation("CreatedTasks")
+  taskTemplatesAssigned   CrmTaskTemplate[]    @relation("TaskTemplateAssignee")
+  taskTemplatesCreated    CrmTaskTemplate[]    @relation("TaskTemplateCreator")
+  taskReminders           CrmTaskReminder[]    @relation("TaskReminderRecipient")
   interactions            Interaction[]
   sessions                Session[]
   managedB2BClients       B2BProfile[]         @relation("B2BManagerClients")
   managedOrders           Order[]              @relation("ManagerOrders")
   managedLeads            Lead[]               @relation("ManagerLeads")
+  createdLeads            Lead[]               @relation("CrmLeadCreator")
+  taskComments            CrmTaskComment[]
+  crmChannelsCreated      CrmChatChannel[]     @relation("CrmChannelCreator")
+  crmChatMemberships      CrmChatMember[]
+  crmChatMessages         CrmChatMessage[]     @relation("CrmMessageAuthor")
   enrollments             Enrollment[]
   bookings                Booking[]
   loyaltyAccount          LoyaltyAccount?
@@ -190,6 +297,15 @@ model User {
   managedOrganizations    Organization[]       @relation("OrganizationAccountManager")
   permissionOverrides     UserPermission[]
   auditLogs               AuditLog[]           @relation("AuditActor")
+  botIdentities           BotIdentity[]
+  profileChangeRequests   ProfileChangeRequest[] @relation("ProfileChangeRequester")
+  profileChangeReviews    ProfileChangeRequest[] @relation("ProfileChangeReviewer")
+  passwordResetTokens     PasswordResetToken[]   @relation("PasswordResetOwner")
+  passwordResetsCreated   PasswordResetToken[]   @relation("PasswordResetCreator")
+  dataTrashActions        DataTrashEntry[]        @relation("DataTrashActor")
+  storefrontAddresses     StorefrontAddress[]
+  productFavorites        ProductFavorite[]
+  socialLoginTickets      SocialLoginTicket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -197,6 +313,88 @@ model User {
   @@index([email])
   @@index([phone])
   @@index([role])
+}
+
+model ProfileChangeRequest {
+  id              String              @id @default(uuid())
+  userId          String
+  user            User                @relation("ProfileChangeRequester", fields: [userId], references: [id], onDelete: Cascade)
+  requestedData   Json
+  status          ProfileChangeStatus @default(PENDING)
+  reviewedById    String?
+  reviewedBy      User?               @relation("ProfileChangeReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewComment   String?
+  reviewedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation("PasswordResetOwner", fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdById String?
+  createdBy   User?     @relation("PasswordResetCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, usedAt])
+}
+
+model OAuthLoginState {
+  id           String    @id @default(uuid())
+  stateHash    String    @unique
+  provider     String
+  codeVerifier String?
+  returnUrl    String    @default("/account")
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([provider, expiresAt])
+  @@index([expiresAt, usedAt])
+}
+
+model SocialLoginTicket {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, usedAt])
+}
+
+model DataTrashEntry {
+  id                String           @id @default(uuid())
+  entityType        DataEntityType
+  entityId          String
+  displayName       String
+  snapshot          Json
+  previousState     Json
+  dependencySummary Json
+  status            TrashEntryStatus @default(TRASHED)
+  reason            String?
+  actorId           String?
+  actor             User?            @relation("DataTrashActor", fields: [actorId], references: [id], onDelete: SetNull)
+  trashedAt         DateTime          @default(now())
+  purgeAfter        DateTime
+  restoredAt        DateTime?
+  purgedAt          DateTime?
+  updatedAt         DateTime          @updatedAt
+
+  @@index([status, purgeAfter])
+  @@index([entityType, entityId, status])
+  @@index([actorId, trashedAt])
 }
 
 model Permission {
@@ -307,6 +505,8 @@ model Customer {
   leads                   Lead[]
   interactions            Interaction[]
   helpdeskTickets         HelpdeskTicket[]
+  botIdentities           BotIdentity[]
+  tasks                   Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -342,11 +542,18 @@ model Organization {
   creditLimit      Decimal            @default(0.00) @db.Decimal(15, 2)
   accountManagerId String?
   accountManager   User?              @relation("OrganizationAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  external1CId     String?            @unique
+  lastSync1CAt     DateTime?
 
-  members         OrganizationMember[]
-  orders          Order[]
-  leads           Lead[]
-  helpdeskTickets HelpdeskTicket[]
+  members          OrganizationMember[]
+  orders           Order[]
+  leads            Lead[]
+  helpdeskTickets  HelpdeskTicket[]
+  botIdentities    BotIdentity[]
+  businessClients  B2BClient[]
+  businessServices B2BService[]
+  businessBookings B2BBooking[]
+  tasks            Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -356,24 +563,93 @@ model Organization {
 }
 
 model OrganizationMember {
-  id             String                 @id @default(uuid())
-  organizationId String
-  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  customerId     String?
-  customer       Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  role           OrganizationMemberRole @default(EMPLOYEE)
-  jobTitle       String?
-  canOrder       Boolean                @default(true)
-  canSeeFinance  Boolean                @default(false)
-  isActive       Boolean                @default(true)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  id               String                 @id @default(uuid())
+  organizationId   String
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId       String?
+  customer         Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  role             OrganizationMemberRole @default(EMPLOYEE)
+  jobTitle         String?
+  canOrder         Boolean                @default(true)
+  canSeeFinance    Boolean                @default(false)
+  isActive         Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  assignedBookings B2BBooking[]           @relation("B2BBookingMaster")
 
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([customerId])
+}
+
+model B2BClient {
+  id                    String          @id @default(uuid())
+  organizationId        String
+  organization          Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firstName             String
+  lastName              String?
+  phone                 String?
+  email                 String?
+  birthday              DateTime?
+  notes                 String?
+  tags                  String[]        @default([])
+  source                String          @default("MANUAL")
+  status                B2BClientStatus @default(ACTIVE)
+  consentPersonalDataAt DateTime?
+  lastVisitAt           DateTime?
+  totalVisits           Int             @default(0)
+  totalSpent            Decimal         @default(0.00) @db.Decimal(15, 2)
+  bookings              B2BBooking[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+  @@index([organizationId, lastVisitAt])
+}
+
+model B2BService {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  duration       Int
+  price          Decimal      @db.Decimal(15, 2)
+  color          String       @default("#f8604a")
+  isActive       Boolean      @default(true)
+  bookings       B2BBooking[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, isActive])
+}
+
+model B2BBooking {
+  id             String              @id @default(uuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         B2BClient           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  serviceId      String
+  service        B2BService          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  masterMemberId String?
+  masterMember   OrganizationMember? @relation("B2BBookingMaster", fields: [masterMemberId], references: [id], onDelete: SetNull)
+  startTime      DateTime
+  endTime        DateTime
+  status         B2BBookingStatus    @default(NEW)
+  notes          String?
+  reminderSentAt DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([organizationId, startTime])
+  @@index([organizationId, status])
+  @@index([clientId, startTime])
+  @@index([masterMemberId, startTime])
 }
 
 // ===================== CATALOG =====================
@@ -397,6 +673,30 @@ model Category {
   sortOrder Int     @default(0)
 }
 
+model StorefrontSetting {
+  key              String   @id @default("main")
+  announcementText String   @default("SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян")
+  updatedAt        DateTime @updatedAt
+}
+
+model StorefrontBanner {
+  id             String   @id @default(uuid())
+  title          String?
+  subtitle       String?
+  buttonLabel    String?  @default("Перейти в каталог")
+  linkUrl        String?  @default("/catalog")
+  imageUrl       String
+  mobileImageUrl String?
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 model Product {
   id         String  @id @default(uuid())
   sku        String  @unique
@@ -414,6 +714,7 @@ model Product {
   variants   ProductVariant[]
   categories ProductCategory[]
   images     ProductImage[]
+  favorites  ProductFavorite[]
 
   externalId String? @unique
   isSynced   Boolean @default(false)
@@ -467,6 +768,37 @@ model ProductImage {
   url       String
   alt       String?
   sortOrder Int     @default(0)
+}
+
+model ProductFavorite {
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, productId])
+  @@index([productId])
+  @@index([userId, createdAt])
+}
+
+model StorefrontAddress {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String   @default("Основной")
+  recipientName String
+  phone         String
+  city          String
+  street        String
+  house         String
+  apartment     String?
+  postalCode    String?
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, isDefault])
 }
 
 // ===================== CART & ORDERS =====================
@@ -543,13 +875,21 @@ model Order {
   comments      String?
   internalNotes String?
 
-  externalId String? @unique
-  isSynced1C Boolean @default(false)
+  externalId          String?   @unique
+  isSynced1C          Boolean   @default(false)
+  oneCStatus          String?
+  oneCSyncAt          DateTime?
+  oneCSyncError       String?
+  warehouseDocumentId String?
+  pickingStartedAt    DateTime?
+  pickedAt            DateTime?
+  packedAt            DateTime?
 
   history            OrderStatusHistory[]
   payments           Payment[]
   helpdeskTickets    HelpdeskTicket[]
   marketplaceStaging MarketplaceOrder?    @relation("CanonicalMarketplaceOrder")
+  tasks              Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -562,6 +902,8 @@ model Order {
   @@index([status])
   @@index([source, status])
   @@index([externalId])
+  @@index([isSynced1C, source])
+  @@index([warehouseDocumentId])
 }
 
 model LoyaltyAccount {
@@ -626,6 +968,107 @@ model MarketplaceIntegration {
   updatedAt   DateTime           @updatedAt
 }
 
+model EcosystemIntegration {
+  id                   String                 @id @default(uuid())
+  key                  String                 @unique
+  provider             String
+  name                 String
+  category             IntegrationCategory
+  audience             BotAudience?
+  description          String?
+  documentationUrl     String?
+  isEnabled            Boolean                @default(false)
+  environment          IntegrationEnvironment @default(TEST)
+  status               IntegrationStatus      @default(NOT_CONFIGURED)
+  config               Json?
+  encryptedSecrets     String?
+  configuredSecretKeys String[]               @default([])
+  lastTestAt           DateTime?
+  lastTestMessage      String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  botEvents            BotWebhookEvent[]
+
+  @@index([category, isEnabled])
+  @@index([provider, audience])
+  @@index([status])
+}
+
+model BotCommand {
+  id               String            @id @default(uuid())
+  slug             String            @unique
+  command          String
+  title            String
+  description      String?
+  audiences        BotAudience[]
+  channels         String[]
+  handlerKey       String
+  responseTemplate String?
+  requiresAuth     Boolean           @default(true)
+  isEnabled        Boolean           @default(true)
+  sortOrder        Int               @default(100)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  events           BotWebhookEvent[]
+
+  @@index([isEnabled, sortOrder])
+}
+
+model BotIdentity {
+  id             String        @id @default(uuid())
+  provider       String
+  audience       BotAudience
+  externalUserId String
+  externalChatId String?
+  displayName    String?
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  isVerified     Boolean       @default(false)
+  metadata       Json?
+  verifiedAt     DateTime?
+  lastSeenAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([provider, audience, externalUserId])
+  @@index([userId])
+  @@index([customerId])
+  @@index([organizationId])
+  @@index([provider, audience, isVerified])
+}
+
+model BotWebhookEvent {
+  id              String               @id @default(uuid())
+  integrationId   String
+  integration     EcosystemIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  provider        String
+  audience        BotAudience
+  externalEventId String
+  externalUserId  String?
+  externalChatId  String?
+  eventType       String?
+  commandText     String?
+  commandId       String?
+  command         BotCommand?          @relation(fields: [commandId], references: [id], onDelete: SetNull)
+  status          BotEventStatus       @default(RECEIVED)
+  payload         Json
+  responseText    String?
+  error           String?
+  receivedAt      DateTime             @default(now())
+  processedAt     DateTime?
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([integrationId, externalEventId])
+  @@index([status, receivedAt])
+  @@index([provider, audience, receivedAt])
+  @@index([externalUserId])
+  @@index([commandId])
+}
+
 model OrderItem {
   id      String @id @default(uuid())
   orderId String
@@ -674,6 +1117,39 @@ model Payment {
 
 // ===================== CRM =====================
 
+model CrmPipeline {
+  id             String             @id @default(uuid())
+  name           String             @unique
+  isDefault      Boolean            @default(false)
+  isActive       Boolean            @default(true)
+  requiredFields String[]           @default([])
+  lostReasons    String[]           @default([])
+  stages         CrmPipelineStage[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([isActive, isDefault])
+}
+
+model CrmPipelineStage {
+  id          String      @id @default(uuid())
+  pipelineId  String
+  pipeline    CrmPipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name        String
+  code        String
+  color       String      @default("#f8604a")
+  sortOrder   Int         @default(0)
+  probability Int         @default(0)
+  isWon       Boolean     @default(false)
+  isLost      Boolean     @default(false)
+  leads       Lead[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([pipelineId, code])
+  @@index([pipelineId, sortOrder])
+}
+
 model Lead {
   id             String        @id @default(uuid())
   b2bProfileId   String?
@@ -683,16 +1159,28 @@ model Lead {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  source String
-  status LeadStatus @default(NEW)
+  source  String
+  status  LeadStatus        @default(NEW)
+  stageId String?
+  stage   CrmPipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
 
-  contactName  String
-  contactPhone String
-  contactEmail String?
-  message      String?
+  title           String?
+  contactName     String
+  contactPhone    String
+  contactEmail    String?
+  message         String?
+  amount          Decimal   @default(0.00) @db.Decimal(15, 2)
+  probability     Int       @default(0)
+  expectedCloseAt DateTime?
+  nextContactAt   DateTime?
+  lostReason      String?
+  tags            String[]  @default([])
+  closedAt        DateTime?
 
-  managerId String?
-  manager   User?   @relation("ManagerLeads", fields: [managerId], references: [id])
+  managerId   String?
+  manager     User?   @relation("ManagerLeads", fields: [managerId], references: [id])
+  createdById String?
+  createdBy   User?   @relation("CrmLeadCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   interactions Interaction[]
   tasks        Task[]
@@ -702,6 +1190,8 @@ model Lead {
 
   @@index([customerId])
   @@index([organizationId])
+  @@index([stageId, managerId])
+  @@index([expectedCloseAt])
 }
 
 model Interaction {
@@ -729,8 +1219,13 @@ model Task {
 
   status   TaskStatus @default(TODO)
   priority String     @default("MEDIUM")
+  progress Int        @default(0)
+  position Int        @default(0)
+  labels   String[]   @default([])
 
-  dueDate DateTime?
+  startDate       DateTime?
+  dueDate         DateTime?
+  estimateMinutes Int?
 
   assignedToId String
   assignedTo   User   @relation("AssignedTasks", fields: [assignedToId], references: [id])
@@ -738,11 +1233,150 @@ model Task {
   createdById String
   createdBy   User   @relation("CreatedTasks", fields: [createdById], references: [id])
 
-  leadId String?
-  lead   Lead?   @relation(fields: [leadId], references: [id])
+  leadId         String?
+  lead           Lead?             @relation(fields: [leadId], references: [id])
+  customerId     String?
+  customer       Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  orderId        String?
+  order          Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  parentId       String?
+  parent         Task?             @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Task[]            @relation("TaskHierarchy")
+  comments       CrmTaskComment[]
+  reminders      CrmTaskReminder[]
+  templateId     String?
+  template       CrmTaskTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
+
+  @@index([status, position])
+  @@index([assignedToId, dueDate])
+  @@index([startDate, dueDate])
+  @@index([leadId])
+  @@index([customerId])
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([templateId])
+}
+
+model CrmTaskTemplate {
+  id                String   @id @default(uuid())
+  name              String   @unique
+  title             String
+  description       String?
+  priority          String   @default("MEDIUM")
+  labels            String[] @default([])
+  estimateMinutes   Int?
+  dueInHours        Int?
+  reminderBeforeMin Int?     @default(60)
+  defaultAssigneeId String?
+  defaultAssignee   User?    @relation("TaskTemplateAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
+  createdById       String
+  createdBy         User     @relation("TaskTemplateCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  isActive          Boolean  @default(true)
+  tasks             Task[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive, name])
+}
+
+model CrmTaskReminder {
+  id          String    @id @default(uuid())
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User      @relation("TaskReminderRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  remindAt    DateTime
+  deliveredAt DateTime?
+  dismissedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([taskId, recipientId, remindAt])
+  @@index([recipientId, remindAt, dismissedAt])
+}
+
+model CrmTaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+model CrmChatChannel {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  type        CrmChatType      @default(TEAM)
+  isArchived  Boolean          @default(false)
+  createdById String
+  createdBy   User             @relation("CrmChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members     CrmChatMember[]
+  messages    CrmChatMessage[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([type, isArchived])
+}
+
+model CrmChatMember {
+  channelId  String
+  channel    CrmChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String         @default("MEMBER")
+  lastReadAt DateTime?
+  isMuted    Boolean        @default(false)
+  joinedAt   DateTime       @default(now())
+
+  @@id([channelId, userId])
+  @@index([userId])
+}
+
+model CrmChatMessage {
+  id          String                   @id @default(uuid())
+  channelId   String
+  channel     CrmChatChannel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User                     @relation("CrmMessageAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  body        String
+  replyToId   String?
+  replyTo     CrmChatMessage?          @relation("CrmMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     CrmChatMessage[]         @relation("CrmMessageReplies")
+  attachments PlatformChatAttachment[]
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime                 @default(now())
+
+  @@index([channelId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model PlatformChatAttachment {
+  id         String                     @id @default(uuid())
+  messageId  String
+  message    CrmChatMessage             @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  kind       PlatformChatAttachmentKind
+  name       String
+  mimeType   String?
+  size       Int?
+  storageKey String?
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime                   @default(now())
+
+  @@index([messageId])
+  @@index([entityType, entityId])
 }
 
 // ===================== HELPDESK =====================

@@ -13,6 +13,7 @@ export class AuditInterceptor implements NestInterceptor {
     const response = http.getResponse();
     const method = String(request.method || '').toUpperCase();
     if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return next.handle();
+    if (String(request.originalUrl || request.url || '').includes('/bots/webhooks/')) return next.handle();
 
     const correlationId = String(request.headers?.['x-correlation-id'] || randomUUID());
     response.setHeader('x-correlation-id', correlationId);

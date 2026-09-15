@@ -30,6 +30,13 @@ export { requestIdleCallback, cancelIdleCallback } from '#app/compat/idle-callba
 export { setInterval } from '#app/compat/interval';
 export { definePageMeta } from '../node_modules/nuxt/dist/pages/runtime/composables';
 export { defineLazyHydrationComponent } from '#app/composables/lazy-hydration';
+export { useB2BSession } from '../composables/useB2BSession';
 export { useContextMenu, ContextMenuIcon, ContextMenuItem } from '../composables/useContextMenu';
+export { usePlatformChat } from '../composables/usePlatformChat';
+export { useStorefront } from '../composables/useStorefront';
+export { storefrontCategories, storefrontProductImage, storefrontCatalogLink } from '../composables/useStorefrontCatalog';
+export { useStorefrontContent } from '../composables/useStorefrontContent';
+export { useStorefrontPanels } from '../composables/useStorefrontPanels';
+export { useUserProfilePanel } from '../composables/useUserProfilePanel';
 export { useWorkspaceSession, WorkspaceUser } from '../composables/useWorkspaceSession';
 export { useNuxtDevTools } from '../node_modules/@nuxt/devtools/dist/runtime/use-nuxt-devtools';

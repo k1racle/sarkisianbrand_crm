@@ -1,10 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { readFile } from 'fs/promises';
+import { basename, extname, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto, CreateProductDto } from './dto/product.dto';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly config: ConfigService) {}
 
   async list(query?: { search?: string; category?: string; page?: number; limit?: number }) {
     const page = Math.max(query?.page ?? 1, 1);
@@ -41,6 +44,41 @@ export class ProductsService {
 
   async categories() {
     return this.prisma.category.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] });
+  }
+
+  async storefrontContent() {
+    const now = new Date();
+    const [settings, banners, categories] = await Promise.all([
+      this.prisma.storefrontSetting.findUnique({ where: { key: 'main' } }),
+      this.prisma.storefrontBanner.findMany({
+        where: {
+          isActive: true,
+          AND: [
+            { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+            { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+          ],
+        },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      }),
+      this.prisma.category.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] }),
+    ]);
+    return {
+      settings: settings || { announcementText: 'SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян' },
+      banners,
+      categories,
+    };
+  }
+
+  async storefrontMedia(fileName: string) {
+    if (!fileName || basename(fileName) !== fileName) throw new NotFoundException('Изображение не найдено');
+    const path = resolve(process.cwd(), this.config.get('STOREFRONT_MEDIA_PATH', 'uploads/storefront'), fileName);
+    try {
+      const buffer = await readFile(path);
+      const contentTypes: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.avif': 'image/avif' };
+      return { buffer, contentType: contentTypes[extname(fileName).toLowerCase()] || 'application/octet-stream' };
+    } catch {
+      throw new NotFoundException('Изображение не найдено');
+    }
   }
 
   async createCategory(dto: CreateCategoryDto) {

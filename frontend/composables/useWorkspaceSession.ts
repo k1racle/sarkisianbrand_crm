@@ -4,6 +4,13 @@ export type WorkspaceUser = {
   firstName?: string | null;
   lastName?: string | null;
   role: string;
+  phone?: string | null;
+  isActive?: boolean;
+  avatarUrl?: string | null;
+  timezone?: string;
+  city?: string | null;
+  country?: string | null;
+  forcePasswordChange?: boolean;
 };
 
 const storageKeys = {

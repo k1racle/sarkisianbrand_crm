@@ -3,6 +3,7 @@ import { MarketplaceChannel, MarketplaceOrderStatus, OrderSource, OrderStatus, P
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOmsOrderDto } from './dto/oms.dto';
+import { OneCSyncService } from '../1c-sync/1c-sync.service';
 
 export type MarketplaceOrderInput = {
   channel: MarketplaceChannel;
@@ -23,7 +24,7 @@ export type MarketplaceOrderInput = {
 export class OmsService {
   private readonly marketplaceSources: OrderSource[] = [OrderSource.WILDBERRIES, OrderSource.OZON, OrderSource.YANDEX_MARKET, OrderSource.MEGAMARKET];
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService) {}
 
   async dashboard() {
     const [total, attention, revenue, channels] = await this.prisma.$transaction([
@@ -61,12 +62,14 @@ export class OmsService {
     const order = await this.prisma.order.findFirst({ where: { OR: [{ id }, { orderNumber: id }] }, include: { marketplaceStaging: true } });
     if (!order) throw new NotFoundException('Заказ не найден');
     this.assertTransition(order.status, dto.status);
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, trackingNumber: dto.trackingNumber, internalNotes: dto.internalNotes } });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, trackingNumber: dto.trackingNumber, internalNotes: dto.internalNotes, isSynced1C: false } });
       if (order.status !== dto.status) await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: dto.status, comment: dto.comment || 'Статус изменён в OMS', changedBy } });
       if (order.marketplaceStaging) await tx.marketplaceOrder.update({ where: { canonicalOrderId: order.id }, data: { status: this.toMarketplaceStatus(dto.status), trackingNumber: dto.trackingNumber, internalNote: dto.internalNotes } });
       return updated;
     });
+    await this.oneC.enqueueOrder(updated.id, changedBy);
+    return updated;
   }
 
   marketplaceOrders(channel?: MarketplaceChannel) {
@@ -87,7 +90,7 @@ export class OmsService {
   }
 
   async ingestMarketplace(dto: MarketplaceOrderInput) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const staging = await tx.marketplaceOrder.upsert({
         where: { channel_externalId: { channel: dto.channel, externalId: dto.externalId } },
         update: { status: dto.status, buyerName: dto.buyerName, buyerEmail: dto.buyerEmail, buyerPhone: dto.buyerPhone, buyerExternalId: dto.buyerExternalId, totalAmount: dto.totalAmount, deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined, trackingNumber: dto.trackingNumber, items: dto.items as Prisma.InputJsonValue, payload: dto.payload as Prisma.InputJsonValue },
@@ -103,7 +106,7 @@ export class OmsService {
         sourcePayload: { items: dto.items, payload: dto.payload || null, stagingId: staging.id } as Prisma.InputJsonValue,
         deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null, trackingNumber: dto.trackingNumber,
         totalAmount: dto.totalAmount, finalAmount: dto.totalAmount, currency: staging.currency,
-        shippingAddress: {} as Prisma.InputJsonValue, shippingProvider: dto.channel, paymentStatus: 'MARKETPLACE',
+        shippingAddress: {} as Prisma.InputJsonValue, shippingProvider: dto.channel, paymentStatus: 'MARKETPLACE', isSynced1C: false,
       };
       const canonical = existing
         ? await tx.order.update({ where: { id: existing.id }, data: common })
@@ -114,18 +117,22 @@ export class OmsService {
       const result = await tx.order.findUniqueOrThrow({ where: { id: canonical.id }, include: { customer: true, items: true, marketplaceStaging: true } });
       return this.marketplaceView(result);
     });
+    await this.oneC.enqueueOrder(result.id);
+    return result;
   }
 
   async updateMarketplace(id: string, status: MarketplaceOrderStatus, trackingNumber?: string, internalNote?: string, changedBy?: string) {
     const canonical = await this.prisma.order.findFirst({ where: { OR: [{ id }, { marketplaceStaging: { id } }] }, include: { marketplaceStaging: true } });
     if (!canonical) throw new NotFoundException('Заказ маркетплейса не найден');
     const next = this.toOrderStatus(status);
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({ where: { id: canonical.id }, data: { status: next, trackingNumber, internalNotes: internalNote }, include: { customer: true, items: true, marketplaceStaging: true } });
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({ where: { id: canonical.id }, data: { status: next, trackingNumber, internalNotes: internalNote, isSynced1C: false }, include: { customer: true, items: true, marketplaceStaging: true } });
       if (canonical.status !== next) await tx.orderStatusHistory.create({ data: { orderId: canonical.id, fromStatus: canonical.status, toStatus: next, changedBy, comment: 'Статус изменён оператором маркетплейсов' } });
       if (canonical.marketplaceStaging) await tx.marketplaceOrder.update({ where: { id: canonical.marketplaceStaging.id }, data: { status, trackingNumber, internalNote } });
       return this.marketplaceView(updated);
     });
+    await this.oneC.enqueueOrder(result.id, changedBy);
+    return result;
   }
 
   private orderInclude(detail = false) {

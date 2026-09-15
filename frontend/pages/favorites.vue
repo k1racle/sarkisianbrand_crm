@@ -1,0 +1,5 @@
+<script setup lang="ts">
+import { Heart } from '@lucide/vue';
+const config = useRuntimeConfig(); const { favoriteIds, loadLocalFavorites } = useStorefront(); const { data, pending } = await useFetch<any>('/products', { baseURL: config.public.apiBase, query: { limit: 100 } }); const products = computed(() => (data.value?.items || []).filter((product: any) => favoriteIds.value.includes(product.id))); onMounted(loadLocalFavorites); useSeoMeta({ title: 'Избранное — SARKISIAN BRAND' });
+</script>
+<template><SiteShell><div class="sb-simple-page"><div class="sb-breadcrumbs"><NuxtLink to="/">Главная</NuxtLink><span>/</span><span>Избранное</span></div><div class="sb-page-title"><p>ВАША ПОДБОРКА</p><h1>Избранное</h1></div><div v-if="pending" class="sb-state">Загружаем товары…</div><div v-else-if="products.length" class="sb-product-grid"><ProductCard v-for="product in products" :key="product.id" :product="product" /></div><div v-else class="sb-empty"><Heart :size="36" /><h2>Здесь пока пусто</h2><p>Нажимайте на сердечко в карточке товара, чтобы сохранить его.</p><NuxtLink to="/catalog" class="sb-primary">Перейти в каталог</NuxtLink></div></div></SiteShell></template>

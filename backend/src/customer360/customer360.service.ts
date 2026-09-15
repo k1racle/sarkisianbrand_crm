@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { CustomerStatus, OrganizationMemberRole, OrganizationStatus, Prisma, UserRole } from '@prisma/client';
+import { CustomerStatus, DataEntityType, OrganizationMemberRole, OrganizationStatus, Prisma, TrashEntryStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddOrganizationMemberDto, CreateOrganizationDto, UpdateCustomerDto, UpdateOrganizationDto } from './dto/customer360.dto';
 
@@ -10,20 +10,28 @@ export class Customer360Service {
   async dashboard() {
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
+    const [trashedCustomers, trashedOrganizations] = await Promise.all([
+      this.trashedIds(DataEntityType.CUSTOMER),
+      this.trashedIds(DataEntityType.ORGANIZATION),
+    ]);
+    const visibleCustomers: Prisma.CustomerWhereInput = { id: { notIn: trashedCustomers } };
+    const visibleOrganizations: Prisma.OrganizationWhereInput = { id: { notIn: trashedOrganizations } };
     const [customers, active, b2bCustomers, newCustomers, organizations, revenue] = await this.prisma.$transaction([
-      this.prisma.customer.count(),
-      this.prisma.customer.count({ where: { status: CustomerStatus.ACTIVE } }),
-      this.prisma.customer.count({ where: { organizationMemberships: { some: { isActive: true } } } }),
-      this.prisma.customer.count({ where: { createdAt: { gte: monthAgo } } }),
-      this.prisma.organization.count({ where: { status: { not: OrganizationStatus.ARCHIVED } } }),
+      this.prisma.customer.count({ where: visibleCustomers }),
+      this.prisma.customer.count({ where: { ...visibleCustomers, status: CustomerStatus.ACTIVE } }),
+      this.prisma.customer.count({ where: { ...visibleCustomers, organizationMemberships: { some: { isActive: true } } } }),
+      this.prisma.customer.count({ where: { ...visibleCustomers, createdAt: { gte: monthAgo } } }),
+      this.prisma.organization.count({ where: { ...visibleOrganizations, status: { not: OrganizationStatus.ARCHIVED } } }),
       this.prisma.order.aggregate({ where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } }, _sum: { finalAmount: true } }),
     ]);
     return { customers, active, b2bCustomers, b2cCustomers: Math.max(customers - b2bCustomers, 0), newCustomers, organizations, revenue: Number(revenue._sum.finalAmount || 0) };
   }
 
-  customers(search?: string, status?: CustomerStatus, segment?: string) {
+  async customers(search?: string, status?: CustomerStatus, segment?: string) {
     const query = search?.trim();
+    const trashedIds = await this.trashedIds(DataEntityType.CUSTOMER);
     const where: Prisma.CustomerWhereInput = {
+      id: { notIn: trashedIds },
       ...(status ? { status } : {}),
       ...(segment ? { segment } : {}),
       ...(query ? { OR: [
@@ -46,6 +54,7 @@ export class Customer360Service {
   }
 
   async customer(id: string) {
+    if (await this.isTrashed(DataEntityType.CUSTOMER, id)) throw new NotFoundException('Клиент находится в корзине');
     const customer = await this.prisma.customer.findUnique({
       where: { id },
       include: {
@@ -74,10 +83,12 @@ export class Customer360Service {
     });
   }
 
-  organizations(search?: string, status?: OrganizationStatus) {
+  async organizations(search?: string, status?: OrganizationStatus) {
     const query = search?.trim();
+    const trashedIds = await this.trashedIds(DataEntityType.ORGANIZATION);
     return this.prisma.organization.findMany({
       where: {
+        id: { notIn: trashedIds },
         ...(status ? { status } : {}),
         ...(query ? { OR: [{ name: { contains: query, mode: 'insensitive' as const } }, { legalName: { contains: query, mode: 'insensitive' as const } }, { inn: { contains: query } }] } : {}),
       },
@@ -91,6 +102,7 @@ export class Customer360Service {
   }
 
   async organization(id: string) {
+    if (await this.isTrashed(DataEntityType.ORGANIZATION, id)) throw new NotFoundException('Организация находится в корзине');
     const organization = await this.prisma.organization.findUnique({
       where: { id },
       include: {
@@ -148,6 +160,13 @@ export class Customer360Service {
 
   private email(value?: string | null) { return value?.trim().toLowerCase() || null; }
   private phone(value?: string | null) { return value?.replace(/\D/g, '') || null; }
+  private async trashedIds(type: DataEntityType) {
+    const rows = await this.prisma.dataTrashEntry.findMany({ where: { entityType: type, status: TrashEntryStatus.TRASHED }, select: { entityId: true } });
+    return rows.map((row) => row.entityId);
+  }
+  private async isTrashed(type: DataEntityType, id: string) {
+    return Boolean(await this.prisma.dataTrashEntry.findFirst({ where: { entityType: type, entityId: id, status: TrashEntryStatus.TRASHED }, select: { id: true } }));
+  }
   private async customerExists(id: string) { if (!await this.prisma.customer.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Клиент не найден'); }
   private async organizationExists(id: string) { if (!await this.prisma.organization.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Организация не найдена'); }
 }

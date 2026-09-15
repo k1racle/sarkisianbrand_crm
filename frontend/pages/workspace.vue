@@ -7,7 +7,7 @@ const spaces = [
   { label: 'Маркетплейсы', description: 'Заказы каналов, подключения, синхронизация и операционный контроль.', to: '/crm-marketplaces?section=dashboard', icon: ShoppingBag, roles: ['ADMIN','MARKETPLACE_MANAGER','SUPERVISOR','WAREHOUSE'], tone: '#b652a0' },
   { label: 'Кабинет руководителя', description: 'Результаты компании, продажи, клиенты, риски и точки внимания.', to: '/leadership', icon: Gauge, roles: ['ADMIN','EXECUTIVE','SUPERVISOR'], tone: '#278b64' },
   { label: 'IT Helpdesk', description: 'Обращения сотрудников и клиентов, SLA, очереди и история решений.', to: '/helpdesk', icon: Headphones, roles: ['ADMIN','IT_SUPPORT','SUPERVISOR'], tone: '#d18b33' },
-  { label: 'Настройки экосистемы', description: 'Сотрудники, роли, индивидуальные права, активные сессии, аудит и технические журналы.', to: '/system-settings', icon: ShieldCheck, roles: ['ADMIN'], tone: '#4e6678' },
+  { label: 'Настройки экосистемы', description: 'Сотрудники, права, все интеграции, боты, аудит и технические журналы.', to: '/system-settings', icon: ShieldCheck, roles: ['ADMIN'], tone: '#4e6678' },
 ];
 const visible = computed(() => spaces.filter(space => !user.value || space.roles.includes(user.value.role)));
 const roleLabels: Record<string,string> = { ADMIN:'Администратор платформы',CONTENT_MANAGER:'Контент-менеджер',MANAGER_B2B:'Менеджер B2B',MANAGER_SALES:'Менеджер продаж',MARKETPLACE_MANAGER:'Менеджер маркетплейсов',SUPERVISOR:'Руководитель направления',EXECUTIVE:'Руководитель компании',IT_SUPPORT:'IT-поддержка',CURATOR:'Куратор',WAREHOUSE:'Сотрудник склада' };

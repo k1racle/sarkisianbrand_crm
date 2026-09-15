@@ -17,10 +17,29 @@ interface _GlobalComponents {
   AdminNewProduct: typeof import("../../components/AdminNewProduct.vue")['default']
   AdminOrderDrawer: typeof import("../../components/AdminOrderDrawer.vue")['default']
   AdminProductEditor: typeof import("../../components/AdminProductEditor.vue")['default']
+  B2BPortalRail: typeof import("../../components/B2BPortalRail.vue")['default']
+  BotCommandsSettings: typeof import("../../components/BotCommandsSettings.vue")['default']
   ConsoleRail: typeof import("../../components/ConsoleRail.vue")['default']
+  CrmPipelineSettings: typeof import("../../components/CrmPipelineSettings.vue")['default']
+  CrmTaskAutomation: typeof import("../../components/CrmTaskAutomation.vue")['default']
+  EcosystemAccounts: typeof import("../../components/EcosystemAccounts.vue")['default']
+  EcosystemIntegrations: typeof import("../../components/EcosystemIntegrations.vue")['default']
+  EcosystemTrash: typeof import("../../components/EcosystemTrash.vue")['default']
+  IntegrationBrandLogo: typeof import("../../components/IntegrationBrandLogo.vue")['default']
   MarketplaceRail: typeof import("../../components/MarketplaceRail.vue")['default']
+  PlatformChatDrawer: typeof import("../../components/PlatformChatDrawer.vue")['default']
+  TaskReminderCenter: typeof import("../../components/TaskReminderCenter.vue")['default']
+  UserProfileDrawer: typeof import("../../components/UserProfileDrawer.vue")['default']
   WorkspaceContextMenu: typeof import("../../components/WorkspaceContextMenu.vue")['default']
   WorkspaceLoading: typeof import("../../components/WorkspaceLoading.vue")['default']
+  ProductCard: typeof import("../../components/storefront/ProductCard.vue")['default']
+  SiteAuthDrawer: typeof import("../../components/storefront/SiteAuthDrawer.vue")['default']
+  SiteCartDrawer: typeof import("../../components/storefront/SiteCartDrawer.vue")['default']
+  SiteCatalogDrawer: typeof import("../../components/storefront/SiteCatalogDrawer.vue")['default']
+  SiteFavoritesDrawer: typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']
+  SiteFooter: typeof import("../../components/storefront/SiteFooter.vue")['default']
+  SiteHeader: typeof import("../../components/storefront/SiteHeader.vue")['default']
+  SiteShell: typeof import("../../components/storefront/SiteShell.vue")['default']
   NuxtWelcome: typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
   NuxtLayout: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
   NuxtErrorBoundary: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -47,10 +66,29 @@ interface _GlobalComponents {
   LazyAdminNewProduct: LazyComponent<typeof import("../../components/AdminNewProduct.vue")['default']>
   LazyAdminOrderDrawer: LazyComponent<typeof import("../../components/AdminOrderDrawer.vue")['default']>
   LazyAdminProductEditor: LazyComponent<typeof import("../../components/AdminProductEditor.vue")['default']>
+  LazyB2BPortalRail: LazyComponent<typeof import("../../components/B2BPortalRail.vue")['default']>
+  LazyBotCommandsSettings: LazyComponent<typeof import("../../components/BotCommandsSettings.vue")['default']>
   LazyConsoleRail: LazyComponent<typeof import("../../components/ConsoleRail.vue")['default']>
+  LazyCrmPipelineSettings: LazyComponent<typeof import("../../components/CrmPipelineSettings.vue")['default']>
+  LazyCrmTaskAutomation: LazyComponent<typeof import("../../components/CrmTaskAutomation.vue")['default']>
+  LazyEcosystemAccounts: LazyComponent<typeof import("../../components/EcosystemAccounts.vue")['default']>
+  LazyEcosystemIntegrations: LazyComponent<typeof import("../../components/EcosystemIntegrations.vue")['default']>
+  LazyEcosystemTrash: LazyComponent<typeof import("../../components/EcosystemTrash.vue")['default']>
+  LazyIntegrationBrandLogo: LazyComponent<typeof import("../../components/IntegrationBrandLogo.vue")['default']>
   LazyMarketplaceRail: LazyComponent<typeof import("../../components/MarketplaceRail.vue")['default']>
+  LazyPlatformChatDrawer: LazyComponent<typeof import("../../components/PlatformChatDrawer.vue")['default']>
+  LazyTaskReminderCenter: LazyComponent<typeof import("../../components/TaskReminderCenter.vue")['default']>
+  LazyUserProfileDrawer: LazyComponent<typeof import("../../components/UserProfileDrawer.vue")['default']>
   LazyWorkspaceContextMenu: LazyComponent<typeof import("../../components/WorkspaceContextMenu.vue")['default']>
   LazyWorkspaceLoading: LazyComponent<typeof import("../../components/WorkspaceLoading.vue")['default']>
+  LazyProductCard: LazyComponent<typeof import("../../components/storefront/ProductCard.vue")['default']>
+  LazySiteAuthDrawer: LazyComponent<typeof import("../../components/storefront/SiteAuthDrawer.vue")['default']>
+  LazySiteCartDrawer: LazyComponent<typeof import("../../components/storefront/SiteCartDrawer.vue")['default']>
+  LazySiteCatalogDrawer: LazyComponent<typeof import("../../components/storefront/SiteCatalogDrawer.vue")['default']>
+  LazySiteFavoritesDrawer: LazyComponent<typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']>
+  LazySiteFooter: LazyComponent<typeof import("../../components/storefront/SiteFooter.vue")['default']>
+  LazySiteHeader: LazyComponent<typeof import("../../components/storefront/SiteHeader.vue")['default']>
+  LazySiteShell: LazyComponent<typeof import("../../components/storefront/SiteShell.vue")['default']>
   LazyNuxtWelcome: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
   LazyNuxtLayout: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
   LazyNuxtErrorBoundary: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>

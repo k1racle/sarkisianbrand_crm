@@ -4,6 +4,7 @@ export type ContextMenuIcon =
   | "copy"
   | "refresh"
   | "archive"
+  | "trash"
   | "block"
   | "status"
   | "external"

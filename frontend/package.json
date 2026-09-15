@@ -3,14 +3,22 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/check-storefront-assets.cjs",
+    "check:storefront-assets": "node scripts/check-storefront-assets.cjs",
+    "smoke:storefront": "node scripts/storefront-visual-smoke.cjs",
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "smoke:b2b": "node scripts/b2b-visual-smoke.cjs",
+    "smoke:crm": "node scripts/crm-visual-smoke.cjs",
+    "smoke:identity": "node scripts/identity-visual-smoke.cjs",
+    "smoke:lifecycle": "node scripts/lifecycle-visual-smoke.cjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.46.0",
     "@nuxtjs/google-fonts": "^3.2.0",
     "nuxt": "^3.13.2",
+    "socket.io-client": "^4.8.3",
     "vue": "^3.5.0"
   },
   "devDependencies": {

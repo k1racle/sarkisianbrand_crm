@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BadgeRussianRuble, Building2, Plus, RefreshCw, Search, ShoppingBag, Users, X } from '@lucide/vue';
 const config = useRuntimeConfig();
-const { token } = useWorkspaceSession();
+const { token, user } = useWorkspaceSession();
 const { openContextMenu, copyText } = useContextMenu();
 const organizations = ref<any[]>([]);
 const selected = ref<any>(null);
@@ -34,7 +34,8 @@ async function saveOrganization() {
   notice.value = 'Организация сохранена'; await load(); setTimeout(() => notice.value = '', 2200);
 }
 async function archiveOrganization(item:any){await $fetch(`/customer-360/organizations/${item.id}`,{baseURL:config.public.apiBase,method:'PATCH',headers:headers.value,body:{status:'ARCHIVED'}});notice.value='Организация перемещена в архив';await load();setTimeout(()=>notice.value='',2200)}
-function organizationMenu(event:MouseEvent,item:any){openContextMenu(event,item.name,[{label:'Открыть карточку',icon:'open',action:()=>openOrganization(item)},...(item.inn?[{label:'Копировать ИНН',icon:'copy' as const,action:()=>copyText(item.inn,'ИНН скопирован')}]:[]),...(item.status!=='ARCHIVED'?[{label:'Переместить в архив',icon:'archive' as const,danger:true,separator:true,confirm:`Переместить «${item.name}» в архив?`,action:()=>archiveOrganization(item)}]:[])],statusLabels[item.status])}
+async function moveOrganizationToTrash(item:any){await $fetch(`/data-lifecycle/ORGANIZATION/${item.id}/trash`,{baseURL:config.public.apiBase,method:'POST',headers:headers.value,body:{reason:'Удалено из реестра B2B-организаций'}});if(selected.value?.id===item.id)selected.value=null;notice.value='Организация перемещена в корзину на 30 дней';await load();setTimeout(()=>notice.value='',2600)}
+function organizationMenu(event:MouseEvent,item:any){openContextMenu(event,item.name,[{label:'Открыть карточку',icon:'open',action:()=>openOrganization(item)},...(item.inn?[{label:'Копировать ИНН',icon:'copy' as const,action:()=>copyText(item.inn,'ИНН скопирован')}]:[]),...(item.status!=='ARCHIVED'?[{label:'Переместить в архив',icon:'archive' as const,danger:true,separator:true,confirm:`Переместить «${item.name}» в архив?`,action:()=>archiveOrganization(item)}]:[]),...(user.value?.role==='ADMIN'?[{label:'Переместить в корзину',icon:'trash' as const,danger:true,separator:item.status==='ARCHIVED',confirm:`Переместить «${item.name}» в корзину? Восстановить организацию можно в настройках экосистемы в течение 30 дней.`,action:()=>moveOrganizationToTrash(item)}]:[])],statusLabels[item.status])}
 watch(search, () => { clearTimeout(searchTimer); searchTimer = setTimeout(load, 300); });
 watch(status, load);
 onMounted(load);

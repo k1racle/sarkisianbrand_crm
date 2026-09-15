@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { OneCProductsSyncDto } from './dto/sync.dto';
+import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
 import { OneCSyncService } from './1c-sync.service';
 
 @ApiTags('1c-sync')
@@ -22,4 +22,29 @@ export class OneCSyncController {
   @Get('logs')
   @Permissions('integrations.read')
   logs() { return this.sync.logs(); }
+
+  @Get('status')
+  @Permissions('integrations.read')
+  status() { return this.sync.status(); }
+
+  @Post('test-connection')
+  @Permissions('integrations.write')
+  testConnection() { return this.sync.testConnection(); }
+
+  @Post('exchange')
+  @Permissions('integrations.write')
+  exchange(@Req() request: any) { return this.sync.runFullExchange(request.user.sub); }
+}
+
+@ApiTags('1c-sync')
+@Controller('1c-webhook')
+export class OneCWebhookController {
+  constructor(private readonly sync: OneCSyncService) {}
+
+  @Post('order-statuses')
+  @ApiOperation({ summary: 'Статусы складской сборки из 1С/ТСД' })
+  async orderStatuses(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCOrderStatusesDto) {
+    if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');
+    return this.sync.importOrderStatuses(dto);
+  }
 }

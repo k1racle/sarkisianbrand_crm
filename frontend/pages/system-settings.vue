@@ -40,12 +40,16 @@ const employee = reactive({
   password: "",
   role: "MANAGER_SALES",
 });
-const menu: Record<string, { title: string; kicker: string }> = {
-  overview: { title: "Настройки экосистемы", kicker: "УПРАВЛЕНИЕ ПЛАТФОРМОЙ" },
-  staff: { title: "Сотрудники", kicker: "УЧЁТНЫЕ ЗАПИСИ" },
-  access: { title: "Роли и права", kicker: "БЕЗОПАСНОСТЬ ДОСТУПА" },
-  audit: { title: "Журнал действий", kicker: "АУДИТ ИЗМЕНЕНИЙ" },
-  logs: { title: "Технические журналы", kicker: "СОСТОЯНИЕ ИНТЕГРАЦИЙ" },
+const menu: Record<string, { title: string; kicker: string; description: string }> = {
+  overview: { title: "Настройки экосистемы", kicker: "УПРАВЛЕНИЕ ПЛАТФОРМОЙ", description: "Центральное управление доступом, аудитом и техническим состоянием" },
+  staff: { title: "Сотрудники", kicker: "УЧЁТНЫЕ ЗАПИСИ", description: "Команда, роли, блокировки и активные сессии" },
+  accounts: { title: "Учётные записи", kicker: "ЕДИНЫЙ РЕЕСТР", description: "Сотрудники, клиенты B2C, партнёры B2B и восстановление доступа" },
+  trash: { title: "Корзина данных", kicker: "ЖИЗНЕННЫЙ ЦИКЛ", description: "Восстановление и контролируемое окончательное удаление данных" },
+  access: { title: "Роли и права", kicker: "БЕЗОПАСНОСТЬ ДОСТУПА", description: "Серверная матрица разрешений и индивидуальные исключения" },
+  integrations: { title: "Интеграции", kicker: "ЦЕНТР ПОДКЛЮЧЕНИЙ", description: "Маркетплейсы, доставка, 1С, платежи, касса, сообщения и боты" },
+  "bot-commands": { title: "Команды ботов", kicker: "СЦЕНАРИИ КОММУНИКАЦИЙ", description: "Команды Telegram, MAX и VK для сотрудников, B2C и B2B" },
+  audit: { title: "Журнал действий", kicker: "АУДИТ ИЗМЕНЕНИЙ", description: "Единая история критических действий во всех рабочих пространствах" },
+  logs: { title: "Технические журналы", kicker: "СОСТОЯНИЕ ИНТЕГРАЦИЙ", description: "Фоновые операции, синхронизации, ошибки и повторы" },
 };
 const title = computed(() => menu[section.value] || menu.overview);
 const roleLabels: Record<string, string> = {
@@ -322,6 +326,9 @@ function jobMenu(event: MouseEvent, entry: any) {
   );
 }
 onMounted(load);
+watch(section, () => {
+  if (process.client) nextTick(() => window.scrollTo({ top: 0, behavior: "auto" }));
+});
 </script>
 
 <template>
@@ -330,12 +337,9 @@ onMounted(load);
       <div>
         <p class="kicker">{{ title.kicker }}</p>
         <h1>{{ title.title }}</h1>
-        <span
-          >Центральное управление доступом, аудитом и техническим
-          состоянием</span
-        >
+        <span>{{ title.description }}</span>
       </div>
-      <button @click="load">
+      <button v-if="!['integrations', 'bot-commands'].includes(section)" @click="load">
         <RefreshCw :size="16" :class="{ spin: busy }" /> Обновить
       </button>
     </header>
@@ -439,6 +443,8 @@ onMounted(load);
           </article>
         </section></template
       >
+      <EcosystemAccounts v-else-if="section === 'accounts'" />
+      <EcosystemTrash v-else-if="section === 'trash'" />
       <section v-else-if="section === 'staff'" class="panel">
         <div class="panel-head">
           <div>
@@ -598,6 +604,8 @@ onMounted(load);
           </button>
         </aside>
       </section>
+      <EcosystemIntegrations v-else-if="section === 'integrations'" />
+      <BotCommandsSettings v-else-if="section === 'bot-commands'" />
       <section v-else-if="section === 'audit'" class="panel">
         <div class="panel-head">
           <div>

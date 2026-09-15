@@ -2,10 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { OrderSource, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/order.dto';
+import { OneCSyncService } from '../1c-sync/1c-sync.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService) {}
 
   async checkout(sessionId: string, dto: CheckoutDto) {
     const cart = await this.prisma.cart.findUnique({ where: { sessionId }, include: { user: { include: { customer: true, b2bProfile: true, organizationMemberships: { where: { isActive: true }, take: 1 } } }, items: { include: { variant: { include: { product: true } } } } } });
@@ -13,7 +14,7 @@ export class OrdersService {
     const total = cart.items.reduce((sum, item) => sum + Number(item.variant.price) * item.quantity, 0);
     const orderNumber = `SB-${new Date().getFullYear()}-${Date.now().toString().slice(-8)}`;
 
-    return this.prisma.$transaction(async (tx) => {
+    const order = await this.prisma.$transaction(async (tx) => {
       for (const item of cart.items) {
         const reserved = await tx.productVariant.updateMany({ where: { id: item.variantId, isActive: true, stock: { gte: item.quantity } }, data: { stock: { decrement: item.quantity }, reserved: { increment: item.quantity } } });
         if (reserved.count !== 1) throw new BadRequestException(`Недостаточно товара: ${item.variant.product.nameRu}`);
@@ -24,6 +25,8 @@ export class OrdersService {
       await tx.cart.update({ where: { id: cart.id }, data: { total: 0 } });
       return order;
     });
+    await this.oneC.enqueueOrder(order.id, cart.userId || undefined);
+    return order;
   }
 
   async findOne(orderNumber: string) {

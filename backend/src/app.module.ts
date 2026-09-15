@@ -24,6 +24,11 @@ import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { BackgroundJobsModule } from './background-jobs/background-jobs.module';
+import { BotsModule } from './bots/bots.module';
+import { PlatformChatModule } from './platform-chat/platform-chat.module';
+import { DataLifecycleModule } from './data-lifecycle/data-lifecycle.module';
+import { StorefrontModule } from './storefront/storefront.module';
+import { SocialAuthModule } from './social-auth/social-auth.module';
 
 @Module({
   imports: [
@@ -62,6 +67,11 @@ import { BackgroundJobsModule } from './background-jobs/background-jobs.module';
     OmsModule,
     AuditModule,
     SystemSettingsModule,
+    BotsModule,
+    PlatformChatModule,
+    DataLifecycleModule,
+    StorefrontModule,
+    SocialAuthModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })

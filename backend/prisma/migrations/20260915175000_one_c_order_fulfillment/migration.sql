@@ -1,0 +1,2 @@
+-- Reserved no-op migration. The order fulfillment columns are introduced by
+-- 20260915121000_one_c_order_fulfillment.

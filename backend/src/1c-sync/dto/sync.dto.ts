@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
 
 export class OneCProductDto {
   @IsString() externalId!: string;
@@ -15,4 +15,21 @@ export class OneCProductsSyncDto {
   @ValidateNested({ each: true })
   @Type(() => OneCProductDto)
   products!: OneCProductDto[];
+}
+
+export class OneCOrderStatusDto {
+  @IsOptional() @IsUUID() platformOrderId?: string;
+  @IsOptional() @IsString() external1CId?: string;
+  @IsString() status!: string;
+  @IsOptional() @IsString() warehouseDocumentId?: string;
+  @IsOptional() @IsString() trackingNumber?: string;
+  @IsOptional() @IsString() comment?: string;
+  @IsOptional() @IsDateString() occurredAt?: string;
+}
+
+export class OneCOrderStatusesDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OneCOrderStatusDto)
+  statuses!: OneCOrderStatusDto[];
 }

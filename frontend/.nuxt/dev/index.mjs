@@ -651,16 +651,6 @@ const _inlineRuntimeConfig = {
           "to": "/crm-marketplaces",
           "statusCode": 307
         }
-      },
-      "/_nuxt/builds/meta/**": {
-        "headers": {
-          "cache-control": "public, max-age=31536000, immutable"
-        }
-      },
-      "/_nuxt/builds/**": {
-        "headers": {
-          "cache-control": "public, max-age=1, immutable"
-        }
       }
     }
   },
@@ -2212,14 +2202,36 @@ _zVKmOWNYqzAz9SeLn_nSAZscINQX8sSzRoTovcIXI,
 _wH6JrtIxmaSoA8lCPWFnE9z4lQeXW6H5z3l5aymEQw
 ];
 
-const assets = {};
+const assets = {
+  "/timing.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"18e-0pRLUDweg+nNOYiHMfwI/i1Hccs\"",
+    "mtime": "2026-09-15T14:34:21.105Z",
+    "size": 398,
+    "path": "timing.js"
+  },
+  "/index.mjs": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1b6e8-5Jr3ZrWDjBgC4pCjxf4o+5l5878\"",
+    "mtime": "2026-09-15T14:34:21.106Z",
+    "size": 112360,
+    "path": "index.mjs"
+  },
+  "/index.mjs.map": {
+    "type": "application/json",
+    "etag": "\"6d6d7-4P+j/Czf9W8R0JECHG09MKKQc/Q\"",
+    "mtime": "2026-09-15T14:34:21.106Z",
+    "size": 448215,
+    "path": "index.mjs.map"
+  }
+};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
   return promises.readFile(resolve$1(serverDir, assets[id].path))
 }
 
-const publicAssetBases = {"/_nuxt/builds/meta/":{"maxAge":31536000},"/_nuxt/builds/":{"maxAge":1}};
+const publicAssetBases = {};
 
 function isPublicAssetURL(id = '') {
   if (assets[id]) {
@@ -3367,18 +3379,6 @@ async function renderRoute(event, ssrError) {
 	const NO_SCRIPTS = routeOptions.noScripts;
 	
 	const { styles, scripts } = getRequestDependencies(ssrContext, renderer.rendererContext);
-	if (ssrContext["~preloadManifest"] && !NO_SCRIPTS) {
-		ssrContext.head.push({ link: [{
-			rel: "preload",
-			as: "fetch",
-			fetchpriority: "low",
-			crossorigin: "anonymous",
-			href: buildAssetsURL(`builds/meta/${ssrContext.runtimeConfig.app.buildId}.json`)
-		}] }, {
-			...headEntryOptions,
-			tagPriority: "low"
-		});
-	}
 	
 	if (inlinedStyles.length) {
 		ssrContext.head.push({ style: inlinedStyles });
