@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Activity,
+  Award,
   BarChart3,
   Bot,
   Boxes,
@@ -15,6 +16,8 @@ import {
   KanbanSquare,
   KeyRound,
   LayoutGrid,
+  Images,
+  ListTree,
   LogOut,
   MessageCircle,
   Palette,
@@ -24,6 +27,7 @@ import {
   ShoppingBag,
   Store,
   Trash2,
+  Ticket,
   Users,
   Wifi,
   X,
@@ -110,6 +114,8 @@ const current = computed(() =>
 const adminItems = [
   { label: "Обзор", to: "/admin-workspace?section=dashboard", icon: BarChart3 },
   { label: "Витрина", to: "/admin-workspace?section=appearance", icon: Palette },
+  { label: "Меню каталога", to: "/admin-workspace?section=catalog-menu", icon: ListTree },
+  { label: "Страницы", to: "/admin-workspace?section=pages", icon: ScrollText },
   {
     label: "Заказы",
     to: "/admin-workspace?section=orders",
@@ -117,6 +123,9 @@ const adminItems = [
   },
   { label: "Каталог", to: "/admin-workspace?section=products", icon: Boxes },
   { label: "Клиенты", to: "/admin-workspace?section=customers", icon: Users },
+  { label: "Бонусная программа", to: "/admin-workspace?section=loyalty", icon: Award },
+  { label: "Промокоды", to: "/admin-workspace?section=promotions", icon: Ticket },
+  { label: "Подарочные карты", to: "/admin-workspace?section=gift-cards", icon: Ticket },
 ];
 const crmItems = [
   { label: "Обзор", to: "/crm", icon: BarChart3 },
@@ -268,7 +277,7 @@ onBeforeUnmount(() => {
       <button class="platform-chat-button" @click="toggleChat">
         <MessageCircle :size="17" /><span>Чат платформы</span
         ><em v-if="unread">{{ unread > 99 ? "99+" : unread }}</em></button
-      ><NuxtLink to="/" target="_blank"
+      ><NuxtLink to="/media-library" :aria-current="route.path === '/media-library' ? 'page' : undefined"><Images :size="18" /><span>Медиатека</span></NuxtLink><NuxtLink to="/" target="_blank"
         ><ExternalLink :size="17" /><span>Открыть магазин</span></NuxtLink
       ><button @click="signOut"><LogOut :size="17" /><span>Выйти</span></button>
       <button class="rail-user" title="Открыть профиль" @click="openProfile">
@@ -295,7 +304,7 @@ onBeforeUnmount(() => {
   top: 0;
   bottom: 0;
   width: 250px;
-  background: #191919;
+  background: radial-gradient(circle at 20% 0, #302d2b, transparent 28%), linear-gradient(180deg, #171717, #0e0e0e);
   padding: 18px 12px;
   box-sizing: border-box;
   color: #fff;
@@ -313,10 +322,10 @@ onBeforeUnmount(() => {
 }
 .workspace-switch {
   height: 58px;
-  border: 1px solid #3a3a3d;
-  background: #252528;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.07);
   color: #fff;
-  border-radius: 8px;
+  border-radius: 16px;
   padding: 0 11px;
   display: flex;
   align-items: center;
@@ -325,7 +334,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .workspace-switch > svg:first-child {
-  color: var(--sb-coral);
+  color: #fff;
 }
 .workspace-switch > svg:last-child {
   margin-left: auto;
@@ -353,10 +362,12 @@ onBeforeUnmount(() => {
   top: 115px;
   width: 278px;
   padding: 9px;
-  background: #fff;
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
   color: #202124;
   border: 1px solid var(--sb-line);
-  box-shadow: 0 18px 50px #0003;
+  box-shadow: 0 24px 70px #0004, inset 0 1px 0 #fff;
+  backdrop-filter: blur(24px) saturate(140%);
 }
 .workspace-menu header {
   height: 36px;
@@ -382,13 +393,14 @@ onBeforeUnmount(() => {
   text-decoration: none;
   color: #34363a;
   font-size: 12px;
+  border-radius: 11px;
 }
 .workspace-menu a:hover,
 .workspace-menu a.selected {
   background: #f2f3f5;
 }
 .workspace-menu a.selected svg {
-  color: var(--sb-coral);
+  color: #171717;
 }
 nav {
   display: grid;
@@ -413,7 +425,7 @@ nav {
   align-items: center;
   gap: 12px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 13px;
   color: #aeb0b5;
   background: transparent;
   text-decoration: none;
@@ -424,11 +436,11 @@ nav {
 .console-rail nav a.active,
 .rail-bottom > a:hover,
 .rail-bottom > button:hover {
-  background: #2b2b2f;
+  background: rgba(255,255,255,.10);
   color: #fff;
 }
 .console-rail nav a.active svg {
-  color: var(--sb-coral);
+  color: #fff;
 }
 .rail-bottom {
   margin-top: auto;
@@ -456,12 +468,12 @@ nav {
   text-align: left;
   cursor: pointer;
 }
-.rail-user:hover{background:#252528;border-radius:7px}
+.rail-user:hover{background:rgba(255,255,255,.08);border-radius:14px}
 .rail-user i {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--sb-coral);
+  background: linear-gradient(145deg, #727072, #343335);
   display: grid;
   place-items: center;
   font-style: normal;

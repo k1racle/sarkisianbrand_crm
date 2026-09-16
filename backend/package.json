@@ -29,6 +29,7 @@
     "smoke:identity": "node scripts/smoke-identity-profile.cjs",
     "smoke:lifecycle": "node scripts/smoke-data-lifecycle.cjs",
     "smoke:storefront": "node scripts/smoke-storefront.cjs",
+    "smoke:storefront-commerce-local": "node scripts/storefront-commerce-local-smoke.cjs",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
@@ -50,6 +51,7 @@
     "express-rate-limit": "^7.0.0",
     "helmet": "^7.0.0",
     "ioredis": "^5.3.0",
+    "nodemailer": "^10.0.10",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
@@ -66,6 +68,7 @@
     "@types/express": "^4.17.17",
     "@types/jest": "^29.5.2",
     "@types/node": "^20.3.1",
+    "@types/nodemailer": "^8.0.2",
     "@types/passport-jwt": "^3.0.9",
     "@types/passport-local": "^1.0.35",
     "@typescript-eslint/eslint-plugin": "^6.0.0",

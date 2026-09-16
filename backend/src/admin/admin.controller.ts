@@ -6,7 +6,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { AdminService } from './admin.service';
-import { CreateAdminProductDto, CreateStorefrontBannerDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto } from './dto/admin.dto';
+import { CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
+import { CreateAdminProductDto, CreateStorefrontBannerDto, CreateStorefrontSocialLinkDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto, UpdateStorefrontSocialLinkDto } from './dto/admin.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -33,6 +34,22 @@ export class AdminController {
   @Permissions('catalog.read')
   storefrontContent() { return this.admin.storefrontContent(); }
 
+  @Get('storefront/pages')
+  @Permissions('catalog.read')
+  storefrontPages() { return this.admin.storefrontPages(); }
+
+  @Post('storefront/pages')
+  @Permissions('catalog.write')
+  createStorefrontPage(@Body() dto: CreateStorefrontPageDto) { return this.admin.createStorefrontPage(dto); }
+
+  @Patch('storefront/pages/:slug')
+  @Permissions('catalog.write')
+  updateStorefrontPage(@Param('slug') slug: string, @Body() dto: UpdateStorefrontPageDto) { return this.admin.updateStorefrontPage(slug, dto); }
+
+  @Delete('storefront/pages/:slug')
+  @Permissions('catalog.write')
+  deleteStorefrontPage(@Param('slug') slug: string) { return this.admin.deleteStorefrontPage(slug); }
+
   @Patch('storefront/settings')
   @Permissions('catalog.write')
   updateStorefrontSettings(@Body() dto: UpdateStorefrontSettingsDto) { return this.admin.updateStorefrontSettings(dto); }
@@ -49,14 +66,38 @@ export class AdminController {
   @Permissions('catalog.write')
   deleteStorefrontBanner(@Param('id') id: string) { return this.admin.deleteStorefrontBanner(id); }
 
+  @Post('storefront/social-links')
+  @Permissions('catalog.write')
+  createStorefrontSocialLink(@Body() dto: CreateStorefrontSocialLinkDto) { return this.admin.createStorefrontSocialLink(dto); }
+
+  @Patch('storefront/social-links/:id')
+  @Permissions('catalog.write')
+  updateStorefrontSocialLink(@Param('id') id: string, @Body() dto: UpdateStorefrontSocialLinkDto) { return this.admin.updateStorefrontSocialLink(id, dto); }
+
+  @Delete('storefront/social-links/:id')
+  @Permissions('catalog.write')
+  deleteStorefrontSocialLink(@Param('id') id: string) { return this.admin.deleteStorefrontSocialLink(id); }
+
   @Patch('categories/:id/presentation')
   @Permissions('catalog.write')
   updateCategoryPresentation(@Param('id') id: string, @Body() dto: UpdateCategoryPresentationDto) { return this.admin.updateCategoryPresentation(id, dto); }
 
-  @Post('storefront/media')
+  @Post('storefront/menu-items')
   @Permissions('catalog.write')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024, files: 1 } }))
-  uploadStorefrontMedia(@UploadedFile() file: any) { return this.admin.saveStorefrontMedia(file); }
+  createStorefrontMenuItem(@Body() dto: CreateStorefrontMenuItemDto) { return this.admin.createStorefrontMenuItem(dto); }
+
+  @Patch('storefront/menu-items/:id')
+  @Permissions('catalog.write')
+  updateStorefrontMenuItem(@Param('id') id: string, @Body() dto: UpdateStorefrontMenuItemDto) { return this.admin.updateStorefrontMenuItem(id, dto); }
+
+  @Delete('storefront/menu-items/:id')
+  @Permissions('catalog.write')
+  deleteStorefrontMenuItem(@Param('id') id: string) { return this.admin.deleteStorefrontMenuItem(id); }
+
+  @Post('storefront/media')
+  @Permissions('catalog.write', 'media.write')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 0 } }))
+  uploadStorefrontMedia(@UploadedFile() file: any, @Req() req: any) { return this.admin.saveStorefrontMedia(file, req.user.sub); }
 
   @Post('products')
   @Permissions('catalog.write')

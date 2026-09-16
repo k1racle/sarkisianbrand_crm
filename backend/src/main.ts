@@ -11,7 +11,7 @@ async function bootstrap() {
   // Security
   app.use(helmet());
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
+    origin: process.env.CORS_ORIGIN?.split(',').map(value => value.trim()).filter(Boolean) || (process.env.NODE_ENV === 'production' ? false : ['http://localhost:3001', 'http://127.0.0.1:3001']),
     credentials: true,
   });
   

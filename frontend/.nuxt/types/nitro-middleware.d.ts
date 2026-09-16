@@ -1,4 +1,4 @@
-export type MiddlewareKey = never
+export type MiddlewareKey = "catalog-legacy-links"
 declare module 'nitropack' {
   interface NitroRouteConfig {
     appMiddleware?: MiddlewareKey | MiddlewareKey[] | Record<MiddlewareKey, boolean>

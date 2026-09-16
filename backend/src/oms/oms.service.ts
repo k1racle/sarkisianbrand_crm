@@ -1,9 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { MarketplaceChannel, MarketplaceOrderStatus, OrderSource, OrderStatus, Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOmsOrderDto } from './dto/oms.dto';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
+import { applyStorefrontTransition } from '../common/storefront-order-transition';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export type MarketplaceOrderInput = {
   channel: MarketplaceChannel;
@@ -24,7 +26,8 @@ export type MarketplaceOrderInput = {
 export class OmsService {
   private readonly marketplaceSources: OrderSource[] = [OrderSource.WILDBERRIES, OrderSource.OZON, OrderSource.YANDEX_MARKET, OrderSource.MEGAMARKET];
 
-  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService) {}
+  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService,
+    @Optional() private readonly notifications?: NotificationsService) {}
 
   async dashboard() {
     const [total, attention, revenue, channels] = await this.prisma.$transaction([
@@ -59,15 +62,17 @@ export class OmsService {
   }
 
   async update(id: string, dto: UpdateOmsOrderDto, changedBy: string) {
-    const order = await this.prisma.order.findFirst({ where: { OR: [{ id }, { orderNumber: id }] }, include: { marketplaceStaging: true } });
-    if (!order) throw new NotFoundException('Заказ не найден');
-    this.assertTransition(order.status, dto.status);
     const updated = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, trackingNumber: dto.trackingNumber, internalNotes: dto.internalNotes, isSynced1C: false } });
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} OR "orderNumber" = ${id} ORDER BY id FOR UPDATE`;
+      const order = await tx.order.findFirst({ where: { OR: [{ id }, { orderNumber: id }] }, include: { marketplaceStaging: true, items: true, payments: true } });
+      if (!order) throw new NotFoundException('Заказ не найден');
+      this.assertTransition(order.status, dto.status);
+      const lifecycle = await applyStorefrontTransition(tx, order, dto.status, this.notifications);
+      const updated = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, trackingNumber: dto.trackingNumber, internalNotes: dto.internalNotes, isSynced1C: false, ...lifecycle } });
       if (order.status !== dto.status) await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: dto.status, comment: dto.comment || 'Статус изменён в OMS', changedBy } });
       if (order.marketplaceStaging) await tx.marketplaceOrder.update({ where: { canonicalOrderId: order.id }, data: { status: this.toMarketplaceStatus(dto.status), trackingNumber: dto.trackingNumber, internalNote: dto.internalNotes } });
       return updated;
-    });
+    }, { timeout: 30_000 });
     await this.oneC.enqueueOrder(updated.id, changedBy);
     return updated;
   }

@@ -1,7 +1,11 @@
+import type { StorefrontCatalogMenu } from './useStorefrontCatalog';
+
 type StorefrontContent = {
-  settings: { announcementText: string };
+  settings: { announcementText: string; catalogMenu?: StorefrontCatalogMenu | null; catalogMenuRevision?: number };
   banners: any[];
   categories: any[];
+  socialLinks: any[];
+  menuItems: Array<{ id: string; label: string; url: string; newTab: boolean }>;
 };
 
 const defaultAnnouncement = 'SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян';
@@ -12,6 +16,8 @@ export function useStorefrontContent() {
     settings: { announcementText: defaultAnnouncement },
     banners: [],
     categories: [],
+    socialLinks: [],
+    menuItems: [],
   }));
   const contentLoaded = useState('storefront-content-loaded', () => false);
 

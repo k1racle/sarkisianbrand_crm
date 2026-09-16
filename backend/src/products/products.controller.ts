@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
-import { CreateCategoryDto, CreateProductDto } from './dto/product.dto';
+import { CatalogQueryDto, CreateCategoryDto, CreateProductDto } from './dto/product.dto';
 import { ProductsService } from './products.service';
 
 @ApiTags('products')
@@ -17,15 +17,28 @@ export class ProductsController {
   @ApiOperation({ summary: 'Каталог товаров с поиском и пагинацией' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'category', required: false })
-  async list(@Query('search') search?: string, @Query('category') category?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.products.list({ search, category, page: Number(page) || 1, limit: Number(limit) || 24 });
+  async list(@Query() query: CatalogQueryDto) {
+    return this.products.list(query);
   }
+
+  @Get('filters')
+  @ApiOperation({ summary: 'Категории, назначения, особенности и диапазон цен опубликованного каталога' })
+  catalogFilters() { return this.products.catalogFilters(); }
 
   @Get('categories')
   categories() { return this.products.categories(); }
 
+  @Get('recommendations/cart')
+  @ApiOperation({ summary: 'До 8 доступных товаров по оплаченным продажам за 90 дней, без товаров корзины' })
+  cartRecommendations(@Query('exclude') exclude?: string) {
+    return this.products.cartRecommendations(typeof exclude === 'string' ? exclude.split(',').filter(Boolean) : []);
+  }
+
   @Get('storefront-content')
   storefrontContent() { return this.products.storefrontContent(); }
+
+  @Get('storefront-pages/:slug')
+  storefrontPage(@Param('slug') slug: string) { return this.products.storefrontPage(slug); }
 
   @Get('storefront-media/:fileName')
   async storefrontMedia(@Param('fileName') fileName: string, @Res() response: Response) {

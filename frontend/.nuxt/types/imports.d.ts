@@ -86,9 +86,16 @@ declare global {
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
   const showError: typeof import('../../node_modules/nuxt/dist/app/composables/error').showError
+  const storefrontActiveCategories: typeof import('../../composables/useStorefrontCatalog').storefrontActiveCategories
+  const storefrontCanonicalUrl: typeof import('../../composables/useStorefrontSeo').storefrontCanonicalUrl
   const storefrontCatalogLink: typeof import('../../composables/useStorefrontCatalog').storefrontCatalogLink
+  const storefrontCatalogMenu: typeof import('../../composables/useStorefrontCatalog').storefrontCatalogMenu
+  const storefrontCatalogQuickLinks: typeof import('../../composables/useStorefrontCatalog').storefrontCatalogQuickLinks
   const storefrontCategories: typeof import('../../composables/useStorefrontCatalog').storefrontCategories
+  const storefrontCategoryGroups: typeof import('../../composables/useStorefrontCatalog').storefrontCategoryGroups
   const storefrontProductImage: typeof import('../../composables/useStorefrontCatalog').storefrontProductImage
+  const storefrontRobotsPolicy: typeof import('../../composables/useStorefrontSeo').storefrontRobotsPolicy
+  const storefrontSiteOrigin: typeof import('../../composables/useStorefrontSeo').storefrontSiteOrigin
   const toRaw: typeof import('vue').toRaw
   const toRef: typeof import('vue').toRef
   const toRefs: typeof import('vue').toRefs
@@ -118,7 +125,6 @@ declare global {
   const useModel: typeof import('vue').useModel
   const useNuxtApp: typeof import('../../node_modules/nuxt/dist/app/nuxt').useNuxtApp
   const useNuxtData: typeof import('../../node_modules/nuxt/dist/app/composables/asyncData').useNuxtData
-  const useNuxtDevTools: typeof import('../../node_modules/@nuxt/devtools/dist/runtime/use-nuxt-devtools').useNuxtDevTools
   const usePlatformChat: typeof import('../../composables/usePlatformChat').usePlatformChat
   const usePreviewMode: typeof import('../../node_modules/nuxt/dist/app/composables/preview').usePreviewMode
   const useRequestEvent: typeof import('../../node_modules/nuxt/dist/app/composables/ssr').useRequestEvent
@@ -183,8 +189,11 @@ declare global {
   const useSlots: typeof import('vue').useSlots
   const useState: typeof import('../../node_modules/nuxt/dist/app/composables/state').useState
   const useStorefront: typeof import('../../composables/useStorefront').useStorefront
+  const useStorefrontCardTilt: typeof import('../../composables/useStorefrontCardTilt').useStorefrontCardTilt
   const useStorefrontContent: typeof import('../../composables/useStorefrontContent').useStorefrontContent
+  const useStorefrontMotion: typeof import('../../composables/useStorefrontMotion').useStorefrontMotion
   const useStorefrontPanels: typeof import('../../composables/useStorefrontPanels').useStorefrontPanels
+  const useStorefrontSeo: typeof import('../../composables/useStorefrontSeo').useStorefrontSeo
   const useTemplateRef: typeof import('vue').useTemplateRef
   const useTransitionState: typeof import('vue').useTransitionState
   const useUserProfilePanel: typeof import('../../composables/useUserProfilePanel').useUserProfilePanel
@@ -208,6 +217,12 @@ declare global {
   // @ts-ignore
   export type { ContextMenuIcon, ContextMenuItem } from '../../composables/useContextMenu'
   import('../../composables/useContextMenu')
+  // @ts-ignore
+  export type { StorefrontCategory, StorefrontCatalogQuickLinkKey, StorefrontCatalogMenu } from '../../composables/useStorefrontCatalog'
+  import('../../composables/useStorefrontCatalog')
+  // @ts-ignore
+  export type { StorefrontSeoOptions } from '../../composables/useStorefrontSeo'
+  import('../../composables/useStorefrontSeo')
   // @ts-ignore
   export type { WorkspaceUser } from '../../composables/useWorkspaceSession'
   import('../../composables/useWorkspaceSession')
@@ -301,9 +316,16 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly showError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['showError']>
+    readonly storefrontActiveCategories: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontActiveCategories']>
+    readonly storefrontCanonicalUrl: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['storefrontCanonicalUrl']>
     readonly storefrontCatalogLink: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontCatalogLink']>
+    readonly storefrontCatalogMenu: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontCatalogMenu']>
+    readonly storefrontCatalogQuickLinks: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontCatalogQuickLinks']>
     readonly storefrontCategories: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontCategories']>
+    readonly storefrontCategoryGroups: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontCategoryGroups']>
     readonly storefrontProductImage: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontProductImage']>
+    readonly storefrontRobotsPolicy: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['storefrontRobotsPolicy']>
+    readonly storefrontSiteOrigin: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['storefrontSiteOrigin']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
@@ -333,7 +355,6 @@ declare module 'vue' {
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly useNuxtApp: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/nuxt')['useNuxtApp']>
     readonly useNuxtData: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/asyncData')['useNuxtData']>
-    readonly useNuxtDevTools: UnwrapRef<typeof import('../../node_modules/@nuxt/devtools/dist/runtime/use-nuxt-devtools')['useNuxtDevTools']>
     readonly usePlatformChat: UnwrapRef<typeof import('../../composables/usePlatformChat')['usePlatformChat']>
     readonly usePreviewMode: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/preview')['usePreviewMode']>
     readonly useRequestEvent: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/ssr')['useRequestEvent']>
@@ -398,8 +419,11 @@ declare module 'vue' {
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
     readonly useState: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/state')['useState']>
     readonly useStorefront: UnwrapRef<typeof import('../../composables/useStorefront')['useStorefront']>
+    readonly useStorefrontCardTilt: UnwrapRef<typeof import('../../composables/useStorefrontCardTilt')['useStorefrontCardTilt']>
     readonly useStorefrontContent: UnwrapRef<typeof import('../../composables/useStorefrontContent')['useStorefrontContent']>
+    readonly useStorefrontMotion: UnwrapRef<typeof import('../../composables/useStorefrontMotion')['useStorefrontMotion']>
     readonly useStorefrontPanels: UnwrapRef<typeof import('../../composables/useStorefrontPanels')['useStorefrontPanels']>
+    readonly useStorefrontSeo: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['useStorefrontSeo']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
     readonly useTransitionState: UnwrapRef<typeof import('vue')['useTransitionState']>
     readonly useUserProfilePanel: UnwrapRef<typeof import('../../composables/useUserProfilePanel')['useUserProfilePanel']>

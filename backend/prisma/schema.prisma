@@ -306,6 +306,7 @@ model User {
   storefrontAddresses     StorefrontAddress[]
   productFavorites        ProductFavorite[]
   socialLoginTickets      SocialLoginTicket[]
+  mediaAssets             MediaAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -493,6 +494,7 @@ model Customer {
   lastName        String?
   email           String?
   phone           String?
+  birthday        DateTime?
   normalizedEmail String?
   normalizedPhone String?
   status          CustomerStatus @default(ACTIVE)
@@ -675,8 +677,26 @@ model Category {
 
 model StorefrontSetting {
   key              String   @id @default("main")
+  catalogMenu Json?
+  catalogMenuRevision Int @default(0)
   announcementText String   @default("SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян")
   updatedAt        DateTime @updatedAt
+}
+
+model MediaAsset {
+  id String @id @default(uuid())
+  filename String @unique
+  originalName String
+  mime String
+  size Int
+  width Int?
+  height Int?
+  createdById String?
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt, id])
+  @@index([createdById])
 }
 
 model StorefrontBanner {
@@ -697,15 +717,59 @@ model StorefrontBanner {
   @@index([isActive, sortOrder])
 }
 
+model StorefrontPage {
+  slug           String   @id
+  title          String
+  eyebrow        String   @default("")
+  lead           String   @default("")
+  seoDescription String?
+  blocks         Json
+  isActive       Boolean  @default(true)
+  reviewRequired Boolean  @default(false)
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model StorefrontMenuItem {
+  id        String   @id @default(uuid())
+  label     String
+  url       String
+  newTab    Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model StorefrontSocialLink {
+  id        String   @id @default(uuid())
+  name      String
+  iconKey   String
+  url       String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 model Product {
   id         String  @id @default(uuid())
   sku        String  @unique
   vendorCode String?
+  productType String @default("PHYSICAL")
+  giftCardValidityDays Int?
 
   nameRu        String
   nameEn        String?
   descriptionRu String?
   descriptionEn String?
+  purposes      String[] @default([])
+  features      String[] @default([])
   slug          String  @unique
 
   basePrice Decimal  @db.Decimal(15, 2)
@@ -832,6 +896,20 @@ model CartItem {
 model Order {
   id          String @id @default(uuid())
   orderNumber String @unique
+  checkoutKey String? @unique
+  checkoutRequestHash String?
+  guestAccessHash String?
+  guestAccessExpiresAt DateTime?
+  reservationState String @default("LEGACY")
+  reservationExpiresAt DateTime?
+  bonusAmount Int @default(0)
+  giftCardAmount Decimal @default(0.00) @db.Decimal(15, 2)
+  giftCards GiftCard[]
+  giftRedemption GiftCardRedemption?
+  promoCode String?
+  priceSnapshot Json?
+  loyaltyAccruedAt DateTime?
+  promoRedemption PromoRedemption?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
@@ -929,6 +1007,23 @@ model LoyaltyTransaction {
   createdAt DateTime       @default(now())
 
   @@index([accountId, createdAt])
+}
+
+model LoyaltyProgramSetting {
+  id                       String   @id @default("default")
+  programName              String   @default("SARKISIAN CLUB")
+  isEnabled                Boolean  @default(true)
+  earnPercent              Int      @default(1)
+  maxWriteOffPercent       Int      @default(30)
+  signupBonus              Int      @default(0)
+  birthdayBonus            Int      @default(0)
+  bonusValidityDays        Int      @default(365)
+  proThreshold             Int      @default(3000)
+  premiumThreshold         Int      @default(10000)
+  proMultiplierPercent     Int      @default(120)
+  premiumMultiplierPercent Int      @default(150)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 model MarketplaceOrder {
@@ -1081,10 +1176,59 @@ model OrderItem {
   offerId     String?
 
   productName String
+  productType String @default("PHYSICAL")
+  giftCardValidityDays Int?
   variantName String
   price       Decimal @db.Decimal(15, 2)
   quantity    Int
   total       Decimal @db.Decimal(15, 2)
+}
+
+model GiftCard {
+  id String @id @default(uuid())
+  codeHash String @unique
+  encryptedCode String
+  maskedCode String
+  faceValue Decimal @db.Decimal(15, 2)
+  balance Decimal @db.Decimal(15, 2)
+  reserved Decimal @default(0.00) @db.Decimal(15, 2)
+  currency Currency @default(RUB)
+  validityDays Int
+  issuedAt DateTime @default(now())
+  expiresAt DateTime
+  isActive Boolean @default(true)
+  revision Int @default(1)
+  sourceOrderId String?
+  sourceOrder Order? @relation(fields: [sourceOrderId], references: [id], onDelete: Restrict)
+  sourceItemId String?
+  ordinal Int?
+  purchaserUserId String?
+  label String?
+  reason String?
+  redemptions GiftCardRedemption[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceItemId, ordinal])
+  @@index([sourceOrderId])
+  @@index([isActive, expiresAt])
+  @@index([createdAt])
+}
+
+model GiftCardRedemption {
+  id String @id @default(uuid())
+  orderId String @unique
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  cardId String
+  card GiftCard @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  amount Decimal @db.Decimal(15, 2)
+  status String @default("RESERVED")
+  appliedAt DateTime?
+  releasedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cardId, status])
 }
 
 model OrderStatusHistory {
@@ -1486,6 +1630,67 @@ model IdempotencyKey {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+model PromoCode {
+  code String @id
+  title String
+  discountType String
+  amount Decimal @db.Decimal(15,2)
+  minimumAmount Decimal @default(0) @db.Decimal(15,2)
+  maximumDiscount Decimal? @db.Decimal(15,2)
+  usageLimit Int?
+  perCustomerLimit Int @default(1)
+  isActive Boolean @default(true)
+  startsAt DateTime?
+  endsAt DateTime?
+  revision Int @default(1)
+  redemptions PromoRedemption[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PromoRedemption {
+  id String @id @default(uuid())
+  code String
+  promo PromoCode @relation(fields:[code],references:[code])
+  orderId String @unique
+  order Order @relation(fields:[orderId],references:[id])
+  customerHash String
+  status String @default("RESERVED")
+  createdAt DateTime @default(now())
+  @@index([code,status])
+  @@index([code,customerHash,status])
+}
+
+model ShippingQuote {
+  id String @id @default(uuid())
+  sessionHash String
+  provider String
+  deliveryMethod String
+  amount Decimal @db.Decimal(15,2)
+  currency String @default("RUB")
+  destinationHash String
+  requestSnapshot Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([expiresAt])
+}
+
+model MailOutbox {
+  id String @id @default(uuid())
+  dedupeKey String @unique
+  kind String
+  recipient String
+  encryptedPayload String
+  status String @default("QUEUED")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lastError String?
+  sentAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status,nextAttemptAt])
 }
 
 // ===================== SEO =====================

@@ -11,12 +11,18 @@ import { NuxtModule, ModuleDependencyMeta } from '@nuxt/schema'
       cdnURL: string,
    },
 
+   seoApiBase: string,
+
    nitro: {
       envPrefix: string,
    },
   }
   interface SharedPublicRuntimeConfig {
    apiBase: string,
+
+   siteUrl: string,
+
+   seoIndexingEnabled: string,
   }
 declare module '@nuxt/schema' {
   interface ModuleDependencies {

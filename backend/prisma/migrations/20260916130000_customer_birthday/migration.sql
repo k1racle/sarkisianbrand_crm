@@ -1,0 +1,1 @@
+ALTER TABLE "Customer" ADD COLUMN "birthday" TIMESTAMP(3);

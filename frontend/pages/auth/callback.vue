@@ -2,4 +2,4 @@
 const route = useRoute(); const config = useRuntimeConfig(); const message = ref('Завершаем безопасный вход…'); const { accessToken, refreshToken, user, bindCart } = useStorefront();
 onMounted(async () => { try { const ticket = String(route.query.ticket || ''); if (!ticket) throw new Error('Не передан билет входа'); const session = await $fetch<any>('/auth/social/exchange', { baseURL: config.public.apiBase, method: 'POST', body: { ticket } }); accessToken.value = session.accessToken; refreshToken.value = session.refreshToken; user.value = session.user; await bindCart(); await navigateTo(String(route.query.return || '/account')); } catch (error: any) { message.value = error?.data?.message || error?.message || 'Не удалось выполнить вход'; setTimeout(() => navigateTo(`/login?social_error=${encodeURIComponent(message.value)}`), 1800); } }); useSeoMeta({ title: 'Вход — SARKISIAN BRAND' });
 </script>
-<template><div class="sb-storefront"><div class="sb-state" style="min-height:100vh">{{ message }}</div></div></template>
+<template><SiteShell><div class="sb-reset-page"><div class="sb-reset-card sb-state" role="status">{{ message }}</div></div></SiteShell></template>

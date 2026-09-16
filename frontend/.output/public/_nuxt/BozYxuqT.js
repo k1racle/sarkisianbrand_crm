@@ -1,1 +1,0 @@
-import{g as o,O as n,k as t,n as c,E as s,o as r,V as _}from"./J0h2Est1.js";const i=o({__name:"crm-chat",setup(p){const{openChat:a}=n();return t(async()=>{a(),await c("/workspace",{replace:!0})}),(m,u)=>{const e=_;return r(),s(e,{label:"Открываем чат платформы"})}}});export{i as default};

@@ -203,6 +203,8 @@ export class SystemSettingsService {
     const requested = request.requestedData as Record<string, string>;
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.profileChangeRequest.updateMany({ where: { id, status: ProfileChangeStatus.PENDING }, data: { status: dto.status, reviewedById: actorId, reviewedAt: new Date(), reviewComment: dto.comment } });
+        if (claimed.count !== 1) throw new ConflictException('Этот запрос уже рассмотрен другим сотрудником');
         if (dto.status === ProfileChangeStatus.APPROVED) {
           const updated = await tx.user.update({ where: { id: request.userId }, data: {
             firstName: requested.firstName, lastName: requested.lastName, phone: requested.phone,
@@ -210,6 +212,7 @@ export class SystemSettingsService {
           if (request.user.customer) await tx.customer.update({ where: { id: request.user.customer.id }, data: {
             firstName: updated.firstName, lastName: updated.lastName, phone: updated.phone,
             normalizedPhone: updated.phone?.replace(/\D/g, '') || null,
+            birthday: requested.birthday ? new Date(`${requested.birthday}T00:00:00.000Z`) : undefined,
           } });
         }
         return tx.profileChangeRequest.update({ where: { id }, data: { status: dto.status, reviewedById: actorId, reviewedAt: new Date(), reviewComment: dto.comment } });

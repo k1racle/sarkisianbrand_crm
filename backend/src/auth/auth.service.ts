@@ -24,13 +24,20 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findFirst({ where: { OR: [{ email }, ...(dto.phone ? [{ phone: dto.phone }] : [])] } });
     if (existing) throw new ConflictException('Пользователь с такими данными уже существует');
+    this.assertPasswordStrength(dto.password);
     const password = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({ data: { email, phone: dto.phone, firstName: dto.firstName, lastName: dto.lastName, password, passwordChangedAt: new Date(), role: UserRole.CUSTOMER_B2C } });
       await tx.customer.create({ data: { userId: created.id, firstName: created.firstName, lastName: created.lastName, email: created.email, phone: created.phone, normalizedEmail: created.email, normalizedPhone: created.phone?.replace(/\D/g, '') || null, segment: 'B2C', source: 'WEB' } });
+      await this.createInitialLoyaltyAccount(tx, created.id);
       return created;
     });
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id, user.role, context)) };
+  }
+
+  async logout(userId: string, sessionId?: string) {
+    if (sessionId) await this.prisma.session.deleteMany({ where: { id: sessionId, userId } });
+    return { loggedOut: true };
   }
 
   async login(dto: LoginDto, context: SessionContext = {}) {
@@ -77,7 +84,20 @@ export class AuthService {
         update: { customerId: customer.id, metadata: profile.metadata as Prisma.InputJsonValue | undefined },
         create: { customerId: customer.id, provider: profile.provider, externalId: profile.externalId, metadata: profile.metadata as Prisma.InputJsonValue | undefined },
       });
+      if (!existing) await this.createInitialLoyaltyAccount(tx, user.id);
       return user;
+    });
+  }
+
+  private async createInitialLoyaltyAccount(tx: Prisma.TransactionClient, userId: string) {
+    const settings = await tx.loyaltyProgramSetting.findUnique({ where: { id: 'default' } });
+    const signupBonus = settings?.isEnabled ? settings.signupBonus : 0;
+    await tx.loyaltyAccount.create({
+      data: {
+        userId,
+        balance: signupBonus || 0,
+        entries: signupBonus ? { create: { amount: signupBonus, type: 'ACCRUAL', reason: 'Приветственные бонусы за регистрацию', metadata: { expiresAt: new Date(Date.now() + (settings?.bonusValidityDays || 365) * 86400_000).toISOString() } } } : undefined,
+      },
     });
   }
 
@@ -99,19 +119,21 @@ export class AuthService {
       include: {
         sessions: { where: { expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' } },
         profileChangeRequests: { where: { status: ProfileChangeStatus.PENDING }, orderBy: { createdAt: 'desc' }, take: 1 },
+        customer: { select: { birthday: true } },
       },
     });
     if (!user?.isActive) throw new UnauthorizedException('Учётная запись недоступна');
     return {
-      ...this.publicUser(user),
+        ...this.publicUser(user),
+        birthday: user.customer?.birthday?.toISOString().slice(0,10) || null,
       sessions: user.sessions.map(({ refreshToken: _secret, ...session }) => session),
       pendingChangeRequest: user.profileChangeRequests[0] || null,
     };
   }
 
   async updateProfile(userId: string, dto: UpdateOwnProfileDto) {
-    const preferences = dto.notificationPreferences ? this.sanitizeNotificationPreferences(dto.notificationPreferences) : undefined;
-    const user = await this.prisma.user.update({
+    const patch = dto.notificationPreferences !== undefined ? this.sanitizeNotificationPreferences(dto.notificationPreferences) : undefined;
+    const update = (db: Prisma.TransactionClient | PrismaService, preferences?: Record<string, unknown>) => db.user.update({
       where: { id: userId },
       data: {
         country: dto.country?.toUpperCase(),
@@ -121,19 +143,35 @@ export class AuthService {
         notificationPreferences: preferences as Prisma.InputJsonValue | undefined,
       },
     });
+    const user = patch ? await this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      const owner = await tx.user.findUnique({ where: { id: userId }, select: { notificationPreferences: true } });
+      if (!owner) throw new NotFoundException('Профиль не найден');
+      const previous = owner.notificationPreferences && typeof owner.notificationPreferences === 'object' && !Array.isArray(owner.notificationPreferences) ? owner.notificationPreferences : {};
+      return update(tx, { ...previous, ...patch });
+    }) : await update(this.prisma);
     return this.publicUser(user);
   }
 
   async requestProfileChange(userId: string, dto: RequestProfileChangeDto) {
+    if (dto.birthday) {
+      const date = new Date(`${dto.birthday}T00:00:00.000Z`);
+      if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== dto.birthday || date > new Date() || date.getUTCFullYear() < 1900) throw new BadRequestException('Укажите корректную дату рождения');
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+      if (user?.role !== 'CUSTOMER_B2C') throw new BadRequestException('Дата рождения клуба доступна покупателям сайта');
+    }
     const requestedData = Object.fromEntries(
       Object.entries(dto)
         .filter(([, value]) => typeof value === 'string' && value.trim())
         .map(([key, value]) => [key, String(value).trim()]),
     );
     if (!Object.keys(requestedData).length) throw new BadRequestException('Укажите данные, которые требуется изменить');
-    const pending = await this.prisma.profileChangeRequest.findFirst({ where: { userId, status: ProfileChangeStatus.PENDING } });
-    if (pending) throw new ConflictException('Запрос на изменение данных уже ожидает рассмотрения');
-    return this.prisma.profileChangeRequest.create({ data: { userId, requestedData } });
+    return this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      const pending = await tx.profileChangeRequest.findFirst({ where: { userId, status: ProfileChangeStatus.PENDING } });
+      if (pending) throw new ConflictException('Запрос на изменение данных уже ожидает рассмотрения');
+      return tx.profileChangeRequest.create({ data: { userId, requestedData } });
+    });
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
@@ -154,12 +192,13 @@ export class AuthService {
     const token = await this.prisma.passwordResetToken.findUnique({ where: { tokenHash }, include: { user: true } });
     if (!token || token.usedAt || token.expiresAt <= new Date() || !token.user.isActive) throw new BadRequestException('Ссылка недействительна или срок её действия истёк');
     const password = await bcrypt.hash(dto.newPassword, 12);
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: token.userId }, data: { password, passwordChangedAt: new Date(), forcePasswordChange: false } }),
-      this.prisma.passwordResetToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
-      this.prisma.passwordResetToken.updateMany({ where: { userId: token.userId, id: { not: token.id }, usedAt: null }, data: { usedAt: new Date() } }),
-      this.prisma.session.deleteMany({ where: { userId: token.userId } }),
-    ]);
+    await this.prisma.$transaction(async tx => {
+      const claimed = await tx.passwordResetToken.updateMany({ where: { id: token.id, usedAt: null, expiresAt: { gt: new Date() }, user: { isActive: true } }, data: { usedAt: new Date() } });
+      if (claimed.count !== 1) throw new BadRequestException('Ссылка недействительна или срок её действия истёк');
+      await tx.user.update({ where: { id: token.userId }, data: { password, passwordChangedAt: new Date(), forcePasswordChange: false } });
+      await tx.passwordResetToken.updateMany({ where: { userId: token.userId, id: { not: token.id }, usedAt: null }, data: { usedAt: new Date() } });
+      await tx.session.deleteMany({ where: { userId: token.userId } });
+    });
     return { changed: true };
   }
 
@@ -248,10 +287,13 @@ export class AuthService {
 
   private sanitizeNotificationPreferences(value: Record<string, boolean>) {
     const allowed = ['email', 'push', 'chat'];
-    return Object.fromEntries(allowed.map((key) => [key, value[key] !== false]));
+    if (!value || typeof value !== 'object' || Array.isArray(value) || Object.entries(value).some(([key, flag]) => !allowed.includes(key) || typeof flag !== 'boolean')) throw new BadRequestException('Некорректные настройки уведомлений');
+    return { ...value };
   }
 
   private assertPasswordStrength(password: string) {
+    if (typeof password !== 'string' || password.length < 10) throw new BadRequestException('Пароль должен содержать не менее 10 символов');
+    if (Buffer.byteLength(password, 'utf8') > 72) throw new BadRequestException('Пароль слишком длинный. Выберите более короткий пароль');
     if (!/[a-zа-я]/i.test(password) || !/\d/.test(password)) throw new BadRequestException('Пароль должен содержать буквы и цифры');
   }
 

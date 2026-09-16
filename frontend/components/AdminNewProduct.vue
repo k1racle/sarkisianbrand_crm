@@ -13,6 +13,8 @@ const form = ref<any>({
   sku: "",
   nameRu: "",
   descriptionRu: "",
+  purposesText: "",
+  featuresText: "",
   price: 0,
   stock: 0,
   slug: "",
@@ -54,12 +56,15 @@ async function create() {
   saving.value = true;
   error.value = "";
   try {
+    const { purposesText, featuresText, ...payload } = form.value;
     await $fetch("/admin/products", {
       baseURL: config.public.apiBase,
       method: "POST",
       headers: { Authorization: `Bearer ${token.value}` },
       body: {
-        ...form.value,
+        ...payload,
+        purposes: [...new Set((purposesText || '').split(',').map((v: string) => v.trim()).filter(Boolean))],
+        features: [...new Set((featuresText || '').split(',').map((v: string) => v.trim()).filter(Boolean))],
         price: Number(form.value.price),
         stock: Number(form.value.stock),
         images: form.value.images.filter((image: any) => image.url),
@@ -101,6 +106,8 @@ async function create() {
             required
             placeholder="Например, Кисть SARKISIAN"
         /></label>
+        <label>Для чего<input v-model="form.purposesText" maxlength="1600" placeholder="Назначения через запятую" /></label>
+        <label>Особенности<input v-model="form.featuresText" maxlength="1600" placeholder="Подтверждённые характеристики через запятую" /></label>
         <div class="two">
           <label
             >Артикул / SKU<input
@@ -154,7 +161,7 @@ async function create() {
             :key="index"
             class="image-line"
           >
-            <input v-model="image.url" placeholder="URL изображения" /><input
+            <AdminMediaPicker v-model="image.url" :disabled="saving" label="Изображение товара" /><input
               v-model="image.alt"
               placeholder="Alt-текст"
             />
@@ -293,7 +300,7 @@ async function create() {
 }
 .image-line {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 7px;
 }
 .image-line input {

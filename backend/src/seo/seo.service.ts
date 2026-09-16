@@ -1,24 +1,49 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildRobots, buildSitemap, SeoSnapshot, siteOrigin } from './seo-document';
 
 @Injectable()
 export class SeoService {
-  constructor(private readonly prisma: PrismaService) {}
+  readonly origin: string;
+  readonly indexing: boolean;
+  private cache?: { expires: number; snapshot: SeoSnapshot };
+  private pending?: Promise<SeoSnapshot>;
 
-  async sitemap() {
-    const [products, categories] = await this.prisma.$transaction([
-      this.prisma.product.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true } }),
-      this.prisma.category.findMany({ where: { isActive: true }, select: { slug: true } }),
-    ]);
-    const urls = [
-      'https://sarkisianbrand.ru/',
-      ...categories.map((category) => `https://sarkisianbrand.ru/catalog/${category.slug}`),
-      ...products.map((product) => `https://sarkisianbrand.ru/products/${product.slug}`),
-    ];
-    return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `<url><loc>${url}</loc></url>`).join('')}</urlset>`;
+  constructor(private readonly prisma: PrismaService, config: ConfigService) {
+    const configured = config.get<string>('SITE_URL');
+    if (!configured && config.get('NODE_ENV') === 'production') throw new Error('Для production необходимо задать SITE_URL');
+    this.origin = siteOrigin(configured || 'http://localhost:3001');
+    this.indexing = String(config.get('SEO_INDEXING_ENABLED') || 'false') === 'true';
+    if (this.indexing && config.get('NODE_ENV') === 'production' && !this.origin.startsWith('https://')) {
+      throw new Error('Индексируемый production-сайт должен использовать HTTPS');
+    }
   }
 
-  robots() {
-    return 'User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: https://sarkisianbrand.ru/api/v1/seo/sitemap';
+  private snapshot(): Promise<SeoSnapshot> {
+    if (this.cache && this.cache.expires > Date.now()) return Promise.resolve(this.cache.snapshot);
+    if (this.pending) return this.pending;
+    this.pending = this.prisma.$transaction([
+      this.prisma.product.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true }, orderBy: { slug: 'asc' } }),
+      this.prisma.category.findMany({ where: { isActive: true }, select: { slug: true }, orderBy: { slug: 'asc' } }),
+      this.prisma.storefrontPage.findMany({ select: { slug: true, updatedAt: true, isActive: true, reviewRequired: true }, orderBy: { slug: 'asc' } }),
+    ]).then(([products, categories, pages]) => {
+      const snapshot = { products, categories, pages };
+      this.cache = { expires: Date.now() + 60_000, snapshot };
+      return snapshot;
+    }).catch(() => {
+      throw new ServiceUnavailableException('SEO-данные временно недоступны');
+    }).finally(() => { this.pending = undefined; });
+    return this.pending;
+  }
+
+  async sitemap() {
+    const snapshot = this.indexing ? await this.snapshot() : { products: [], categories: [], pages: [] };
+    try { return buildSitemap(this.origin, snapshot, this.indexing); }
+    catch { throw new ServiceUnavailableException('Не удалось сформировать карту сайта'); }
+  }
+
+  async robots() {
+    return buildRobots(this.origin, this.indexing ? (await this.snapshot()).pages : [], this.indexing);
   }
 }

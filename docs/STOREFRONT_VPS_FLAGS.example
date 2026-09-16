@@ -1,0 +1,32 @@
+# NONSECRET TEMPLATE ONLY. Not automatically loaded; not a complete .env.
+# Filename deliberately avoids the repository's secret *.env.* ignore rule.
+# Replace example origins with the approved HTTPS domain before deploying.
+# Keep these gates OFF until the separate VPS acceptance permits activation.
+NODE_ENV=production
+STOREFRONT_EXTERNAL_CALLS_ENABLED=false
+MAIL_DELIVERY_ENABLED=false
+LOYALTY_MAINTENANCE_ENABLED=false
+PUBLIC_APP_URL=https://store.example.test
+SITE_URL=https://store.example.test
+SEO_INDEXING_ENABLED=false
+CORS_ORIGIN=https://store.example.test
+
+# Absolute persistent directory, shared by backend replicas and included in backup.
+MEDIA_STORAGE_PATH=/srv/sarkisian/shared/media
+
+# Frontend process. Public URL uses HTTPS reverse proxy, not public port 3000.
+NUXT_PUBLIC_API_BASE=https://store.example.test/api/v1
+NUXT_PUBLIC_SITE_URL=https://store.example.test
+NUXT_PUBLIC_SEO_INDEXING_ENABLED=false
+# Server-only SEO URL. In Docker replace loopback with the private service name.
+NUXT_SEO_API_BASE=http://127.0.0.1:3000/api/v1
+
+# Configure SEPARATELY in protected environment/secret manager; no values here:
+# DATABASE_URL, Redis private connection settings
+# JWT_SECRET, JWT_REFRESH_SECRET, INTEGRATION_ENCRYPTION_KEY
+# Each key must be independent, randomly generated, >=32 characters; no dev keys.
+# SMTP_HOST, SMTP_PORT, SMTP_FROM, SMTP_USER, SMTP_PASSWORD
+# Ecosystem encrypted provider settings: YooKassa, CDEK, ONE_C; approved TEST first.
+# CDEK requires senderCityCode, real variant.options.weightGrams, reviewed package
+# dimensions/tariffs; shipment adapter and Ozon Delivery adapter are not implemented.
+# Do NOT enable any flag to "test" an unimplemented adapter.

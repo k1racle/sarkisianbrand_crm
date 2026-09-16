@@ -29,6 +29,9 @@ import { PlatformChatModule } from './platform-chat/platform-chat.module';
 import { DataLifecycleModule } from './data-lifecycle/data-lifecycle.module';
 import { StorefrontModule } from './storefront/storefront.module';
 import { SocialAuthModule } from './social-auth/social-auth.module';
+import { PromotionsModule } from './promotions/promotions.module';
+import { GiftCardsModule } from './gift-cards/gift-cards.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -47,6 +50,7 @@ import { SocialAuthModule } from './social-auth/social-auth.module';
     ]),
     
     PrismaModule,
+    MediaModule,
     BackgroundJobsModule,
     AuthModule,
     CartModule,
@@ -72,6 +76,8 @@ import { SocialAuthModule } from './social-auth/social-auth.module';
     DataLifecycleModule,
     StorefrontModule,
     SocialAuthModule,
+    PromotionsModule,
+    GiftCardsModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })

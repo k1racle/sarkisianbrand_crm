@@ -1,0 +1,671 @@
+/* Operational design layer. Loaded LAST after ecosystem/legacy/scoped styles.
+ * Only internal roots and their dedicated sibling/teleported components are scoped.
+ * UserProfileDrawer supports workspace/B2B only; storefront account uses sb-* roots.
+ * Repeated root classes deliberately match scoped Vue + legacy !important specificity.
+ * No rail offsets, z-index, visibility, editor transforms or business states are reset.
+ */
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) {
+  --admin-font: "Montserrat", Arial, sans-serif;
+  --admin-ink: #171616;
+  --admin-muted: #6b6661;
+  --admin-bg: #f5f3f0;
+  --admin-line: rgba(28, 27, 26, .13);
+  --admin-glass: linear-gradient(135deg, rgba(255, 255, 255, .91), rgba(255, 255, 255, .72));
+  --admin-shadow: inset 0 1px 0 rgba(255, 255, 255, .96), 0 16px 44px rgba(31, 27, 25, .055);
+  --admin-caption: .75rem;
+  --admin-small: .875rem;
+  --admin-body: 1rem;
+  --admin-title: 1.25rem;
+  --admin-section: 1.5rem;
+  --admin-page: clamp(1.75rem, 2.3vw, 2.25rem);
+  --sb-font: var(--admin-font);
+  --sb-ink: var(--admin-ink);
+  --sb-text: var(--admin-ink);
+  --sb-ink-soft: #302d2b;
+  --sb-muted: var(--admin-muted);
+  --sb-bg: var(--admin-bg);
+  --sb-panel: rgba(255, 255, 255, .88);
+  --sb-line: var(--admin-line);
+  --sb-coral: var(--admin-ink);
+  --sb-coral-soft: #eeeae6;
+  --sb-radius: 20px;
+  --eco-ink: var(--admin-ink);
+  --eco-muted: var(--admin-muted);
+  --eco-line: var(--admin-line);
+  font-family: var(--admin-font) !important;
+  font-size: var(--admin-small) !important;
+  line-height: 1.55;
+  color: var(--admin-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) {
+  background: radial-gradient(circle at 5% 5%, rgba(219, 211, 204, .3), transparent 35rem), linear-gradient(180deg, #faf9f7, #f3f0ed 55%, #faf9f7) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) * {
+  box-sizing: border-box;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) > main {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--admin-ink) !important;
+  background: transparent !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, input, select, textarea) {
+  font-family: var(--admin-font) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) h1 {
+  font-family: var(--admin-font) !important;
+  font-size: var(--admin-page) !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.035em !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) h2 {
+  font-family: var(--admin-font) !important;
+  font-size: var(--admin-section) !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -.025em !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) h3 {
+  font-family: var(--admin-font) !important;
+  font-size: var(--admin-title) !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  letter-spacing: -.015em !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.kicker, .eyebrow, .section-label, .profile-head > div > p, .editor-header > div > p, .new-drawer header > div > p) {
+  font-size: var(--admin-caption) !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  letter-spacing: .12em !important;
+  color: var(--admin-muted) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.subtitle, .muted, .hint, .empty, .empty-small, .section-title p, .panel-head p, .panel > header p) {
+  font-size: var(--admin-small) !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  letter-spacing: normal !important;
+  color: var(--admin-muted) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(small, .field-grid label > span, .appearance-form label > span, .form-scroll label > span, .editor-fields label > span) {
+  font-size: var(--admin-caption) !important;
+  line-height: 1.5 !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.site-admin-header, .page-head, .page-header, .pipeline-header, .tasks-header, .mp-header, .leader-header, .hd-header, .system-header, .workspace-topbar, .crm-header, .hub > header, .top) {
+  width: calc(100% - 32px) !important;
+  min-height: 104px !important;
+  height: auto !important;
+  margin: 16px 16px 0 !important;
+  padding: 22px clamp(20px, 3vw, 44px) !important;
+  border: 1px solid rgba(255, 255, 255, .84) !important;
+  border-radius: 26px !important;
+  background: var(--admin-glass) !important;
+  box-shadow: var(--admin-shadow) !important;
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  gap: 16px;
+  align-items: center;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.site-admin-content, .admin-body, .page-body, .pipeline-body, .tasks-body, .mp-body, .leader-body, .hd-body, .system-body, .hub-body, .body) {
+  width: 100% !important;
+  max-width: 1440px !important;
+  min-width: 0;
+  margin-inline: auto !important;
+  padding: 28px clamp(20px, 3vw, 44px) 72px !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.panel, .workspace-card, .crm-grid article, .crm-kpis article, .kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article, .loyalty-kpis article, .queue-grid article, .knowledge-grid article, .integration-card, .space-card, .accounts-card, .trash-card, .profile-section, .admin-section, .sb-gift-panel, .sb-promo-panel, .cart-summary) {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, .86) !important;
+  border-radius: 22px !important;
+  background: var(--admin-glass) !important;
+  box-shadow: var(--admin-shadow) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.panel, .workspace-card, .space-card, .integration-card, .accounts-card, .trash-card) {
+  overflow: visible;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.kpis, .kpi-grid, .hero-kpis, .hd-kpis, .workspace-kpis, .crm-kpis, .loyalty-kpis) {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)) !important;
+  gap: 16px !important;
+  min-width: 0;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article, .loyalty-kpis article) {
+  min-height: 128px !important;
+  padding: 22px !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article, .loyalty-kpis article) :is(strong, b) {
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem) !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -.025em !important;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.platform-note, .hero-kpis .revenue, .kpis article.accent, .support-intro) {
+  background: linear-gradient(135deg, #302d2b, #171616) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, .1) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.platform-note, .hero-kpis .revenue, .kpis article.accent, .support-intro) :is(h2, h3, strong, b) {
+  color: #fff !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.toolbar, .filters) {
+  gap: 12px !important;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.header-actions, .head-actions, .panel-head, .panel > header, .appearance-panel-head, .section-title) {
+  gap: 12px !important;
+  flex-wrap: wrap;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, a.primary, a.secondary, a.light, a.outline, .head-actions > a, .header-actions > a) {
+  min-height: 44px;
+  height: auto;
+  padding: 11px 18px;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  color: var(--admin-ink) !important;
+  font-size: var(--admin-small) !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .24s ease, border-color .24s ease, box-shadow .24s ease, opacity .24s ease !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, a.primary, a.secondary, a.light, a.outline):hover:not(:disabled) {
+  background: #f3f0ed !important;
+  border-color: rgba(28, 27, 26, .24) !important;
+  transform: none !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button.primary, a.primary, .workspace-primary, .admin-submit, .loyalty-save, .appearance-save, button.save, button.send, .new-product, .sb-cms-primary, .sb-gift-button:not(.sb-gift-button--white), .sb-promo-button:not(.sb-promo-button--white), .head-actions > a:not(.light):not(.outline), .admin-load-error button, .cart-summary button) {
+  min-height: 48px !important;
+  padding: 13px 22px !important;
+  background: #151515 !important;
+  color: #fff !important;
+  border-color: #171616 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 8px 22px rgba(23, 22, 22, .1) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button.primary, a.primary, .workspace-primary, .admin-submit, .loyalty-save, .appearance-save, button.save, button.send, .new-product, .sb-cms-primary, .sb-gift-button:not(.sb-gift-button--white), .sb-promo-button:not(.sb-promo-button--white), .admin-load-error button):hover:not(:disabled) {
+  background: #35312e !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 10px 26px rgba(23, 22, 22, .14) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.tabs, .category-tabs, .audience-filter, .editor-tabs, .profile-tabs, .trash-types, .account-summary, .toolbar) button.active {
+  background: #171616 !important;
+  border-color: #171616 !important;
+  color: #fff !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button.close, button.icon-button, .sb-gift-icon-button, .sb-promo-icon-button, button.remove-photo) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  flex-shrink: 0;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) button.task-check {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button:disabled, input:disabled, select:disabled, textarea:disabled, [aria-disabled="true"]) {
+  opacity: .5 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, .94) !important;
+  color: var(--admin-ink) !important;
+  font-size: var(--admin-small) !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  box-shadow: inset 0 1px 2px rgba(28, 27, 26, .025);
+  outline-offset: 3px;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) textarea {
+  height: auto !important;
+  min-height: 112px !important;
+  resize: vertical;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) input::placeholder, :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) textarea::placeholder {
+  color: #8a837c !important;
+  opacity: 1;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: #171616 !important;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) input[type="range"] {
+  accent-color: #171616 !important;
+  max-width: 100%;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) input[type="file"] {
+  max-width: 100%;
+  font-size: var(--admin-small) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) input[type="file"]::file-selector-button {
+  padding: 10px 14px;
+  margin-right: 10px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-ink);
+  font: 600 var(--admin-small)/1.4 var(--admin-font);
+  cursor: pointer;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #38332e !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 5px rgba(56, 51, 46, .1) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: #a34b40 !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.search, .filters, .field-grid, .edit-grid, .editor-fields, .appearance-form, .loyalty-form-grid, .fields) label {
+  min-width: 0;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.search, label.search) input {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button > svg.lucide, a > svg.lucide, .section-title > svg.lucide, .kpis article > svg.lucide, .kpi-grid article > svg.lucide) {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  stroke-width: 1.75;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.section-title, .panel-head, .kpis article, .kpi-grid article) > svg.lucide {
+  color: currentColor !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.table-wrap, .table-scroll, .order-table, .ticket-table, .staff-table, .audit-table, .sales-table, .matrix-scroll, .account-table, .trash-table, .sb-gift-table-scroll, .sb-promo-table-scroll) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: #bdb5ae transparent;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--admin-small) !important;
+  line-height: 1.5;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(th, td) {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--admin-line) !important;
+  text-align: left;
+  vertical-align: middle;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(th, .table-head, .table-row.head, .order-row.table-head, .customer-row.head, .org-row.head, .staff-row.head, .audit-row.head, .sales-row.head, .account-row.head, .trash-row.head, .ticket-row.head, .matrix-row.head, .list-row.head) {
+  font-size: var(--admin-caption) !important;
+  font-weight: 600 !important;
+  line-height: 1.5 !important;
+  color: var(--admin-muted) !important;
+  background: rgba(239, 235, 231, .55) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.order-row, .customer-row, .org-row, .staff-row, .audit-row, .sales-row, .account-row, .trash-row, .ticket-row, .list-row, .admin-product-row) {
+  font-size: var(--admin-small) !important;
+  line-height: 1.5 !important;
+  border-bottom-color: var(--admin-line) !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.status, .status-badge, .badge, .sb-gift-badge, .state-active, .state-blocked) {
+  padding: 5px 9px;
+  border-radius: 9px !important;
+  font-size: var(--admin-caption) !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* Semantic states stay distinct. No blanket SVG fill/stroke or status recoloring. */
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.status-paid, .status-succeeded, .status-completed, .status-delivered, .state-active) {
+  color: #2c654b !important;
+  background-color: #edf5ef !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.status-failed, .status-error, .state-blocked, .status-blocked) {
+  color: #984439 !important;
+  background-color: #fbefeb !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.status-pending, .status-processing, .status-awaiting_payment) {
+  color: #87602a !important;
+  background-color: #f8f1e5 !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.admin-load-error, .state-error, .load-error, .login-error, .form-error) {
+  border: 1px solid rgba(152, 68, 57, .18) !important;
+  border-radius: 20px !important;
+  padding: 22px !important;
+  background: #fff8f5 !important;
+  color: #803b32 !important;
+  font-size: var(--admin-small) !important;
+  line-height: 1.6 !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) .admin-load-error {
+  max-width: 880px;
+  margin: 28px clamp(20px, 3vw, 44px);
+  display: grid;
+  gap: 12px;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) .admin-load-error :is(h1, p) {
+  margin: 0;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) .admin-load-error button {
+  justify-self: start;
+}
+
+/* Sibling/teleported drawers: own roots, not an assumed frame ancestor. */
+
+:is(.order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .platform-chat.platform-chat) {
+  max-width: 100vw !important;
+  border-left: 1px solid rgba(255, 255, 255, .9) !important;
+  border-radius: 28px 0 0 28px !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(247, 244, 240, .96)) !important;
+  box-shadow: -20px 0 70px rgba(31, 27, 25, .13) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+:is(.order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .platform-chat.platform-chat) :is(.drawer-header, .editor-header, .profile-head, .chat-head) {
+  padding: 22px 24px !important;
+  min-height: 88px !important;
+  height: auto !important;
+  border-bottom: 1px solid var(--admin-line) !important;
+  gap: 12px;
+}
+
+:is(.order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .platform-chat.platform-chat) :is(.drawer-body, .editor-scroll, .form-scroll, .profile-content) {
+  min-width: 0;
+  padding: 24px !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) button.avatar {
+  border-radius: 50% !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-height: 58px !important;
+  padding: 0 !important;
+  background: #302d2b !important;
+  color: #fff !important;
+}
+
+/* Rails are siblings too. Geometry and mobile collapse remain ConsoleRail-owned. */
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) {
+  --sb-coral: #fff;
+  --sb-ink: #171616;
+  --sb-muted: #bcb6b0;
+  --sb-font: "Montserrat", Arial, sans-serif;
+  font-family: var(--sb-font) !important;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) :is(button, a, strong) {
+  font-family: var(--sb-font) !important;
+  font-size: .875rem !important;
+  line-height: 1.4 !important;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) small {
+  font-size: .75rem !important;
+  line-height: 1.4 !important;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) nav a {
+  border-radius: 14px !important;
+  transition: background-color .24s ease, color .24s ease !important;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) nav a:is(.active, :hover) {
+  background: rgba(255, 255, 255, .12) !important;
+  color: #fff !important;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) nav a svg {
+  color: currentColor !important;
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) :is(button, a):focus-visible {
+  outline: 2px solid #fff !important;
+  outline-offset: 3px !important;
+}
+
+:is(.console-rail.console-rail, .b2b-rail.b2b-rail) .workspace-menu :is(button, a, strong) {
+  color: #171616 !important;
+}
+
+@media (max-width: 800px) {
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.site-admin-header, .page-head, .page-header, .pipeline-header, .tasks-header, .mp-header, .leader-header, .hd-header, .system-header, .workspace-topbar, .crm-header, .hub > header, .top) {
+  width: calc(100% - 20px) !important;
+  margin: 10px 10px 0 !important;
+  padding: 20px 16px !important;
+  min-height: 92px !important;
+  border-radius: 22px !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.site-admin-content, .admin-body, .page-body, .pipeline-body, .tasks-body, .mp-body, .leader-body, .hd-body, .system-body, .hub-body, .body) {
+  padding: 22px 16px 56px !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.dashboard-grid, .overview-grid, .hd-grid, .logs-grid, .appearance-workspace, .loyalty-workspace, .edit-grid, .field-grid, .fields.two, .two, .control-grid, .banner-admin-fields, .menu-admin-row, .social-admin-row) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  min-width: 0;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.board, .kanban, .gantt, .calendar, .matrix-scroll) {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.panel, .accounts-card, .trash-card):has(> :is(.customer-row, .org-row, .staff-row, .audit-row, .sales-row, .ticket-row, .list-row, .account-row, .trash-row)) {
+  overflow-x: auto;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.order-row, .customer-row, .org-row, .staff-row, .audit-row, .sales-row, .account-row, .trash-row, .ticket-row, .matrix-row, .list-row) {
+  min-width: 640px;
+}
+
+:is(.order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .platform-chat.platform-chat) :is(.drawer-header, .editor-header, .profile-head, .chat-head) {
+  padding: 20px 16px !important;
+}
+
+:is(.order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .platform-chat.platform-chat) :is(.drawer-body, .editor-scroll, .form-scroll, .profile-content) {
+  padding: 20px 16px !important;
+}
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) .admin-load-error {
+  margin: 22px 16px;
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, a, input, select, textarea) {
+  transition-duration: .01ms !important;
+  scroll-behavior: auto;
+}
+}
+
+/* Legacy form labels must not retain their former 9px scale. */
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(label, .identity span, .sessions strong, .notification-list strong) {
+  font-size: .875rem !important;
+  line-height: 1.5 !important;
+}
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.field-grid, .appearance-form, .editor-fields, .form-scroll, .fields) label > span {
+  font-size: .875rem !important;
+  line-height: 1.5 !important;
+}
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button > svg.lucide, a > svg.lucide) {
+  color: inherit !important;
+}
+:is(.new-drawer.new-drawer, .integration-drawer.integration-drawer, .automation-backdrop.automation-backdrop .automation) > header {
+  padding: 22px 24px !important;
+  min-height: 88px !important;
+  border-bottom: 1px solid rgba(28, 27, 26, .13) !important;
+}
+
+/* QA: one readable caption scale, including dark dashboard surfaces. */
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article, .loyalty-kpis article, .workspace-kpis article, .crm-kpis article) > span {
+  font-size: .75rem !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  color: #6b6661 !important;
+}
+:is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.hero-kpis article.revenue, .kpis article.accent) > span,
+.workspace-frame.workspace-frame .welcome .kicker {
+  color: #b9b6b1 !important;
+}
+
+/* The category picker footer is distinct from the thumbnail div above it.
+   AdminMediaPicker internals remain owned by admin-media-library.css. */
+.workspace-frame.workspace-frame .category-admin-grid > section > footer.category-admin-media {
+  padding: 12px !important;
+  min-width: 0;
+}
+
+/* File-picker labels retain their hidden input and working upload semantics. */
+.workspace-frame.workspace-frame .mobile-image-picker {
+  max-width: 100% !important;
+  min-width: 0;
+  width: fit-content !important;
+  min-height: 44px !important;
+  height: auto !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.5 !important;
+}
+.workspace-frame.workspace-frame .mobile-image-picker > svg {
+  flex-shrink: 0;
+}
+@media (max-width: 800px) {
+  .workspace-frame.workspace-frame .mobile-image-picker {
+    width: 100% !important;
+  }
+  .workspace-frame.workspace-frame .banner-admin-actions {
+    flex-wrap: wrap !important;
+    min-width: 0;
+    max-width: 100%;
+    gap: 8px !important;
+  }
+  .workspace-frame.workspace-frame .banner-admin-actions > button {
+    flex: 1 1 120px;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal !important;
+  }
+}
+
+/* Final mobile QA: keep picker fields within operational cards, never storefront. */
+@media (max-width: 600px) {
+  .workspace-frame.workspace-frame .category-admin-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .editor-drawer.editor-drawer .image-card {
+    flex-wrap: wrap !important;
+    min-width: 0;
+  }
+  .editor-drawer.editor-drawer .image-card > .image-inputs {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    order: 2;
+  }
+  .editor-drawer.editor-drawer .image-card > .image-preview {
+    order: 0;
+  }
+  .editor-drawer.editor-drawer .image-card > button.remove {
+    order: 1;
+    margin-left: auto !important;
+  }
+  .editor-drawer.editor-drawer :is(.editor-tabs, .images-intro) {
+    flex-wrap: wrap !important;
+    min-width: 0;
+    max-width: 100%;
+    gap: 8px !important;
+  }
+}

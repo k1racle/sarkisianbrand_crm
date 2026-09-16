@@ -3,8 +3,9 @@ import { PaymentsController } from './payments.controller';
 import { PaymentGateway } from './payment-gateway';
 import { PaymentsService } from './payments.service';
 import { YooKassaGateway } from './yookassa.gateway';
-import { LoyaltyModule } from '../loyalty/loyalty.module';
-import { OneCSyncModule } from '../1c-sync/1c-sync.module';
+import { OrdersModule } from '../orders/orders.module';
+import { AuthModule } from '../auth/auth.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
-@Module({ imports: [LoyaltyModule, OneCSyncModule], controllers: [PaymentsController], providers: [PaymentsService, YooKassaGateway, { provide: PaymentGateway, useExisting: YooKassaGateway }] })
+@Module({ imports: [OrdersModule, AuthModule, SystemSettingsModule], controllers: [PaymentsController], providers: [PaymentsService, YooKassaGateway, { provide: PaymentGateway, useExisting: YooKassaGateway }] })
 export class PaymentsModule {}

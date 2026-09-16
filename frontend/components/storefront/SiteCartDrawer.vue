@@ -1,42 +1,51 @@
 <script setup lang="ts">
-import { ArrowRight, Minus, Plus, ShoppingBag, Trash2, X } from '@lucide/vue';
+import { ArrowRight, ShoppingBag, Trash2, X } from '@lucide/vue';
 
 const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; 'after-leave': [] }>();
+const motionDuration = useStorefrontMotion();
 const config = useRuntimeConfig();
-const { cartSession, cart, loadCart } = useStorefront();
+const { cartSession, cart, loadCart, authHeaders } = useStorefront();
 const loading = ref(false);
+const busy = ref(''); const error = ref('');
+function message(exception: any) { return Array.isArray(exception?.data?.message) ? exception.data.message.join('. ') : exception?.data?.message || 'Не удалось обновить корзину. Попробуйте ещё раз.'; }
 
 const total = computed(() => Number(cart.value?.total || 0));
 
 async function change(item: any, quantity: number) {
+  if (busy.value) return; busy.value = item.id; error.value = '';
+  try {
   cart.value = await $fetch(`/cart/items/${item.id}`, {
     baseURL: config.public.apiBase,
     method: 'PATCH',
-    headers: { 'x-cart-session': cartSession.value },
+    headers: { ...authHeaders.value, 'x-cart-session': cartSession.value },
     body: { quantity: Math.max(1, quantity) },
   });
+  } catch (exception) { error.value = message(exception); } finally { busy.value = ''; }
 }
 
 async function remove(item: any) {
+  if (busy.value) return; busy.value = item.id; error.value = '';
+  try {
   cart.value = await $fetch(`/cart/items/${item.id}`, {
     baseURL: config.public.apiBase,
     method: 'DELETE',
-    headers: { 'x-cart-session': cartSession.value },
+    headers: { ...authHeaders.value, 'x-cart-session': cartSession.value },
   });
+  } catch (exception) { error.value = message(exception); } finally { busy.value = ''; }
 }
 
 watch(() => props.open, async (value) => {
   if (!value) return;
   loading.value = true;
-  await loadCart().catch(() => undefined);
+  error.value = ''; await loadCart().catch(exception => { error.value = message(exception); });
   loading.value = false;
 });
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition name="sf-drawer">
+    <Transition name="sf-drawer" :duration="motionDuration" @after-leave="emit('after-leave')">
       <div v-if="open" class="sb-glass-layer" @click.self="emit('close')">
         <aside class="sb-side-drawer sb-cart-drawer" aria-label="Корзина">
           <header class="sb-drawer-head">
@@ -48,6 +57,7 @@ watch(() => props.open, async (value) => {
             <button aria-label="Закрыть" @click="emit('close')"><X :size="20" /></button>
           </header>
 
+          <p v-if="error" class="sb-form-error" role="alert">{{ error }}</p>
           <div v-if="loading" class="sb-drawer-state">Загружаем корзину…</div>
           <div v-else-if="cart?.items?.length" class="sb-mini-cart">
             <div class="sb-mini-cart__list">
@@ -59,14 +69,10 @@ watch(() => props.open, async (value) => {
                 <div class="sb-mini-cart__info">
                   <NuxtLink :to="`/products/${item.variant.product.slug}`" @click="emit('close')">{{ item.variant.product.nameRu }}</NuxtLink>
                   <small>{{ item.variant.sku }}</small>
-                  <div class="sb-quantity">
-                    <button :disabled="item.quantity <= 1" @click="change(item, item.quantity - 1)"><Minus :size="13" /></button>
-                    <b>{{ item.quantity }}</b>
-                    <button @click="change(item, item.quantity + 1)"><Plus :size="13" /></button>
-                  </div>
+                  <SiteQuantityControl :quantity="item.quantity" :max="Math.max(item.quantity, item.variant.stock - item.variant.reserved)" :disabled="!!busy" compact @change="change(item, $event)" />
                 </div>
                 <strong>{{ (Number(item.variant.price) * item.quantity).toLocaleString('ru-RU') }} ₽</strong>
-                <button class="sb-mini-cart__remove" aria-label="Удалить товар" @click="remove(item)"><Trash2 :size="17" /></button>
+                <button class="sb-mini-cart__remove" aria-label="Удалить товар" :disabled="!!busy" @click="remove(item)"><Trash2 :size="17" /></button>
               </article>
             </div>
 

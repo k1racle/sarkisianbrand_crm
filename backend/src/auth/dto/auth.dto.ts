@@ -2,9 +2,9 @@ import { IsEmail, IsIn, IsObject, IsOptional, IsString, Length, Matches, MinLeng
 
 export class RegisterDto {
   @IsEmail() email!: string;
-  @IsString() @MinLength(8) password!: string;
-  @IsString() firstName!: string;
-  @IsString() lastName!: string;
+  @IsString() @MinLength(10) password!: string;
+  @IsString() @Length(1,80) @Matches(/\S/) firstName!: string;
+  @IsString() @Length(0,80) lastName!: string;
   @IsOptional() @IsString() phone?: string;
 }
 
@@ -29,6 +29,7 @@ export class RequestProfileChangeDto {
   @IsOptional() @IsString() @Length(1, 80) firstName?: string;
   @IsOptional() @IsString() @Length(1, 80) lastName?: string;
   @IsOptional() @IsString() @Matches(/^\+?[0-9 ()-]{7,24}$/) phone?: string;
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) birthday?: string;
 }
 
 export class ChangePasswordDto {

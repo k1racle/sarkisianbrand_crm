@@ -15,6 +15,11 @@ export class JwtAuthGuard implements CanActivate {
       request.user = await this.jwt.verifyAsync(header.slice(7), { secret: this.config.getOrThrow('JWT_SECRET') });
       const account = await this.prisma.user.findUnique({ where: { id: request.user.sub }, select: { isActive: true, role: true } });
       if (!account?.isActive) throw new UnauthorizedException('Учётная запись заблокирована');
+      if (this.config.get('NODE_ENV') === 'production' && !request.user.sid) throw new UnauthorizedException('Войдите снова для обновления сессии');
+      if (request.user.sid) {
+        const session = await this.prisma.session.findFirst({ where: { id: request.user.sid, userId: request.user.sub, expiresAt: { gt: new Date() } }, select: { id: true } });
+        if (!session) throw new UnauthorizedException('Сессия завершена. Войдите снова');
+      }
       request.user.role = account.role;
       return true;
     } catch { throw new UnauthorizedException('Токен недействителен или истёк'); }

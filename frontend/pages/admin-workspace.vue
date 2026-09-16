@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, ImagePlus, Plus, RefreshCw, Save, Search, Trash2, X } from "@lucide/vue";
+import { Award, Coins, Eye, Gift, ImagePlus, Plus, RefreshCw, Save, Search, Trash2, X } from "@lucide/vue";
 const config = useRuntimeConfig();
 const route = useRoute();
 const { token, user } = useWorkspaceSession();
@@ -9,7 +9,7 @@ const notice = ref("");
 const search = ref("");
 const statusFilter = ref("");
 const { openContextMenu, copyText } = useContextMenu();
-const siteSections = ["dashboard", "appearance", "orders", "products", "customers"];
+const siteSections = ["dashboard", "appearance", "catalog-menu", "pages", "orders", "products", "customers", "loyalty", "promotions", "gift-cards"];
 const initialSection = String(route.query.section || "dashboard");
 const active = ref(siteSections.includes(initialSection) ? initialSection : "dashboard");
 watch(
@@ -27,16 +27,34 @@ const customers = ref<any[]>([]);
 const categories = ref<any[]>([]);
 const storefrontSettings = reactive({ announcementText: "SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян" });
 const storefrontBanners = ref<any[]>([]);
+const storefrontSocialLinks = ref<any[]>([]);
+const storefrontMenuItems = ref<any[]>([]);
+const loyaltyDashboard = ref<any>(null);
+const loyaltySearch = ref("");
+const loyaltyAccountEditor = ref<any | null>(null);
+const loyaltyAdjustment = reactive({ type: "ACCRUAL", amount: 100, reason: "" });
+const loyaltySettings = reactive({
+  programName: "SARKISIAN CLUB", isEnabled: true, earnPercent: 1, maxWriteOffPercent: 30,
+  signupBonus: 0, birthdayBonus: 0, bonusValidityDays: 365, proThreshold: 3000,
+  premiumThreshold: 10000, proMultiplierPercent: 120, premiumMultiplierPercent: 150,
+});
+const savingLoyalty = ref(false);
 const savingAppearance = ref(false);
 const uploadingMedia = ref(false);
 const busy = ref(false);
+const loadError = ref("");
 const savingProduct = ref(false);
 const menu = [
   { id: "dashboard", label: "Обзор" },
   { id: "appearance", label: "Витрина" },
+  { id: "catalog-menu", label: "Меню каталога" },
+  { id: "pages", label: "Страницы" },
   { id: "orders", label: "Заказы" },
   { id: "products", label: "Каталог" },
   { id: "customers", label: "Клиенты" },
+  { id: "loyalty", label: "Бонусная программа" },
+  { id: "promotions", label: "Промокоды" },
+  { id: "gift-cards", label: "Подарочные карты" },
 ];
 const orderStatuses = [
   { id: "NEW", label: "Новый" },
@@ -65,6 +83,18 @@ const filteredOrders = computed(() =>
           .includes(search.value.toLowerCase())),
   ),
 );
+const filteredLoyaltyAccounts = computed(() => {
+  const query = loyaltySearch.value.trim().toLowerCase();
+  const accounts = loyaltyDashboard.value?.accounts || [];
+  if (!query) return accounts;
+  return accounts.filter((account: any) => `${account.firstName || ""} ${account.lastName || ""} ${account.email || ""} ${account.phone || ""}`.toLowerCase().includes(query));
+});
+const loyaltyLevelLabels: Record<string, string> = {
+  START: "Старт",
+  PRO: "Профессионал",
+  PREMIUM: "Премиум",
+};
+const loyaltyLevelLabel = (level: string) => loyaltyLevelLabels[level] || level;
 const labelStatus = (v: string) =>
   orderStatuses.find((s) => s.id === v)?.label || v;
 const oneCQueued = computed(
@@ -84,8 +114,9 @@ function oneCLabel(order: any) {
   return "В очереди";
 }
 async function load() {
-  if (!token.value) return;
+  if (!token.value || active.value === "catalog-menu") return;
   busy.value = true;
+  loadError.value = "";
   const headers = { Authorization: `Bearer ${token.value}` };
   try {
     [
@@ -113,17 +144,87 @@ async function load() {
         headers,
       }),
     ]);
-    const storefront = await $fetch<any>("/admin/storefront", {
-      baseURL: config.public.apiBase,
-      headers,
-    });
+    const [storefront, loyalty] = await Promise.all([
+      $fetch<any>("/admin/storefront", { baseURL: config.public.apiBase, headers }),
+      ["ADMIN", "MANAGER_SALES", "SUPERVISOR"].includes(user.value?.role || "")
+        ? $fetch<any>("/loyalty/admin/overview", { baseURL: config.public.apiBase, headers })
+        : Promise.resolve(null),
+    ]);
     storefrontSettings.announcementText =
       storefront.settings?.announcementText || storefrontSettings.announcementText;
     storefrontBanners.value = storefront.banners || [];
+    storefrontSocialLinks.value = storefront.socialLinks || [];
+    storefrontMenuItems.value = storefront.menuItems || [];
     categories.value = storefront.categories || categories.value;
+    if (loyalty) {
+      loyaltyDashboard.value = loyalty;
+      Object.assign(loyaltySettings, loyalty.settings);
+    }
+  } catch (error: any) {
+    loadError.value = error?.data?.message || "Не удалось загрузить данные админки. Попробуйте ещё раз.";
   } finally {
     busy.value = false;
   }
+}
+
+async function saveLoyaltySettings() {
+  savingLoyalty.value = true;
+  try {
+    const payload = {
+      programName: loyaltySettings.programName,
+      isEnabled: loyaltySettings.isEnabled,
+      earnPercent: loyaltySettings.earnPercent,
+      maxWriteOffPercent: loyaltySettings.maxWriteOffPercent,
+      signupBonus: loyaltySettings.signupBonus,
+      birthdayBonus: loyaltySettings.birthdayBonus,
+      bonusValidityDays: loyaltySettings.bonusValidityDays,
+      proThreshold: loyaltySettings.proThreshold,
+      premiumThreshold: loyaltySettings.premiumThreshold,
+      proMultiplierPercent: loyaltySettings.proMultiplierPercent,
+      premiumMultiplierPercent: loyaltySettings.premiumMultiplierPercent,
+    };
+    const saved = await $fetch<any>("/loyalty/admin/settings", {
+      baseURL: config.public.apiBase, method: "PATCH",
+      headers: { Authorization: `Bearer ${token.value}` }, body: payload,
+    });
+    Object.assign(loyaltySettings, saved);
+    if (loyaltyDashboard.value) loyaltyDashboard.value.settings = saved;
+    notice.value = "Настройки бонусной программы сохранены";
+    setTimeout(() => (notice.value = ""), 2200);
+  } finally { savingLoyalty.value = false; }
+}
+
+function openLoyaltyAccount(account: any) {
+  loyaltyAccountEditor.value = { ...account, entries: [...(account.entries || [])] };
+  loyaltyAdjustment.type = "ACCRUAL";
+  loyaltyAdjustment.amount = 100;
+  loyaltyAdjustment.reason = "";
+}
+
+async function applyLoyaltyAdjustment() {
+  if (!loyaltyAccountEditor.value || !loyaltyAdjustment.reason.trim() || loyaltyAdjustment.amount < 1) {
+    notice.value = "Укажите сумму и причину операции";
+    return;
+  }
+  savingLoyalty.value = true;
+  try {
+    await $fetch(`/loyalty/admin/users/${loyaltyAccountEditor.value.userId}/${loyaltyAdjustment.type === "ACCRUAL" ? "accrual" : "write-off"}`, {
+      baseURL: config.public.apiBase, method: "POST",
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: { amount: Number(loyaltyAdjustment.amount), reason: loyaltyAdjustment.reason.trim() },
+    });
+    notice.value = loyaltyAdjustment.type === "ACCRUAL" ? "Бонусы начислены" : "Бонусы списаны";
+    loyaltyAccountEditor.value = null;
+    await load();
+    setTimeout(() => (notice.value = ""), 2200);
+  } finally { savingLoyalty.value = false; }
+}
+
+function loyaltyMenu(event: MouseEvent, account: any) {
+  openContextMenu(event, [account.firstName, account.lastName].filter(Boolean).join(" ") || "Клиент", [
+    { label: "Открыть бонусный счёт", icon: "open", action: () => openLoyaltyAccount(account) },
+    { label: "Копировать email", icon: "copy", action: () => copyText(account.email, "Email скопирован") },
+  ], `${account.balance} бонусов`);
 }
 async function saveStorefrontSettings() {
   savingAppearance.value = true;
@@ -153,28 +254,6 @@ function addStorefrontBanner() {
     isActive: true,
     sortOrder: storefrontBanners.value.length,
   });
-}
-async function uploadStorefrontImage(file?: File) {
-  if (!file) return "";
-  uploadingMedia.value = true;
-  try {
-    const body = new FormData();
-    body.append("file", file);
-    const result = await $fetch<any>("/admin/storefront/media", {
-      baseURL: config.public.apiBase,
-      method: "POST",
-      headers: { Authorization: `Bearer ${token.value}` },
-      body,
-    });
-    return result.url as string;
-  } finally {
-    uploadingMedia.value = false;
-  }
-}
-async function selectBannerImage(event: Event, banner: any, field: "imageUrl" | "mobileImageUrl") {
-  const input = event.target as HTMLInputElement;
-  banner[field] = await uploadStorefrontImage(input.files?.[0]);
-  input.value = "";
 }
 async function saveStorefrontBanner(banner: any) {
   if (!banner.imageUrl) {
@@ -222,12 +301,11 @@ async function deleteStorefrontBanner(banner: any) {
   notice.value = "Баннер удалён";
   setTimeout(() => (notice.value = ""), 2200);
 }
-async function selectCategoryImage(event: Event, category: any) {
-  const input = event.target as HTMLInputElement;
-  const imageUrl = await uploadStorefrontImage(input.files?.[0]);
-  input.value = "";
-  if (!imageUrl) return;
-  const updated = await $fetch<any>(`/admin/categories/${category.id}/presentation`, {
+async function saveCategoryImage(category: any, imageUrl: string) {
+  if (uploadingMedia.value) return;
+  uploadingMedia.value = true;
+  try {
+    const updated = await $fetch<any>(`/admin/categories/${category.id}/presentation`, {
     baseURL: config.public.apiBase,
     method: "PATCH",
     headers: { Authorization: `Bearer ${token.value}` },
@@ -236,10 +314,79 @@ async function selectCategoryImage(event: Event, category: any) {
   Object.assign(category, updated);
   notice.value = "Фото категории обновлено";
   setTimeout(() => (notice.value = ""), 2200);
+  } catch (error: any) {
+    notice.value = error?.data?.message || "Не удалось сохранить фото категории. Попробуйте ещё раз.";
+  } finally { uploadingMedia.value = false; }
 }
 function storefrontPreview(url?: string) {
   if (!url) return "";
   return url.startsWith("/api/") ? new URL(url, config.public.apiBase).toString() : url;
+}
+
+function addStorefrontMenuItem() {
+  const sortOrder = storefrontMenuItems.value.reduce((max, item) => Math.max(max, Number(item.sortOrder) || 0), -1) + 1;
+  storefrontMenuItems.value.push({ id: `new-menu-${Date.now()}`, _new: true, label: "", url: "/", newTab: false, isActive: true, sortOrder });
+}
+async function saveStorefrontMenuItem(item: any) {
+  if (!item.label?.trim() || !item.url?.trim()) { notice.value = "Заполните название и ссылку пункта меню"; return; }
+  savingAppearance.value = true;
+  try {
+    const saved = await $fetch<any>(item._new ? "/admin/storefront/menu-items" : `/admin/storefront/menu-items/${item.id}`, {
+      baseURL: config.public.apiBase, method: item._new ? "POST" : "PATCH",
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: { label: item.label.trim(), url: item.url.trim(), isActive: item.isActive, newTab: item.newTab, sortOrder: Number(item.sortOrder) || 0 },
+    });
+    Object.assign(item, saved, { _new: false });
+    storefrontMenuItems.value.sort((a, b) => a.sortOrder - b.sortOrder);
+    notice.value = "Пункт меню сохранён";
+  } catch (error: any) {
+    notice.value = Array.isArray(error?.data?.message) ? error.data.message.join(". ") : (error?.data?.message || "Не удалось сохранить пункт меню");
+  } finally {
+    savingAppearance.value = false;
+    setTimeout(() => (notice.value = ""), 4000);
+  }
+}
+async function deleteStorefrontMenuItem(item: any) {
+  if (!confirm(`Удалить пункт «${item.label || 'Новый пункт'}» из меню? Сама страница останется на сайте.`)) return;
+  savingAppearance.value = true;
+  try {
+    if (!item._new) await $fetch(`/admin/storefront/menu-items/${item.id}`, { baseURL: config.public.apiBase, method: "DELETE", headers: { Authorization: `Bearer ${token.value}` } });
+    storefrontMenuItems.value = storefrontMenuItems.value.filter(row => row !== item);
+    notice.value = "Пункт меню удалён";
+  } catch { notice.value = "Не удалось удалить пункт меню"; }
+  finally { savingAppearance.value = false; }
+}
+
+function addStorefrontSocialLink() {
+  storefrontSocialLinks.value.push({ id: `new-social-${Date.now()}`, _new: true, name: "", iconKey: "vk", url: "", isActive: true, sortOrder: storefrontSocialLinks.value.length });
+}
+async function saveStorefrontSocialLink(social: any) {
+  if (!social.name.trim() || !social.url.trim()) {
+    notice.value = "Укажите название и ссылку социальной сети";
+    return;
+  }
+  savingAppearance.value = true;
+  try {
+    const body = { name: social.name.trim(), iconKey: social.iconKey, url: social.url.trim(), isActive: social.isActive, sortOrder: Number(social.sortOrder || 0) };
+    const saved = await $fetch<any>(social._new ? "/admin/storefront/social-links" : `/admin/storefront/social-links/${social.id}`, {
+      baseURL: config.public.apiBase,
+      method: social._new ? "POST" : "PATCH",
+      headers: { Authorization: `Bearer ${token.value}` },
+      body,
+    });
+    Object.assign(social, saved, { _new: false });
+    notice.value = "Социальная сеть сохранена";
+    setTimeout(() => (notice.value = ""), 2200);
+  } finally {
+    savingAppearance.value = false;
+  }
+}
+async function deleteStorefrontSocialLink(social: any) {
+  if (!window.confirm(`Удалить «${social.name || "социальную сеть"}» из сайта?`)) return;
+  if (!social._new) await $fetch(`/admin/storefront/social-links/${social.id}`, { baseURL: config.public.apiBase, method: "DELETE", headers: { Authorization: `Bearer ${token.value}` } });
+  storefrontSocialLinks.value = storefrontSocialLinks.value.filter((item) => item !== social);
+  notice.value = "Социальная сеть удалена";
+  setTimeout(() => (notice.value = ""), 2200);
 }
 
 async function archiveProduct(product: any) {
@@ -266,8 +413,11 @@ async function trashProduct(product: any) {
 function editProduct(product: any) {
   productEditor.value = {
     id: product.id,
+    productType: product.productType,
     nameRu: product.nameRu,
     descriptionRu: product.descriptionRu || "",
+    purposesText: (product.purposes || []).join(', '),
+    featuresText: (product.features || []).join(', '),
     price: Number(product.variants?.[0]?.price || product.basePrice || 0),
     stock: product.variants?.[0]?.stock || 0,
     isActive: product.isActive,
@@ -294,8 +444,9 @@ async function saveProduct() {
         body: {
           nameRu: productEditor.value.nameRu,
           descriptionRu: productEditor.value.descriptionRu,
-          price: Number(productEditor.value.price),
-          stock: Number(productEditor.value.stock),
+          purposes: [...new Set(productEditor.value.purposesText.split(',').map((value: string) => value.trim()).filter(Boolean))],
+          features: [...new Set(productEditor.value.featuresText.split(',').map((value: string) => value.trim()).filter(Boolean))],
+          ...(productEditor.value.productType !== 'GIFT_CARD' ? { price: Number(productEditor.value.price), stock: Number(productEditor.value.stock) } : {}),
           isActive: productEditor.value.isActive,
           images: productEditor.value.images.filter((image: any) => image.url),
           categoryIds: productEditor.value.categoryIds,
@@ -441,6 +592,7 @@ function openProductFromTable(event: MouseEvent) {
   const index = rows.indexOf(row);
   if (products.value[index]) editProduct(products.value[index]);
 }
+watch(active, () => { if (!dashboard.value && !busy.value) load(); });
 onMounted(() => {
   load();
   document
@@ -455,7 +607,8 @@ onBeforeUnmount(() =>
 </script>
 <template>
   <main class="site-admin-console">
-    <WorkspaceLoading v-if="!dashboard" label="Загружаем управление сайтом" />
+    <WorkspaceLoading v-if="!dashboard && active !== 'catalog-menu' && !loadError" label="Загружаем управление сайтом" />
+    <section v-else-if="!dashboard && active !== 'catalog-menu' && loadError" class="panel admin-load-error" role="alert"><h1>Управление сайтом</h1><p>{{ loadError }}</p><button type="button" :disabled="busy" @click="load">Повторить загрузку</button></section>
     <template v-else
       ><header
         class="site-admin-header"
@@ -467,7 +620,7 @@ onBeforeUnmount(() =>
           </p>
           <h1>{{ menu.find((m) => m.id === active)?.label }}</h1>
         </div>
-        <div class="header-actions">
+        <div v-if="active !== 'catalog-menu'" class="header-actions">
           <button @click="load">
             <RefreshCw :size="16" :class="{ spin: busy }" /> Обновить
           </button>
@@ -508,6 +661,10 @@ onBeforeUnmount(() =>
             </div>
           </div>
         </section>
+        <SitePagesEditor v-else-if="active === 'pages'" />
+        <SiteCatalogMenuEditor v-else-if="active === 'catalog-menu'" :api-base="String(config.public.apiBase)" :token="token" />
+        <SitePromoCodesEditor v-else-if="active === 'promotions'" :api-base="String(config.public.apiBase)" :token="token" />
+        <SiteGiftCardsEditor v-else-if="active === 'gift-cards'" :api-base="String(config.public.apiBase)" :token="token" :role="user?.role" />
         <section v-else-if="active === 'appearance'" class="appearance-workspace">
           <article class="panel appearance-panel">
             <div class="panel-head">
@@ -516,6 +673,24 @@ onBeforeUnmount(() =>
             <div class="appearance-form">
               <label>Текст верхней строки<textarea v-model="storefrontSettings.announcementText" maxlength="280" rows="3"></textarea><small>{{ storefrontSettings.announcementText.length }} / 280</small></label>
               <button class="appearance-save" :disabled="savingAppearance" @click="saveStorefrontSettings"><Save :size="16" /> Сохранить текст</button>
+            </div>
+          </article>
+
+          <article class="panel appearance-panel menu-settings-panel">
+            <div class="panel-head appearance-panel-head">
+              <div><p class="kicker">НАВИГАЦИЯ</p><h2>Меню сайта</h2><span>Пункты отображаются в центре шапки на ПК и в мобильном меню. Страницы: /about, /delivery, /contacts, /club. Их содержимое редактируется в разделе «Страницы».</span></div>
+              <button class="appearance-add" @click="addStorefrontMenuItem"><Plus :size="16" /> Добавить пункт</button>
+            </div>
+            <div class="menu-admin-list">
+              <section v-for="item in storefrontMenuItems" :key="item.id" class="menu-admin-row">
+                <label>Название<input v-model="item.label" maxlength="60" placeholder="О бренде" /></label>
+                <label>Ссылка<input v-model="item.url" maxlength="500" placeholder="/#about или /страница" /></label>
+                <label>Порядок<input v-model.number="item.sortOrder" type="number" min="0" max="10000" /></label>
+                <label class="banner-active"><input v-model="item.isActive" type="checkbox" /> Показывать</label>
+                <label class="banner-active"><input v-model="item.newTab" type="checkbox" /> В новой вкладке</label>
+                <div class="menu-admin-actions"><button :disabled="savingAppearance" aria-label="Сохранить пункт меню" @click="saveStorefrontMenuItem(item)"><Save :size="16" /></button><button class="danger" :disabled="savingAppearance" aria-label="Удалить пункт меню" @click="deleteStorefrontMenuItem(item)"><Trash2 :size="16" /></button></div>
+              </section>
+              <div v-if="!storefrontMenuItems.length" class="appearance-empty"><span>Меню пока пустое — добавьте ссылки на страницы сайта.</span></div>
             </div>
           </article>
 
@@ -529,14 +704,14 @@ onBeforeUnmount(() =>
                 <div class="banner-admin-preview" :class="{ empty: !banner.imageUrl }">
                   <img v-if="banner.imageUrl" :src="storefrontPreview(banner.imageUrl)" alt="Предпросмотр баннера" />
                   <ImagePlus v-else :size="30" />
-                  <label><ImagePlus :size="15" /> {{ banner.imageUrl ? 'Заменить фото' : 'Выбрать фото' }}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" @change="selectBannerImage($event, banner, 'imageUrl')" /></label>
                 </div>
                 <div class="banner-admin-fields">
-                  <label>Заголовок<input v-model="banner.title" placeholder="Можно оставить пустым, если текст уже на фото" /></label>
-                  <label>Подзаголовок<textarea v-model="banner.subtitle" rows="2" placeholder="Короткое описание предложения"></textarea></label>
-                  <div class="banner-admin-row"><label>Текст кнопки<input v-model="banner.buttonLabel" /></label><label>Ссылка<input v-model="banner.linkUrl" placeholder="/catalog" /></label></div>
+                  <AdminMediaPicker v-model="banner.imageUrl" :disabled="savingAppearance" :show-preview="false" label="Изображение баннера" />
+                  <label>Описание изображения<input v-model="banner.title" placeholder="Для доступности, не выводится поверх фото" /></label>
+                  <label>Внутреннее описание<textarea v-model="banner.subtitle" rows="2" placeholder="Не выводится поверх баннера"></textarea></label>
+                  <div class="banner-admin-row"><label>Описание перехода<input v-model="banner.buttonLabel" /></label><label>Ссылка<input v-model="banner.linkUrl" placeholder="/catalog" /></label></div>
                   <div class="banner-admin-row compact-row"><label>Порядок<input v-model.number="banner.sortOrder" type="number" min="0" /></label><label class="banner-active"><input v-model="banner.isActive" type="checkbox" /> Показывать на сайте</label></div>
-                  <label class="mobile-image-picker"><ImagePlus :size="15" /> {{ banner.mobileImageUrl ? 'Заменить мобильное фото' : 'Добавить отдельное фото для телефона' }}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" @change="selectBannerImage($event, banner, 'mobileImageUrl')" /></label>
+                  <AdminMediaPicker v-model="banner.mobileImageUrl" :disabled="savingAppearance" :show-preview="false" label="Изображение для телефона — необязательно" />
                   <div class="banner-admin-actions"><button :disabled="savingAppearance || uploadingMedia" @click="saveStorefrontBanner(banner)"><Save :size="15" /> Сохранить</button><button class="danger" @click="deleteStorefrontBanner(banner)"><Trash2 :size="15" /> Удалить</button></div>
                 </div>
               </section>
@@ -550,10 +725,83 @@ onBeforeUnmount(() =>
               <section v-for="(category, index) in categories" :key="category.id">
                 <div><img v-if="category.imageUrl" :src="storefrontPreview(category.imageUrl)" :alt="category.nameRu" /><img v-else :src="storefrontCategories[index % storefrontCategories.length].image" :alt="category.nameRu" /></div>
                 <span><b>{{ category.nameRu }}</b><small>{{ category.slug }}</small></span>
-                <label><ImagePlus :size="15" /> Выбрать фото<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" @change="selectCategoryImage($event, category)" /></label>
+                <footer class="category-admin-media"><AdminMediaPicker :model-value="category.imageUrl || ''" :disabled="uploadingMedia" :show-preview="false" label="Фото категории" @update:model-value="saveCategoryImage(category, $event)" /></footer>
               </section>
             </div>
           </article>
+
+          <article class="panel appearance-panel">
+            <div class="panel-head appearance-panel-head">
+              <div><p class="kicker">ПОДВАЛ САЙТА</p><h2>Социальные сети</h2><span>Добавляйте ссылки, меняйте порядок и скрывайте временно неиспользуемые каналы</span></div>
+              <button class="appearance-add" @click="addStorefrontSocialLink"><Plus :size="16" /> Добавить соцсеть</button>
+            </div>
+            <div class="social-admin-list">
+              <section v-for="social in storefrontSocialLinks" :key="social.id" class="social-admin-row">
+                <div class="social-admin-icon"><img v-if="['vk', 'telegram', 'max'].includes(social.iconKey)" :src="`/storefront/icons/${social.iconKey}.svg`" alt="" /><span v-else>↗</span></div>
+                <label>Название<input v-model="social.name" placeholder="Например, ВКонтакте" /></label>
+                <label>Иконка<select v-model="social.iconKey"><option value="vk">ВКонтакте</option><option value="telegram">Telegram</option><option value="max">MAX</option><option value="link">Другая ссылка</option></select></label>
+                <label class="social-url">Ссылка<input v-model="social.url" placeholder="https://..." /></label>
+                <label>Порядок<input v-model.number="social.sortOrder" type="number" min="0" /></label>
+                <label class="banner-active"><input v-model="social.isActive" type="checkbox" /> Показывать</label>
+                <div class="social-admin-actions"><button :disabled="savingAppearance" @click="saveStorefrontSocialLink(social)"><Save :size="15" /></button><button class="danger" @click="deleteStorefrontSocialLink(social)"><Trash2 :size="15" /></button></div>
+              </section>
+              <div v-if="!storefrontSocialLinks.length" class="appearance-empty"><span>Социальные сети пока не добавлены</span><button @click="addStorefrontSocialLink"><Plus :size="15" /> Добавить первую</button></div>
+            </div>
+          </article>
+        </section>
+        <section v-else-if="active === 'loyalty'" class="loyalty-workspace">
+          <template v-if="loyaltyDashboard">
+            <div class="loyalty-kpis">
+              <article><i><Award :size="20" /></i><span>Участники</span><strong>{{ loyaltyDashboard.summary.participants }}</strong><small>зарегистрированных клиентов</small></article>
+              <article><i><Coins :size="20" /></i><span>На балансах</span><strong>{{ Number(loyaltyDashboard.summary.activeBalances).toLocaleString('ru-RU') }}</strong><small>доступных бонусов</small></article>
+              <article><i><Plus :size="20" /></i><span>Начислено</span><strong>{{ Number(loyaltyDashboard.summary.earned).toLocaleString('ru-RU') }}</strong><small>за всё время</small></article>
+              <article><i><Gift :size="20" /></i><span>Использовано</span><strong>{{ Number(loyaltyDashboard.summary.spent).toLocaleString('ru-RU') }}</strong><small>{{ loyaltyDashboard.summary.operations }} операций</small></article>
+            </div>
+
+            <article class="panel loyalty-settings-panel">
+              <div class="loyalty-program-preview">
+                <small>БОНУСНАЯ ПРОГРАММА</small>
+                <h2>{{ loyaltySettings.programName }}</h2>
+                <p>{{ loyaltySettings.isEnabled ? 'Программа работает' : 'Начисления приостановлены' }}</p>
+                <div><b>{{ loyaltySettings.earnPercent }}%</b><span>базовое начисление<br />с каждой покупки</span></div>
+                <i><span :style="{ width: `${Math.min(100, loyaltySettings.maxWriteOffPercent)}%` }"></span></i>
+                <footer><span>Можно списать</span><strong>до {{ loyaltySettings.maxWriteOffPercent }}%</strong></footer>
+              </div>
+              <div class="loyalty-settings-form">
+                <div class="panel-head"><div><p class="kicker">ПРАВИЛА ПРОГРАММЫ</p><h2>Начисления и уровни</h2><span>Изменения применяются к новым операциям и не пересчитывают историю</span></div><label class="loyalty-status"><input v-model="loyaltySettings.isEnabled" type="checkbox" /><span>{{ loyaltySettings.isEnabled ? 'Активна' : 'Приостановлена' }}</span></label></div>
+                <div class="loyalty-form-grid">
+                  <label class="wide">Название программы<input v-model="loyaltySettings.programName" maxlength="80" /></label>
+                  <label>Начислять с покупки, %<input v-model.number="loyaltySettings.earnPercent" type="number" min="0" max="100" /></label>
+                  <label>Максимум списания, %<input v-model.number="loyaltySettings.maxWriteOffPercent" type="number" min="0" max="100" /></label>
+                  <label>За регистрацию<input v-model.number="loyaltySettings.signupBonus" type="number" min="0" /></label>
+                  <label>На день рождения<input v-model.number="loyaltySettings.birthdayBonus" type="number" min="0" /></label>
+                  <label>Срок действия, дней<input v-model.number="loyaltySettings.bonusValidityDays" type="number" min="1" /></label>
+                </div>
+                <div class="loyalty-levels">
+                  <section><span>СТАРТ</span><b>Базовые условия</b><small>Сразу после регистрации</small></section>
+                  <section><span>ПРОФЕССИОНАЛ</span><label>Порог<input v-model.number="loyaltySettings.proThreshold" type="number" min="0" /></label><label>Множитель, %<input v-model.number="loyaltySettings.proMultiplierPercent" type="number" min="100" /></label></section>
+                  <section><span>ПРЕМИУМ</span><label>Порог<input v-model.number="loyaltySettings.premiumThreshold" type="number" min="0" /></label><label>Множитель, %<input v-model.number="loyaltySettings.premiumMultiplierPercent" type="number" min="100" /></label></section>
+                </div>
+                <button class="loyalty-save" :disabled="savingLoyalty" @click="saveLoyaltySettings"><Save :size="16" /> {{ savingLoyalty ? 'Сохраняем…' : 'Сохранить правила' }}</button>
+              </div>
+            </article>
+
+            <article class="panel loyalty-members-panel">
+              <div class="panel-head"><div><p class="kicker">УЧАСТНИКИ</p><h2>Бонусные счета клиентов</h2><span>Открывайте счёт для просмотра истории, начисления или списания</span></div><label class="search"><Search :size="16" /><input v-model="loyaltySearch" placeholder="Имя, email или телефон" /></label></div>
+              <div class="loyalty-table">
+                <div class="loyalty-row head"><span>Клиент</span><span>Уровень</span><span>Баланс</span><span>Последняя операция</span><span></span></div>
+                <div v-for="account in filteredLoyaltyAccounts" :key="account.userId" class="loyalty-row" @click="openLoyaltyAccount(account)" @contextmenu.prevent="loyaltyMenu($event, account)">
+                  <div><strong>{{ [account.firstName, account.lastName].filter(Boolean).join(' ') || 'Без имени' }}</strong><small>{{ account.email }}</small></div>
+                  <span class="loyalty-level">{{ loyaltyLevelLabel(account.level) }}</span>
+                  <strong>{{ Number(account.balance).toLocaleString('ru-RU') }}</strong>
+                  <span>{{ account.entries[0] ? `${account.entries[0].amount > 0 ? '+' : ''}${account.entries[0].amount} · ${account.entries[0].reason}` : 'Операций ещё нет' }}</span>
+                  <button aria-label="Открыть бонусный счёт" @click.stop="openLoyaltyAccount(account)"><Eye :size="16" /></button>
+                </div>
+                <div v-if="!filteredLoyaltyAccounts.length" class="appearance-empty">Клиенты не найдены</div>
+              </div>
+            </article>
+          </template>
+          <WorkspaceLoading v-else label="Загружаем бонусную программу" />
         </section>
         <section v-else-if="active === 'products'" class="panel">
           <div class="panel-head">
@@ -758,15 +1006,19 @@ onBeforeUnmount(() =>
       </button>
       <p class="kicker">КАТАЛОГ / РЕДАКТИРОВАНИЕ</p>
       <h2>Карточка товара</h2>
+      <label>Для чего<input v-model="productEditor.purposesText" maxlength="1600" placeholder="Например: Моделирование, Маникюр" /><small>Несколько назначений — через запятую. Используются в фильтрах сайта.</small></label>
+      <label>Особенности<input v-model="productEditor.featuresText" maxlength="1600" placeholder="Например: Прозрачный, Шиммер" /><small>Задавайте только подтверждённые характеристики товара.</small></label>
       <label>Название<input v-model="productEditor.nameRu" /></label
       ><label
         >Цена, ₽<input
           v-model.number="productEditor.price"
+          :disabled="productEditor.productType === 'GIFT_CARD'"
           type="number"
           min="0" /></label
       ><label
         >Остаток<input
           v-model.number="productEditor.stock"
+          :disabled="productEditor.productType === 'GIFT_CARD'"
           type="number"
           min="0" /></label
       ><label
@@ -780,6 +1032,18 @@ onBeforeUnmount(() =>
       ><button class="save" :disabled="savingProduct" @click="saveProduct">
         {{ savingProduct ? "Сохраняем…" : "Сохранить товар" }}
       </button>
+    </div>
+  </aside>
+  <aside v-if="loyaltyAccountEditor" class="drawer-backdrop loyalty-drawer-backdrop" @click.self="loyaltyAccountEditor = null">
+    <div class="drawer loyalty-drawer">
+      <button class="close" @click="loyaltyAccountEditor = null"><X :size="18" /></button>
+      <p class="kicker">БОНУСНЫЙ СЧЁТ</p>
+      <h2>{{ [loyaltyAccountEditor.firstName, loyaltyAccountEditor.lastName].filter(Boolean).join(' ') || 'Клиент' }}</h2>
+      <span class="loyalty-client-email">{{ loyaltyAccountEditor.email }}</span>
+      <div class="loyalty-drawer-balance"><small>Доступно</small><strong>{{ Number(loyaltyAccountEditor.balance).toLocaleString('ru-RU') }}</strong><span>бонусов · {{ loyaltyLevelLabel(loyaltyAccountEditor.level) }}</span></div>
+      <div class="loyalty-operation-tabs"><button :class="{ active: loyaltyAdjustment.type === 'ACCRUAL' }" @click="loyaltyAdjustment.type = 'ACCRUAL'">Начислить</button><button :class="{ active: loyaltyAdjustment.type === 'WRITE_OFF' }" @click="loyaltyAdjustment.type = 'WRITE_OFF'">Списать</button></div>
+      <div class="loyalty-adjustment-form"><label>Количество бонусов<input v-model.number="loyaltyAdjustment.amount" type="number" min="1" /></label><label>Причина<textarea v-model="loyaltyAdjustment.reason" maxlength="240" rows="3" placeholder="Например, компенсация по обращению"></textarea></label><button :disabled="savingLoyalty" @click="applyLoyaltyAdjustment">{{ savingLoyalty ? 'Проводим операцию…' : loyaltyAdjustment.type === 'ACCRUAL' ? 'Начислить бонусы' : 'Списать бонусы' }}</button></div>
+      <div class="loyalty-history"><h3>Последние операции</h3><article v-for="entry in loyaltyAccountEditor.entries" :key="entry.id"><div><b>{{ entry.reason }}</b><small>{{ new Date(entry.createdAt).toLocaleString('ru-RU') }}</small></div><strong :class="{ minus: entry.amount < 0 }">{{ entry.amount > 0 ? '+' : '' }}{{ entry.amount }}</strong></article><p v-if="!loyaltyAccountEditor.entries.length">Операций ещё нет</p></div>
     </div>
   </aside>
 </template>
@@ -1168,6 +1432,158 @@ onBeforeUnmount(() =>
 }
 </style>
 <style scoped>
+/* Внутренняя часть сайта следует тому же стеклянному дизайн-коду, что и витрина. */
+.site-admin-console {
+  background:
+    radial-gradient(circle at 2% 10%, rgba(203,198,193,.20), transparent 30rem),
+    radial-gradient(circle at 98% 45%, rgba(198,207,218,.22), transparent 38rem),
+    linear-gradient(180deg, #faf9f8, #f3f1ee 52%, #faf9f8);
+  color: #171717;
+}
+.site-admin-header {
+  min-height: 120px;
+  margin: 12px 16px 0;
+  padding: 24px clamp(24px, 4vw, 54px);
+  border: 1px solid rgba(255,255,255,.82);
+  border-radius: 26px;
+  background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,255,255,.62));
+  box-shadow: inset 0 1px 0 #fff, 0 16px 45px rgba(31,27,25,.07);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+.site-admin-heading .kicker,
+.panel-head .kicker { color: #76726f; }
+.site-admin-header h1 { font-size: 36px; letter-spacing: -.045em; font-weight: 600; }
+.header-actions button,
+.header-actions a,
+.appearance-save,
+.appearance-add,
+.banner-admin-actions button,
+.appearance-empty button,
+.loyalty-save {
+  min-height: 44px;
+  border: 1px solid #171717;
+  border-radius: 14px;
+  background: #171717;
+  color: #fff;
+  box-shadow: 0 11px 25px rgba(20,18,17,.13);
+}
+.admin-body { max-width: 1380px; padding: 30px clamp(16px, 4vw, 54px) 80px; }
+.panel,
+.kpi-grid article {
+  border: 1px solid rgba(255,255,255,.84);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255,255,255,.84), rgba(249,247,245,.66));
+  box-shadow: inset 0 1px 0 #fff, 0 18px 48px rgba(31,27,25,.06);
+  backdrop-filter: blur(22px) saturate(135%);
+}
+.kpi-grid { gap: 14px; }
+.kpi-grid article { min-height: 130px; padding: 24px; }
+.welcome { border-radius: 24px; background: linear-gradient(145deg, #282625, #111); box-shadow: 0 24px 60px rgba(20,18,17,.16); }
+.quick button { min-height: 42px; padding: 0 15px; border: 1px solid rgba(255,255,255,.15); border-radius: 13px; background: rgba(255,255,255,.08); }
+.search { height: 44px; border-color: rgba(28,27,26,.11); border-radius: 14px; background: rgba(255,255,255,.66); }
+.row { min-height: 58px; }
+.row.clickable:hover,
+.loyalty-row:hover { background: rgba(255,255,255,.64); }
+.appearance-workspace { gap: 22px; }
+.banner-admin-card,
+.category-admin-grid > section,
+.social-admin-row { border-color: rgba(28,27,26,.09); border-radius: 18px; background: rgba(255,255,255,.50); }
+.banner-admin-preview { border-radius: 14px; }
+.category-admin-grid > section > div { border-radius: 17px 17px 0 0; }
+.appearance-form textarea,
+.banner-admin-fields input:not([type="checkbox"]),
+.banner-admin-fields textarea,
+.social-admin-row input:not([type="checkbox"]),
+.social-admin-row select { border-radius: 11px; background: rgba(255,255,255,.78); }
+
+.loyalty-workspace { display: grid; gap: 22px; }
+.loyalty-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.loyalty-kpis article { min-height: 150px; padding: 24px; display: grid; align-content: space-between; gap: 8px; border: 1px solid rgba(255,255,255,.84); border-radius: 23px; background: rgba(255,255,255,.64); box-shadow: inset 0 1px 0 #fff, 0 17px 44px rgba(31,27,25,.06); backdrop-filter: blur(20px); }
+.loyalty-kpis i { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: #ece9e6; color: #171717; }
+.loyalty-kpis span,
+.loyalty-kpis small { color: #7d7976; font-size: 10px; }
+.loyalty-kpis strong { font-size: 29px; font-weight: 550; letter-spacing: -.04em; }
+.loyalty-settings-panel { padding: 16px; display: grid; grid-template-columns: minmax(280px, .72fr) minmax(560px, 1.28fr); gap: 26px; }
+.loyalty-program-preview { min-height: 410px; padding: 34px; box-sizing: border-box; border-radius: 23px; display: flex; flex-direction: column; color: #fff; background: radial-gradient(circle at 88% 12%, rgba(166,145,231,.78), transparent 36%), radial-gradient(circle at 4% 100%, rgba(64,129,174,.70), transparent 48%), linear-gradient(145deg, #373050, #57547a 56%, #343549); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 25px 58px rgba(11,10,22,.25); }
+.loyalty-program-preview > small { color: rgba(255,255,255,.64); font-size: 9px; letter-spacing: .16em; }
+.loyalty-program-preview h2 { margin: 10px 0 5px; font-size: 26px; }
+.loyalty-program-preview > p { margin: 0; color: rgba(255,255,255,.66); font-size: 10px; }
+.loyalty-program-preview > div { margin-top: auto; display: flex; align-items: end; gap: 14px; }
+.loyalty-program-preview > div b { font-size: 62px; line-height: .9; font-weight: 500; letter-spacing: -.06em; }
+.loyalty-program-preview > div span { color: rgba(255,255,255,.68); font-size: 10px; line-height: 1.5; }
+.loyalty-program-preview > i { height: 8px; margin-top: 34px; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,.17); }
+.loyalty-program-preview > i span { display: block; height: 100%; border-radius: inherit; background: #fff; transition: width .25s ease; }
+.loyalty-program-preview footer { margin-top: 10px; display: flex; justify-content: space-between; color: rgba(255,255,255,.62); font-size: 9px; }
+.loyalty-program-preview footer strong { color: #fff; font-weight: 500; }
+.loyalty-settings-form { min-width: 0; padding: 4px 8px 8px 0; }
+.loyalty-settings-form .panel-head { padding: 10px 0 22px; }
+.loyalty-status { min-width: 128px; height: 42px; padding: 0 13px; border-radius: 13px; display: flex; align-items: center; gap: 8px; background: #ece9e6; font-size: 10px; }
+.loyalty-status input { accent-color: #171717; }
+.loyalty-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.loyalty-form-grid label,
+.loyalty-levels label,
+.loyalty-adjustment-form label { display: grid; gap: 7px; color: #7d7976; font-size: 10px; }
+.loyalty-form-grid label.wide { grid-column: span 2; }
+.loyalty-form-grid input,
+.loyalty-levels input,
+.loyalty-adjustment-form input,
+.loyalty-adjustment-form textarea { width: 100%; height: 42px; padding: 0 11px; box-sizing: border-box; border: 1px solid rgba(28,27,26,.11); border-radius: 11px; background: rgba(255,255,255,.76); color: #171717; outline: 0; font: 11px var(--sb-font); }
+.loyalty-adjustment-form textarea { height: auto; padding-block: 11px; resize: vertical; }
+.loyalty-levels { margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.loyalty-levels section { min-height: 118px; padding: 15px; border: 1px solid rgba(28,27,26,.08); border-radius: 15px; display: grid; align-content: start; gap: 9px; background: rgba(245,243,241,.70); }
+.loyalty-levels section > span { color: #7d7976; font-size: 8px; letter-spacing: .12em; }
+.loyalty-levels section > b { font-size: 13px; }
+.loyalty-levels section > small { color: #8b8784; font-size: 9px; }
+.loyalty-levels section label { grid-template-columns: 1fr 74px; align-items: center; }
+.loyalty-levels input { height: 34px; }
+.loyalty-save { margin-top: 18px; padding: 0 17px; display: inline-flex; align-items: center; gap: 8px; }
+.loyalty-members-panel { overflow: hidden; }
+.loyalty-table { overflow-x: auto; }
+.loyalty-row { min-width: 940px; min-height: 64px; padding: 0 25px; display: grid; grid-template-columns: 1.5fr .8fr .65fr 1.7fr 42px; gap: 16px; align-items: center; border-top: 1px solid rgba(28,27,26,.07); font-size: 11px; cursor: pointer; transition: background .16s ease; }
+.loyalty-row.head { min-height: 44px; color: #87837f; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; cursor: default; }
+.loyalty-row > div { min-width: 0; display: grid; gap: 4px; }
+.loyalty-row small { color: #898581; font-size: 9px; }
+.loyalty-row > span:nth-child(4) { overflow: hidden; color: #77736f; text-overflow: ellipsis; white-space: nowrap; }
+.loyalty-level { width: max-content; padding: 6px 9px; border-radius: 9px; background: #ece9e6; }
+.loyalty-row > button { width: 36px; height: 36px; border: 0; border-radius: 11px; display: grid; place-items: center; background: #171717; color: #fff; }
+.loyalty-drawer-backdrop { backdrop-filter: blur(12px); }
+.loyalty-drawer { overflow-y: auto; border-radius: 28px 0 0 28px; background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(244,241,238,.91)); box-shadow: -28px 0 80px rgba(18,15,14,.18); }
+.loyalty-client-email { display: block; margin-top: -18px; color: #7d7976; font-size: 10px; }
+.loyalty-drawer-balance { margin: 25px 0 18px; padding: 25px; border-radius: 20px; display: grid; gap: 6px; color: #fff; background: radial-gradient(circle at 90% 0, rgba(166,145,231,.72), transparent 38%), linear-gradient(145deg, #3d3658, #3c526a); }
+.loyalty-drawer-balance small,
+.loyalty-drawer-balance span { color: rgba(255,255,255,.67); font-size: 9px; }
+.loyalty-drawer-balance strong { font-size: 46px; line-height: 1; font-weight: 500; letter-spacing: -.05em; }
+.loyalty-operation-tabs { padding: 5px; border-radius: 14px; display: grid; grid-template-columns: 1fr 1fr; background: #e9e6e3; }
+.loyalty-operation-tabs button { height: 38px; border: 0; border-radius: 10px; background: transparent; font-size: 10px; }
+.loyalty-operation-tabs button.active { background: #fff; box-shadow: 0 7px 18px rgba(28,23,20,.07); }
+.loyalty-adjustment-form { margin-top: 18px; display: grid; gap: 13px; }
+.loyalty-adjustment-form > button { height: 44px; border: 0; border-radius: 13px; background: #171717; color: #fff; }
+.loyalty-history { margin-top: 30px; }
+.loyalty-history h3 { font-size: 14px; }
+.loyalty-history article { min-height: 55px; border-top: 1px solid rgba(28,27,26,.09); display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.loyalty-history article div { display: grid; gap: 4px; }
+.loyalty-history article b { font-size: 10px; font-weight: 500; }
+.loyalty-history article small,
+.loyalty-history > p { color: #888480; font-size: 9px; }
+.loyalty-history article > strong { color: #267a53; }
+.loyalty-history article > strong.minus { color: #6e5650; }
+@media (max-width: 1100px) {
+  .loyalty-kpis { grid-template-columns: repeat(2, 1fr); }
+  .loyalty-settings-panel { grid-template-columns: 1fr; }
+  .loyalty-program-preview { min-height: 330px; }
+}
+@media (max-width: 650px) {
+  .site-admin-header { margin: 7px 8px 0; border-radius: 20px; }
+  .loyalty-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .loyalty-kpis article { min-height: 125px; padding: 17px; }
+  .loyalty-settings-panel { padding: 9px; }
+  .loyalty-program-preview { min-height: 300px; padding: 25px; }
+  .loyalty-form-grid { grid-template-columns: 1fr 1fr; }
+  .loyalty-form-grid label.wide { grid-column: 1 / -1; }
+  .loyalty-levels { grid-template-columns: 1fr; }
+}
+</style>
+<style scoped>
 .appearance-workspace {
   display: grid;
   gap: 18px;
@@ -1307,9 +1723,23 @@ onBeforeUnmount(() =>
 .category-admin-grid b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .category-admin-grid small { color: #858991; font-size: 9px; }
 .category-admin-grid label { width: auto; margin: 0 12px 12px; background: #1d1e22; }
+.social-admin-list { padding: 0 25px 25px; display: grid; gap: 9px; }
+.social-admin-row { padding: 12px; border: 1px solid #e3e5e8; display: grid; grid-template-columns: 48px 1fr 145px minmax(220px, 1.5fr) 85px 105px 78px; align-items: end; gap: 10px; background: #fafafa; }
+.social-admin-row > label { min-width: 0; display: grid; gap: 7px; color: #858991; font-size: 10px; }
+.social-admin-row input:not([type="checkbox"]),
+.social-admin-row select { width: 100%; height: 38px; box-sizing: border-box; border: 1px solid #dfe1e5; padding: 0 9px; background: #fff; color: #202124; font: 11px var(--sb-font); outline: 0; }
+.social-admin-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; align-self: end; background: #1d1e22; }
+.social-admin-icon img { width: 21px; height: 21px; object-fit: contain; filter: brightness(0) invert(1); }
+.social-admin-icon span { color: #fff; font-size: 19px; }
+.social-admin-row .banner-active { min-height: 38px; font-size: 10px; }
+.social-admin-actions { display: flex; gap: 5px; align-self: end; }
+.social-admin-actions button { width: 36px; height: 38px; border: 0; display: grid; place-items: center; background: #1d1e22; color: #fff; cursor: pointer; }
+.social-admin-actions button.danger { border: 1px solid #ead7d3; background: #fff; color: #b64b3d; }
 @media (max-width: 1000px) {
   .banner-admin-card { grid-template-columns: 1fr; }
   .category-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .social-admin-row { grid-template-columns: 48px 1fr 140px; }
+  .social-admin-row .social-url { grid-column: 2 / 4; }
 }
 @media (max-width: 600px) {
   .appearance-form { grid-template-columns: 1fr; padding: 0 16px 18px; }
@@ -1320,6 +1750,9 @@ onBeforeUnmount(() =>
   .banner-admin-row { grid-template-columns: 1fr; }
   .compact-row { grid-template-columns: 100px 1fr; }
   .category-admin-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .social-admin-list { padding: 0 16px 18px; }
+  .social-admin-row { grid-template-columns: 44px 1fr; }
+  .social-admin-row .social-url { grid-column: 1 / -1; }
 }
 </style>
 <style scoped>
@@ -1412,5 +1845,36 @@ onBeforeUnmount(() =>
     gap: 18px;
     flex-direction: column;
   }
+}
+</style>
+<style scoped>
+.site-admin-console {
+  background: radial-gradient(circle at 2% 10%, rgba(203,198,193,.20), transparent 30rem), radial-gradient(circle at 98% 45%, rgba(198,207,218,.22), transparent 38rem), linear-gradient(180deg, #faf9f8, #f3f1ee 52%, #faf9f8);
+  color: #171717;
+}
+.site-admin-header {
+  min-height: 120px;
+  margin: 12px 16px 0;
+  padding: 24px clamp(24px, 4vw, 54px);
+  border: 1px solid rgba(255,255,255,.82);
+  border-radius: 26px;
+  background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,255,255,.62));
+  box-shadow: inset 0 1px 0 #fff, 0 16px 45px rgba(31,27,25,.07);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+.site-admin-header h1 { font-size: 36px; letter-spacing: -.045em; font-weight: 600; }
+.banner-admin-card,
+.category-admin-grid > section,
+.social-admin-row { border-color: rgba(28,27,26,.09); border-radius: 18px; background: rgba(255,255,255,.50); }
+.banner-admin-preview { border-radius: 14px; }
+.category-admin-grid > section > div { border-radius: 17px 17px 0 0; }
+.appearance-form textarea,
+.banner-admin-fields input:not([type="checkbox"]),
+.banner-admin-fields textarea,
+.social-admin-row input:not([type="checkbox"]),
+.social-admin-row select { border-radius: 11px; background: rgba(255,255,255,.78); }
+.icon:hover { color: #171717; }
+@media (max-width: 600px) {
+  .site-admin-header { margin: 7px 8px 0; padding: 20px; border-radius: 20px; }
 }
 </style>

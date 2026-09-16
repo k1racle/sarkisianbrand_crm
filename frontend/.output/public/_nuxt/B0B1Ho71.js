@@ -1,1 +1,0 @@
-import{f as t}from"./J0h2Est1.js";const a={name:"arrow-up-right",size:24,node:[["path",{d:"M7 7h10v10",key:"1tivn9"}],["path",{d:"M7 17 17 7",key:"1vkiza"}]]},e=t(a);export{e as A};

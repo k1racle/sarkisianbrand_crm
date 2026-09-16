@@ -1,0 +1,16 @@
+.sb-product-placeholder.sb-gift-product-art {
+  background: linear-gradient(125deg, #426d89, #504865 58%, #8b79b5);
+  color: #fff;
+  padding: 24px;
+  text-align: center;
+  gap: 24px;
+}
+.sb-product-placeholder.sb-gift-product-art span {
+  font-family: var(--sb-font);
+  font-size: var(--sb-type-section);
+  font-weight: 600;
+  letter-spacing: -.025em;
+  line-height: 1.2;
+  color: #fff;
+}
+.sb-product-placeholder.sb-gift-product-art small { color: #fff; }

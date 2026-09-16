@@ -1,16 +1,19 @@
-import { BadGatewayException, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { JobRunStatus, MarketplaceOrderStatus, OrderSource, OrderStatus, Prisma } from '@prisma/client';
 import { BackgroundJobsService, JobProgress } from '../background-jobs/background-jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
 import { OneCClientService } from './one-c-client.service';
+import { applyStorefrontTransition } from '../common/storefront-order-transition';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OneCSyncService.name);
   private recoveryTimer?: NodeJS.Timeout;
 
-  constructor(private readonly prisma: PrismaService, private readonly jobs: BackgroundJobsService, private readonly client: OneCClientService) {}
+  constructor(private readonly prisma: PrismaService, private readonly jobs: BackgroundJobsService, private readonly client: OneCClientService,
+    @Optional() private readonly notifications?: NotificationsService) {}
 
   onModuleInit() {
     this.jobs.register('1C_PRODUCTS_IMPORT', (payload, progress) => this.processProducts(payload, progress));
@@ -76,20 +79,26 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     const missing: string[] = [];
     for (const item of dto.statuses) {
       const candidates = [item.platformOrderId ? { id: item.platformOrderId } : null, item.external1CId ? { externalId: item.external1CId } : null].filter(Boolean) as Prisma.OrderWhereInput[];
-      const order = candidates.length ? await this.prisma.order.findFirst({ where: { OR: candidates }, include: { marketplaceStaging: true } }) : null;
-      if (!order) { missing.push(item.platformOrderId || item.external1CId || 'без идентификатора'); continue; }
-      const nextStatus = this.toOrderStatus(item.status, order.status);
+      if (!candidates.length) { missing.push('без идентификатора'); continue; }
       const occurredAt = item.occurredAt ? new Date(item.occurredAt) : new Date();
-      await this.prisma.$transaction(async tx => {
+      const found = await this.prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "Order" WHERE (${item.platformOrderId || null}::text IS NOT NULL AND id = ${item.platformOrderId || null})
+          OR (${item.external1CId || null}::text IS NOT NULL AND "externalId" = ${item.external1CId || null}) ORDER BY id FOR UPDATE`;
+        const order = await tx.order.findFirst({ where: { OR: candidates }, include: { marketplaceStaging: true, items: true, payments: true } });
+        if (!order) return false;
+        const nextStatus = this.toOrderStatus(item.status, order.status);
+        const lifecycle = await applyStorefrontTransition(tx, order, nextStatus, this.notifications);
         await tx.order.update({
           where: { id: order.id },
-          data: { status: nextStatus, oneCStatus: item.status, oneCSyncAt: new Date(), oneCSyncError: null, isSynced1C: true, warehouseDocumentId: item.warehouseDocumentId, trackingNumber: item.trackingNumber, ...this.fulfillmentTimestamps(item.status, occurredAt) },
+          data: { status: nextStatus, oneCStatus: item.status, oneCSyncAt: new Date(), oneCSyncError: null, isSynced1C: true, warehouseDocumentId: item.warehouseDocumentId, trackingNumber: item.trackingNumber, ...this.fulfillmentTimestamps(item.status, occurredAt), ...lifecycle },
         });
         if (nextStatus !== order.status) {
           await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: nextStatus, comment: item.comment || `Статус получен из 1С/ТСД: ${item.status}` } });
           if (order.marketplaceStaging) await tx.marketplaceOrder.update({ where: { id: order.marketplaceStaging.id }, data: { status: this.toMarketplaceStatus(nextStatus), trackingNumber: item.trackingNumber } });
         }
-      });
+        return true;
+      }, { timeout: 30_000 });
+      if (!found) { missing.push(item.platformOrderId || item.external1CId || 'без идентификатора'); continue; }
       updated += 1;
     }
     await this.prisma.syncLog.create({ data: { system: '1C_KA', action: 'ORDER_STATUSES_IMPORT', status: missing.length ? 'WARNING' : 'SUCCESS', message: `Обновлено заказов: ${updated}, не найдено: ${missing.length}`, details: { updated, missing } } });

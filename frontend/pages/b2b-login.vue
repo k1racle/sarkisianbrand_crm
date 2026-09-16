@@ -4,7 +4,76 @@ const { login, hydrate, token }=useB2BSession(); const route=useRoute(); const e
 onMounted(()=>{hydrate();if(token.value)navigateTo('/b2b')});
 async function submit(){loading.value=true;error.value='';try{await login(email.value,password.value);navigateTo(String(route.query.redirect||'/b2b'))}catch(e:any){error.value=e?.data?.message||e?.message||'Не удалось войти'}finally{loading.value=false}}
 </script>
-<template><main class="login"><section class="story"><img src="/sarkisian-logo.png" alt="SARKISIAN"/><div><p>SARKISIAN ДЛЯ БИЗНЕСА</p><h1>Ваш салон.<br/>В одном окне.</h1><span>Клиенты, календарь записей, услуги, команда и закупки профессиональных материалов.</span></div><small>Единая экосистема B2B</small></section><section class="form-area"><form @submit.prevent="submit"><i><Building2 :size="22"/></i><p>КАБИНЕТ ПАРТНЁРА</p><h2>Вход для бизнеса</h2><span>Используйте учётную запись владельца или сотрудника организации.</span><label>Email<input v-model.trim="email" type="email" autocomplete="username" placeholder="name@company.ru" required/></label><label>Пароль<div><input v-model="password" :type="show?'text':'password'" autocomplete="current-password" placeholder="Введите пароль" required/><button type="button" @click="show=!show"><EyeOff v-if="show" :size="16"/><Eye v-else :size="16"/></button></div></label><b v-if="error">{{error}}</b><button class="submit" :disabled="loading">{{loading?'Проверяем данные…':'Войти в кабинет'}}<ArrowRight :size="17"/></button><small>Нет B2B-доступа? Обратитесь к персональному менеджеру Sarkisian.</small></form></section></main></template>
+<template>
+  <main class="login-page sb-storefront">
+    <section class="login-brand" aria-label="SARKISIAN для бизнеса">
+      <NuxtLink to="/" class="login-logo" aria-label="SARKISIAN — на главную сайта"><img src="/sarkisian-logo.png" alt="SARKISIAN" width="200" height="40" /></NuxtLink>
+      <div class="login-brand-copy"><p class="login-brand-kicker">SARKISIAN для бизнеса</p><h2>Ваш салон.<br><em>В одном окне.</em></h2><p class="login-brand-description">Клиенты, календарь записей, услуги, команда и закупки профессиональных материалов — в одной экосистеме.</p><div class="login-brand-note"><Building2 :size="18" aria-hidden="true" /><span>Один кабинет для владельца и команды.</span></div></div>
+      <footer>Рабочее пространство партнёров SARKISIAN</footer>
+    </section>
+    <section class="login-area" aria-labelledby="b2b-login-title">
+      <form class="login-card" :aria-busy="loading" @submit.prevent="submit">
+        <header class="login-card-header"><div class="login-symbol"><Building2 :size="22" aria-hidden="true" /></div><p class="eyebrow">КАБИНЕТ ПАРТНЁРА</p></header>
+        <h1 id="b2b-login-title">Вход для бизнеса</h1><p id="b2b-login-hint" class="hint">Используйте учётную запись владельца или сотрудника организации.</p>
+        <label for="b2b-email">Email</label><input id="b2b-email" v-model.trim="email" type="email" name="username" autocomplete="username" autocapitalize="none" :spellcheck="false" inputmode="email" placeholder="name@company.ru" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'b2b-login-error' : 'b2b-login-hint'" required />
+        <label for="b2b-password">Пароль</label><div class="password"><input id="b2b-password" v-model="password" :type="show ? 'text' : 'password'" name="password" autocomplete="current-password" placeholder="Введите пароль" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'b2b-login-error' : undefined" required /><button type="button" :disabled="loading" :aria-label="show ? 'Скрыть пароль' : 'Показать пароль'" :aria-pressed="show" aria-controls="b2b-password" @click="show=!show"><EyeOff v-if="show" :size="20" aria-hidden="true" /><Eye v-else :size="20" aria-hidden="true" /></button></div>
+        <p v-if="error" id="b2b-login-error" class="login-error" role="alert">{{ error }}</p>
+        <button class="submit" type="submit" :disabled="loading"><span>{{ loading ? 'Проверяем данные…' : 'Войти в кабинет' }}</span><ArrowRight :size="20" aria-hidden="true" /></button>
+        <small>Нет B2B-доступа? Обратитесь к персональному менеджеру SARKISIAN.</small><NuxtLink to="/" class="login-site-link">Вернуться на сайт <ArrowRight :size="16" aria-hidden="true" /></NuxtLink>
+      </form>
+    </section>
+  </main>
+</template>
 <style scoped>
-.login{min-height:100vh;display:grid;grid-template-columns:42% 58%;font-family:var(--sb-font);background:#f4f5f6;color:#1e2023}.story{background:#191919;color:#fff;padding:48px 9%;display:flex;flex-direction:column;justify-content:space-between}.story>img{width:180px;filter:brightness(0) invert(1)}.story p,.form-area form>p{color:var(--sb-coral);font-size:9px;letter-spacing:.18em;font-weight:600}.story h1{font-size:48px;line-height:1.05;margin:17px 0 23px;letter-spacing:-.04em}.story span{display:block;max-width:410px;color:#b5b7bb;font-size:13px;line-height:1.8}.story>small{font-size:9px;color:#777a80;letter-spacing:.12em}.form-area{display:grid;place-items:center;padding:35px}.form-area form{width:min(440px,100%);background:#fff;border:1px solid var(--sb-line);padding:45px;box-sizing:border-box}.form-area form>i{width:44px;height:44px;background:#fff1ee;color:var(--sb-coral);display:grid;place-items:center;font-style:normal}.form-area h2{font-size:30px;margin:14px 0 10px}.form-area form>span{display:block;color:var(--sb-muted);font-size:11px;line-height:1.65;margin-bottom:27px}.form-area label{display:grid;gap:7px;margin:14px 0;font-size:9px;color:#676a70}.form-area input{height:48px;border:1px solid var(--sb-line);padding:0 13px;font:12px var(--sb-font);box-sizing:border-box;width:100%}.form-area label div{display:grid;grid-template-columns:1fr 44px}.form-area label div button{border:1px solid var(--sb-line);border-left:0;background:#fff}.form-area form>b{display:block;color:#b34c3d;background:#fff0ed;padding:10px;font-size:9px}.submit{height:48px;width:100%;border:0;background:#1d1e22;color:#fff;margin-top:9px;padding:0 15px;display:flex;justify-content:center;align-items:center;gap:10px;font:11px var(--sb-font)}.form-area form>small{display:block;text-align:center;color:var(--sb-muted);font-size:8px;line-height:1.5;margin-top:18px}@media(max-width:850px){.login{grid-template-columns:1fr}.story{display:none}.form-area{padding:20px}.form-area form{padding:30px}}
+.login-page { min-height: 100vh; min-height: 100svh; display: grid; grid-template-columns: minmax(0,44%) minmax(0,1fr); background: #f7f5f2; color: var(--sf-black); font: var(--sb-weight-regular) var(--sb-type-body)/var(--sb-leading-body) var(--sb-font); }
+.login-page *, .login-page *::before, .login-page *::after { box-sizing: border-box; }
+.login-brand { display: flex; flex-direction: column; justify-content: space-between; gap: 48px; min-width: 0; padding: clamp(32px,5vw,80px); overflow: hidden; background: radial-gradient(ellipse at 0 0,rgba(157,145,132,.18),transparent 65%), linear-gradient(145deg,#252321,#151515); color: var(--sf-on-dark); }
+.login-logo { display: inline-flex; align-self: flex-start; border-radius: var(--sf-radius-compact); }
+.login-logo img { display: block; width: 200px; max-width: 100%; height: auto; filter: brightness(0) invert(1); opacity: .88; }
+.login-brand-copy { max-width: 490px; }
+.login-brand-kicker { margin: 0 0 24px; color: var(--sf-muted-on-dark); font-size: var(--sb-type-caption); font-weight: var(--sb-weight-semibold); letter-spacing: var(--sb-tracking-eyebrow); text-transform: uppercase; }
+.login-brand h2 { margin: 0 0 28px; font-size: var(--sb-type-display); font-weight: var(--sb-weight-semibold); line-height: var(--sb-leading-heading); letter-spacing: var(--sb-tracking-heading); }
+.login-brand h2 em { color: var(--sf-muted-on-dark); font: italic var(--sb-weight-regular) var(--sb-type-display)/var(--sb-leading-heading) var(--sb-font-editorial); }
+.login-brand-description { max-width: 420px; margin: 0; color: var(--sf-muted-on-dark); font-size: var(--sb-type-body); line-height: var(--sb-leading-body); }
+.login-brand-note { display: flex; align-items: flex-start; gap: 12px; max-width: 420px; margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.14); color: var(--sf-muted-on-dark); font-size: var(--sb-type-small); }
+.login-brand-note svg { flex: none; margin-top: 2px; }
+.login-brand footer { color: var(--sf-muted-on-dark); font-size: var(--sb-type-caption); }
+.login-area { display: grid; place-items: center; min-width: 0; padding: clamp(24px,5vw,80px); background: radial-gradient(ellipse at 100% 0,rgba(223,217,211,.28),transparent 65%); }
+.login-card { width: min(480px,100%); padding: 40px; border: 1px solid var(--sf-glass-border); border-radius: 32px; background: var(--sf-surface); box-shadow: var(--sf-surface-shadow); -webkit-backdrop-filter: blur(24px) saturate(120%); backdrop-filter: blur(24px) saturate(120%); }
+.login-card-header { display: flex; align-items: center; gap: var(--sf-gap); margin-bottom: 28px; }
+.login-symbol { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); background: var(--sf-glass-strong); color: var(--sf-black); }
+.eyebrow { margin: 0; color: var(--sf-muted); font-size: var(--sb-type-caption); font-weight: var(--sb-weight-semibold); letter-spacing: var(--sb-tracking-eyebrow); overflow-wrap: anywhere; }
+.login-area h1 { margin: 0 0 12px; font-size: var(--sb-type-dialog); font-weight: var(--sb-weight-semibold); line-height: var(--sb-leading-heading); letter-spacing: var(--sb-tracking-heading); }
+.hint { margin: 0 0 28px; color: var(--sf-muted); font-size: var(--sb-type-small); line-height: var(--sb-leading-body); }
+.login-area label { display: block; margin: 20px 0 8px; color: var(--sf-muted); font-size: var(--sb-type-small); }
+.login-area input { display: block; width: 100%; min-width: 0; height: 52px; padding: 0 16px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); outline: none; background: var(--sf-glass-strong); color: var(--sf-black); font: var(--sb-weight-regular) var(--sb-type-body)/var(--sb-leading-control) var(--sb-font); transition: border-color var(--sf-motion) var(--sf-ease), box-shadow var(--sf-motion) var(--sf-ease), background var(--sf-motion) var(--sf-ease); }
+.login-area input::placeholder { color: var(--sf-muted); opacity: .8; }
+.login-area input:focus { border-color: var(--sf-black); background: var(--sf-on-dark); box-shadow: var(--sf-focus-ring); }
+.login-area input[aria-invalid="true"] { border-color: var(--sf-black); }
+.login-area input:autofill { color: var(--sf-black); background: var(--sf-glass-strong); }
+.login-area input:-webkit-autofill { -webkit-text-fill-color: var(--sf-black); -webkit-box-shadow: 0 0 0 100px #f7f5f2 inset; caret-color: var(--sf-black); }
+.password { position: relative; }
+.password input { padding-right: 56px; }
+.password button { position: absolute; right: 3px; top: 3px; display: grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 0; border-radius: var(--sf-radius-compact); background: transparent; color: var(--sf-muted); cursor: pointer; transition: background var(--sf-motion) var(--sf-ease), color var(--sf-motion) var(--sf-ease); }
+.password button:hover:not(:disabled) { background: var(--sf-glass); color: var(--sf-black); }
+.login-error { margin: 20px 0 0; padding: 12px 16px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); background: var(--sf-glass-strong); color: var(--sf-black); font-size: var(--sb-type-small); line-height: var(--sb-leading-body); overflow-wrap: anywhere; }
+.submit { display: flex; align-items: center; justify-content: space-between; gap: var(--sf-gap); width: 100%; min-height: 52px; margin-top: 28px; padding: 14px 20px; border: 1px solid var(--sf-black); border-radius: var(--sf-radius-control); background: var(--sf-black); color: var(--sf-on-dark); font: var(--sb-weight-semibold) var(--sb-type-small)/var(--sb-leading-control) var(--sb-font); box-shadow: var(--sf-action-shadow); cursor: pointer; transition: background var(--sf-motion) var(--sf-ease), box-shadow var(--sf-motion) var(--sf-ease); }
+.submit:hover:not(:disabled) { background: var(--sf-action-hover); }
+.submit svg { flex: none; }
+.login-area :is(input,button):disabled { opacity: .6; cursor: not-allowed; }
+.login-card > small { display: block; margin-top: 20px; color: var(--sf-muted); text-align: center; font-size: var(--sb-type-caption); line-height: var(--sb-leading-body); }
+.login-site-link { display: flex; align-items: center; justify-content: center; gap: var(--sf-gap-small); width: fit-content; margin: 24px auto 0; padding: 4px; border-radius: var(--sf-radius-compact); color: var(--sf-black); font-size: var(--sb-type-small); text-decoration: underline; text-underline-offset: 5px; }
+.login-page :is(a,button,input):focus-visible { outline: 2px solid var(--sf-black); outline-offset: 4px; }
+.login-brand a:focus-visible { outline-color: var(--sf-on-dark); }
+@media (max-width: 850px) {
+  .login-page { grid-template-columns: minmax(0,1fr); grid-template-rows: auto 1fr; }
+  .login-brand { padding: 28px 24px; background: transparent; color: var(--sf-black); }
+  .login-logo { margin: auto; }
+  .login-logo img { width: 190px; filter: none; opacity: .9; }
+  .login-brand-copy, .login-brand footer { display: none; }
+  .login-area { align-items: start; padding: 8px 20px 32px; }
+  .login-card { padding: 28px; border-radius: var(--sf-radius-panel); }
+}
+@media (max-width: 360px) { .login-area { padding-inline: 12px; } .login-card { padding: 24px 20px; } .login-card-header { gap: 12px; } }
+@media (prefers-reduced-motion: reduce) { .login-area :is(input,button) { transition: none; } }
 </style>

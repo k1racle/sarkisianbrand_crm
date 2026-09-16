@@ -3,13 +3,19 @@ export interface ShippingAddress {
   city: string;
   postalCode?: string;
   address: string;
+  cityCode?: number;
+  deliveryMethod?: 'COURIER' | 'PICKUP_POINT';
+  pickupPointCode?: string;
 }
 
 export interface ShippingQuote {
   provider: string;
-  amount: number;
+  amount: number | null;
   currency: string;
-  estimatedDays: number;
+  estimatedDays?: number;
+  available: boolean;
+  requiresConfirmation: boolean;
+  message: string;
 }
 
 export interface Shipment {

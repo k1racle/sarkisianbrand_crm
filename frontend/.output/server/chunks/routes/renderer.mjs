@@ -1,5 +1,5 @@
 globalThis.__timing__.logStart('Load chunks/routes//renderer');import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'vue-bundle-renderer/runtime';
-import { j as joinRelativeURL, u as useRuntimeConfig, e as encodePath, c as defineRenderHandler, g as getQuery, f as createError, h as getRouteRules, i as getResponseStatusText, k as getResponseStatus, b as useNitroApp } from '../_/nitro.mjs';
+import { j as joinRelativeURL, u as useRuntimeConfig, g as encodePath, h as defineRenderHandler, i as getQuery, f as createError, k as getRouteRules, l as getResponseStatusText, m as getResponseStatus, b as useNitroApp } from '../_/nitro.mjs';
 import { renderToString } from 'vue/server-renderer';
 import { createHead as createHead$1, propsToString, renderSSRHead } from 'unhead/server';
 import { stringify, uneval } from 'devalue';
@@ -105,7 +105,7 @@ function createHead(options = {}) {
 
 const NUXT_RUNTIME_PAYLOAD_EXTRACTION = false;
 
-const appHead = {"meta":[{"name":"viewport","content":"width=device-width, initial-scale=1"},{"charset":"utf-8"},{"name":"description","content":"Профессиональные материалы SARKISIAN для мастеров маникюра"}],"link":[],"style":[],"script":[],"noscript":[],"title":"SARKISIAN — материалы для мастеров"};
+const appHead = {"meta":[{"charset":"utf-8"},{"name":"description","content":"Профессиональные материалы SARKISIAN для мастеров маникюра"},{"name":"viewport","content":"width=device-width, initial-scale=1, viewport-fit=cover"}],"link":[],"style":[],"script":[],"noscript":[],"title":"SARKISIAN — материалы для мастеров"};
 
 const appRootTag = "div";
 
@@ -469,5 +469,5 @@ const renderer = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   default: handler
 }, Symbol.toStringTag, { value: 'Module' }));
 
-export { useSeoMeta as a, baseURL as b, headSymbol as h, publicAssetsURL as p, renderer as r, useHead as u };;globalThis.__timing__.logEnd('Load chunks/routes//renderer');
+export { useHead as a, baseURL as b, headSymbol as h, publicAssetsURL as p, renderer as r, useSeoMeta as u };;globalThis.__timing__.logEnd('Load chunks/routes//renderer');
 //# sourceMappingURL=renderer.mjs.map

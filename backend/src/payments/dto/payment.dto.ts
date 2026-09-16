@@ -1,12 +1,13 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsDefined, IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreatePaymentDto {
-  @IsOptional() @IsString() returnUrl?: string;
+  @IsOptional() @IsString() @MaxLength(2048) returnUrl?: string;
 }
 
 export class PaymentWebhookDto {
-  @IsString() paymentId!: string;
-  @IsString() orderNumber!: string;
-  @IsString() @IsIn(['SUCCEEDED', 'CANCELED', 'PENDING']) status!: string;
-  @IsString() idempotencyKey!: string;
+  @IsString() @IsIn(['notification']) type!: 'notification';
+  @IsString() @IsIn(['payment.succeeded', 'payment.canceled', 'payment.waiting_for_capture']) event!: string;
+  // No nested whitelist: official payment objects contain additional evolving fields.
+  // The service validates/extracts only id and ignores all supplied financial fields.
+  @IsDefined() @IsObject() object!: Record<string, unknown>;
 }

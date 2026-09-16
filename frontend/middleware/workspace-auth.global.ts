@@ -1,4 +1,4 @@
-const workspaceRoutes = ['/workspace', '/admin-workspace', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/crm-chat', '/crm-marketplaces', '/leadership', '/helpdesk', '/system-settings'];
+const workspaceRoutes = ['/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/crm-chat', '/crm-marketplaces', '/leadership', '/helpdesk', '/system-settings'];
 
 export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.server) return;
@@ -20,6 +20,7 @@ export default defineNuxtRouteMiddleware((to) => {
   if (!session.user.value || session.user.value.role === 'ADMIN') return;
   const access: Record<string, string[]> = {
     '/admin-workspace': ['CONTENT_MANAGER', 'MANAGER_SALES', 'WAREHOUSE'],
+    '/media-library': ['CONTENT_MANAGER', 'MANAGER_SALES', 'MANAGER_B2B', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'WAREHOUSE', 'CURATOR'],
     '/crm': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
     '/crm-pipeline': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
     '/crm-customers': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],

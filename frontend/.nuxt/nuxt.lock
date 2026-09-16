@@ -1,9 +1,0 @@
-{
-  "pid": 7608,
-  "startedAt": 1789481850271,
-  "command": "dev",
-  "cwd": "D:/Prpject/sarkisianbrand/sarkisianbrand_crm/frontend",
-  "port": 3001,
-  "hostname": "::1",
-  "url": "http://[::1]:3001"
-}

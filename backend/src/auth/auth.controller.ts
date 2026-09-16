@@ -5,17 +5,25 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto, CompletePasswordResetDto, LoginDto, RefreshTokenDto, RegisterDto, RequestProfileChangeDto, UpdateOwnProfileDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  logout(@Req() req: any) { return this.auth.logout(req.user.sub, req.user.sid); }
 
   @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Регистрация клиента' })
   register(@Body() dto: RegisterDto, @Req() request: any) { return this.auth.register(dto, this.context(request)); }
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Вход' })
   login(@Body() dto: LoginDto, @Req() request: any) { return this.auth.login(dto, this.context(request)); }
@@ -72,10 +80,13 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   refresh(@Body() dto: RefreshTokenDto, @Req() request: any) { return this.auth.refresh(dto, this.context(request)); }
 
   @Post('password-reset/complete')
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   completePasswordReset(@Body() dto: CompletePasswordResetDto) { return this.auth.completePasswordReset(dto); }
 

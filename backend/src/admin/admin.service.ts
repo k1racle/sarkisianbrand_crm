@@ -1,25 +1,58 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
-import { extname, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAdminProductDto, CreateStorefrontBannerDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto } from './dto/admin.dto';
+import { CreateAdminProductDto, CreateStorefrontBannerDto, CreateStorefrontSocialLinkDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto, UpdateStorefrontSocialLinkDto } from './dto/admin.dto';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
+import { CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
+import { applyStorefrontTransition } from '../common/storefront-order-transition';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService, private readonly config: ConfigService) {}
+  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService, private readonly config: ConfigService,
+    @Optional() private readonly notifications?: NotificationsService,
+    @Optional() private readonly media?: MediaService) {}
 
   async dashboard() {
     const [orders, paidOrders, customers, products, lowStock] = await this.prisma.$transaction([
       this.prisma.order.count({ where: { source: 'WEB' } }),
-      this.prisma.order.count({ where: { source: 'WEB', paymentStatus: 'PAID' } }),
+      this.prisma.order.count({ where: { source: 'WEB', paymentStatus: { in: ['PAID', 'SUCCEEDED'] } } }),
       this.prisma.customer.count(),
       this.prisma.product.count({ where: { isActive: true } }),
       this.prisma.productVariant.count({ where: { isActive: true, stock: { lte: 5 } } }),
     ]);
     return { orders, paidOrders, customers, products, lowStock };
+  }
+
+  storefrontPages() { return this.prisma.storefrontPage.findMany({ orderBy: { createdAt: 'asc' } }); }
+
+  private pageData(dto: CreateStorefrontPageDto | UpdateStorefrontPageDto) {
+    if (new Set(dto.blocks.map(block => block.id)).size !== dto.blocks.length) throw new BadRequestException('Идентификаторы блоков должны быть уникальными');
+    return { title: dto.title.trim(), eyebrow: dto.eyebrow.trim(), lead: dto.lead.trim(), seoDescription: dto.seoDescription || null, blocks: dto.blocks.map(block => ({ id: block.id, title: block.title.trim(), body: block.body })), isActive: dto.isActive, reviewRequired: dto.reviewRequired };
+  }
+
+  async createStorefrontPage(dto: CreateStorefrontPageDto) {
+    const reserved = ['admin', 'admin-workspace', 'account', 'auth', 'api', 'b2b', 'b2b-login', 'cart', 'catalog', 'crm', 'crm-chat', 'crm-customers', 'crm-marketplaces', 'crm-organizations', 'crm-pipeline', 'crm-tasks', 'favorites', 'helpdesk', 'leadership', 'login', 'marketplaces', 'password-reset', 'products', 'system-settings', 'workspace', 'workspace-login', 'fonts', 'storefront', '_nuxt'];
+    if (reserved.includes(dto.slug)) throw new BadRequestException('Этот адрес занят системным разделом');
+    if (await this.prisma.storefrontPage.findUnique({ where: { slug: dto.slug } })) throw new ConflictException('Страница с таким адресом уже существует');
+    return this.prisma.storefrontPage.create({ data: { slug: dto.slug, ...this.pageData(dto) } });
+  }
+
+  async updateStorefrontPage(slug: string, dto: UpdateStorefrontPageDto) {
+    if (!await this.prisma.storefrontPage.findUnique({ where: { slug } })) throw new NotFoundException('Страница не найдена');
+    const result = await this.prisma.storefrontPage.updateMany({ where: { slug, revision: dto.revision }, data: { ...this.pageData(dto), revision: { increment: 1 } } });
+    if (!result.count) throw new ConflictException('Страница изменена другим сотрудником. Обновите её перед сохранением');
+    return this.prisma.storefrontPage.findUnique({ where: { slug } });
+  }
+
+  async deleteStorefrontPage(slug: string) {
+    if (!await this.prisma.storefrontPage.findUnique({ where: { slug } })) throw new NotFoundException('Страница не найдена');
+    await this.prisma.$transaction([
+      this.prisma.storefrontMenuItem.deleteMany({ where: { url: `/${slug}` } }),
+      this.prisma.storefrontPage.delete({ where: { slug } }),
+    ]);
+    return { deleted: true };
   }
 
   async products() {
@@ -32,15 +65,19 @@ export class AdminService {
   }
 
   async storefrontContent() {
-    const [settings, banners, categories] = await Promise.all([
+    const [settings, banners, categories, socialLinks, menuItems] = await Promise.all([
       this.prisma.storefrontSetting.findUnique({ where: { key: 'main' } }),
       this.prisma.storefrontBanner.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
       this.prisma.category.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] }),
+      this.prisma.storefrontSocialLink.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
+      this.prisma.storefrontMenuItem.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
     ]);
     return {
       settings: settings || { key: 'main', announcementText: 'SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян' },
       banners,
       categories,
+      socialLinks,
+      menuItems,
     };
   }
 
@@ -67,22 +104,45 @@ export class AdminService {
     return { id, deleted: true };
   }
 
+  createStorefrontSocialLink(dto: CreateStorefrontSocialLinkDto) {
+    return this.prisma.storefrontSocialLink.create({ data: dto });
+  }
+
+  async updateStorefrontSocialLink(id: string, dto: UpdateStorefrontSocialLinkDto) {
+    if (!await this.prisma.storefrontSocialLink.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Социальная сеть не найдена');
+    return this.prisma.storefrontSocialLink.update({ where: { id }, data: dto });
+  }
+
+  async deleteStorefrontSocialLink(id: string) {
+    if (!await this.prisma.storefrontSocialLink.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Социальная сеть не найдена');
+    await this.prisma.storefrontSocialLink.delete({ where: { id } });
+    return { id, deleted: true };
+  }
+
   async updateCategoryPresentation(id: string, dto: UpdateCategoryPresentationDto) {
     if (!await this.prisma.category.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Категория не найдена');
     return this.prisma.category.update({ where: { id }, data: dto });
   }
 
-  async saveStorefrontMedia(file: any) {
-    if (!file?.buffer) throw new BadRequestException('Выберите изображение');
-    if (!String(file.mimetype || '').startsWith('image/')) throw new BadRequestException('Можно загружать только изображения');
-    const extensions: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/avif': '.avif' };
-    const extension = extensions[file.mimetype] || extname(file.originalname || '').toLowerCase();
-    if (!['.jpg', '.jpeg', '.png', '.webp', '.avif'].includes(extension)) throw new BadRequestException('Формат изображения не поддерживается');
-    const directory = resolve(process.cwd(), this.config.get('STOREFRONT_MEDIA_PATH', 'uploads/storefront'));
-    await mkdir(directory, { recursive: true });
-    const fileName = `${randomUUID()}${extension}`;
-    await writeFile(resolve(directory, fileName), file.buffer);
-    return { url: `/api/v1/products/storefront-media/${fileName}`, fileName };
+  createStorefrontMenuItem(dto: CreateStorefrontMenuItemDto) {
+    return this.prisma.storefrontMenuItem.create({ data: { ...dto, label: dto.label.trim() } });
+  }
+
+  async updateStorefrontMenuItem(id: string, dto: UpdateStorefrontMenuItemDto) {
+    if (!await this.prisma.storefrontMenuItem.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Пункт меню не найден');
+    return this.prisma.storefrontMenuItem.update({ where: { id }, data: { ...dto, label: dto.label.trim() } });
+  }
+
+  async deleteStorefrontMenuItem(id: string) {
+    if (!await this.prisma.storefrontMenuItem.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Пункт меню не найден');
+    await this.prisma.storefrontMenuItem.delete({ where: { id } });
+    return { id, deleted: true };
+  }
+
+  async saveStorefrontMedia(file: any, actorId: string) {
+    if (!this.media) throw new ServiceUnavailableException('Медиатека временно недоступна');
+    const asset = await this.media.upload(file, actorId);
+    return { ...asset, fileName: asset.filename };
   }
 
   private bannerData(dto: CreateStorefrontBannerDto | UpdateStorefrontBannerDto) {
@@ -103,7 +163,7 @@ export class AdminService {
   async createProduct(dto: CreateAdminProductDto) {
     const slug = dto.slug || dto.nameRu.toLowerCase().trim().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '') || dto.sku.toLowerCase();
     return this.prisma.$transaction(async (tx) => {
-      const product = await tx.product.create({ data: { sku: dto.sku, nameRu: dto.nameRu, descriptionRu: dto.descriptionRu, slug, basePrice: dto.price, isActive: true } });
+      const product = await tx.product.create({ data: { sku: dto.sku, nameRu: dto.nameRu, descriptionRu: dto.descriptionRu, purposes: dto.purposes, features: dto.features, slug, basePrice: dto.price, isActive: true } });
       await tx.productVariant.create({ data: { productId: product.id, name: 'Основной вариант', options: {}, price: dto.price, stock: dto.stock, sku: dto.sku } });
       if (dto.images?.length) await tx.productImage.createMany({ data: dto.images.map((image, index) => ({ productId: product.id, url: image.url, alt: image.alt, sortOrder: index })) });
       if (dto.categoryIds?.length) await tx.productCategory.createMany({ data: dto.categoryIds.map((categoryId, index) => ({ productId: product.id, categoryId, isPrimary: index === 0 })) });
@@ -115,8 +175,9 @@ export class AdminService {
   async updateProduct(id: string, dto: UpdateProductDto) {
     const product = await this.prisma.product.findUnique({ where: { id }, include: { variants: { take: 1 } } });
     if (!product) throw new NotFoundException('Товар не найден');
+    if (product.productType === 'GIFT_CARD' && (dto.price !== undefined || dto.stock !== undefined)) throw new BadRequestException('Номиналы подарочной карты изменяются в разделе «Подарочные карты»');
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({ where: { id }, data: { ...(dto.nameRu !== undefined ? { nameRu: dto.nameRu } : {}), ...(dto.descriptionRu !== undefined ? { descriptionRu: dto.descriptionRu } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } });
+      const updated = await tx.product.update({ where: { id }, data: { ...(dto.price !== undefined ? { basePrice: dto.price } : {}), ...(dto.purposes !== undefined ? { purposes: dto.purposes } : {}), ...(dto.features !== undefined ? { features: dto.features } : {}), ...(dto.nameRu !== undefined ? { nameRu: dto.nameRu } : {}), ...(dto.descriptionRu !== undefined ? { descriptionRu: dto.descriptionRu } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } });
       if (product.variants[0] && (dto.price !== undefined || dto.stock !== undefined)) {
         await tx.productVariant.update({ where: { id: product.variants[0].id }, data: { ...(dto.price !== undefined ? { price: dto.price } : {}), ...(dto.stock !== undefined ? { stock: dto.stock } : {}) } });
       }
@@ -146,13 +207,15 @@ export class AdminService {
   }
 
   async updateOrderStatus(orderNumber: string, dto: UpdateOrderStatusDto, changedBy: string) {
-    const order = await this.prisma.order.findUnique({ where: { orderNumber } });
-    if (!order) throw new NotFoundException('Заказ не найден');
     const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, isSynced1C: false } });
-      await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: dto.status, comment: dto.comment, changedBy } });
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE "orderNumber" = ${orderNumber} FOR UPDATE`;
+      const order = await tx.order.findUnique({ where: { orderNumber }, include: { items: true, payments: true } });
+      if (!order) throw new NotFoundException('Заказ не найден');
+      const lifecycle = await applyStorefrontTransition(tx, order, dto.status, this.notifications);
+      const result = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, isSynced1C: false, ...lifecycle } });
+      if (order.status !== dto.status) await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: dto.status, comment: dto.comment, changedBy } });
       return result;
-    });
+    }, { timeout: 30_000 });
     await this.oneC.enqueueOrder(updated.id, changedBy);
     return updated;
   }

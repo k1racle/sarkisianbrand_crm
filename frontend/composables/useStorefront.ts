@@ -11,9 +11,10 @@ export function useStorefront() {
   const config = useRuntimeConfig();
   const accessToken = useCookie<string | null>('sb-customer-token', { sameSite: 'lax', default: () => null });
   const refreshToken = useCookie<string | null>('sb-customer-refresh', { sameSite: 'lax', default: () => null });
+  const initialCartSession = useState<string>('storefront-cart-session-id', () => `web-${crypto.randomUUID()}`);
   const cartSession = useCookie<string>('sb-cart-session', {
     sameSite: 'lax',
-    default: () => `web-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    default: () => initialCartSession.value,
   });
   const user = useState<CustomerSession | null>('storefront-user', () => null);
   const cart = useState<any | null>('storefront-cart', () => null);
@@ -26,18 +27,18 @@ export function useStorefront() {
   async function loadCart() {
     cart.value = await $fetch('/cart', {
       baseURL: config.public.apiBase,
-      headers: { 'x-cart-session': cartSession.value },
+      headers: { ...authHeaders.value, 'x-cart-session': cartSession.value },
     });
     return cart.value;
   }
 
-  async function addToCart(product: any, quantity = 1) {
-    const variant = product?.variants?.find((item: any) => item.isActive !== false) || product?.variants?.[0];
+  async function addToCart(product: any, quantity = 1, variantId?: string) {
+    const variant = variantId ? product?.variants?.find((item: any) => item.id === variantId && item.isActive !== false) : product?.variants?.find((item: any) => item.isActive !== false && (product.productType === 'GIFT_CARD' || Number(item.stock) - Number(item.reserved || 0) >= quantity));
     if (!variant) throw new Error('У товара нет доступного варианта');
     cart.value = await $fetch('/cart/items', {
       baseURL: config.public.apiBase,
       method: 'POST',
-      headers: { 'x-cart-session': cartSession.value },
+      headers: { ...authHeaders.value, 'x-cart-session': cartSession.value },
       body: { variantId: variant.id, quantity },
     });
     return cart.value;
@@ -51,15 +52,16 @@ export function useStorefront() {
     }
     try {
       user.value = await $fetch<CustomerSession>('/auth/me', { baseURL: config.public.apiBase, headers: authHeaders.value });
-    } catch {
+    } catch (exception: any) {
+      if (![401,403].includes(Number(exception?.statusCode || exception?.status))) return user.value;
       if (!refreshToken.value) return logout();
       try {
         const session = await $fetch<any>('/auth/refresh', { baseURL: config.public.apiBase, method: 'POST', body: { refreshToken: refreshToken.value } });
         accessToken.value = session.accessToken;
         refreshToken.value = session.refreshToken;
         user.value = await $fetch<CustomerSession>('/auth/me', { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${session.accessToken}` } });
-      } catch {
-        logout();
+      } catch (exception: any) {
+        if ([400,401,403].includes(Number(exception?.statusCode || exception?.status))) logout();
       }
     } finally {
       authReady.value = true;
@@ -96,22 +98,25 @@ export function useStorefront() {
         method: 'POST',
         headers: { ...authHeaders.value, 'x-cart-session': cartSession.value },
       });
-    } catch {
-      // Старый backend может быть запущен во время hot reload — корзина останется гостевой.
-    }
+    } catch (exception) { throw exception; }
   }
 
   function logout() {
+    const headers = { ...authHeaders.value };
+    if (accessToken.value) $fetch('/auth/logout', { baseURL: config.public.apiBase, method: 'POST', headers }).catch(() => undefined);
     accessToken.value = null;
     refreshToken.value = null;
     user.value = null;
+    cartSession.value = `web-${crypto.randomUUID()}`;
+    cart.value = null;
+    favoriteIds.value = [];
     authReady.value = true;
     return null;
   }
 
   function loadLocalFavorites() {
     if (!import.meta.client) return;
-    try { favoriteIds.value = JSON.parse(localStorage.getItem('sb-favorites') || '[]'); } catch { favoriteIds.value = []; }
+    try { const stored = JSON.parse(localStorage.getItem(user.value ? `sb-favorites:${user.value.id}` : 'sb-favorites') || '[]'); favoriteIds.value = Array.isArray(stored) ? stored.filter(id => typeof id === 'string').slice(0,500) : []; } catch { favoriteIds.value = []; }
   }
 
   async function syncFavorites() {
@@ -123,7 +128,7 @@ export function useStorefront() {
       const missing = favoriteIds.value.filter((id) => !remoteIds.includes(id));
       await Promise.all(missing.map((id) => $fetch(`/storefront/favorites/${id}`, { baseURL: config.public.apiBase, method: 'POST', headers: authHeaders.value })));
       favoriteIds.value = [...new Set([...remoteIds, ...missing])];
-      if (import.meta.client) localStorage.setItem('sb-favorites', JSON.stringify(favoriteIds.value));
+      if (import.meta.client) localStorage.setItem(user.value ? `sb-favorites:${user.value.id}` : 'sb-favorites', JSON.stringify(favoriteIds.value));
     } catch {
       // Избранное остаётся доступным локально при временной недоступности API.
     }
@@ -133,7 +138,7 @@ export function useStorefront() {
   function toggleFavorite(productId: string) {
     const removing = favoriteIds.value.includes(productId);
     favoriteIds.value = removing ? favoriteIds.value.filter((id) => id !== productId) : [...favoriteIds.value, productId];
-    if (import.meta.client) localStorage.setItem('sb-favorites', JSON.stringify(favoriteIds.value));
+    if (import.meta.client) localStorage.setItem(user.value ? `sb-favorites:${user.value.id}` : 'sb-favorites', JSON.stringify(favoriteIds.value));
     if (accessToken.value) $fetch(`/storefront/favorites/${productId}`, {
       baseURL: config.public.apiBase,
       method: removing ? 'DELETE' : 'POST',

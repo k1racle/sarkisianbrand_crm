@@ -2,7 +2,7 @@
 import WorkspaceContextMenu from './components/WorkspaceContextMenu.vue';
 const route = useRoute();
 const { token } = useWorkspaceSession();
-const internalRoutes = ['/workspace', '/admin-workspace', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/crm-chat', '/crm-marketplaces', '/leadership', '/helpdesk', '/system-settings'];
+const internalRoutes = ['/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/crm-chat', '/crm-marketplaces', '/leadership', '/helpdesk', '/system-settings'];
 const isInternal = computed(() => internalRoutes.some(path => route.path === path || route.path.startsWith(`${path}/`)));
 const showWorkspace = computed(() => isInternal.value && Boolean(token.value));
 const b2bSession = useB2BSession();

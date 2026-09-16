@@ -1,0 +1,1 @@
+import{d as o,V as n,o as t,n as c,G as s,f as r,Z as _}from"./Dqsbnb-W.js";const f=o({__name:"crm-chat",setup(p){const{openChat:a}=n();return t(async()=>{a(),await c("/workspace",{replace:!0})}),(m,u)=>{const e=_;return r(),s(e,{label:"Открываем чат платформы"})}}});export{f as default};

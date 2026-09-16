@@ -1,0 +1,165 @@
+/* Shared visual language for every operational workspace.
+   Functional boundaries stay separate; surfaces, spacing and motion stay identical. */
+.workspace-frame,
+.b2b-frame {
+  --eco-ink: #171616;
+  --eco-muted: #777470;
+  --eco-line: rgba(28, 27, 26, .10);
+  --eco-glass: rgba(255, 255, 255, .72);
+  --eco-glass-strong: rgba(255, 255, 255, .88);
+  --eco-shadow: 0 24px 70px rgba(32, 24, 20, .08), 0 3px 12px rgba(32, 24, 20, .04);
+  --sb-radius: 18px;
+  --sb-bg: #f5f3f1;
+  --sb-panel: rgba(255, 255, 255, .78);
+  --sb-line: var(--eco-line);
+  --sb-ink: var(--eco-ink);
+  --sb-ink-soft: #292828;
+  --sb-muted: var(--eco-muted);
+  background:
+    radial-gradient(circle at 3% 8%, rgba(213, 207, 201, .30), transparent 30rem),
+    radial-gradient(circle at 97% 35%, rgba(198, 207, 218, .26), transparent 38rem),
+    linear-gradient(180deg, #faf9f8 0, #f2f0ed 48%, #faf9f8 100%) !important;
+}
+
+.workspace-frame > main,
+.b2b-frame > main {
+  background: transparent !important;
+  color: var(--eco-ink) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Unified floating page header, matching the storefront navigation surface. */
+.workspace-frame :is(.site-admin-header, .page-head, .page-header, .pipeline-header, .tasks-header, .mp-header, .leader-header, .hd-header, .system-header, .hub > header),
+.b2b-frame .top {
+  width: calc(100% - 32px) !important;
+  min-height: 112px !important;
+  height: auto !important;
+  margin: 14px 16px 0 !important;
+  padding: 22px clamp(22px, 3.5vw, 54px) !important;
+  box-sizing: border-box !important;
+  border: 1px solid rgba(255, 255, 255, .78) !important;
+  border-radius: 24px !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .88), rgba(255, 255, 255, .64)) !important;
+  box-shadow: inset 0 1px 0 #fff, var(--eco-shadow) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+
+.workspace-frame :is(.site-admin-header, .page-head, .page-header, .pipeline-header, .tasks-header, .mp-header, .leader-header, .hd-header, .system-header, .hub > header) h1,
+.b2b-frame .top h1 {
+  margin-top: 0 !important;
+  font-size: clamp(28px, 2.2vw, 38px) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.045em !important;
+  font-weight: 600 !important;
+}
+
+.workspace-frame :is(.kicker, .eyebrow, .page-head p, .page-header p, .pipeline-header p, .tasks-header p, .mp-header p, .leader-header p, .hd-header p, .system-header p, .panel > header p, .panel-head p),
+.b2b-frame :is(.top p, .panel header p, .hero p, .team-head p, .support-intro p) {
+  color: #4f4c49 !important;
+  font-weight: 700 !important;
+  letter-spacing: .16em !important;
+}
+
+/* Content width and breathing room are shared across Site, CRM, channels and cabinets. */
+.workspace-frame :is(.site-admin-content, .page-body, .pipeline-body, .tasks-body, .mp-body, .leader-body, .hd-body, .system-body, .hub-body),
+.b2b-frame .body {
+  width: 100% !important;
+  max-width: 1440px !important;
+  margin-inline: auto !important;
+  padding: 28px clamp(18px, 3.5vw, 54px) 80px !important;
+  box-sizing: border-box !important;
+}
+
+/* Storefront-like glass surfaces for dashboards and operational cards. */
+.workspace-frame :is(.panel, .workspace-card, .crm-grid article, .crm-kpis article, .kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article, .queue-grid article, .knowledge-grid article, .integration-card, .space-card, .toolbar),
+.b2b-frame :is(.panel, .kpis article, .quick button, .service, .add-card, .product, .cart-summary, .team-grid article, .calendar-tools) {
+  border: 1px solid rgba(255, 255, 255, .78) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .86), rgba(255, 255, 255, .64)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .96), 0 15px 42px rgba(31, 27, 25, .055) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  backdrop-filter: blur(20px) saturate(135%);
+}
+
+.workspace-frame :is(.panel, .workspace-card, .space-card, .integration-card, .toolbar),
+.b2b-frame :is(.panel, .service, .add-card, .product, .cart-summary) {
+  overflow: hidden;
+}
+
+.workspace-frame :is(.kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article, .queue-grid article),
+.b2b-frame .kpis article {
+  min-height: 138px !important;
+  padding: 22px !important;
+}
+
+.workspace-frame :is(.kpis article, .kpi-grid article, .hero-kpis article, .hd-kpis article) > svg,
+.b2b-frame :is(.kpis article, .quick button) > svg:first-child {
+  color: var(--eco-ink) !important;
+}
+
+/* One control language: black main actions, translucent secondary controls. */
+.workspace-frame :is(button, input, select, textarea, a),
+.b2b-frame :is(button, input, select, textarea, a) {
+  transition: transform .2s cubic-bezier(.22, .75, .22, 1), box-shadow .2s ease, background-color .2s ease, border-color .2s ease, opacity .2s ease;
+}
+
+.workspace-frame :is(input, select, textarea, .search, .filters label),
+.b2b-frame :is(input, select, textarea, .search) {
+  border-radius: 12px !important;
+}
+
+.workspace-frame :is(.primary, .workspace-primary, .loyalty-save, .head-actions a:not(.light), .admin-submit),
+.b2b-frame :is(.primary, .cart-summary footer button) {
+  border-radius: 13px !important;
+  background: linear-gradient(145deg, #252424, #111) !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 8px 20px rgba(20, 20, 20, .14) !important;
+}
+
+.workspace-frame :is(button, .head-actions a, .space-card),
+.b2b-frame :is(button, .panel header a) {
+  border-radius: 13px;
+}
+
+.workspace-frame :is(button, .head-actions a):hover:not(:disabled),
+.b2b-frame button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.workspace-frame .toolbar {
+  margin: 16px clamp(18px, 3.5vw, 54px) 0 !important;
+  padding: 12px !important;
+}
+
+.b2b-frame :is(.hero, .team-head, .support-intro),
+.workspace-frame :is(.platform-note, .hero-kpis .revenue, .kpis article.accent) {
+  border-radius: 22px !important;
+  border: 1px solid rgba(255, 255, 255, .10) !important;
+  background: radial-gradient(circle at 5% 0, #35312f, transparent 35%), linear-gradient(145deg, #242323, #111) !important;
+  box-shadow: 0 18px 48px rgba(20, 20, 20, .14) !important;
+}
+
+.workspace-frame .kpis article.accent :is(strong, span, small) {
+  color: #fff !important;
+}
+
+/* Side drawers use the same soft geometry and glass material as storefront drawers. */
+.workspace-frame :is(.drawer, .order-drawer, .product-editor, .account-drawer, .trash-drawer),
+.b2b-frame .drawer {
+  border-radius: 28px 0 0 28px !important;
+  border-left: 1px solid rgba(255, 255, 255, .80) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .95), rgba(248, 246, 244, .90)) !important;
+  box-shadow: -24px 0 70px rgba(23, 20, 18, .14) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+}
+
+@media (max-width: 800px) {
+  .workspace-frame :is(.site-admin-header, .page-head, .page-header, .pipeline-header, .tasks-header, .mp-header, .leader-header, .hd-header, .system-header, .hub > header),
+  .b2b-frame .top {
+    width: calc(100% - 20px) !important;
+    margin: 10px 10px 0 !important;
+    border-radius: 20px !important;
+  }
+}

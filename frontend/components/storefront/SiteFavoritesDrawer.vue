@@ -2,7 +2,8 @@
 import { ArrowRight, Heart, ShoppingBag, Trash2, X } from '@lucide/vue';
 
 const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; 'after-leave': [] }>();
+const motionDuration = useStorefrontMotion();
 const config = useRuntimeConfig();
 const { favoriteIds, toggleFavorite, addToCart, syncFavorites } = useStorefront();
 const products = ref<any[]>([]);
@@ -33,7 +34,7 @@ watch(() => props.open, (value) => { if (value) load().catch(() => undefined); }
 
 <template>
   <Teleport to="body">
-    <Transition name="sf-drawer">
+    <Transition name="sf-drawer" :duration="motionDuration" @after-leave="emit('after-leave')">
       <div v-if="open" class="sb-glass-layer" @click.self="emit('close')">
         <aside class="sb-side-drawer sb-favorites-drawer" aria-label="Избранное">
           <header class="sb-drawer-head">

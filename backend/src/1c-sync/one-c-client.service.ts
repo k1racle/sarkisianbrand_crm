@@ -102,6 +102,9 @@ export class OneCClientService {
   }
 
   private async request(settings: OneCSettings, path: string, options: { method: 'GET' | 'POST'; body?: unknown }) {
+    if (process.env.STOREFRONT_EXTERNAL_CALLS_ENABLED !== 'true') {
+      throw new ServiceUnavailableException('Внешние вызовы отключены. Проверка 1С будет доступна после разрешения интеграций на VPS');
+    }
     const url = new URL(path.replace(/^\//, ''), settings.baseUrl.endsWith('/') ? settings.baseUrl : `${settings.baseUrl}/`);
     const body = options.body === undefined ? '' : JSON.stringify(options.body);
     const timestamp = String(Date.now());

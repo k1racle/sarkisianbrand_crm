@@ -2,6 +2,8 @@
 import { ArrowRight, Award, Gift, PackageCheck, ShieldCheck, Sparkles } from '@lucide/vue';
 
 const config = useRuntimeConfig();
+const { openAuth } = useStorefrontPanels();
+const bonusCardTilt = useStorefrontCardTilt();
 const { data, pending, error } = await useFetch<any>('/products', {
   baseURL: config.public.apiBase,
   query: { limit: 8 },
@@ -14,10 +16,9 @@ let bannerTimer: ReturnType<typeof setInterval> | undefined;
 const banners = computed(() => content.value.banners?.length ? content.value.banners : [{ id: 'default', imageUrl: '/storefront/hero.jpg', linkUrl: '/catalog', buttonLabel: 'Перейти в каталог' }]);
 const currentBanner = computed(() => banners.value[bannerIndex.value % banners.value.length]);
 const displayCategories = computed(() => {
-  if (!content.value.categories?.length) return storefrontCategories.slice(1, 7);
-  return content.value.categories.slice(0, 6).map((category: any, index: number) => ({
+  return storefrontActiveCategories(content.value.categories || []).slice(0, 4).map((category: any, index: number) => ({
     title: category.nameRu,
-    query: category.nameRu,
+    slug: category.slug,
     image: storefrontMediaUrl(category.imageUrl) || storefrontCategories[(index + 1) % storefrontCategories.length].image,
   }));
 });
@@ -28,38 +29,24 @@ onMounted(() => {
 onBeforeUnmount(() => { if (bannerTimer) clearInterval(bannerTimer); });
 watch(() => banners.value.length, (length) => { if (bannerIndex.value >= length) bannerIndex.value = 0; });
 
-useSeoMeta({
+useStorefrontSeo({
   title: 'SARKISIAN BRAND — профессиональные материалы для маникюра',
   description: 'Официальный интернет-магазин SARKISIAN BRAND. Гели, базы, топы, инструменты и материалы для мастеров маникюра.',
-  ogTitle: 'SARKISIAN BRAND — от мастера мастерам',
-  ogDescription: 'Профессиональные материалы для скорости, качества и уверенной работы мастера.',
+  image: '/storefront/hero.jpg',
 });
 </script>
 
 <template>
   <SiteShell>
     <section class="sb-hero sb-liquid-hero">
-      <Transition name="sb-banner-fade" mode="out-in">
+      <h1 class="sb-visually-hidden">SARKISIAN BRAND — профессиональные материалы для мастеров маникюра</h1>
+      <Transition name="sb-banner-fade">
         <picture :key="currentBanner.id">
           <source v-if="currentBanner.mobileImageUrl" media="(max-width: 760px)" :srcset="storefrontMediaUrl(currentBanner.mobileImageUrl)" />
-          <img :src="storefrontMediaUrl(currentBanner.imageUrl)" alt="SARKISIAN BRAND" />
+          <img :src="storefrontMediaUrl(currentBanner.imageUrl)" :alt="currentBanner.title || 'SARKISIAN BRAND'" fetchpriority="high" />
         </picture>
       </Transition>
-      <div class="sb-hero__ambient"></div>
-      <NuxtLink :to="currentBanner.linkUrl || '/catalog'" class="sb-hero__hotspot" aria-label="Перейти по предложению SARKISIAN BRAND"></NuxtLink>
-      <div v-if="currentBanner.title || currentBanner.subtitle" class="sb-hero__admin-copy sb-glass-surface">
-        <p>SARKISIAN BRAND</p><h1>{{ currentBanner.title }}</h1><span>{{ currentBanner.subtitle }}</span>
-        <NuxtLink :to="currentBanner.linkUrl || '/catalog'">{{ currentBanner.buttonLabel || 'Подробнее' }} <ArrowRight :size="17" /></NuxtLink>
-      </div>
-      <div class="sb-hero__glass-note sb-glass-surface">
-        <Sparkles :size="17" />
-        <span><b>Создано мастером</b><small>Проверено ежедневной работой</small></span>
-      </div>
-      <div v-if="!currentBanner.title && !currentBanner.subtitle" class="sb-hero__mobile-copy sb-glass-surface">
-        <p>SARKISIAN BRAND</p>
-        <h1>От мастера —<br /><em>мастерам</em></h1>
-        <NuxtLink to="/catalog">Перейти в каталог <ArrowRight :size="17" /></NuxtLink>
-      </div>
+      <NuxtLink :to="currentBanner.linkUrl || '/catalog'" class="sb-hero__hotspot" :aria-label="currentBanner.buttonLabel || 'Перейти по предложению SARKISIAN BRAND'"></NuxtLink>
       <div v-if="banners.length > 1" class="sb-hero__dots">
         <button v-for="(banner, index) in banners" :key="banner.id" :class="{ active: bannerIndex === index }" :aria-label="`Показать баннер ${index + 1}`" @click="bannerIndex = index"></button>
       </div>
@@ -71,7 +58,7 @@ useSeoMeta({
         <NuxtLink to="/catalog">Весь каталог <ArrowRight :size="17" /></NuxtLink>
       </div>
       <div class="sb-category-grid">
-        <NuxtLink v-for="category in displayCategories" :key="category.title" :to="storefrontCatalogLink(category.query)" class="sb-home-category">
+        <NuxtLink v-for="category in displayCategories" :key="category.slug" :to="storefrontCatalogLink(category.slug)" class="sb-home-category">
           <img :src="category.image" :alt="category.title" loading="lazy" />
           <span>{{ category.title }}</span><ArrowRight :size="18" />
         </NuxtLink>
@@ -93,22 +80,23 @@ useSeoMeta({
     <section class="sb-club-banner">
       <div class="sb-club-banner__glow"></div>
       <div class="sb-club-banner__copy">
-        <p><Gift :size="15" /> SARKISIAN CLUB</p>
+        <p class="sb-club-banner__label">SARKISIAN CLUB</p>
         <h2>Покупайте любимое.<br /><em>Получайте больше.</em></h2>
-        <span>Бонусы за заказы, персональные предложения и ранний доступ к новинкам — в личном кабинете.</span>
-        <NuxtLink to="/login" class="sb-liquid-primary">Вступить в клуб <ArrowRight :size="17" /></NuxtLink>
+        <ul class="sb-club-perks">
+          <li><Award :size="20" /><span>Бонусы за покупки для следующих заказов</span></li>
+          <li><Gift :size="20" /><span>Уровень участия и условия программы в кабинете</span></li>
+          <li><ShieldCheck :size="20" /><span>Баланс и история начислений всегда под рукой</span></li>
+        </ul>
+        <div class="sb-club-actions">
+          <button type="button" class="sb-liquid-primary sb-club-join" @click="openAuth('register')">Вступить в клуб <ArrowRight :size="17" /></button>
+          <NuxtLink to="/club" class="sb-liquid-primary sb-club-about">О клубе <ArrowRight :size="17" /></NuxtLink>
+        </div>
       </div>
-      <div class="sb-club-banner__card sb-glass-surface">
-        <small>ВАШ БОНУСНЫЙ БАЛАНС</small>
-        <b>1 250</b>
-        <span>баллов для следующей покупки</span>
-        <i><span></span></i>
-        <div><span>Старт</span><span>Профи</span></div>
-      </div>
+      <SiteLoyaltyPreview class="sb-card-tilt" @pointerenter="bonusCardTilt.onPointerEnter" @pointermove="bonusCardTilt.onPointerMove" @pointerleave="bonusCardTilt.onPointerLeave" @pointercancel="bonusCardTilt.onPointerCancel" />
     </section>
 
     <section class="sb-brand-manifesto" aria-label="О бренде SARKISIAN">
-      <h2>SARKISIAN — премиальный бренд<br />для мастеров маникюра, <span>который понимает<br />профессию изнутри.</span></h2>
+      <h2><span class="is-dark">SARKISIAN — премиальный бренд</span><span class="is-dark">для мастеров маникюра, <em>который</em></span><span>понимает профессию изнутри.</span></h2>
     </section>
 
     <section id="about" class="sb-brand-story">
@@ -118,13 +106,16 @@ useSeoMeta({
         <span>Мы не просто продаём — мы производим профессиональные материалы под личным контролем Светланы Саркисян. Только решения, которые действительно удобны в ежедневной работе.</span>
         <NuxtLink to="/catalog">Познакомиться с продуктами <ArrowRight :size="17" /></NuxtLink>
       </div>
+      <figure class="sb-brand-story__portrait">
+        <img src="/storefront/svetlana-portrait.png" alt="Светлана Саркисян — основательница SARKISIAN BRAND" width="1254" height="1254" loading="lazy" decoding="async" />
+      </figure>
     </section>
 
     <section id="delivery" class="sb-benefits">
-      <article><PackageCheck :size="25" /><div><b>Быстрая отправка</b><span>Передаём заказ в сборку сразу после оплаты</span></div></article>
-      <article><ShieldCheck :size="25" /><div><b>Оригинальная продукция</b><span>Напрямую от SARKISIAN BRAND</span></div></article>
-      <article><Award :size="25" /><div><b>Бонусы за покупки</b><span>Возвращаем часть заказа баллами</span></div></article>
-      <article><Sparkles :size="25" /><div><b>Создано для мастеров</b><span>Продукты проверены в реальной работе</span></div></article>
+      <article><i><PackageCheck :size="28" /></i><div><small>01 / ДОСТАВКА</small><b>Быстрая отправка</b><span>Передаём заказ в сборку сразу после оплаты и сообщаем о каждом этапе.</span></div></article>
+      <article><i><ShieldCheck :size="28" /></i><div><small>02 / КАЧЕСТВО</small><b>Оригинальная продукция</b><span>Напрямую от SARKISIAN BRAND — с контролем каждой партии.</span></div></article>
+      <article><i><Award :size="28" /></i><div><small>03 / SARKISIAN CLUB</small><b>Бонусы за покупки</b><span>Возвращаем часть заказа баллами для следующих покупок.</span></div></article>
+      <article><i><Sparkles :size="28" /></i><div><small>04 / ЭКСПЕРТИЗА</small><b>Создано для мастеров</b><span>Продукты проверены Светланой Саркисян в реальной ежедневной работе.</span></div></article>
     </section>
   </SiteShell>
 </template>
