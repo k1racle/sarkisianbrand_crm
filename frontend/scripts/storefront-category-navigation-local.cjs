@@ -12,7 +12,7 @@ async function read(endpoint) {
 async function main() {
   const categories = await read('/products/categories');
   assert(categories.length > 0);
-  const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
+  const browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH}:{}), headless: true });
   const checks = [];
   try {
     for (const width of [1536, 390]) {

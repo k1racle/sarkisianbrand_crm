@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { siteContent } = useStorefrontContent();
 const card = ref<HTMLElement | null>(null);
 const visible = ref(false);
 let observer: IntersectionObserver | undefined;
@@ -11,8 +12,8 @@ onBeforeUnmount(() => observer?.disconnect());
 
 <template>
   <div ref="card" class="sb-club-banner__card sb-glass-surface" :class="{ 'is-visible': visible }">
-    <small>ВАШ БОНУСНЫЙ БАЛАНС</small>
-    <b>1250</b>
+    <small>{{ siteContent.home.club.previewLabel }}</small>
+    <b>{{ siteContent.home.club.previewBalance }}</b>
     <span>баллов для следующей покупки</span>
     <i><span></span></i>
     <div><span>Старт</span><span>Профи</span></div>

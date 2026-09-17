@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Upload } from '@lucide/vue';
+import { Check, Upload } from '@lucide/vue';
 const props = withDefaults(defineProps<{ apiBase?: string; token?: string; disabled?: boolean; showCancel?: boolean }>(), { disabled: false, showCancel: false });
 const emit = defineEmits<{ select: [asset: MediaAsset]; cancel: [] }>();
 type MediaAsset = { id: string; url: string; originalName: string; mime: string; size: number; createdAt: string };
@@ -19,6 +19,7 @@ const uploading = ref(false);
 const error = ref('');
 const status = ref('');
 const selectedId = ref('');
+const dragDepth = ref(0);
 const maxBytes = 8 * 1024 * 1024;
 const allowedMimes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 const controllers = new Set<AbortController>();
@@ -81,6 +82,7 @@ function stopRequests() {
   ++identity; ++listVersion; controllers.forEach(controller => controller.abort());
   listController = undefined; if (timer) clearTimeout(timer); timer = undefined;
   selectionIdentity = -1; loading.value = false; uploading.value = false;
+  dragDepth.value = 0;
   if (fileInput.value) fileInput.value.value = '';
 }
 function chooseFile() {
@@ -91,8 +93,30 @@ function chooseFile() {
 async function uploadFile(event: Event) {
   const input = event.target as HTMLInputElement, file = input.files?.[0];
   input.value = '';
-  if (!file || busy.value || selectionIdentity !== identity) return;
-  selectionIdentity = -1; error.value = ''; status.value = '';
+  const requestedIdentity = selectionIdentity;
+  selectionIdentity = -1;
+  if (file) await uploadSelectedFile(file, requestedIdentity);
+}
+function dragEnter(event: DragEvent) {
+  if (!event.dataTransfer?.types.includes('Files')) return;
+  event.preventDefault();
+  if (!busy.value) dragDepth.value++;
+}
+function dragOver(event: DragEvent) {
+  if (!event.dataTransfer?.types.includes('Files')) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = busy.value ? 'none' : 'copy';
+}
+async function dropFile(event: DragEvent) {
+  event.preventDefault(); dragDepth.value = 0;
+  if (busy.value || !mounted) return;
+  const files = Array.from(event.dataTransfer?.files || []);
+  if (files.length !== 1) { error.value = 'Перетащите одно изображение за раз.'; return; }
+  await uploadSelectedFile(files[0], identity);
+}
+async function uploadSelectedFile(file: File, requestedIdentity: number) {
+  if (!mounted || busy.value || requestedIdentity !== identity) return;
+  error.value = ''; status.value = '';
   if (!allowedMimes.has(file.type) || !/\.(?:jpe?g|png|webp|avif)$/i.test(file.name)) { error.value = 'Выберите JPEG, PNG, WebP или AVIF. Другие форматы не поддерживаются.'; return; }
   if (file.size <= 0 || file.size > maxBytes) { error.value = 'Размер файла должен быть больше нуля и не превышать 8 MiB.'; return; }
   listController?.abort(); ++listVersion; loading.value = false;
@@ -131,14 +155,18 @@ defineExpose({ chooseFile, refresh: load, cancelPending: stopRequests });
 <template>
   <section class="admin-media-library aml-browser" aria-label="Медиабиблиотека">
     <input ref="fileInput" type="file" class="aml-file-input" accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" :disabled="busy" aria-label="Загрузить изображение" @change="uploadFile" />
-    <p class="aml-help">JPEG, PNG, WebP или AVIF, до 8 MiB. Сервер проверяет содержимое. Общие файлы не удаляются.</p>
+    <div class="aml-dropzone" :class="{ 'aml-dropzone--active': dragDepth > 0, 'aml-dropzone--busy': busy }" @dragenter="dragEnter" @dragover="dragOver" @dragleave.prevent="dragDepth = Math.max(0, dragDepth - 1)" @drop="dropFile">
+      <span class="aml-dropzone-icon" aria-hidden="true"><Upload :size="24" /></span>
+      <div><strong>{{ uploading ? 'Загружаем изображение…' : 'Перетащите изображение сюда' }}</strong><p class="aml-help">JPEG, PNG, WebP или AVIF · до 8 MiB · по одному файлу</p></div>
+      <button type="button" class="aml-button aml-button--white" :disabled="busy" @click="chooseFile">Выбрать файл</button>
+    </div>
     <p v-if="status" class="aml-message" role="status">{{ status }}</p>
-          <div class="aml-toolbar"><label class="aml-search"><span>Поиск по названию</span><input v-model="q" type="search" maxlength="120" :disabled="busy" placeholder="Название файла" @keydown.enter.prevent="load(1)" /></label><button type="button" class="aml-button aml-button--white" :disabled="busy || loading" @click="load(page)">Обновить список</button><button type="button" class="aml-button" :disabled="busy" @click="chooseFile"><Upload :size="18" /> Загрузить файл</button></div>
+          <div class="aml-toolbar"><label class="aml-search"><span>Поиск по названию</span><input v-model="q" type="search" maxlength="120" :disabled="busy" placeholder="Название файла" @keydown.enter.prevent="load(1)" /></label><button type="button" class="aml-button aml-button--white" :disabled="busy || loading" @click="load(page)">Обновить список</button><span class="aml-total" role="status">{{ loaded ? `Файлов: ${total}` : 'Загрузка списка…' }}</span></div>
           <p v-if="error" class="aml-message" role="alert">{{ error }} <button type="button" class="aml-button aml-button--white" :disabled="busy" @click="load(page)">Повторить загрузку списка</button></p>
           <p v-if="loading || uploading" class="aml-message" role="status">{{ uploading ? 'Загружаем изображение…' : 'Загружаем медиабиблиотеку…' }}</p>
           <div v-else-if="loaded && assets.length" class="aml-grid" role="group" aria-label="Изображения медиабиблиотеки">
             <button v-for="asset in assets" :key="asset.id" type="button" class="aml-asset" :class="{ 'is-selected': selectedId === asset.id }" :disabled="!supported(asset) || busy" :aria-pressed="selectedId === asset.id" :aria-label="`Выбрать ${asset.originalName}`" @click="selectedId = asset.id">
-              <div class="aml-image"><img v-if="supported(asset)" :src="displayUrl(asset.url)" :alt="asset.originalName" loading="lazy" /><span v-else>Формат недоступен</span></div>
+              <div class="aml-image"><img v-if="supported(asset)" :src="displayUrl(asset.url)" :alt="asset.originalName" loading="lazy" /><span v-else>Формат недоступен</span><span v-if="selectedId === asset.id" class="aml-selected-mark" aria-hidden="true"><Check :size="16" /></span></div>
               <span class="aml-filename">{{ asset.originalName }}</span><small>{{ asset.mime.replace('image/', '').toUpperCase() }} · {{ sizeLabel(asset.size) }}</small><small>{{ dateLabel(asset.createdAt) }}</small>
             </button>
           </div>
@@ -148,4 +176,3 @@ defineExpose({ chooseFile, refresh: load, cancelPending: stopRequests });
 
   </section>
 </template>
-

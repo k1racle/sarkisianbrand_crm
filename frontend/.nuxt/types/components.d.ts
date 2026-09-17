@@ -34,6 +34,10 @@ interface _GlobalComponents {
   UserProfileDrawer: typeof import("../../components/UserProfileDrawer.vue")['default']
   WorkspaceContextMenu: typeof import("../../components/WorkspaceContextMenu.vue")['default']
   WorkspaceLoading: typeof import("../../components/WorkspaceLoading.vue")['default']
+  WorkspaceOrdersTable: typeof import("../../components/WorkspaceOrdersTable.vue")['default']
+  WorkspaceOverview: typeof import("../../components/WorkspaceOverview.vue")['default']
+  WorkspaceSectionIcon: typeof import("../../components/WorkspaceSectionIcon.vue")['default']
+  WorkspaceToolbar: typeof import("../../components/WorkspaceToolbar.vue")['default']
   ProductCard: typeof import("../../components/storefront/ProductCard.vue")['default']
   SiteAccountAddresses: typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']
   SiteAccountDashboard: typeof import("../../components/storefront/SiteAccountDashboard.vue")['default']
@@ -48,7 +52,9 @@ interface _GlobalComponents {
   SiteCatalogDrawer: typeof import("../../components/storefront/SiteCatalogDrawer.vue")['default']
   SiteCatalogFilters: typeof import("../../components/storefront/SiteCatalogFilters.vue")['default']
   SiteCatalogMenuEditor: typeof import("../../components/storefront/SiteCatalogMenuEditor.vue")['default']
+  SiteCategoriesEditor: typeof import("../../components/storefront/SiteCategoriesEditor.vue")['default']
   SiteCheckout: typeof import("../../components/storefront/SiteCheckout.vue")['default']
+  SiteContentEditor: typeof import("../../components/storefront/SiteContentEditor.vue")['default']
   SiteContentPage: typeof import("../../components/storefront/SiteContentPage.vue")['default']
   SiteFavoritesDrawer: typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']
   SiteFooter: typeof import("../../components/storefront/SiteFooter.vue")['default']
@@ -58,10 +64,16 @@ interface _GlobalComponents {
   SiteMenuDrawer: typeof import("../../components/storefront/SiteMenuDrawer.vue")['default']
   SiteMenuLink: typeof import("../../components/storefront/SiteMenuLink.vue")['default']
   SitePagesEditor: typeof import("../../components/storefront/SitePagesEditor.vue")['default']
+  SiteProductBadgesEditor: typeof import("../../components/storefront/SiteProductBadgesEditor.vue")['default']
   SitePromoCodesEditor: typeof import("../../components/storefront/SitePromoCodesEditor.vue")['default']
   SiteQuantityControl: typeof import("../../components/storefront/SiteQuantityControl.vue")['default']
   SiteShell: typeof import("../../components/storefront/SiteShell.vue")['default']
   SiteSocialLoginButtons: typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']
+  ChannelsWorkspacePage: typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']
+  ReportsWorkspacePage: typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']
+  StoreWorkspacePage: typeof import("../../components/workspace/StoreWorkspacePage.vue")['default']
+  SupportWorkspacePage: typeof import("../../components/workspace/SupportWorkspacePage.vue")['default']
+  SystemWorkspacePage: typeof import("../../components/workspace/SystemWorkspacePage.vue")['default']
   NuxtWelcome: typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
   NuxtLayout: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
   NuxtErrorBoundary: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -105,6 +117,10 @@ interface _GlobalComponents {
   LazyUserProfileDrawer: LazyComponent<typeof import("../../components/UserProfileDrawer.vue")['default']>
   LazyWorkspaceContextMenu: LazyComponent<typeof import("../../components/WorkspaceContextMenu.vue")['default']>
   LazyWorkspaceLoading: LazyComponent<typeof import("../../components/WorkspaceLoading.vue")['default']>
+  LazyWorkspaceOrdersTable: LazyComponent<typeof import("../../components/WorkspaceOrdersTable.vue")['default']>
+  LazyWorkspaceOverview: LazyComponent<typeof import("../../components/WorkspaceOverview.vue")['default']>
+  LazyWorkspaceSectionIcon: LazyComponent<typeof import("../../components/WorkspaceSectionIcon.vue")['default']>
+  LazyWorkspaceToolbar: LazyComponent<typeof import("../../components/WorkspaceToolbar.vue")['default']>
   LazyProductCard: LazyComponent<typeof import("../../components/storefront/ProductCard.vue")['default']>
   LazySiteAccountAddresses: LazyComponent<typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']>
   LazySiteAccountDashboard: LazyComponent<typeof import("../../components/storefront/SiteAccountDashboard.vue")['default']>
@@ -119,7 +135,9 @@ interface _GlobalComponents {
   LazySiteCatalogDrawer: LazyComponent<typeof import("../../components/storefront/SiteCatalogDrawer.vue")['default']>
   LazySiteCatalogFilters: LazyComponent<typeof import("../../components/storefront/SiteCatalogFilters.vue")['default']>
   LazySiteCatalogMenuEditor: LazyComponent<typeof import("../../components/storefront/SiteCatalogMenuEditor.vue")['default']>
+  LazySiteCategoriesEditor: LazyComponent<typeof import("../../components/storefront/SiteCategoriesEditor.vue")['default']>
   LazySiteCheckout: LazyComponent<typeof import("../../components/storefront/SiteCheckout.vue")['default']>
+  LazySiteContentEditor: LazyComponent<typeof import("../../components/storefront/SiteContentEditor.vue")['default']>
   LazySiteContentPage: LazyComponent<typeof import("../../components/storefront/SiteContentPage.vue")['default']>
   LazySiteFavoritesDrawer: LazyComponent<typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']>
   LazySiteFooter: LazyComponent<typeof import("../../components/storefront/SiteFooter.vue")['default']>
@@ -129,10 +147,16 @@ interface _GlobalComponents {
   LazySiteMenuDrawer: LazyComponent<typeof import("../../components/storefront/SiteMenuDrawer.vue")['default']>
   LazySiteMenuLink: LazyComponent<typeof import("../../components/storefront/SiteMenuLink.vue")['default']>
   LazySitePagesEditor: LazyComponent<typeof import("../../components/storefront/SitePagesEditor.vue")['default']>
+  LazySiteProductBadgesEditor: LazyComponent<typeof import("../../components/storefront/SiteProductBadgesEditor.vue")['default']>
   LazySitePromoCodesEditor: LazyComponent<typeof import("../../components/storefront/SitePromoCodesEditor.vue")['default']>
   LazySiteQuantityControl: LazyComponent<typeof import("../../components/storefront/SiteQuantityControl.vue")['default']>
   LazySiteShell: LazyComponent<typeof import("../../components/storefront/SiteShell.vue")['default']>
   LazySiteSocialLoginButtons: LazyComponent<typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']>
+  LazyChannelsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']>
+  LazyReportsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']>
+  LazyStoreWorkspacePage: LazyComponent<typeof import("../../components/workspace/StoreWorkspacePage.vue")['default']>
+  LazySupportWorkspacePage: LazyComponent<typeof import("../../components/workspace/SupportWorkspacePage.vue")['default']>
+  LazySystemWorkspacePage: LazyComponent<typeof import("../../components/workspace/SystemWorkspacePage.vue")['default']>
   LazyNuxtWelcome: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
   LazyNuxtLayout: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
   LazyNuxtErrorBoundary: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>

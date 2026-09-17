@@ -109,8 +109,8 @@ onBeforeUnmount(() => {
     <p v-if="error && !opened" class="aml-message" role="alert">{{ error }}</p>
     <p v-if="status && !opened" class="aml-message" role="status">{{ status }}</p>
     <Teleport to="body"><Transition name="aml-dialog">
-      <div v-if="opened" class="admin-media-library aml-backdrop" @click.self="closeLibrary" @keydown.stop="dialogKeys">
-        <section ref="dialogEl" class="aml-panel" role="dialog" aria-modal="true" :aria-labelledby="dialogId" :aria-describedby="dialogId + '-description'">
+      <div v-if="opened" class="admin-media-library aml-backdrop admin-dialog-backdrop" @click.self="closeLibrary" @keydown.stop="dialogKeys">
+        <section ref="dialogEl" class="aml-panel admin-dialog admin-dialog--modal" role="dialog" aria-modal="true" :aria-labelledby="dialogId" :aria-describedby="dialogId + '-description'">
           <header class="aml-head"><div><p class="aml-eyebrow">ОБЩАЯ БИБЛИОТЕКА</p><h2 :id="dialogId">Выбрать изображение</h2></div><button type="button" class="aml-close" aria-label="Закрыть медиабиблиотеку" @click="closeLibrary"><X :size="20" /></button></header>
           <p :id="dialogId + '-description'" class="aml-help">Выбор меняет только поле текущего редактора. Сохраняется путь файла без адреса хоста.</p>
           <p v-if="error" class="aml-message" role="alert">{{ error }}</p>

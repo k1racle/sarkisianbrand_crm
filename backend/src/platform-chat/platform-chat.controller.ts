@@ -29,7 +29,7 @@ export class PlatformChatController {
     return this.chat.postUpload(id, files, body.body, body.entities, body.replyToId, request.user.sub);
   }
   @Post('channels/:id/read') read(@Param('id') id: string, @Req() request: any) { return this.chat.markRead(id, request.user.sub); }
-  @Get('entities') entities(@Query('type') type: string, @Query('search') search = '') { return this.chat.searchEntities(type, search); }
+  @Get('entities') entities(@Query('type') type: string, @Query('search') search = '', @Req() request: any) { return this.chat.searchEntities(type, search, request.user.sub); }
   @Get('attachments/:id')
   async attachment(@Param('id') id: string, @Req() request: any, @Res() response: Response) {
     const file = await this.chat.attachment(id, request.user.sub);

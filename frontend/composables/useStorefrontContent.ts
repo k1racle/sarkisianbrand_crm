@@ -1,7 +1,8 @@
+import { mergeSiteContent, type SiteContentInput } from '~/shared/site-content';
 import type { StorefrontCatalogMenu } from './useStorefrontCatalog';
 
 type StorefrontContent = {
-  settings: { announcementText: string; catalogMenu?: StorefrontCatalogMenu | null; catalogMenuRevision?: number };
+  settings: { announcementText: string; productBadges?: import('~/shared/product-merchandising').ProductBadge[]; catalogMenu?: StorefrontCatalogMenu | null; catalogMenuRevision?: number; siteContent?: SiteContentInput | null; siteContentRevision?: number };
   banners: any[];
   categories: any[];
   socialLinks: any[];
@@ -38,5 +39,6 @@ export function useStorefrontContent() {
     return new URL(url, config.public.apiBase).toString();
   }
 
-  return { content, loadStorefrontContent, storefrontMediaUrl };
+  const siteContent = computed(() => mergeSiteContent(content.value.settings?.siteContent));
+  return { content, siteContent, loadStorefrontContent, storefrontMediaUrl };
 }

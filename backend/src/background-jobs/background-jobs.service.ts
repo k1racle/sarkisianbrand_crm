@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JobRunStatus, Prisma } from '@prisma/client';
 import { Job, Queue, Worker } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
+import { ecosystemAutomationEnabled } from '../common/ecosystem-automation';
 
 export type JobProgress = (progress: number) => Promise<void>;
 export type JobHandler = (payload: any, progress: JobProgress) => Promise<any>;
@@ -28,8 +29,10 @@ export class BackgroundJobsService implements OnApplicationBootstrap, OnModuleDe
       connection,
       defaultJobOptions: { attempts: 4, backoff: { type: 'exponential', delay: 2000 }, removeOnComplete: 250, removeOnFail: 500 },
     });
-    this.worker = new Worker(this.queueName, job => this.process(job), { connection, concurrency: 3 });
-    this.worker.on('error', error => this.logger.error(`Ошибка очереди: ${error.message}`));
+    if(ecosystemAutomationEnabled()){
+      this.worker = new Worker(this.queueName, job => this.process(job), { connection, concurrency: 3 });
+      this.worker.on('error', error => this.logger.error(`Ошибка очереди: ${error.message}`));
+    }
     await this.queue.waitUntilReady();
     this.logger.log(`Очередь ${this.queueName} подключена к Redis`);
   }
@@ -77,9 +80,9 @@ export class BackgroundJobsService implements OnApplicationBootstrap, OnModuleDe
   async health() {
     try {
       const counts = await this.queue.getJobCounts('waiting', 'active', 'delayed', 'completed', 'failed');
-      return { connected: true, queue: this.queueName, counts };
+      return { connected: true, queue: this.queueName, counts, workerEnabled: ecosystemAutomationEnabled() };
     } catch (error: any) {
-      return { connected: false, queue: this.queueName, error: error.message, counts: {} };
+      return { connected: false, queue: this.queueName, error: error.message, counts: {}, workerEnabled: ecosystemAutomationEnabled() };
     }
   }
 

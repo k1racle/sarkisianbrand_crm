@@ -1,22 +1,30 @@
 <script setup lang="ts">
+import { defaultSiteContent } from '~/shared/site-content';
 import { ArrowRight, Award, Gift, PackageCheck, ShieldCheck, Sparkles } from '@lucide/vue';
 
 const config = useRuntimeConfig();
 const { openAuth } = useStorefrontPanels();
 const bonusCardTilt = useStorefrontCardTilt();
-const { data, pending, error } = await useFetch<any>('/products', {
-  baseURL: config.public.apiBase,
-  query: { limit: 8 },
-});
-const products = computed(() => data.value?.items || []);
-const { content, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
+const { content, siteContent, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
 await loadStorefrontContent();
+const home = computed(() => siteContent.value.home);
+const visibleSections = computed(() => home.value.order.filter(key => !home.value.hidden.includes(key)));
+const productQuery = computed(() => home.value.bestsellers.mode === 'manual' ? { limit: 8, ids: home.value.bestsellers.productIds.join(','), sort: 'new' } : { limit: 8, sort: 'popular' });
+const { data, pending, error } = await useFetch<any>('/products', { baseURL: config.public.apiBase, query: productQuery });
+const products = computed(() => {
+  const items = (data.value?.items || []).filter((item: any) => item.isActive !== false);
+  if (home.value.bestsellers.mode !== 'manual') return items.slice(0, 8);
+  const byId = new Map<string, any>(items.map((item: any) => [item.id, item]));
+  return home.value.bestsellers.productIds.flatMap(id => byId.has(id) ? [byId.get(id)] : []);
+});
+const clubIcons = { award: Award, gift: Gift, shield: ShieldCheck };
+const benefitIcons = { package: PackageCheck, shield: ShieldCheck, award: Award, sparkles: Sparkles };
 const bannerIndex = ref(0);
 let bannerTimer: ReturnType<typeof setInterval> | undefined;
 const banners = computed(() => content.value.banners?.length ? content.value.banners : [{ id: 'default', imageUrl: '/storefront/hero.jpg', linkUrl: '/catalog', buttonLabel: 'Перейти в каталог' }]);
 const currentBanner = computed(() => banners.value[bannerIndex.value % banners.value.length]);
 const displayCategories = computed(() => {
-  return storefrontActiveCategories(content.value.categories || []).slice(0, 4).map((category: any, index: number) => ({
+  return storefrontActiveCategories(content.value.categories || []).filter((category:any)=>!category.parentId).slice(0, 4).map((category: any, index: number) => ({
     title: category.nameRu,
     slug: category.slug,
     image: storefrontMediaUrl(category.imageUrl) || storefrontCategories[(index + 1) % storefrontCategories.length].image,
@@ -30,7 +38,7 @@ onBeforeUnmount(() => { if (bannerTimer) clearInterval(bannerTimer); });
 watch(() => banners.value.length, (length) => { if (bannerIndex.value >= length) bannerIndex.value = 0; });
 
 useStorefrontSeo({
-  title: 'SARKISIAN BRAND — профессиональные материалы для маникюра',
+  title: () => `${siteContent.value.brand.name} — профессиональные материалы для маникюра`,
   description: 'Официальный интернет-магазин SARKISIAN BRAND. Гели, базы, топы, инструменты и материалы для мастеров маникюра.',
   image: '/storefront/hero.jpg',
 });
@@ -38,8 +46,10 @@ useStorefrontSeo({
 
 <template>
   <SiteShell>
-    <section class="sb-hero sb-liquid-hero">
-      <h1 class="sb-visually-hidden">SARKISIAN BRAND — профессиональные материалы для мастеров маникюра</h1>
+    <h1 v-if="home.hidden.includes('hero')" class="sb-visually-hidden">{{ siteContent.brand.name }} — профессиональные материалы для мастеров маникюра</h1>
+    <template v-for="section in visibleSections" :key="section">
+    <section v-if="section === 'hero'" class="sb-hero sb-liquid-hero">
+      <h1 class="sb-visually-hidden">{{ siteContent.brand.name }} — профессиональные материалы для мастеров маникюра</h1>
       <Transition name="sb-banner-fade">
         <picture :key="currentBanner.id">
           <source v-if="currentBanner.mobileImageUrl" media="(max-width: 760px)" :srcset="storefrontMediaUrl(currentBanner.mobileImageUrl)" />
@@ -52,10 +62,10 @@ useStorefrontSeo({
       </div>
     </section>
 
-    <section class="sb-home-section sb-categories">
+    <section v-if="section === 'categories'" class="sb-home-section sb-categories">
       <div class="sb-section-head">
-        <div><p>ВЫБИРАЙТЕ ПО ЗАДАЧЕ</p><h2>Всё необходимое<br />для уверенной работы</h2></div>
-        <NuxtLink to="/catalog">Весь каталог <ArrowRight :size="17" /></NuxtLink>
+        <div><p>{{ home.categories.eyebrow }}</p><h2 ui-inline-i-02281a80fab7-1 >{{ home.categories.title }}</h2></div>
+        <NuxtLink to="/catalog">{{ home.categories.buttonLabel }} <ArrowRight :size="17" /></NuxtLink>
       </div>
       <div class="sb-category-grid">
         <NuxtLink v-for="category in displayCategories" :key="category.slug" :to="storefrontCatalogLink(category.slug)" class="sb-home-category">
@@ -65,57 +75,55 @@ useStorefrontSeo({
       </div>
     </section>
 
-    <section class="sb-home-section sb-products-section">
+    <section v-if="section === 'bestsellers'" class="sb-home-section sb-products-section">
       <div class="sb-section-head">
-        <div><p>ВЫБОР МАСТЕРОВ</p><h2>Бестселлеры</h2></div>
-        <NuxtLink to="/catalog">Смотреть все <ArrowRight :size="17" /></NuxtLink>
+        <div><p>{{ home.bestsellers.eyebrow }}</p><h2>{{ home.bestsellers.title }}</h2></div>
+        <NuxtLink to="/catalog">{{ home.bestsellers.buttonLabel }} <ArrowRight :size="17" /></NuxtLink>
       </div>
       <div v-if="pending" class="sb-state">Загружаем каталог…</div>
       <div v-else-if="error" class="sb-state is-error">Каталог временно недоступен. Попробуйте обновить страницу.</div>
+      <div v-else-if="!products.length" class="sb-state">Товары подборки пока недоступны.</div>
       <div v-else class="sb-product-grid">
-        <ProductCard v-for="(product, index) in products.slice(0, 8)" :key="product.id" :product="product" :badge="index < 2 ? 'Бестселлер' : undefined" />
+        <ProductCard v-for="product in products.slice(0, 8)" :key="product.id" :product="product" />
       </div>
     </section>
 
-    <section class="sb-club-banner">
+    <section v-if="section === 'club'" class="sb-club-banner">
       <div class="sb-club-banner__glow"></div>
       <div class="sb-club-banner__copy">
-        <p class="sb-club-banner__label">SARKISIAN CLUB</p>
-        <h2>Покупайте любимое.<br /><em>Получайте больше.</em></h2>
+        <p class="sb-club-banner__label">{{ home.club.label }}</p>
+        <h2>{{ home.club.title }}<br /><em>{{ home.club.accent }}</em></h2>
         <ul class="sb-club-perks">
-          <li><Award :size="20" /><span>Бонусы за покупки для следующих заказов</span></li>
-          <li><Gift :size="20" /><span>Уровень участия и условия программы в кабинете</span></li>
-          <li><ShieldCheck :size="20" /><span>Баланс и история начислений всегда под рукой</span></li>
+          <li v-for="benefit in home.club.benefits" :key="benefit.id"><component :is="clubIcons[benefit.icon]" :size="20" /><span>{{ benefit.text }}</span></li>
         </ul>
         <div class="sb-club-actions">
-          <button type="button" class="sb-liquid-primary sb-club-join" @click="openAuth('register')">Вступить в клуб <ArrowRight :size="17" /></button>
-          <NuxtLink to="/club" class="sb-liquid-primary sb-club-about">О клубе <ArrowRight :size="17" /></NuxtLink>
+          <button type="button" class="sb-liquid-primary sb-club-join" @click="openAuth('register')">{{ home.club.joinLabel }} <ArrowRight :size="17" /></button>
+          <NuxtLink to="/club" class="sb-liquid-primary sb-club-about">{{ home.club.aboutLabel }} <ArrowRight :size="17" /></NuxtLink>
         </div>
       </div>
       <SiteLoyaltyPreview class="sb-card-tilt" @pointerenter="bonusCardTilt.onPointerEnter" @pointermove="bonusCardTilt.onPointerMove" @pointerleave="bonusCardTilt.onPointerLeave" @pointercancel="bonusCardTilt.onPointerCancel" />
     </section>
 
-    <section class="sb-brand-manifesto" aria-label="О бренде SARKISIAN">
-      <h2><span class="is-dark">SARKISIAN — премиальный бренд</span><span class="is-dark">для мастеров маникюра, <em>который</em></span><span>понимает профессию изнутри.</span></h2>
+    <section v-if="section === 'manifesto'" class="sb-brand-manifesto" :aria-label="`О бренде ${siteContent.brand.name}`">
+      <h2 v-if="home.manifesto.text === defaultSiteContent.home.manifesto.text"><span class="is-dark">SARKISIAN — премиальный бренд</span><span class="is-dark">для мастеров маникюра, <em>который</em></span><span>понимает профессию изнутри.</span></h2>
+      <h2 ui-inline-i-02281a80fab7-2 v-else >{{ home.manifesto.text }}</h2>
     </section>
 
-    <section id="about" class="sb-brand-story">
+    <section v-if="section === 'story'" id="about" class="sb-brand-story">
       <div>
-        <p>SARKISIAN BRAND</p>
-        <h2>Материалы, которые помогают работать <em>быстрее и увереннее</em></h2>
-        <span>Мы не просто продаём — мы производим профессиональные материалы под личным контролем Светланы Саркисян. Только решения, которые действительно удобны в ежедневной работе.</span>
-        <NuxtLink to="/catalog">Познакомиться с продуктами <ArrowRight :size="17" /></NuxtLink>
+        <p>{{ home.story.eyebrow }}</p>
+        <h2>{{ home.story.title }} <em>{{ home.story.accent }}</em></h2>
+        <span ui-inline-i-02281a80fab7-3 >{{ home.story.body }}</span>
+        <NuxtLink to="/catalog">{{ home.story.buttonLabel }} <ArrowRight :size="17" /></NuxtLink>
       </div>
       <figure class="sb-brand-story__portrait">
-        <img src="/storefront/svetlana-portrait.png" alt="Светлана Саркисян — основательница SARKISIAN BRAND" width="1254" height="1254" loading="lazy" decoding="async" />
+        <img :src="storefrontMediaUrl(home.story.portraitUrl)" alt="Светлана Саркисян — основательница SARKISIAN BRAND" width="1254" height="1254" loading="lazy" decoding="async" />
       </figure>
     </section>
 
-    <section id="delivery" class="sb-benefits">
-      <article><i><PackageCheck :size="28" /></i><div><small>01 / ДОСТАВКА</small><b>Быстрая отправка</b><span>Передаём заказ в сборку сразу после оплаты и сообщаем о каждом этапе.</span></div></article>
-      <article><i><ShieldCheck :size="28" /></i><div><small>02 / КАЧЕСТВО</small><b>Оригинальная продукция</b><span>Напрямую от SARKISIAN BRAND — с контролем каждой партии.</span></div></article>
-      <article><i><Award :size="28" /></i><div><small>03 / SARKISIAN CLUB</small><b>Бонусы за покупки</b><span>Возвращаем часть заказа баллами для следующих покупок.</span></div></article>
-      <article><i><Sparkles :size="28" /></i><div><small>04 / ЭКСПЕРТИЗА</small><b>Создано для мастеров</b><span>Продукты проверены Светланой Саркисян в реальной ежедневной работе.</span></div></article>
+    <section v-if="section === 'benefits' && home.benefits.length" id="delivery" class="sb-benefits">
+      <article v-for="benefit in home.benefits" :key="benefit.id"><i><component :is="benefitIcons[benefit.icon]" :size="28" /></i><div><small>{{ benefit.eyebrow }}</small><b>{{ benefit.title }}</b><span>{{ benefit.body }}</span></div></article>
     </section>
+    </template>
   </SiteShell>
 </template>

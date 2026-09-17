@@ -12,6 +12,8 @@ const query = computed(() => ({ search: model.search || undefined, category: mod
 const { data, pending, error, refresh } = await useFetch<any>('/products', { baseURL: config.public.apiBase, query });
 const { data: filterData, error: filterError, refresh: refreshFilters } = await useFetch<any>('/products/filters', { baseURL: config.public.apiBase });
 const facets = computed(() => filterData.value || { categories: [], purposes: [], features: [], price: { min: 0, max: 0 } });
+const selectedCategory=computed(()=>model.categories.length===1?facets.value.categories.find((category:any)=>category.slug===model.categories[0]):null);
+const categoryDescription=computed(()=>typeof selectedCategory.value?.description==='string'?selectedCategory.value.description:selectedCategory.value?.description?.ru||'');
 const products = computed(() => data.value?.items || []);
 const pagination = computed(() => data.value?.pagination || { pages: 0 });
 const active = computed(() => [
@@ -34,12 +36,12 @@ function release() { if (locked) { document.documentElement.style.overflow = old
 watch(mobileFilters, async open => { if (open) { if (!locked) { oldOverflow = document.documentElement.style.overflow; document.documentElement.style.overflow = 'hidden'; locked = true; } await nextTick(); drawer.value?.querySelector<HTMLButtonElement>('button')?.focus(); } });
 function keyboard(e: KeyboardEvent) { if (e.key === 'Escape') { e.preventDefault(); mobileFilters.value = false; } if (e.key !== 'Tab') return; const controls = [...(drawer.value?.querySelectorAll<HTMLElement>('button,input,select,a[href]') || [])].filter(el => !el.hasAttribute('disabled') && el.getClientRects().length); const first = controls[0], last = controls[controls.length-1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); } }
 onBeforeUnmount(() => { if (locked) { document.documentElement.style.overflow = oldOverflow; locked = false; } });
-useStorefrontSeo({ title: 'Каталог — SARKISIAN BRAND', description: 'Материалы и инструменты для маникюра. Выберите категорию, назначение и стоимость.', noindex: () => model.categories.some(slug => !facets.value.categories.some((category: any) => category.slug === slug)) });
+useStorefrontSeo({ title:()=>`${selectedCategory.value?.nameRu||'Каталог'} — SARKISIAN BRAND`, description:()=>categoryDescription.value||'Материалы и инструменты для маникюра. Выберите категорию, назначение и стоимость.', noindex: () => model.categories.some(slug => !facets.value.categories.some((category: any) => category.slug === slug)) });
 </script>
 <template>
 <SiteShell><div class="sb-catalog-page">
  <div class="sb-breadcrumbs"><NuxtLink to="/">Главная</NuxtLink><span>/</span><span>Каталог</span></div>
- <div class="sb-catalog-title"><h1>Каталог</h1><button ref="trigger" type="button" class="sb-filter-mobile" @click="mobileFilters = true"><SlidersHorizontal :size="18" /><span>Фильтры и сортировка</span></button></div>
+ <div class="sb-catalog-title"><h1>{{selectedCategory?.nameRu||'Каталог'}}</h1><button ref="trigger" type="button" class="sb-filter-mobile" @click="mobileFilters = true"><SlidersHorizontal :size="18" /><span>Фильтры и сортировка</span></button></div><p v-if="categoryDescription" class="sb-category-description">{{categoryDescription}}</p>
  <div class="sb-catalog-layout sb-catalog-layout--filtered">
   <aside class="sb-filters sb-filters--catalog" aria-label="Фильтры каталога"><h2>Фильтры</h2><p v-if="filterError" class="sb-filter-note">Не удалось загрузить фильтры. <button type="button" class="sb-checkout-text" @click="refreshFilters()">Повторить</button></p><SiteCatalogFilters v-else :model="model" :facets="facets" @change="update" @prices="prices" @reset="reset" /></aside>
   <section class="sb-catalog-results" aria-label="Товары" :aria-busy="pending">

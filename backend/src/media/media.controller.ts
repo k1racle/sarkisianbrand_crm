@@ -29,6 +29,9 @@ export class MediaFilesController {
     response.setHeader('Content-Type', image.mime);
     response.setHeader('Content-Length', image.buffer.length);
     response.setHeader('X-Content-Type-Options', 'nosniff');
+    // Public raster assets must embed on the separately hosted storefront/admin.
+    // Override Helmet's same-origin default only after validating this image.
+    response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     response.setHeader('Content-Disposition', 'inline');
     response.send(image.buffer);

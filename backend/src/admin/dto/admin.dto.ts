@@ -1,38 +1,70 @@
-import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus } from '@prisma/client';
+
+export class AdminListQueryDto {
+  @IsOptional() @IsString() @MaxLength(80) categoryId?:string;
+  @IsOptional() @IsIn(['active','hidden']) visibility?:string;
+  @IsOptional() @IsIn(['stocked','empty']) availability?:string;
+  @IsOptional() @IsIn(['updated','name','sku']) sort?:string;
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) page: number = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit: number = 24;
+  @IsOptional() @IsEnum(OrderStatus) status?: OrderStatus;
+}
+export class BulkProductsDto {
+  @IsIn(['publish','hide']) action!:'publish'|'hide';
+  @IsArray() @ArrayMaxSize(100) @ArrayUnique() @IsString({each:true}) @MaxLength(80,{each:true}) ids!:string[];
+}
+
+export class ReorderStorefrontDto {
+  @IsIn(['banners', 'menu', 'social']) collection!: 'banners' | 'menu' | 'social';
+  @IsArray() @ArrayMaxSize(200) @ArrayUnique() @IsString({ each: true }) @MaxLength(80, { each: true }) ids!: string[];
+}
 
 export class UpdateOrderStatusDto {
   @IsEnum(OrderStatus) status!: OrderStatus;
   @IsOptional() @IsString() comment?: string;
 }
 
+export class AdminProductImageDto {
+  @IsString() @MaxLength(500) @Matches(/^(?:\/(?!\/)[^\s\\]*|https?:\/\/[^\s\\]+)$/i) url!:string;
+  @IsOptional() @IsString() @MaxLength(200) alt?:string;
+}
 export class UpdateProductDto {
+  @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) salePrice?: number | null;
+  @IsOptional() @IsDateString() saleStartsAt?: string | null;
+  @IsOptional() @IsDateString() saleEndsAt?: string | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ArrayUnique() @IsString({each:true}) @Matches(/^[a-z][a-z0-9-]{0,39}$/, {each:true}) badgeIds?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(80, { each: true }) purposes?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(80, { each: true }) features?: string[];
-  @IsOptional() @IsString() nameRu?: string;
-  @IsOptional() @IsNumber() @Min(0) price?: number;
-  @IsOptional() @IsInt() @Min(0) stock?: number;
-  @IsOptional() @IsString() descriptionRu?: string;
-  @IsOptional() isActive?: boolean;
-  @IsOptional() @IsArray() images?: Array<{ url: string; alt?: string }>;
-  @IsOptional() @IsArray() categoryIds?: string[];
+  @IsOptional() @IsString() @MaxLength(180) @Matches(/\S/) nameRu?: string;
+  @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) price?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(100000000) stock?: number;
+  @IsOptional() @IsString() @MaxLength(20000) descriptionRu?: string;
+  @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @ValidateNested({each:true}) @Type(()=>AdminProductImageDto) images?: AdminProductImageDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @ArrayUnique() @IsString({each:true}) @MaxLength(80,{each:true}) categoryIds?: string[];
   @IsOptional() @IsString() metaTitle?: string;
   @IsOptional() @IsString() metaDesc?: string;
   @IsOptional() @IsString() canonical?: string;
 }
 
 export class CreateAdminProductDto {
+  @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) salePrice?: number | null;
+  @IsOptional() @IsDateString() saleStartsAt?: string | null;
+  @IsOptional() @IsDateString() saleEndsAt?: string | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ArrayUnique() @IsString({each:true}) @Matches(/^[a-z][a-z0-9-]{0,39}$/, {each:true}) badgeIds?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(80, { each: true }) purposes?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(80, { each: true }) features?: string[];
-  @IsString() sku!: string;
-  @IsString() nameRu!: string;
-  @IsOptional() @IsString() descriptionRu?: string;
-  @IsNumber() @Min(0) price!: number;
-  @IsInt() @Min(0) stock!: number;
+  @IsString() @MaxLength(80) @Matches(/\S/) sku!: string;
+  @IsString() @MaxLength(180) @Matches(/\S/) nameRu!: string;
+  @IsOptional() @IsString() @MaxLength(20000) descriptionRu?: string;
+  @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) price!: number;
+  @IsInt() @Min(0) @Max(100000000) stock!: number;
   @IsOptional() @IsString() slug?: string;
-  @IsOptional() @IsArray() images?: Array<{ url: string; alt?: string }>;
-  @IsOptional() @IsArray() categoryIds?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @ValidateNested({each:true}) @Type(()=>AdminProductImageDto) images?: AdminProductImageDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @ArrayUnique() @IsString({each:true}) @MaxLength(80,{each:true}) categoryIds?: string[];
   @IsOptional() @IsString() metaTitle?: string;
   @IsOptional() @IsString() metaDesc?: string;
   @IsOptional() @IsString() canonical?: string;
@@ -51,8 +83,8 @@ export class CreateStorefrontBannerDto {
   @IsOptional() @IsString() @MaxLength(500) mobileImageUrl?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsInt() sortOrder?: number;
-  @IsOptional() @IsString() startsAt?: string;
-  @IsOptional() @IsString() endsAt?: string;
+  @IsOptional() @IsDateString() startsAt?: string;
+  @IsOptional() @IsDateString() endsAt?: string;
 }
 
 export class UpdateStorefrontBannerDto extends CreateStorefrontBannerDto {}

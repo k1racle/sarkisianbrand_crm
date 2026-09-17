@@ -5,7 +5,7 @@ const route = useRoute();
 const scrolled = ref(false);
 let scrollFrame: number | undefined;
 const { user, cartCount, favoriteIds, loadCart, loadMe, syncFavorites, bindCart } = useStorefront();
-const { content, loadStorefrontContent } = useStorefrontContent();
+const { content, siteContent, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
 await loadStorefrontContent();
 const { catalogOpen, authOpen, cartOpen, favoritesOpen, menuOpen, closeAll, openCatalog, openAuth, openCart, openFavorites, openMenu } = useStorefrontPanels();
 const panelOpen = computed(() => catalogOpen.value || authOpen.value || cartOpen.value || favoritesOpen.value || menuOpen.value);
@@ -95,7 +95,7 @@ watch(() => route.fullPath, closeAll);
 
     <div class="sb-header-wrap">
       <header class="sb-header sb-glass-surface">
-        <NuxtLink to="/" class="sb-logo" aria-label="SARKISIAN — на главную"><img src="/sarkisian-logo.png" alt="SARKISIAN" /></NuxtLink>
+        <NuxtLink to="/" class="sb-logo" :aria-label="`${siteContent.brand.name} — на главную`"><img :src="storefrontMediaUrl(siteContent.brand.logoUrl)" :alt="siteContent.brand.name" /></NuxtLink>
         <button class="sb-catalog-button" @click="openCatalog"><Menu :size="17" /><span>Каталог</span></button>
 
         <nav class="sb-page-menu" aria-label="Страницы сайта">

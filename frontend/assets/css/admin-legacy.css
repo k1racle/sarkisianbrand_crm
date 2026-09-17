@@ -1,0 +1,285 @@
+:where(.workspace-frame, .admin-dialog) .admin-page {
+  min-height: 100vh;
+  background: #f8f7f7;
+}
+:where(.workspace-frame, .admin-dialog) .admin-header {
+  height: 80px;
+  padding: 0 5vw;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-header .logo {
+  width: 160px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-header > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-main {
+  max-width: 1180px;
+  margin: auto;
+  padding: 60px 5vw;
+}
+:where(.workspace-frame, .admin-dialog) .admin-login {
+  min-height: calc(100vh - 80px);
+  display: grid;
+  place-items: center;
+}
+:where(.workspace-frame, .admin-dialog) .admin-login-card {
+  width: min(420px, 90vw);
+  padding: 42px;
+  background: #fff;
+}
+:where(.workspace-frame, .admin-dialog) .admin-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--black);
+  color: #fff;
+  margin-bottom: 30px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-login-card h1,
+:where(.workspace-frame, .admin-dialog) .admin-title h1 {
+  font-size: 38px;
+  letter-spacing: -0.06em;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-login-card > p:not(.kicker) {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+:where(.workspace-frame, .admin-dialog) .admin-login-card form {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-login-card label {
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+:where(.workspace-frame, .admin-dialog) .admin-login-card input {
+  height: 44px;
+  border: 1px solid var(--line);
+  padding: 0 13px;
+  outline: 0;
+}
+:where(.workspace-frame, .admin-dialog) .admin-submit,
+:where(.workspace-frame, .admin-dialog) .refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  background: var(--black);
+  color: #fff;
+  padding: 14px 18px;
+  font-size: 12px;
+}
+:where(.workspace-frame, .admin-dialog) .login-error {
+  color: var(--coral);
+  font-size: 12px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-title {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+}
+:where(.workspace-frame, .admin-dialog) .admin-title .kicker {
+  margin-bottom: 12px;
+}
+:where(.workspace-frame, .admin-dialog) .refresh {
+  background: #fff;
+  color: var(--black);
+  border: 1px solid var(--line);
+}
+:where(.workspace-frame, .admin-dialog) .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin: 40px 0 55px;
+}
+:where(.workspace-frame, .admin-dialog) .kpi {
+  background: #fff;
+  padding: 23px;
+  display: grid;
+  gap: 12px;
+}
+:where(.workspace-frame, .admin-dialog) .kpi svg {
+  color: var(--coral);
+}
+:where(.workspace-frame, .admin-dialog) .kpi span {
+  color: var(--muted);
+  font-size: 11px;
+}
+:where(.workspace-frame, .admin-dialog) .kpi strong {
+  font-size: 30px;
+  font-weight: 500;
+}
+:where(.workspace-frame, .admin-dialog) .admin-section {
+  background: #fff;
+  padding: 25px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+:where(.workspace-frame, .admin-dialog) .admin-section-title h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+}
+:where(.workspace-frame, .admin-dialog) .admin-section-title span {
+  font-size: 11px;
+  color: var(--muted);
+}
+:where(.workspace-frame, .admin-dialog) .table-head,
+:where(.workspace-frame, .admin-dialog) .table-row {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  gap: 15px;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+:where(.workspace-frame, .admin-dialog) .table-head {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+:where(.workspace-frame, .admin-dialog) .status {
+  color: var(--coral);
+}
+.workspace,
+.crm-shell {
+  font-family: var(--sb-font);
+}
+.workspace-sidebar,
+.crm-sidebar {
+  width: var(--sb-sidebar-width);
+  background: var(--sb-ink);
+}
+.workspace-content,
+.crm-main {
+  background: var(--sb-bg);
+}
+.workspace-card,
+.crm-grid article,
+.crm-kpis article {
+  border-color: var(--sb-line);
+  border-radius: var(--sb-radius);
+}
+.workspace-primary,
+.crm-login button {
+  background: var(--sb-ink);
+  border-radius: var(--sb-radius);
+}
+.workspace-sidebar nav button.active,
+.crm-sidebar nav a.active {
+  background: var(--sb-ink-soft);
+}
+.workspace-sidebar nav button.active svg,
+.crm-sidebar nav a.active svg,
+.crm-kicker {
+  color: var(--sb-coral);
+}
+.workspace-sidebar,
+.crm-sidebar {
+  width: 250px !important;
+  min-width: 250px !important;
+  padding: 20px 14px !important;
+}
+.workspace-sidebar nav,
+.crm-sidebar nav {
+  gap: 5px !important;
+}
+.workspace-sidebar nav button,
+.crm-sidebar nav a {
+  height: 42px !important;
+  padding: 12px !important;
+  border-radius: 7px !important;
+  font-size: 13px !important;
+  line-height: 18px !important;
+}
+.workspace-topbar,
+.crm-header {
+  height: 96px !important;
+  padding: 20px 5% !important;
+  box-sizing: border-box !important;
+  background: #fff !important;
+  border-bottom: 1px solid #e2e4e8 !important;
+}
+.workspace-topbar h1,
+.crm-header h1 {
+  font-size: 28px !important;
+  line-height: 34px !important;
+  margin: 7px 0 0 !important;
+  font-weight: 600 !important;
+}
+.workspace-panel,
+.workspace-card,
+.crm-grid,
+.crm-kpis {
+  max-width: 1220px !important;
+  margin: 30px auto !important;
+  padding-left: 5% !important;
+  padding-right: 5% !important;
+  box-sizing: border-box !important;
+}
+.workspace-card,
+.crm-grid article {
+  background: #fff !important;
+  padding: 26px !important;
+  border: 1px solid #e5e6e8 !important;
+  border-radius: 0 !important;
+}
+.workspace-kpis,
+.crm-kpis {
+  gap: 16px !important;
+}
+.workspace-kpis article,
+.crm-kpis article {
+  padding: 22px !important;
+  border: 1px solid #e5e6e8 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+}
+.workspace-kpis strong,
+.crm-kpis b {
+  font-size: 30px !important;
+  line-height: 36px !important;
+  font-weight: 500 !important;
+}
+.workspace-top-actions button,
+.workspace-top-actions a,
+.crm-header button {
+  height: 40px !important;
+  padding: 0 14px !important;
+  box-sizing: border-box !important;
+}
+.workspace-table-head,
+.workspace-table-row,
+.crm-row {
+  min-height: 48px !important;
+  padding: 14px 0 !important;
+  box-sizing: border-box !important;
+  border-bottom: 1px solid #ececef !important;
+}
+.workspace-sidebar nav button.active svg,
+.crm-sidebar nav a.active svg,
+.workspace-sidebar nav button:hover svg,
+.crm-sidebar nav a:hover svg {
+  color: #f8604a !important;
+}

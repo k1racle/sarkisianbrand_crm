@@ -169,6 +169,15 @@ async function uploadFile(f, file) {
   await f.page.getByRole('button', { name: 'Загрузить файл', exact: true }).first().click();
   await (await chooser).setFiles(file);
 }
+async function dropFiles(f, files) {
+  await dialog(f).locator('.aml-dropzone').evaluate((zone, files) => {
+    const transfer = new DataTransfer();
+    for (const file of files) transfer.items.add(new File([new Uint8Array(file.bytes)], file.name, { type: file.type }));
+    zone.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    zone.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  }, files);
+}
 async function waitList(f, count = 1) { await f.page.waitForFunction(count => window.__mediaMock.calls.filter(c => c.path === '/api/v1/media').length >= count, count); await f.page.waitForTimeout(250); }
 async function audit(f) {
   await f.page.evaluate(() => document.fonts.ready);
@@ -234,6 +243,23 @@ async function main() {
         await uploadFile(f, { name: 'qa-upload.png', mimeType: 'image/png', buffer: png });
         await f.page.waitForFunction(url => document.querySelector('#picked-url').textContent === url, uploaded.url);
         assert.equal(f.traffic.uploads.length, 1, 'One File, exactly one mocked upload POST');
+        return audit(f);
+      });
+      await run('drag-drop-upload', async f => {
+        await openPicker(f); await waitList(f);
+        await dropFiles(f, [{ name: 'qa-upload.png', type: 'image/png', bytes: [...png] }]);
+        await f.page.waitForFunction(url => document.querySelector('#picked-url').textContent === url, uploaded.url);
+        assert.equal(f.traffic.uploads.length, 1, 'Drop uses the same validated multipart upload exactly once');
+        return audit(f);
+      });
+      for (const [name, files] of [
+        ['drag-drop-multiple-rejected', [{ name: 'a.png', type: 'image/png', bytes: [...png] }, { name: 'b.png', type: 'image/png', bytes: [...png] }]],
+        ['drag-drop-invalid-rejected', [{ name: 'bad.svg', type: 'image/svg+xml', bytes: [60, 115, 118, 103, 62] }]],
+      ]) await run(name, async f => {
+        await openPicker(f); await waitList(f); await dropFiles(f, files);
+        await dialog(f).getByRole('alert').first().waitFor();
+        assert.equal(f.traffic.uploads.length, 0, 'Invalid drop cannot submit any file');
+        assert.equal(await f.page.locator('#picked-url').textContent(), originalUrl);
         return audit(f);
       });
       await run('upload-permission-403', async f => {

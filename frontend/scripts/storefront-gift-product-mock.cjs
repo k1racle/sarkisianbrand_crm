@@ -16,12 +16,15 @@ function compileCard() {
   assert.deepEqual(parsed.errors, []);
   const script = compileScript(parsed.descriptor, { id: 'isolated-gift-product' });
   return {
+    merchandising:ts.transpileModule(fs.readFileSync(path.join(frontend,'shared/product-merchandising.ts'),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText,
     js: ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText,
     render: compile(parsed.descriptor.template.content, { mode: 'function', prefixIdentifiers: true, bindingMetadata: script.bindings }).code,
   };
 }
 const baseProduct = { id: 'isolated-product', slug: 'isolated-gift-card', nameRu: 'Электронная подарочная карта SARKISIAN BRAND', basePrice: 9000, images: [], categories: [{ isPrimary: true, category: { nameRu: 'Подарочные карты' } }] };
 const cases = [
+  {name:'physical-sale',product:{...baseProduct,productType:'PHYSICAL',nameRu:'Гель по акции',badgeIds:['popular'],variants:[{id:'sale',price:1000,salePrice:750,stock:10,reserved:0,isActive:true}]},expectedPrice:750,enabled:true,gift:false,sale:true},
+  {name:'expired-sale',product:{...baseProduct,productType:'PHYSICAL',nameRu:'Гель после акции',variants:[{id:'expired',price:1000,salePrice:750,saleEndsAt:'2020-01-01T00:00:00Z',stock:10,isActive:true}]},expectedPrice:1000,enabled:true,gift:false},
   { name: 'gift-zero-stock', product: { ...baseProduct, productType: 'GIFT_CARD', variants: [
     { id: 'gift-5000', price: 5000, stock: 0, reserved: 0, isActive: true },
     { id: 'gift-inactive-500', price: 500, stock: 0, reserved: 0, isActive: false },
@@ -33,7 +36,7 @@ const cases = [
 
 async function main() {
   const compiled = compileCard();
-  const cssFiles = ['main.css', 'design-system.css', 'storefront.css', 'storefront-glass.css', 'typography.css', 'storefront-system.css', 'storefront-gift-products.css'];
+  const cssFiles = ['main.css', 'design-system.css', 'storefront.css', 'storefront-glass.css', 'typography.css', 'storefront-system.css', 'storefront-gift-products.css','product-merchandising.css'];
   const css = cssFiles.map(file => fs.readFileSync(path.join(frontend, 'assets/css', file), 'utf8')).join('\n');
   const fonts = new Map(['cyrillic-ext', 'cyrillic', 'latin-ext', 'latin'].map(suffix => {
     const name = 'montserrat-' + suffix + '.woff2';
@@ -63,7 +66,7 @@ async function main() {
         // Fixture geometry only: the real ProductCard, typography and control CSS are unchanged.
         await page.addStyleTag({ content: '#app { padding: 24px; } .gift-mock-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 20px; } @media(max-width:760px) { #app { padding: 18px; } .gift-mock-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } }' });
         await page.addScriptTag({ content: fs.readFileSync(path.join(frontend, 'node_modules/vue/dist/vue.global.prod.js'), 'utf8') });
-        await page.evaluate(({ js, render, product }) => {
+        await page.evaluate(({ js, render, product,merchandising }) => {
           Object.assign(window, Vue);
           window.mockCalls = { cart: [], navigations: [], favorites: [], api: [] };
           window.fixtureProduct = Vue.reactive(product);
@@ -78,8 +81,10 @@ async function main() {
           window.$fetch = async (url, options) => { window.mockCalls.api.push({ url, method: options?.method || 'GET' }); throw new Error('Actual APIs forbidden in isolated ProductCard test'); };
           // Lucide stubs preserve inherited color/size; this test does not grade icon artwork.
           const icons = new Proxy({}, { get: () => Vue.defineComponent({ render() { return Vue.h('svg', { width: 18, height: 18, 'aria-hidden': 'true' }); } }) });
+          const merch={};new Function('exports',merchandising)(merch);
+          window.useStorefrontContent=()=>({content:Vue.ref({settings:{productBadges:merch.DEFAULT_PRODUCT_BADGES}})});
           const exports = {};
-          new Function('exports', 'require', js)(exports, name => name === 'vue' ? Vue : icons);
+          new Function('exports', 'require', js)(exports, name => name === 'vue' ? Vue : name==='~/shared/product-merchandising'?merch:icons);
           exports.default.render = new Function('Vue', render)(Vue);
           const app = Vue.createApp({ render() { return Vue.h('div', { class: 'gift-mock-grid' }, Array.from({ length: 4 }, (_, i) => Vue.h(exports.default, { key: i, product: window.fixtureProduct }))); } });
           app.component('NuxtLink', { props: ['to'], render() { return Vue.h('a', { href: this.to, onClick: event => { if (!event.defaultPrevented) { event.preventDefault(); window.navigateTo(this.to); } } }, this.$slots.default?.()); } });
@@ -91,6 +96,7 @@ async function main() {
         if (width >= 760) await card.locator('.sb-product-card__visual').hover();
         const price = (await card.locator('.sb-product-card__price-row strong').innerText()).replace(/\s/g, '');
         assert.equal(price, (scenario.gift && scenario.enabled ? 'от' : '') + scenario.expectedPrice + '₽', 'Price must use the lowest ACTIVE denomination');
+        if(scenario.sale){assert.equal(await page.locator('.sb-product-prices del').first().textContent(),'1 000 ₽');assert.ok((await page.locator('.sb-product-badges').first().textContent()).includes('Скидка'));assert.ok((await page.locator('.sb-product-badges').first().textContent()).includes('Популярное'));}
         assert.equal(await button.isDisabled(), !scenario.enabled);
         if (scenario.gift && scenario.enabled) assert.equal((await button.innerText()).trim(), 'Подробнее');
         if (scenario.gift) assert.equal(await card.locator('.sb-product-card__price-row small').count(), 0);
@@ -113,7 +119,7 @@ async function main() {
           assert.deepEqual(calls.cart, [], 'Gift product was added with a default denomination');
           assert.deepEqual(calls.navigations, scenario.enabled ? ['/products/' + scenario.product.slug] : []);
         } else {
-          assert.deepEqual(calls.cart, [{ id: scenario.product.id, quantity: 1, variantId: 'physical-own' }]);
+          assert.deepEqual(calls.cart, [{ id: scenario.product.id, quantity: 1, variantId: scenario.product.variants.find(v=>v.isActive!==false&&Number(v.stock)-Number(v.reserved||0)>0)?.id }]);
           assert.deepEqual(calls.navigations, []);
         }
         const afterVariants = await page.evaluate(() => window.fixtureProduct.variants);

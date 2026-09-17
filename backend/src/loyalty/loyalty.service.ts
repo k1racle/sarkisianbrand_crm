@@ -110,7 +110,7 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     this.stopping = false;
-    if (!this.maintenanceEnabled()) return;
+    if (!this.maintenanceEnabled() || process.env.ECOSYSTEM_AUTOMATION_ENABLED === 'false') return;
     this.timer = setInterval(() => { void this.runMaintenance().catch(() => this.logger.warn('Обработка бонусной программы временно недоступна.')); }, 60_000);
     this.timer.unref();
   }

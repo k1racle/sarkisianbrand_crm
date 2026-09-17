@@ -307,6 +307,7 @@ model User {
   productFavorites        ProductFavorite[]
   socialLoginTickets      SocialLoginTicket[]
   mediaAssets             MediaAsset[]
+  siteContentRevisions    SiteContentRevision[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -679,8 +680,24 @@ model StorefrontSetting {
   key              String   @id @default("main")
   catalogMenu Json?
   catalogMenuRevision Int @default(0)
+  categoryTreeRevision Int @default(0)
+  productBadges Json?
+  productBadgesRevision Int @default(0)
+  siteContent Json?
+  siteContentRevision Int @default(0)
   announcementText String   @default("SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян")
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime @default(now()) @updatedAt
+}
+
+model SiteContentRevision {
+  id String @id @default(uuid())
+  revision Int @unique
+  snapshot Json
+  actorId String?
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model MediaAsset {
@@ -712,7 +729,7 @@ model StorefrontBanner {
   startsAt       DateTime?
   endsAt         DateTime?
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime @default(now()) @updatedAt
 
   @@index([isActive, sortOrder])
 }
@@ -752,7 +769,7 @@ model StorefrontSocialLink {
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([isActive, sortOrder])
 }
@@ -770,6 +787,7 @@ model Product {
   descriptionEn String?
   purposes      String[] @default([])
   features      String[] @default([])
+  badgeIds      String[] @default([])
   slug          String  @unique
 
   basePrice Decimal  @db.Decimal(15, 2)
@@ -791,6 +809,8 @@ model Product {
 
   @@index([slug])
   @@index([externalId])
+  @@index([purposes], type: Gin)
+  @@index([features], type: Gin)
 }
 
 model ProductVariant {
@@ -802,6 +822,9 @@ model ProductVariant {
   options Json
 
   price    Decimal @db.Decimal(15, 2)
+  salePrice Decimal? @db.Decimal(15, 2)
+  saleStartsAt DateTime?
+  saleEndsAt DateTime?
   stock    Int     @default(0)
   reserved Int     @default(0)
   isActive Boolean @default(true)
@@ -1394,7 +1417,7 @@ model Task {
   template       CrmTaskTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  updatedAt   DateTime  @default(now()) @updatedAt
   completedAt DateTime?
 
   @@index([status, position])

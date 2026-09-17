@@ -3,6 +3,28 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check:ui-css": "node scripts/ui-css-ownership-check.cjs",
+    "check:workspace-operations": "node scripts/workspace-operations-check.cjs",
+    "test:visual": "playwright test",
+    "test:visual:ui": "playwright test --ui",
+    "test:visual:report": "playwright show-report",
+    "check:workspace-studio": "node scripts/workspace-studio-check.cjs",
+    "check:workspace-routes": "node scripts/workspace-routes-check.cjs",
+    "smoke:workspace-studio": "node scripts/workspace-studio-visual.cjs",
+    "smoke:workspace-audit": "node scripts/workspace-audit-mock.cjs",
+    "smoke:workspace-shell": "node scripts/workspace-shell-mock.cjs",
+    "smoke:workspace-sort": "node scripts/workspace-sort-mock.cjs",
+    "smoke:catalog-settings": "node scripts/catalog-settings-mock.cjs",
+    "check:workspace-dialogs": "node scripts/workspace-dialogs-check.cjs",
+    "check:workspace-typography": "node scripts/workspace-typography-check.cjs",
+    "check:product-images": "node scripts/product-images-check.cjs",
+    "check:banner-editor": "node scripts/banner-editor-check.cjs",
+    "check:workspace-layout": "node scripts/workspace-layout-check.cjs",
+    "smoke:workspace-layout": "node scripts/workspace-layout-mock.cjs",
+    "smoke:banner-editor": "node scripts/banner-editor-mock.cjs",
+    "smoke:legacy-product-images": "node scripts/legacy-product-preview-check.cjs",
+    "smoke:workspace-dialogs": "node scripts/workspace-dialogs-mock.cjs",
+    "check:admin-usability": "node scripts/workspace-navigation-check.cjs && node scripts/site-content-editor-check.cjs && node scripts/admin-product-editor-check.cjs && node scripts/admin-operational-check.cjs && node scripts/catalog-settings-check.cjs",
     "prebuild": "node scripts/check-storefront-assets.cjs && node scripts/check-storefront-typography.cjs",
     "check:storefront-typography": "node scripts/check-storefront-typography.cjs",
     "check:storefront-assets": "node scripts/check-storefront-assets.cjs",
@@ -47,6 +69,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "playwright-core": "^1.63.0"
   }
 }

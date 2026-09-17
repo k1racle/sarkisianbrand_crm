@@ -1,0 +1,296 @@
+/* Shared employee/partner tokens. B2B uses the same text scale and controls. */
+@layer workspace-shared {
+  .b2b-frame .page-error {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin: 24px;
+  }
+  .b2b-frame .page-error > span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 180px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .b2b-frame .page-error svg {
+    flex: none;
+  }
+  .b2b-frame .b2b-retry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--ui-line);
+    border-radius: 8px;
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+  }
+}
+@layer workspace-shared {
+  :where(
+    .workspace-frame,
+    .b2b-frame,
+    .b2b-rail,
+    .admin-dialog,
+    .workspace-login,
+    .b2b-login
+  ) {
+    --ui-bg: #f6f6f8;
+    --ui-surface: #fff;
+    --ui-ink: #202127;
+    --ui-muted: #73757f;
+    --ui-on-dark-muted: #c4c4cc;
+    --ui-line: #e6e7ec;
+    --ui-accent: #77709e;
+    --ui-accent-soft: #eeedf7;
+    --ui-control-radius: 8px;
+    --ui-card-radius: 12px;
+    --ui-gutter: 24px;
+  }
+  .ui-fieldset-reset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+    width: 100%;
+  }
+  .ui-create-fields {
+    grid-column: 1/-1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .workspace-operation-error {
+    grid-column: 1/-1;
+    color: #b33939;
+    background: #fff2f2;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+  }
+  .b2b-frame {
+    background: var(--ui-bg) !important;
+    color: var(--ui-ink) !important;
+  }
+  .b2b-frame > .portal {
+    min-width: 0;
+    width: 100%;
+    padding: 0 !important;
+  }
+  .b2b-frame .top {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--ui-line) !important;
+    border-radius: 0 !important;
+    background: var(--ui-surface) !important;
+    box-shadow: none !important;
+    min-height: 104px !important;
+  }
+  .b2b-frame .body {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+  }
+  .b2b-frame :is(.hero, .team-head, .support-intro) p {
+    color: var(--ui-on-dark-muted) !important;
+  }
+  .b2b-frame
+    :is(
+      .panel,
+      .product,
+      .service,
+      .add-card,
+      .team-grid article,
+      .cart-summary,
+      .kpis article,
+      .quick button
+    ) {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: var(--ui-card-radius) !important;
+    box-shadow: none !important;
+    min-width: 0;
+  }
+  .b2b-frame
+    :is(
+      .top-actions button,
+      .calendar-tools button,
+      .filters input,
+      .filters select,
+      .variant button,
+      .orders button
+    ) {
+    min-height: 44px !important;
+    border-radius: var(--ui-control-radius) !important;
+    border: 1px solid var(--ui-line) !important;
+  }
+  .b2b-frame .filters {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 12px !important;
+  }
+  .b2b-frame .filters input {
+    flex: 1 1 240px;
+    min-width: 0;
+    width: auto !important;
+  }
+  .b2b-frame .filters select {
+    flex: 0 1 220px;
+    max-width: 100%;
+  }
+  .b2b-frame :is(.primary, .cart-summary footer button) {
+    background: var(--ui-ink) !important;
+    color: #fff !important;
+    border-color: var(--ui-ink) !important;
+  }
+  .b2b-frame .calendar-tools {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    height: auto !important;
+    min-height: 60px !important;
+    overflow: visible !important;
+    padding: 12px !important;
+    margin-bottom: 16px !important;
+    align-items: center !important;
+  }
+  .b2b-frame .calendar-tools > div {
+    flex: 1 1 160px !important;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .b2b-frame .calendar-tools > i {
+    display: none !important;
+  }
+  .b2b-frame .calendar-tools .active {
+    background: var(--ui-accent-soft) !important;
+    color: var(--ui-accent) !important;
+  }
+  .b2b-frame :is(.table, .booking-list) {
+    overflow-x: auto;
+  }
+  .b2b-frame .drawer-body > .ui-fieldset-reset > label {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .b2b-frame .drawer :is(input, select, textarea) {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: var(--ui-control-radius) !important;
+    background: var(--ui-surface) !important;
+    padding: 12px !important;
+  }
+  .b2b-frame :is(.drawer, .drawer header, .drawer footer) {
+    background: var(--ui-surface) !important;
+  }
+  .b2b-frame .drawer header button {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 8px !important;
+  }
+  .b2b-frame .drawer footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--ui-line) !important;
+    padding: 20px;
+  }
+  .b2b-frame .drawer footer button {
+    min-height: 44px;
+    padding: 0 20px;
+    border: 1px solid var(--ui-line);
+    border-radius: 8px;
+  }
+  .b2b-frame button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  .b2b-frame .b2b-edit-link {
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    color: var(--ui-ink) !important;
+    text-align: left;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .b2b-frame .b2b-edit-link:hover {
+    text-decoration: underline;
+    color: var(--ui-accent) !important;
+  }
+  .b2b-rail {
+    background: var(--ui-surface) !important;
+    border-right: 1px solid var(--ui-line) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    color: var(--ui-ink) !important;
+  }
+  .b2b-rail :is(.brand img) {
+    filter: none !important;
+  }
+  .b2b-rail :is(nav a, .company, .bottom a, .bottom button) {
+    color: var(--ui-ink) !important;
+    border-radius: 8px !important;
+  }
+  .b2b-rail nav a.active {
+    background: var(--ui-accent-soft) !important;
+    color: var(--ui-accent) !important;
+  }
+  .b2b-rail :is(.company-note, .company small, .bottom small) {
+    color: var(--ui-muted) !important;
+  }
+  .b2b-login {
+    background: var(--ui-bg) !important;
+  }
+  .b2b-login .login-card {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 40px #2021270a !important;
+  }
+  .b2b-login :is(input, .password) {
+    border-radius: 8px !important;
+    border-color: var(--ui-line) !important;
+  }
+  .b2b-login :is(.eyebrow, .login-brand-kicker) {
+    color: var(--ui-accent) !important;
+  }
+  @media (max-width: 800px) {
+    .b2b-frame .top,
+    .b2b-frame .body {
+      padding: 16px !important;
+    }
+    .b2b-frame .top-actions {
+      flex-wrap: wrap;
+    }
+    .b2b-frame .catalog-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .b2b-frame .product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+  @media (max-width: 600px) {
+    .ui-create-fields {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .b2b-frame .product-grid {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .b2b-frame .hero {
+      padding: 20px !important;
+    }
+  }
+}

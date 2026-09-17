@@ -5,6 +5,7 @@ import { hashCartSession, hashShippingDestination, moneyMinor } from '../common/
 import { PrismaService } from '../prisma/prisma.service';
 import { replayLoyaltyLedger } from '../loyalty/loyalty-core.helpers';
 import { giftCodeHash, giftMoneyMinor, giftNominal, giftValidityDays } from '../gift-cards/gift-cards.helpers';
+import { pricedCart } from '../common/product-merchandising';
 
 const DEFAULT_SETTINGS = {
   id: 'default', programName: 'SARKISIAN CLUB', isEnabled: true, earnPercent: 1,
@@ -21,13 +22,14 @@ export class StorefrontPricingService {
   async quote(sessionId: string, dto: any, actor?: { sub: string; role?: string }, tx?: Prisma.TransactionClient) {
     const db = tx || this.prisma;
     if (!sessionId?.trim()) throw new BadRequestException('Не найдена сессия корзины');
-    const cart = await db.cart.findUnique({
+    const rawCart = await db.cart.findUnique({
       where: { sessionId },
       include: {
         user: { include: { customer: true, b2bProfile: true, organizationMemberships: { where: { isActive: true }, take: 1 } } },
         items: { include: { variant: { include: { product: true } } } },
       },
     });
+    const cart=rawCart?pricedCart(rawCart):null;
     if (cart?.userId && cart.userId !== actor?.sub) throw new ForbiddenException('Нет доступа к корзине');
     if (!cart || !cart.items.length) throw new BadRequestException('Корзина пуста');
     if (cart.currency !== 'RUB') throw new BadRequestException('Оформление доступно только в рублях');

@@ -1,0 +1,24 @@
+/* Component: pages/index.vue; owner: data-v-ui-02281a80fab7 */
+[ui-inline-i-02281a80fab7-1] {
+  white-space: pre-line;
+}
+[ui-inline-i-02281a80fab7-2] {
+  white-space: pre-line;
+}
+[ui-inline-i-02281a80fab7-3] {
+  white-space: pre-line;
+}
+
+/* Component: components/storefront/SiteFooter.vue; owner: data-v-ui-f6ad9abec0e4 */
+
+@media (min-width: 1101px) {
+  .sb-footer.has-custom-columns[data-v-ui-f6ad9abec0e4] {
+    grid-template-columns: minmax(0, 1.35fr) repeat(
+        var(--site-footer-count, 2),
+        minmax(0, 1fr)
+      ) minmax(0, 1.1fr);
+  }
+  .sb-footer.has-no-columns[data-v-ui-f6ad9abec0e4] {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.1fr);
+  }
+}

@@ -34,6 +34,7 @@ const script = compileScript(parsed.descriptor, { id: 'footer-readonly-mock' });
 const template = compileTemplate({ source: parsed.descriptor.template.content, filename: footerFile, id: 'footer-readonly-mock', compilerOptions: { bindingMetadata: script.bindings } });
 assert.deepEqual(template.errors, [], 'Footer template compile');
 const js = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText;
+const siteContentJs = ts.transpileModule(fs.readFileSync(path.join(frontend, 'shared/site-content.ts'), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText;
 const render = compile(parsed.descriptor.template.content, { mode: 'function', prefixIdentifiers: true, bindingMetadata: script.bindings }).code;
 const renderFactory = ts.transpileModule(`function footerRenderFactory(Vue: any) { ${render} }`, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText;
 const fixture = { settings: { announcementText: 'Mock storefront' }, banners: [], categories: [], menuItems: [], socialLinks: [
@@ -113,24 +114,26 @@ async function main() {
       try {
         await page.goto(origin + '/__footer_mock__', { waitUntil: 'load' });
         await page.addScriptTag({ content: fs.readFileSync(path.join(frontend, 'node_modules/vue/dist/vue.global.prod.js'), 'utf8') });
-        await page.evaluate(({ js, renderFactory, fixture }) => {
+        await page.evaluate(({ js, siteContentJs, renderFactory, fixture }) => {
           Object.assign(window, Vue);
           window.footerCalls = { auth: 0, favorites: 0, cart: 0, navigations: [], api: [] };
           window.footerUser = Vue.ref(null);
-          window.useStorefrontContent = () => ({ content: Vue.ref(fixture), loadStorefrontContent: async () => fixture });
+          const siteModule = {};
+          new Function('exports', siteContentJs)(siteModule);
+          window.useStorefrontContent = () => ({ content: Vue.ref(fixture), siteContent: Vue.ref(siteModule.mergeSiteContent(fixture.settings.siteContent)), storefrontMediaUrl: value => value, loadStorefrontContent: async () => fixture });
           window.useStorefrontPanels = () => ({ openAuth: () => window.footerCalls.auth++, openFavorites: () => window.footerCalls.favorites++, openCart: () => window.footerCalls.cart++ });
           window.useStorefront = () => ({ user: window.footerUser });
           window.navigateTo = to => { window.footerCalls.navigations.push(to); };
           window.$fetch = async url => { window.footerCalls.api.push(url); throw new Error('Actual API calls forbidden'); };
           const icons = new Proxy({}, { get: () => Vue.defineComponent({ render() { return Vue.h('svg', { class: 'lucide', width: 15, height: 15, 'aria-hidden': 'true', stroke: 'currentColor', fill: 'none' }); } }) });
           const exports = {};
-          new Function('exports', 'require', js)(exports, name => name === 'vue' ? Vue : icons);
+          new Function('exports', 'require', js)(exports, name => name === 'vue' ? Vue : name.includes('site-content') ? siteModule : icons);
           exports.default.render = new Function(`${renderFactory}; return footerRenderFactory;`)()(Vue);
           const app = Vue.createApp({ render() { return Vue.h(Vue.Suspense, null, { default: () => Vue.h(exports.default) }); } });
           app.config.globalProperties.navigateTo = window.navigateTo;
           app.component('NuxtLink', { props: ['to'], render() { return Vue.h('a', { href: this.to, onClick: event => { event.preventDefault(); window.navigateTo(this.to); } }, this.$slots.default?.()); } });
           app.mount('#app');
-        }, { js, renderFactory, fixture });
+        }, { js, siteContentJs, renderFactory, fixture });
         await page.locator('.sb-footer-link').first().waitFor();
         await page.evaluate(async () => { await document.fonts.ready; });
         const links = page.locator('.sb-footer-link');

@@ -5,6 +5,18 @@
 .admin-media-library h2 { font:var(--sb-weight-semibold,600) var(--sb-type-subheading,1.5rem)/var(--sb-leading-heading,1.12) var(--sb-font,Montserrat,Arial,sans-serif); letter-spacing:var(--sb-tracking-heading,-.035em); overflow-wrap:anywhere; }
 .admin-media-picker { display:grid; gap:12px; }
 .admin-media-library.aml-browser { display:grid; gap:20px; }
+.admin-media-library .aml-dropzone { display:flex; align-items:center; gap:20px; padding:24px; border:1px dashed var(--aml-line); border-radius:22px; background:#ffffffa6; transition:border-color 200ms,background-color 200ms; }
+.admin-media-library .aml-dropzone>div { flex:1; min-width:0; }
+.admin-media-library .aml-dropzone strong { font-size:16px; font-weight:600; }
+.admin-media-library .aml-dropzone .aml-help { margin-top:4px; }
+.admin-media-library .aml-dropzone-icon { width:52px; height:52px; display:grid; place-items:center; flex-shrink:0; border-radius:16px; color:var(--aml-ink); background:#eeece9; }
+.admin-media-library .aml-dropzone-icon svg { width:24px; height:24px; }
+.admin-media-library .aml-dropzone--active { border-color:var(--aml-ink); background:#eeece9; }
+.admin-media-library .aml-dropzone--busy { opacity:.65; }
+.admin-media-library .aml-total { color:var(--aml-muted); font-size:12px; padding-bottom:14px; white-space:nowrap; }
+.admin-media-library .aml-image { position:relative; }
+.admin-media-library .aml-selected-mark { position:absolute; top:10px; right:10px; width:28px; height:28px; display:grid; place-items:center; background:var(--aml-ink); color:#fff; border-radius:9px; }
+@media(max-width:760px) { .admin-media-library .aml-dropzone { flex-wrap:wrap; gap:14px; padding:18px; }.admin-media-library .aml-dropzone>.aml-button { width:100%; }.admin-media-library .aml-total { padding-bottom:0; } }
 /* Parent category/banner scoped labels must not turn picker captions into badges. */
 .admin-media-library.admin-media-library :is(label,.aml-label) { width:100% !important; min-width:0 !important; margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--aml-ink) !important; box-shadow:none !important; font:inherit !important; }
 .admin-media-library.admin-media-library .aml-label { font-weight:var(--sb-weight-medium,500) !important; }

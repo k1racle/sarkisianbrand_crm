@@ -79,8 +79,14 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
   it.each([OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.REFUNDED])('does not touch LEGACY lifecycle for %s', async (target) => {
     expect(await applyStorefrontTransition({} as any, { source: 'WEB', reservationState: 'LEGACY' }, target)).toEqual({});
   });
-  it('does not change non-WEB reservation semantics', async () => {
-    expect(await applyStorefrontTransition({} as any, { source: 'B2B', reservationState: 'ACTIVE' }, OrderStatus.SHIPPED)).toEqual({});
+  it('does not guess historic B2B or marketplace reservation semantics', async () => {
+    expect(await applyStorefrontTransition({} as any, { source: 'B2B', reservationState: 'LEGACY' }, OrderStatus.SHIPPED)).toEqual({});
+    expect(await applyStorefrontTransition({} as any, { source: 'OZON', reservationState: 'ACTIVE' }, OrderStatus.SHIPPED)).toEqual({});
+  });
+  it('dispatches new B2B reservations through the stock lifecycle', async () => {
+    const tx:any={productVariant:{updateMany:jest.fn().mockResolvedValue({count:1})}};
+    const result=await applyStorefrontTransition(tx,{source:'B2B',reservationState:'ACTIVE',items:[{variantId:'mock-v',quantity:2}]},OrderStatus.SHIPPED);
+    expect(result.reservationState).toBe('CONSUMED');expect(tx.productVariant.updateMany.mock.calls[0][0].data).toEqual({stock:{decrement:2},reserved:{decrement:2}});
   });
   it.each([OrderStatus.PAID, OrderStatus.ASSEMBLING, OrderStatus.SHIPPED, OrderStatus.DELIVERED])('prohibits unverified unpaid %s transition', async (target) => {
     const ctx = fixture();

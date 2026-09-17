@@ -3,6 +3,7 @@ import { OrderStatus, Prisma } from '@prisma/client';
 import type { NotificationsService } from '../notifications/notifications.service';
 import { loyaltyCreditMetadata } from '../loyalty/loyalty-core.helpers';
 import { moneyMinor } from './storefront-utils';
+import { applyB2BStockTransition } from '../b2b/b2b-order-lifecycle';
 
 /** Order must be locked first. Releases only unspent certificate reservations,
  * using a conditional redemption claim so concurrent/replayed releases cannot
@@ -40,6 +41,7 @@ export async function releaseStorefrontGiftReservation(tx: Prisma.TransactionCli
 export async function applyStorefrontTransition(
   tx: Prisma.TransactionClient, order: any, target: OrderStatus, notifications?: NotificationsService,
 ): Promise<Prisma.OrderUpdateInput> {
+  if(order.source==='B2B')return applyB2BStockTransition(tx,order,target);
   if (order.source !== 'WEB' || !order.reservationState || order.reservationState === 'LEGACY') return {};
   const terminal: OrderStatus[] = [OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.DELIVERED];
   if (terminal.includes(order.status) && target !== order.status) throw new ConflictException('Завершённый заказ не может вернуться в обработку');

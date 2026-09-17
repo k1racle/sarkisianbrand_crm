@@ -1,0 +1,5 @@
+.sb-product-badges {position:absolute;top:14px;left:14px;right:70px;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:6px;pointer-events:none;}
+.sb-product-badges .sb-product-badge {position:static;max-width:100%;overflow-wrap:anywhere;font-size:10px;line-height:1.3;padding:6px 8px;box-shadow:none;}
+.sb-product-prices {display:grid;gap:3px;min-width:0;}
+.sb-product-prices del,.sb-product-price del {color:#86817c;font-size:12px;line-height:1.4;font-weight:400;}
+.sb-product-price del {display:block;font-size:18px;margin-bottom:8px;}

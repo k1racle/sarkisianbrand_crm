@@ -8,9 +8,11 @@ import { OneCSyncService } from '../1c-sync/1c-sync.service';
 import { StorefrontPricingService } from './storefront-pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { moneyMinor } from '../common/storefront-utils';
+import { pricedCart } from '../common/product-merchandising';
 import { DEFAULT_LOYALTY_SETTINGS, loyaltyCreditMetadata, loyaltyWriteOffMetadata, maintainAccount } from '../loyalty/loyalty-core.helpers';
 import { GiftCardsService } from '../gift-cards/gift-cards.service';
 import { giftCodeHash } from '../gift-cards/gift-cards.helpers';
+import { ecosystemAutomationEnabled } from '../common/ecosystem-automation';
 type Actor = { sub: string; role?: string };
 const STAFF = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT'];
 const UNPAID = [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_WAITING];
@@ -23,6 +25,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     private readonly pricing: StorefrontPricingService, private readonly notifications: NotificationsService,
     private readonly config: ConfigService, @Optional() private readonly giftCards?: GiftCardsService) {}
   onModuleInit() {
+    if(!ecosystemAutomationEnabled())return;
     this.timer = setInterval(() => { void this.expireReservations().catch(() => undefined); }, 60_000);
     this.timer.unref();
   }
@@ -250,7 +253,11 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         }
         if (quantity < item.quantity) unavailable.push({ productName: item.productName, reason: quantity ? 'Добавлено только доступное количество' : 'Товар недоступен или уже добавлен' });
       }
-      const updated = await tx.cart.findUniqueOrThrow({ where: { id: cart.id }, include: { items: { include: { variant: { include: { product: { include: { images: true } } } } } } } });
+      const rawUpdated = await tx.cart.findUniqueOrThrow({
+        where: {id:cart.id},
+        include: {items: {include: {variant: {include: {product: {include: {images:true}}}}}}},
+      });
+      const updated=pricedCart(rawUpdated);
       const total = updated.items.reduce((sum, item) => sum + moneyMinor(item.variant.price) * item.quantity, 0) / 100;
       await tx.cart.update({ where: { id: cart.id }, data: { total } });
       return { cart: { ...updated, total }, added, unavailable };

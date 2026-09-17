@@ -8,6 +8,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { CatalogMenuController } from './catalog-menu.controller';
 import { CatalogMenuService } from './catalog-menu.service';
 import { MediaModule } from '../media/media.module';
+import { SiteContentController } from './site-content.controller';
+import { SiteContentService } from './site-content.service';
+import { MerchandisingController } from './merchandising.controller';
+import { MerchandisingService } from './merchandising.service';
 
-@Module({ imports: [AuthModule, OneCSyncModule, NotificationsModule, MediaModule], controllers: [AdminController, CatalogMenuController], providers: [AdminService, CatalogMenuService, RolesGuard] })
+@Module({ imports: [AuthModule, OneCSyncModule, NotificationsModule, MediaModule], controllers: [AdminController, CatalogMenuController, SiteContentController, MerchandisingController], providers: [AdminService, CatalogMenuService, SiteContentService, MerchandisingService, RolesGuard] })
 export class AdminModule {}

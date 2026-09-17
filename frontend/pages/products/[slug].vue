@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowRight, Check, Heart, RotateCcw, ShieldCheck, ShoppingBag, Truck } from '@lucide/vue';
+import { storefrontVariantPrice } from '~/shared/product-merchandising';
 
 const route = useRoute();
 const config = useRuntimeConfig();
@@ -14,7 +15,7 @@ if (error.value || !product.value) throw createError({ statusCode: error.value?.
 const { data: catalog } = await useFetch<any>('/products', { baseURL: config.public.apiBase, query: { limit: 24 } });
 const { addToCart, favoriteIds, toggleFavorite, loadLocalFavorites } = useStorefront();
 
-const { storefrontMediaUrl } = useStorefrontContent();
+const { storefrontMediaUrl, siteContent } = useStorefrontContent();
 const images = computed(() => {
   const primary = storefrontProductImage(product.value);
   return [...new Set([primary, ...(product.value?.images || []).filter((item: any) => !item.url.startsWith('/catalog/')).slice().sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((item: any) => storefrontMediaUrl(item.url))].filter(Boolean))];
@@ -24,7 +25,8 @@ const variants = computed(() => (product.value?.variants || []).filter((item: an
 const isGiftCard = computed(() => product.value?.productType === 'GIFT_CARD');
 const variant = computed(() => variants.value.find((item: any) => item.id === selectedVariantId.value) || variants.value.find((item: any) => item.stock > item.reserved) || variants.value[0]);
 const available = computed(() => isGiftCard.value && variant.value ? 99 : Math.max(0, Number(variant.value?.stock || 0) - Number(variant.value?.reserved || 0)));
-const price = computed(() => Number(variant.value?.price ?? product.value?.basePrice ?? 0));
+const price = computed(() => variant.value?storefrontVariantPrice(variant.value,isGiftCard.value):Number(product.value?.basePrice??0));
+const regularPrice=computed(()=>Number(variant.value?.regularPrice??variant.value?.price??product.value?.basePrice??0));
 const options = computed(() => Object.entries(variant.value?.options || {}).filter(([key, value]) => !['giftCard', 'nominal', 'validityDays'].includes(key) && (typeof value === 'string' || typeof value === 'number')));
 watch(() => variant.value?.id, () => { quantity.value = 1; added.value = false; addError.value = ''; });
 const inFavorite = computed(() => product.value && favoriteIds.value.includes(product.value.id));
@@ -58,9 +60,10 @@ async function add() {
 }
 
 useStorefrontSeo({
-  title: () => product.value ? `${product.value.nameRu} — SARKISIAN BRAND` : 'Товар — SARKISIAN BRAND',
-  description: () => product.value?.descriptionRu || 'Профессиональный материал SARKISIAN BRAND.',
+  title: () => product.value?.seo?.metaTitle || `${product.value?.nameRu || 'Товар'} — ${siteContent.value.brand.name}`,
+  description: () => product.value?.seo?.metaDesc || product.value?.descriptionRu || 'Профессиональный материал SARKISIAN BRAND.',
   image: () => image.value,
+  canonical: () => product.value?.seo?.canonical,
 });
 </script>
 
@@ -81,7 +84,7 @@ useStorefrontSeo({
           <p class="sb-kicker">{{ product.categories?.[0]?.category?.nameRu || 'SARKISIAN BRAND' }}</p>
           <h1>{{ product.nameRu }}</h1>
           <div class="sb-product-code">Артикул: {{ variant?.sku || product.sku }} <span class="sb-product-stock">{{ isGiftCard ? 'Электронная карта' : available ? 'В наличии' : 'Нет в наличии' }}</span></div>
-          <div class="sb-product-price">{{ price.toLocaleString('ru-RU') }} ₽</div>
+          <div class="sb-product-price"><del v-if="regularPrice>price">{{regularPrice.toLocaleString('ru-RU')}} ₽</del>{{ price.toLocaleString('ru-RU') }} ₽</div>
           <p class="sb-product-description">{{ product.descriptionRu || 'Профессиональный материал SARKISIAN BRAND для мастеров маникюра. Предсказуемый результат и комфортная работа.' }}</p>
 
           <label v-if="variants.length > 1" class="sb-product-variant">{{ isGiftCard ? 'Номинал карты' : 'Вариант товара' }}<select :value="variant?.id" @change="selectedVariantId = ($event.target as HTMLSelectElement).value"><option v-for="item in variants" :key="item.id" :value="item.id">{{ item.name }}{{ !isGiftCard && item.stock <= item.reserved ? ' — нет в наличии' : '' }}</option></select></label>
@@ -104,7 +107,7 @@ useStorefrontSeo({
       </div>
 
       <section v-if="boughtTogether.length" class="sb-product-recommendations">
-        <div class="sb-section-head"><div><p>ДОПОЛНИТЕ УХОД</p><h2>С этим товаром покупают</h2></div><NuxtLink to="/catalog">Весь каталог <ArrowRight :size="18" /></NuxtLink></div>
+        <div class="sb-section-head"><div><p>ДОПОЛНИТЕ УХОД</p><h2>Вам также может понравиться</h2></div><NuxtLink to="/catalog">Весь каталог <ArrowRight :size="18" /></NuxtLink></div>
         <div class="sb-product-grid"><ProductCard v-for="item in boughtTogether" :key="item.id" :product="item" /></div>
       </section>
 

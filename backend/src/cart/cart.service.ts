@@ -3,6 +3,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto, UpdateCartItemDto } from './dto/cart.dto';
 import { moneyMinor } from '../common/storefront-utils';
+import { pricedCart } from '../common/product-merchandising';
 const view = { items: { include: { variant: { include: { product: { include: { images: true } } } } } } };
 @Injectable()
 export class CartService {
@@ -12,7 +13,10 @@ export class CartService {
     if (cart.userId && cart.userId !== userId) throw new ForbiddenException('Корзина принадлежит другой учётной записи');
     return cart;
   }
-  async get(sessionId: string, userId?: string) { return this.getOrCreate(this.prisma, sessionId, userId); }
+  async get(sessionId: string, userId?: string) {
+    const cart=pricedCart(await this.getOrCreate(this.prisma,sessionId,userId));
+    return {...cart,total:cart.items.reduce((sum,item)=>sum+moneyMinor(item.variant.price)*item.quantity,0)/100};
+  }
   private async modify<T>(sessionId: string, userId: string | undefined, action: (tx: Prisma.TransactionClient, cart: any) => Promise<T>) {
     return this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${'cart-session:' + sessionId}))`;
@@ -21,7 +25,7 @@ export class CartService {
       const current = await tx.cart.findUniqueOrThrow({ where: { id: cart.id } });
       if (current.userId && current.userId !== userId) throw new ForbiddenException('Нет доступа к корзине');
       await action(tx, cart);
-      const updated = await tx.cart.findUniqueOrThrow({ where: { id: cart.id }, include: view });
+      const updated = pricedCart(await tx.cart.findUniqueOrThrow({ where: { id: cart.id }, include: view }));
       const total = updated.items.reduce((sum, item) => sum + moneyMinor(item.variant.price) * item.quantity, 0) / 100;
       await tx.cart.update({ where: { id: cart.id }, data: { total } });
       return { ...updated, total };

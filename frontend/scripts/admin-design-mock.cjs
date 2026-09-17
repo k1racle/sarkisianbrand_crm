@@ -52,8 +52,15 @@ const mediaAsset = { id: '123e4567-e89b-42d3-a456-426614174001', url: '/api/v1/m
 const mediaPreview = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 const fixtures = new Map([
   ['/auth/me', user], ['/auth/profile', { ...user, notificationPreferences: { email: true }, sessions: [] }],
-  ['/admin/dashboard', { orders: 1, paidOrders: 0, customers: 1, products: 2 }],
+  ['/auth/access', { role: 'ADMIN', permissions: ['admin.read', 'catalog.read', 'catalog.write', 'crm.read', 'web_orders.read', 'web_orders.manage', 'loyalty.read', 'loyalty.write', 'marketplace.read', 'marketplace.configure', 'helpdesk.read', 'media.read', 'system.manage'], denied: [] }],
+  ['/admin/dashboard', { orders: 1, newOrders: 1, paidOrders: 0, customers: 1, products: 2 }],
+  ['/crm/tasks', [{ id: 'mock-task', title: 'Проверить новые заказы', status: 'TODO', dueDate: '2026-09-17T12:00:00Z' }]],
+  ['/helpdesk/dashboard', { total: 3, new: 2, overdue: 1, inWork: 1, waiting: 0, resolved: 0 }],
   ['/admin/products', products], ['/admin/orders', orders], ['/crm/customers', customers], ['/admin/categories', categories],
+  ['/admin/catalog/categories', {revision:0,items:categories.map(c=>({...c,_count:{products:2}}))}],
+  ['/admin/catalog/badges', {revision:0,badges:[{id:'new',label:'Новинка',color:'#202127',textColor:'#ffffff',isActive:true,rule:'new',newDays:30},{id:'popular',label:'Популярное',color:'#202127',textColor:'#ffffff',isActive:true,rule:'manual',newDays:30},{id:'sale',label:'Скидка',color:'#ff5948',textColor:'#ffffff',isActive:true,rule:'sale',newDays:30}]}],
+  ['/admin/products/list', { items: products, total: products.length, page: 1, limit: 24 }], ['/admin/orders/list', { items: orders, total: orders.length, page: 1, limit: 24 }],
+  ['/admin/storefront/site-content', { revision: 0, content: {} }], ['/admin/storefront/site-content/revisions', { items: [], total: 0 }],
   ['/media', { items: [mediaAsset], total: 1, page: 1, limit: 24 }],
   ['/admin/storefront', storefront], ['/admin/storefront/pages', pages], ['/loyalty/admin/overview', loyalty],
   ['/admin/storefront/catalog-menu', { revision: 1, categories, entries: categories.map(c => ({ categoryId: c.id, label: c.nameRu, isVisible: true })),
@@ -67,22 +74,31 @@ const fixtures = new Map([
 ]);
 
 const sections = [
-  ['dashboard', '.kpi-grid'], ['appearance', '.appearance-workspace'], ['catalog-menu', '.sb-catalog-menu-admin'], ['pages', '.sb-pages-editor'],
-  ['orders', '.order-table'], ['products', '.admin-body > .panel'], ['customers', '.admin-body > .panel'], ['loyalty', '.loyalty-settings-panel'],
+  ['categories', '.cs-tree'], ['product-badges', '.cs-badge-row'],
+  ['dashboard', '.kpi-grid'], ['appearance', '.appearance-workspace'], ['site-content', '.site-content-admin'], ['catalog-menu', '.sb-catalog-menu-admin'], ['pages', '.sb-pages-editor'],
+  ['orders', '.studio-orders'], ['products', '.admin-body > .panel'], ['customers', '.admin-body > .panel'], ['loyalty', '.loyalty-settings-panel'],
   ['promotions', '.sb-promotions-admin'], ['gift-cards', '.sb-gift-form'],
 ];
 // Refresh and appearance-add are white secondary actions, not primary saves.
-const primarySelector = '.submit,.appearance-save,.loyalty-save,.sb-cms-primary,.sb-promo-button:not(.sb-promo-button--white),.sb-gift-button:not(.sb-gift-button--white),.sb-cma-button:not(.sb-cma-button--white),.aml-button:not(.aml-button--white),.save-product,.create-product,.editor-drawer .save,.new-drawer .save,.new-product,.admin-load-error button';
+const primarySelector = '.cs-primary,.submit,.appearance-save,.loyalty-save,.sb-cms-primary,.sb-promo-button:not(.sb-promo-button--white),.sb-gift-button:not(.sb-gift-button--white),.sb-cma-button:not(.sb-cma-button--white),.aml-button:not(.aml-button--white),.save-product,.create-product,.editor-drawer .save,.new-drawer .save,.new-product,.admin-load-error button';
 
-async function isolatedContext(browser, width, anonymous, catalogOnly = false) {
+async function isolatedContext(browser, width, anonymous, catalogOnly = false, options = {}) {
   const context = await browser.newContext({ viewport: { width, height: 960 }, deviceScaleFactor: 1, isMobile: width < 800, hasTouch: width < 800, serviceWorkers: 'block' });
   const traffic = { mockedReads: [], mockedPreflights: [], prohibitedWrites: [], unknownReads: [], externalRequests: [], credentialLeaks: [] };
-  const actor = catalogOnly ? { ...user, role: 'CONTENT_MANAGER' } : user;
-  await context.addInitScript(({ anonymous, token, user }) => {
+  const actor = { ...(catalogOnly ? { ...user, role: 'CONTENT_MANAGER' } : user), ...(options.actor || {}) };
+  const responses = new Map([...fixtures, ...(options.fixtures || [])]);
+  if(!options.fixtures?.has?.('/auth/access')){
+    const access=responses.get('/auth/access');responses.set('/auth/access',{...access,permissions:[...access.permissions,'customers.read','customers.write']});
+  }
+  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, b2b }) => {
+    // Retain only this non-sensitive layout choice for the explicit reload test.
+    const savedLayout = preserveLayoutPreference ? localStorage.getItem('sarkisian-workspace-rail-collapsed') : null;
     localStorage.clear(); sessionStorage.clear();
+    if (savedLayout === 'true' || savedLayout === 'false') localStorage.setItem('sarkisian-workspace-rail-collapsed', savedLayout);
     if (!anonymous) {
       localStorage.setItem('sarkisian-workspace-token', token);
       localStorage.setItem('sarkisian-workspace-user', JSON.stringify(user));
+      if(b2b){localStorage.setItem('sarkisian-b2b-token',token);localStorage.setItem('sarkisian-b2b-user',JSON.stringify(user));}
     }
     // Socket.io stays pending in this short-lived isolated context, with no network
     // handshake, real auth, polling fallback or server-side connection side effects.
@@ -100,7 +116,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false) {
     HTMLFormElement.prototype.submit = function () { window.__adminMockSubmitAttempts++; };
     HTMLFormElement.prototype.requestSubmit = function () { window.__adminMockSubmitAttempts++; };
     navigator.sendBeacon = () => false;
-  }, { anonymous, token, user: actor });
+  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, b2b: options.b2b === true });
   await context.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -130,9 +146,13 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false) {
         traffic.unknownReads.push(endpoint);
         return route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ message: 'Unrelated admin/CRM access is forbidden in narrow-role catalogue scenario' }) });
       }
-      if (fixtures.has(endpoint) && !anonymous) {
+      if (options.failures?.includes(endpoint)) {
         traffic.mockedReads.push(endpoint);
-        return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': origin }, body: JSON.stringify(endpoint === '/auth/me' ? actor : fixtures.get(endpoint)) });
+        return route.fulfill({ status: 503, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': origin }, body: JSON.stringify({ message: 'Не удалось загрузить тестовые данные. Повторите попытку.' }) });
+      }
+      if (responses.has(endpoint) && !anonymous) {
+        traffic.mockedReads.push(endpoint);
+        return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': origin }, body: JSON.stringify(endpoint === '/auth/me' ? actor : responses.get(endpoint)) });
       }
       traffic.unknownReads.push(endpoint);
       return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'Unexpected mock-only API read' }) });
@@ -140,7 +160,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false) {
     // Only the actual local page document and compiled static resources pass through.
     const localAsset = url.pathname.startsWith('/_nuxt/') || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/storefront/')
       || ['/sarkisian-logo.png', '/favicon.ico'].includes(url.pathname);
-    const allowedDocument = request.resourceType() === 'document' && ['/workspace-login', '/b2b-login', '/admin-workspace', '/media-library'].includes(url.pathname);
+    const allowedDocument = request.resourceType() === 'document' && (['/', '/catalog', '/products/gift-card', '/b2b', '/workspace-login', '/b2b-login', '/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/leadership', '/helpdesk', '/system-settings', '/crm-marketplaces'].includes(url.pathname) || /^\/(admin-workspace|crm-marketplaces|helpdesk|leadership|system-settings)\//.test(url.pathname));
     if (url.origin === origin && (localAsset || allowedDocument) && !request.headers().authorization) return route.continue();
     traffic.externalRequests.push({ path: url.pathname, type: request.resourceType() });
     return route.abort('blockedbyclient');
@@ -157,7 +177,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false) {
   return { context, page, traffic, errors, consoleWarnings };
 }
 
-async function measurements(page, rootSelector = '.site-admin-console,.admin-media-page,.login-page,.console-rail') {
+async function measurements(page, rootSelector = '.site-admin-console,.wn-hub,.admin-media-page,.login-page,.console-rail') {
   return page.evaluate(({ primarySelector, rootSelector }) => {
     const rendered = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; };
     const describe = el => {
@@ -196,7 +216,7 @@ async function measurements(page, rootSelector = '.site-admin-console,.admin-med
 }
 
 async function keyboardFocus(page, rootSelector) {
-  const roots = rootSelector || '.login-area,.site-admin-console,.admin-media-page';
+  const roots = rootSelector || '.login-area,.site-admin-console,.wn-hub,.admin-media-page';
   let state;
   // Walk the real tab order (including rail links and the body wraparound).
   // Never programmatically focus a target or add an artificial focus style.
@@ -242,17 +262,21 @@ function findings(state) {
   if (state.redDecorative.length) gaps.push('Red decorative text/icons outside semantic statuses');
   for (const control of state.primary) {
     if (!darkActionSurface(control)) gaps.push(`Primary action not black: ${control.class}`);
-    if (parseFloat(control.radius) < 12) gaps.push(`Primary radius below 12px: ${control.class}`);
-    if (control.height < 40) gaps.push(`Primary height below 40px: ${control.class}`);
+    if (parseFloat(control.radius) < 6) gaps.push(`Primary radius below Studio 6px minimum: ${control.class}`);
+    if (control.height < 36) gaps.push(`Primary height below Studio 36px minimum: ${control.class}`);
   }
   return [...new Set(gaps)];
 }
 
 async function capture(f, name, width, rootSelector) {
+  // Drawers use the site's entrance transition. Measure the settled layout,
+  // not an intermediate translateX frame outside the viewport.
+  await f.page.waitForTimeout(600);
   await f.page.evaluate(() => document.fonts.ready);
   const state = await measurements(f.page, rootSelector), focus = await keyboardFocus(f.page, rootSelector);
   const gaps = findings(state);
   if (!focus.focusVisible || !focus.indicated) gaps.push('Keyboard focus has no visible indicator');
+  await f.page.evaluate(() => { window.scrollTo(0, 0); const nav = document.querySelector('.console-rail nav'); if (nav) nav.scrollTop = 0; });
   await f.page.screenshot({ path: path.join(output, `${width}-${name}.png`), fullPage: true });
   return { name, width, state, focus, gaps };
 }
@@ -263,15 +287,15 @@ async function main() {
   const results = [];
   try {
     for (const width of [1536, 390]) {
-      for (const [section, selector] of [['workspace-login', '.login-area form'], ['b2b-login', '.login-area form'], ['media-library', '.admin-media-page'], ...sections]) {
+      for (const [section, selector] of [['workspace-login', '.login-area form'], ['b2b-login', '.login-area form'], ['workspace', '.wo-metrics'], ['media-library', '.admin-media-page'], ...sections]) {
         const anonymous = ['workspace-login', 'b2b-login'].includes(section);
         const f = await isolatedContext(browser, width, anonymous, section === 'catalog-menu');
         let result = { name: section, width, gaps: [] };
         try {
-          const route = anonymous || section === 'media-library' ? section : `admin-workspace?section=${section}`;
+          const route = anonymous || ['media-library', 'workspace'].includes(section) ? section : `admin-workspace?section=${section}`;
           await f.page.goto(`${origin}/${route}`, { waitUntil: 'domcontentloaded' });
           await f.page.locator(selector).first().waitFor({ state: 'visible' });
-          if (!anonymous) await f.page.locator('.console-rail').waitFor({ state: 'visible' });
+          if (!anonymous) await f.page.locator(width < 800 ? '.wn-rail-dock' : '.console-rail').waitFor({ state: 'visible' });
           // Wait for essential fixture rendering, without networkidle (realtime is inert).
           if (section === 'pages') await f.page.locator('.sb-cms-form').waitFor();
           if (section === 'promotions') await f.page.locator('.sb-promo-table').waitFor();
@@ -279,10 +303,12 @@ async function main() {
           if (section === 'media-library') await f.page.getByRole('button', { name: `Выбрать ${mediaAsset.originalName}`, exact: true }).waitFor();
           await f.page.waitForTimeout(200);
           result = await capture(f, section, width);
+          if(section!=='b2b-login')result.typography=await require('./workspace-typography-audit.cjs').auditTypography(f.page);
           result.details = [];
           const detail = async (name, selector) => {
             await f.page.locator(selector).first().waitFor();
             const audit = await capture(f, name, width, selector);
+            audit.typography=await require('./workspace-typography-audit.cjs').auditTypography(f.page);
             result.details.push(audit);
             result.gaps.push(...audit.gaps.map(gap => `${name}: ${gap}`));
           };
@@ -295,10 +321,29 @@ async function main() {
             assert.equal(f.traffic.prohibitedWrites.length, 0, 'Opening media library cannot upload/import automatically');
             result.mediaReadOnly = true;
           }
+          if (section === 'dashboard') {
+            await f.page.keyboard.press('Control+k');
+            await f.page.getByRole('dialog', { name: 'Перейти в раздел', exact: true }).waitFor();
+            await f.page.getByRole('searchbox', { name: 'Название раздела', exact: true }).fill('Контент сайта');
+            await f.page.locator('.wn-command-results a').first().waitFor();
+            assert.equal(await f.page.locator('.wn-command-results a').count(), 1);
+            await f.page.keyboard.press('Escape');
+            await f.page.getByRole('dialog', { name: 'Перейти в раздел', exact: true }).waitFor({ state: 'hidden' });
+            result.keyboardSectionSearch = true;
+          }
           if (section === 'orders') {
-            await f.page.locator('.order-table .row.clickable').first().click();
+            assert.equal(await f.page.locator('.studio-orders-table select').count(), 0, 'No accidental inline status writes');
+            await f.page.locator(width < 800 ? '.studio-mobile-order' : '.studio-order-open').first().click();
             await f.page.locator('.order-drawer').waitFor();
             await detail('order-drawer', '.order-drawer');
+          }
+          if (section === 'site-content') {
+            const blocks = f.page.locator('.studio-block-select');
+            assert.equal(await blocks.count(), 7, 'All home blocks available in outline');
+            if (width < 800) await f.page.getByLabel('Выбрать блок главной', { exact: true }).selectOption('benefits');
+            else await blocks.last().click();
+            assert.equal(await f.page.locator('.studio-content-fields').count(), 1, 'Only selected block form is shown');
+            result.focusedBlockEditor = true;
           }
           if (section === 'loyalty') {
             await f.page.locator('.loyalty-row:not(.head)').first().click();
@@ -308,9 +353,9 @@ async function main() {
           if (section === 'products') {
             // The actual table's delegated dblclick handler opens a local draft.
             // Target the name, never the archive button inside this same row.
-            await f.page.locator('.admin-body .table .row:not(.head) strong').first().dblclick();
+            await f.page.locator('.admin-body .table .row:not(.head) .product-open').first().click();
             await detail('product-editor', '.editor-drawer');
-            await f.page.locator('.editor-drawer .close').click();
+            await f.page.getByRole('button', { name: 'Закрыть редактор товара', exact: true }).click();
             await f.page.locator('.new-product').click();
             await detail('new-product-drawer', '.new-drawer');
           }
@@ -356,3 +401,4 @@ async function main() {
   }
 }
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
+module.exports = { isolatedContext };

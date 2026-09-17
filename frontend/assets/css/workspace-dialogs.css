@@ -1,0 +1,195 @@
+/* Internal dialogs carry an explicit marker, including panels teleported to body. */
+.admin-dialog-backdrop.admin-dialog-backdrop {
+  background:rgba(24,25,31,.32)!important;
+  backdrop-filter:blur(2px)!important;
+  -webkit-backdrop-filter:blur(2px)!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog {
+  --admin-bg:#f6f6f8; --admin-ink:#202127; --admin-muted:#73757f; --admin-line:#e6e7ec;
+  --admin-glass:#fff; --admin-shadow:none; --admin-small:13px; --admin-caption:12px;
+  --sb-bg:#f6f6f8; --sb-panel:#fff; --sb-ink:#202127; --sb-muted:#73757f; --sb-line:#e6e7ec;
+  --sb-coral:#585285; --sb-radius:12px; --sb-font:Montserrat,Arial,sans-serif;
+  box-sizing:border-box; min-width:0; max-width:100%;
+  background:#fff!important; color:#202127!important;
+  border:1px solid #e6e7ec!important; border-radius:14px!important;
+  box-shadow:0 16px 64px rgba(24,25,31,.12)!important; backdrop-filter:none!important;
+  font:400 13px/1.6 Montserrat,Arial,sans-serif!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog * { box-sizing:border-box; font-family:Montserrat,Arial,sans-serif!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--drawer {
+  display:flex; flex-direction:column; height:100dvh!important; max-height:100dvh!important;
+  overflow:hidden!important; border-radius:14px 0 0 14px!important; padding:0!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--modal { max-height:calc(100dvh - 48px)!important; overflow:auto; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(h2,h3) { color:#202127!important; font-weight:600!important; letter-spacing:-.025em!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(h2,h3,legend,.editor-subtitle) { max-width:100%; min-width:0; white-space:normal!important; overflow-wrap:anywhere; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog fieldset { min-width:0; }
+/* Floated legends stay inside the padded card instead of interrupting its border. */
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog fieldset > legend {
+  float:left; width:100%; max-width:100%; padding:0!important; margin:0 0 12px!important;
+  color:#202127!important; font-size:14px!important; font-weight:600!important; line-height:1.5!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog fieldset > legend + * { clear:both; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .editor-fields > label.published {
+  display:flex!important; flex-direction:row!important; align-items:center; justify-content:flex-start;
+  gap:10px; text-align:left;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog h2 { font-size:20px!important; line-height:1.35!important; margin:0!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog h3 { font-size:16px!important; line-height:1.4!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(p,label,dl,li) { font-size:13px!important; line-height:1.6!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(small,.muted,.hint,.drawer-description) { font-size:12px!important; line-height:1.55!important; color:#73757f!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(header,.admin-dialog-head) {
+  flex:none; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  padding:22px 24px!important; margin:0!important; min-height:0!important; height:auto!important;
+  background:#fff!important; border-bottom:1px solid #e6e7ec!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(header,.admin-dialog-head) > div { min-width:0; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(header,.admin-dialog-head) :is(p.eyebrow,p.kicker,div>p:first-child) {
+  color:#73757f!important; font-size:11px!important; font-weight:600!important;
+  letter-spacing:.08em!important; line-height:1.5!important; margin:0 0 6px!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .editor-header .editor-subtitle {
+  color:#73757f!important; font-size:13px!important; font-weight:400!important; letter-spacing:0!important; margin:8px 0 0!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(header,.admin-dialog-head) > button:last-child,
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.close,.editor-icon-button,.aml-close) {
+  display:inline-flex; align-items:center; justify-content:center; flex:0 0 40px;
+  width:40px!important; height:40px!important; min-height:40px!important; padding:0!important;
+  color:#595b65!important; background:#fff!important; border:1px solid #e6e7ec!important; border-radius:8px!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.admin-dialog-body,.drawer-body,.drawer-scroll,.form-scroll,.profile-content,.editor-scroll,.cs-form-grid) {
+  flex:1; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain;
+  padding:22px 24px!important; background:#fff!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > main { flex:1; min-height:0; overflow:auto; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(header,nav,footer,.identity,.profile-tabs,.editor-tabs,.editor-footer) { flex-shrink:0; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.editor-fields,.fields,.field-grid,.edit-grid,.form-scroll,.drawer-scroll) { gap:16px; }
+/* Important layered controls supersede legacy rules without specificity escalation. */
+@layer workspace-dialog-fields {
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]),select,textarea) {
+  box-sizing:border-box; max-width:100%; min-width:0; width:100%;
+  min-height:44px!important; height:auto; padding:10px 12px!important;
+  border:1px solid #e6e7ec!important; border-radius:8px!important; background:#fff!important;
+  color:#202127!important; font-size:14px!important; font-weight:400!important; line-height:1.5!important; box-shadow:none!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.channels>label,.entity-picker>label,.aml-search,.wn-command-search)>input {
+  height:40px!important; min-height:40px!important; border:0!important; border-radius:0!important; background:transparent!important; padding:0!important;
+}
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog textarea { resize:vertical; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog input:is([type=checkbox],[type=radio]) { width:17px!important; height:17px!important; min-height:0!important; accent-color:#585285; flex-shrink:0; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog label { color:#595b65!important; font-weight:500; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog button {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  min-height:40px!important; max-width:100%; padding:9px 14px!important;
+  border:1px solid #e6e7ec; border-radius:8px!important; box-shadow:none!important;
+  background:#fff; color:#202127; font-size:13px!important; font-weight:500!important; line-height:1.4!important; cursor:pointer;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog button:not(:disabled):hover { background:#f6f6f8!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog button:disabled { cursor:not-allowed; opacity:.5; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(button,a,input,select,textarea,summary):focus-visible { outline:2px solid #77709e!important; outline-offset:3px!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.primary,.save,.submit,.save-product,.create-product,.studio-order-save,.cs-primary,.editor-button:not(.editor-button--white),.sb-promo-button:not(.sb-promo-button--white),.sb-gift-button:not(.sb-gift-button--white),.aml-button:not(.aml-button--white)) {
+  background:#202127!important; color:#fff!important; border-color:#202127!important; font-weight:600!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog button:is(.primary,.save,.submit,.studio-order-save,.cs-primary,.editor-button:not(.editor-button--white),.sb-promo-button:not(.sb-promo-button--white),.sb-gift-button:not(.sb-gift-button--white),.aml-button:not(.aml-button--white),.send):hover:not(:disabled) { background:#34353c!important; color:#fff!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(footer,.admin-dialog-foot),
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .studio-order-actions {
+  flex:none; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px;
+  padding:16px 24px max(16px,env(safe-area-inset-bottom))!important;
+  background:#fff!important; border-top:1px solid #e6e7ec!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .editor-footer { display:block; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.editor-note,.category-box,.image-card,.detail-section,.profile-card,.order-summary) {
+  background:#f9f9fb!important; border:1px solid #e6e7ec!important; border-radius:10px!important; box-shadow:none!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.admin-dialog-tabs,.profile-tabs,.editor-tabs) {
+  display:flex; overflow-x:auto; padding:8px 24px!important; gap:6px; border-bottom:1px solid #e6e7ec; background:#fff!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.admin-dialog-tabs,.profile-tabs,.editor-tabs) button {
+  flex:none; background:transparent!important; color:#73757f!important; border:0!important; border-radius:6px!important; min-height:36px!important; white-space:nowrap;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.admin-dialog-tabs,.profile-tabs,.editor-tabs) button:is(.active,[aria-selected=true]) { background:#eeedf7!important; color:#585285!important; font-weight:600!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--simple { overflow:auto!important; padding:24px!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--simple > .close { align-self:flex-end; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .profile-tabs button { font-size:13px!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .loyalty-history b { font-size:13px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog .loyalty-adjustment-form button { background:#202127!important; border-color:#202127; color:#fff!important; }
+.admin-chat-create-layer > form { width:min(480px,calc(100vw - 32px)); }
+.admin-chat-create-layer > form > div { overflow:auto; padding:20px 24px; display:grid; gap:16px; }
+.admin-chat-create-layer > form label { display:grid; gap:8px; }
+
+/* Chat uses the same studio palette, with a distinct channel list and message canvas. */
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat {
+  width:min(1040px,calc(100vw - 32px)); height:100dvh; max-height:100dvh;
+  display:grid; grid-template-rows:auto minmax(0,1fr); overflow:hidden!important; border-radius:14px 0 0 14px!important;
+}
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-head { align-items:center; padding:18px 24px!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-head>div>i { background:#eeedf7; color:#585285; border-radius:10px; width:40px; height:40px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-head p { color:#73757f!important; font-size:11px!important; letter-spacing:.02em; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .realtime-state { font-size:11px; white-space:nowrap; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-body { min-width:0; grid-template-columns:260px minmax(0,1fr); }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels { min-height:0; overflow:auto; padding:16px 12px; background:#fff; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels>header { padding:0 4px; height:auto; margin-bottom:12px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels>header>b { font-size:13px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels>header>button { width:36px; min-height:36px!important; padding:0!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat :is(.channels,.entity-picker)>label { height:44px; border:1px solid #e6e7ec; border-radius:8px; background:#fff; padding:0 10px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat :is(.channels,.entity-picker)>label>input { height:40px!important; min-height:40px!important; padding:0!important; border:0!important; background:transparent!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav { display:grid; gap:4px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav>button { display:grid; grid-template-columns:32px minmax(0,1fr) auto; min-height:68px!important; height:auto; padding:10px!important; border:0; border-radius:8px; text-align:left; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav>button.active { background:#eeedf7!important; color:#585285; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav>button>i { width:32px; height:32px; border-radius:8px; background:#f1f1f5; color:#73757f; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav b { font-size:13px; font-weight:600; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav em { font-size:10px; background:#585285; padding:0 4px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation { min-width:0; min-height:0; grid-template-rows:auto minmax(0,1fr) auto; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header { height:auto; min-height:72px; padding:14px 20px; gap:12px; background:#fff; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header>div { min-width:0; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header h3 { font-size:15px!important; margin:0; overflow-wrap:anywhere; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header>span { font-size:11px; white-space:nowrap; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message-list { background:#f6f6f8; padding:24px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message { grid-template-columns:32px minmax(0,560px); gap:10px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message.mine { grid-template-columns:minmax(0,560px) 32px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message>section { padding:12px 14px; border-radius:0 12px 12px 12px; border-color:#e6e7ec; overflow-wrap:anywhere; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message.mine>section { background:#eeedf7; border-color:#dfdceb; border-radius:12px 0 12px 12px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message section>header { flex-wrap:wrap; gap:4px 10px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message section>header b { font-size:12px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message section>header time { font-size:10px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message section>p { font-size:14px!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer { padding:16px 20px; border-top:1px solid #e6e7ec; background:#fff; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer>textarea { height:80px!important; min-height:80px!important; max-height:160px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer>footer { gap:6px; flex-wrap:wrap; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer>footer>button { width:40px; height:40px; padding:0!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer>footer>span { font-size:10px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer .send { margin-left:auto; background:#202127!important; border-color:#202127; color:#fff!important; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .entity-picker { max-width:calc(100% - 24px); border:1px solid #e6e7ec; border-radius:12px; box-shadow:0 8px 32px #20212718; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .entity-picker nav { display:flex; flex-wrap:wrap; gap:4px; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .entity-picker button { white-space:normal; }
+.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .no-channel { font-size:14px; background:#f6f6f8; }
+.admin-dialog .chat-channel-toggle { display:none!important; }
+@media(max-width:720px) {
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--drawer,.admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat { width:100%!important; border-radius:0!important; border:0!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--modal { max-height:calc(100dvh - 24px)!important; max-width:calc(100vw - 24px)!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(header,.admin-dialog-head) { padding:16px!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.admin-dialog-body,.drawer-body,.drawer-scroll,.form-scroll,.profile-content,.editor-scroll,.cs-form-grid) { padding:18px 16px!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog > :is(footer,.admin-dialog-foot) { padding:12px 16px max(12px,env(safe-area-inset-bottom))!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog :is(.admin-dialog-tabs,.profile-tabs,.editor-tabs) { padding:8px 16px!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog .two-fields { grid-template-columns:minmax(0,1fr); }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-body { display:block; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-head { display:grid; grid-template-columns:minmax(0,1fr) 40px; gap:8px 12px; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-head>.realtime-state { grid-column:1/-1; grid-row:2; margin:0; justify-self:start; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat :is(.channels,.conversation,.no-channel) { height:100%; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels { padding:16px; border-right:0; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels :is(header>b,label,nav span,nav em) { display:revert!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels>header { justify-content:space-between; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels>label { display:flex!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .channels nav span { display:grid!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-body:not(.chat-body--channels)>.channels,
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-body--channels>:is(.conversation,.no-channel) { display:none; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header { padding:12px 16px; min-height:64px; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header>span { display:none; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-channel-toggle { display:inline-flex!important; width:40px; height:40px; flex:0 0 40px; padding:0!important; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .chat-head>div>i { display:none; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .conversation>header>div { gap:10px; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .message-list { padding:16px; }
+  .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer { padding:12px 16px max(12px,env(safe-area-inset-bottom)); }
+}
+@media(prefers-reduced-motion:reduce) { .admin-dialog { animation:none!important; transition:none!important; } }

@@ -33,6 +33,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@Req() request: any) { return this.auth.me(request.user.sub); }
 
+  @Get('access')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  access(@Req() request: any) { return this.auth.access(request.user.sub); }
+
   @Get('profile')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

@@ -16,10 +16,10 @@ export default defineNuxtRouteMiddleware((to) => {
   session.hydrate();
   const protectedRoute = workspaceRoutes.some(path => to.path === path || to.path.startsWith(`${path}/`));
   if (protectedRoute && !session.token.value) return navigateTo({ path: '/workspace-login', query: { redirect: to.fullPath } });
-  if (to.path === '/workspace-login' && session.token.value) return navigateTo('/workspace');
+  if (to.path === '/workspace-login' && session.token.value && !useState<boolean>('workspace-signing-out', () => false).value) return navigateTo('/workspace');
   if (!session.user.value || session.user.value.role === 'ADMIN') return;
   const access: Record<string, string[]> = {
-    '/admin-workspace': ['CONTENT_MANAGER', 'MANAGER_SALES', 'WAREHOUSE'],
+    '/admin-workspace': ['CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'],
     '/media-library': ['CONTENT_MANAGER', 'MANAGER_SALES', 'MANAGER_B2B', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'WAREHOUSE', 'CURATOR'],
     '/crm': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
     '/crm-pipeline': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
@@ -32,6 +32,7 @@ export default defineNuxtRouteMiddleware((to) => {
     '/helpdesk': ['IT_SUPPORT', 'SUPERVISOR'],
     '/system-settings': [],
   };
-  const allowed = access[to.path];
+  const family = Object.keys(access).find(path => to.path === path || to.path.startsWith(`${path}/`));
+  const allowed = family ? access[family] : undefined;
   if (allowed && !allowed.includes(session.user.value.role)) return navigateTo('/workspace');
 });

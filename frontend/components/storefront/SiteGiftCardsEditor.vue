@@ -292,8 +292,8 @@ onBeforeRouteUpdate(() => !dirty.value || window.confirm('Перейти в др
       <footer class="sb-gift-actions"><button type="submit" class="sb-gift-button" :disabled="busy"><Save :size="18" /> {{ busy ? 'Сохраняем…' : issue ? 'Выдать карту' : 'Сохранить изменения' }}</button><button type="button" class="sb-gift-button sb-gift-button--white" :disabled="busy" @click="closeEditor"><X :size="18" /> Отмена</button></footer>
     </form>
     <Teleport to="body"><Transition name="sb-gift-dialog">
-      <div v-if="dialog" class="sb-gift-dialog-layer" @click.self="closeDialog()" @keydown="dialogKeys">
-        <section ref="dialogEl" class="sb-gift-admin sb-gift-panel sb-gift-dialog" :class="{ 'sb-gift-dialog--history': dialog.kind === 'history' }" role="dialog" aria-modal="true" aria-labelledby="sb-gift-dialog-title" aria-describedby="sb-gift-dialog-description">
+      <div v-if="dialog" class="sb-gift-dialog-layer admin-dialog-backdrop" @click.self="closeDialog()" @keydown="dialogKeys">
+        <section ref="dialogEl" class="sb-gift-admin sb-gift-panel sb-gift-dialog admin-dialog admin-dialog--modal" :class="{ 'sb-gift-dialog--history': dialog.kind === 'history' }" role="dialog" aria-modal="true" aria-labelledby="sb-gift-dialog-title" aria-describedby="sb-gift-dialog-description">
           <header class="sb-gift-form-head">
             <h3 id="sb-gift-dialog-title">{{ dialog.kind === 'history' ? 'История карты' : dialog.kind === 'reveal' ? 'Полный код карты' : 'Выключить карту?' }}</h3>
             <button class="sb-gift-icon-button" :disabled="busy" aria-label="Закрыть окно карты" @click="closeDialog()"><X :size="20" /></button>

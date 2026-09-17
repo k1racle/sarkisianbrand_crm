@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { GripVertical } from '@lucide/vue';
 const props = defineProps<{ apiBase: string; token: string }>();
 type Category = { id: string; nameRu: string; slug: string; parentId: string | null; isActive: boolean };
 type Entry = { categoryId: string; label: string; isVisible: boolean };
@@ -23,6 +24,8 @@ const conflict = ref(false);
 const forbidden = ref(false);
 const error = ref('');
 const notice = ref('');
+const orderAnnouncement = ref('');
+const dragged = ref<{ group: 'categories' | 'quick'; index: number; key: string; identity: number } | null>(null);
 const controllers = new Set<AbortController>();
 let identity = 0;
 let requestVersion = 0;
@@ -85,10 +88,26 @@ function move<T>(items: T[], index: number, direction: -1 | 1) {
   const next = index + direction;
   if (index < 0 || next < 0 || next >= items.length) return;
   const [item] = items.splice(index, 1); items.splice(next, 0, item!);
+  orderAnnouncement.value = 'Порядок изменён. Сохраните меню для публикации.';
+}
+function startOrderDrag(event: DragEvent, group: 'categories' | 'quick', index: number) {
+  if (saving.value || loading.value || forbidden.value || !event.dataTransfer) { event.preventDefault(); return; }
+  const key = group === 'categories' ? entries.value[index]?.categoryId : quickLinks.value[index]?.key;
+  if (!key) { event.preventDefault(); return; }
+  dragged.value = { group, index, key, identity }; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', 'catalog-menu-order');
+}
+function dropOrder(event: DragEvent, group: 'categories' | 'quick', index: number) {
+  event.preventDefault(); event.stopPropagation(); const source = dragged.value; dragged.value = null;
+  if (!source || source.group !== group || source.identity !== identity || saving.value || loading.value || forbidden.value) return;
+  const items: Array<Entry | QuickLink> = group === 'categories' ? entries.value : quickLinks.value;
+  const key = (item: Entry | QuickLink) => 'categoryId' in item ? item.categoryId : item.key;
+  if (source.index < 0 || index < 0 || source.index >= items.length || index >= items.length || key(items[source.index]!) !== source.key || index === source.index) return;
+  const [item] = items.splice(source.index, 1); items.splice(index, 0, item!); orderAnnouncement.value = 'Порядок изменён. Сохраните меню для публикации.';
 }
 function cancel() {
   if (saving.value || loading.value || !dirty.value || !window.confirm('Отменить изменения названий, видимости и порядка меню?')) return;
   const saved = JSON.parse(baseline.value); entries.value = saved.entries; quickLinks.value = saved.quickLinks;
+  dragged.value = null;
   error.value = ''; notice.value = 'Несохранённые изменения отменены.';
 }
 async function save() {
@@ -114,6 +133,7 @@ onMounted(() => { mounted = true; load(); window.addEventListener('beforeunload'
 watch(() => [props.apiBase, props.token], () => {
   if (!mounted) return;
   ++identity; ++requestVersion; controllers.forEach(controller => controller.abort());
+  dragged.value = null;
   categories.value = []; entries.value = []; quickLinks.value = []; revision.value = null; baseline.value = ''; loaded.value = false;
   loading.value = false; saving.value = false; conflict.value = false; forbidden.value = false; error.value = ''; notice.value = ''; load();
 });
@@ -123,52 +143,56 @@ onBeforeRouteUpdate(leave);
 </script>
 
 <template>
-  <section class="sb-catalog-menu-admin" aria-label="Редактор меню каталога">
-    <header class="sb-cma-panel sb-cma-hero">
-      <div><p class="sb-cma-eyebrow">НАВИГАЦИЯ МАГАЗИНА</p><h2>Меню каталога</h2><p>Названия, видимость и порядок пунктов бокового каталога. Адреса категорий и быстрых ссылок не меняются.</p></div>
-      <button type="button" class="sb-cma-button sb-cma-button--white" :disabled="loading || saving" @click="load">{{ loading ? 'Загружаем…' : 'Обновить меню' }}</button>
+  <section data-v-ui-a4aaf54a5982 class="sb-catalog-menu-admin" aria-label="Редактор меню каталога">
+    <header data-v-ui-a4aaf54a5982 class="sb-cma-panel sb-cma-hero">
+      <div data-v-ui-a4aaf54a5982><p data-v-ui-a4aaf54a5982 class="sb-cma-eyebrow">НАВИГАЦИЯ МАГАЗИНА</p><h2 data-v-ui-a4aaf54a5982>Меню каталога</h2><p data-v-ui-a4aaf54a5982>Названия, видимость и порядок пунктов бокового каталога. Адреса категорий и быстрых ссылок не меняются.</p></div>
+      <button data-v-ui-a4aaf54a5982 type="button" class="sb-cma-button sb-cma-button--white" :disabled="loading || saving" @click="load">{{ loading ? 'Загружаем…' : 'Обновить меню' }}</button>
     </header>
-    <p v-if="error" class="sb-cma-notice" role="alert">{{ error }} <button v-if="!loaded" class="sb-cma-button sb-cma-button--white" :disabled="loading" @click="load">Повторить загрузку</button></p>
-    <p v-if="notice" class="sb-cma-notice" role="status">{{ notice }}</p>
-    <p v-if="loading" class="sb-cma-notice" role="status">Загружаем категории и настройки меню…</p>
-    <form v-if="loaded" novalidate @submit.prevent="save">
-      <fieldset :disabled="loading || saving || forbidden" class="sb-cma-fields">
-        <section class="sb-cma-panel sb-cma-section">
-          <header class="sb-cma-section-head"><h3>Категории</h3><small>Порядок изменяется кнопками «Выше» и «Ниже».</small></header>
-          <p class="sb-cma-note">Здесь только категории из базы. Создание, состав и активность категорий настраиваются в разделе управления товарами.</p>
-          <ol v-if="entries.length" class="sb-cma-list" aria-label="Порядок категорий">
-            <li v-for="(entry, index) in entries" :key="entry.categoryId" class="sb-cma-row" :data-category-id="entry.categoryId">
-              <div class="sb-cma-row-main">
-                <label class="sb-cma-field"><span>{{ categoryById.get(entry.categoryId)?.nameRu }}</span><input v-model="entry.label" maxlength="80" :aria-label="`Название пункта ${categoryById.get(entry.categoryId)?.nameRu}`" required /></label>
-                <small class="sb-cma-url">{{ storefrontCatalogLink(categoryById.get(entry.categoryId)) }}</small>
-                <small v-if="categoryById.get(entry.categoryId)?.parentId">Родитель: {{ categoryById.get(categoryById.get(entry.categoryId)!.parentId!)?.nameRu || 'Не найден' }}</small>
-                <small v-if="!categoryById.get(entry.categoryId)?.isActive" class="sb-cma-note">Категория неактивна — не появится на сайте, даже если включена в меню.</small>
+    <p data-v-ui-a4aaf54a5982 v-if="error" class="sb-cma-notice" role="alert">{{ error }} <button data-v-ui-a4aaf54a5982 v-if="!loaded" class="sb-cma-button sb-cma-button--white" :disabled="loading" @click="load">Повторить загрузку</button></p>
+    <p data-v-ui-a4aaf54a5982 v-if="notice" class="sb-cma-notice" role="status">{{ notice }}</p>
+    <p data-v-ui-a4aaf54a5982 v-if="loading" class="sb-cma-notice" role="status">Загружаем категории и настройки меню…</p>
+    <form data-v-ui-a4aaf54a5982 v-if="loaded" novalidate @submit.prevent="save">
+      <fieldset data-v-ui-a4aaf54a5982 :disabled="loading || saving || forbidden" class="sb-cma-fields">
+        <section data-v-ui-a4aaf54a5982 class="sb-cma-panel sb-cma-section">
+          <header data-v-ui-a4aaf54a5982 class="sb-cma-section-head"><h3 data-v-ui-a4aaf54a5982>Категории</h3><small data-v-ui-a4aaf54a5982>Перетаскивайте за ручку в первом столбце.</small></header>
+          <p data-v-ui-a4aaf54a5982 class="sb-cma-note">Здесь только категории из базы. Создание, состав и активность категорий настраиваются в разделе управления товарами.</p>
+          <ol data-v-ui-a4aaf54a5982 v-if="entries.length" class="sb-cma-list" aria-label="Порядок категорий">
+            <li data-v-ui-a4aaf54a5982 v-for="(entry, index) in entries" :key="entry.categoryId" class="sb-cma-row" :data-category-id="entry.categoryId" @dragover.prevent @drop="dropOrder($event, 'categories', index)">
+              <div data-v-ui-a4aaf54a5982 class="sb-cma-order"><button data-v-ui-a4aaf54a5982 type="button" class="sb-cma-button sb-cma-button--white sb-cma-drag-handle" :draggable="!loading && !saving && !forbidden" :aria-label="'Перетащить ' + entry.label" @dragstart="startOrderDrag($event, 'categories', index)" @dragend="dragged = null" @keydown.alt.up.prevent="move(entries, index, -1)" @keydown.alt.down.prevent="move(entries, index, 1)"><GripVertical data-v-ui-a4aaf54a5982 :size="20" /></button></div>
+              <div data-v-ui-a4aaf54a5982 class="sb-cma-row-main">
+                <label data-v-ui-a4aaf54a5982 class="sb-cma-field"><span data-v-ui-a4aaf54a5982>{{ categoryById.get(entry.categoryId)?.nameRu }}</span><input data-v-ui-a4aaf54a5982 v-model="entry.label" maxlength="80" :aria-label="`Название пункта ${categoryById.get(entry.categoryId)?.nameRu}`" required /></label>
+                <small data-v-ui-a4aaf54a5982 class="sb-cma-url">{{ storefrontCatalogLink(categoryById.get(entry.categoryId)) }}</small>
+                <small data-v-ui-a4aaf54a5982 v-if="categoryById.get(entry.categoryId)?.parentId">Родитель: {{ categoryById.get(categoryById.get(entry.categoryId)!.parentId!)?.nameRu || 'Не найден' }}</small>
+                <small data-v-ui-a4aaf54a5982 v-if="!categoryById.get(entry.categoryId)?.isActive" class="sb-cma-note">Категория неактивна — не появится на сайте, даже если включена в меню.</small>
               </div>
-              <label class="sb-cma-checkbox"><input v-model="entry.isVisible" type="checkbox" :aria-label="`Показывать ${categoryById.get(entry.categoryId)?.nameRu} в меню`" /> В меню</label>
-              <div class="sb-cma-order"><button type="button" class="sb-cma-button sb-cma-button--white" :disabled="index === 0" :aria-label="`Поднять ${categoryById.get(entry.categoryId)?.nameRu} выше`" @click="move(entries, index, -1)">Выше</button><button type="button" class="sb-cma-button sb-cma-button--white" :disabled="index === entries.length - 1" :aria-label="`Опустить ${categoryById.get(entry.categoryId)?.nameRu} ниже`" @click="move(entries, index, 1)">Ниже</button></div>
+              <label data-v-ui-a4aaf54a5982 class="sb-cma-checkbox"><input data-v-ui-a4aaf54a5982 v-model="entry.isVisible" type="checkbox" :aria-label="`Показывать ${categoryById.get(entry.categoryId)?.nameRu} в меню`" /> В меню</label>
+
             </li>
           </ol>
-          <p v-else class="sb-cma-empty">В базе пока нет категорий. Демонстрационные категории не добавляются.</p>
+          <p data-v-ui-a4aaf54a5982 v-else class="sb-cma-empty">В базе пока нет категорий. Демонстрационные категории не добавляются.</p>
         </section>
-        <section class="sb-cma-panel sb-cma-section">
-          <header class="sb-cma-section-head"><h3>Быстрые ссылки</h3><small>Три фиксированных назначения, без произвольных адресов.</small></header>
-          <ol class="sb-cma-list" aria-label="Порядок быстрых ссылок">
-            <li v-for="(link, index) in quickLinks" :key="link.key" class="sb-cma-row" :data-quick-key="link.key">
-              <div class="sb-cma-row-main"><label class="sb-cma-field"><span>{{ quickDefaults.find(item => item.key === link.key)?.label }}</span><input v-model="link.label" maxlength="80" :aria-label="`Название быстрой ссылки ${link.key}`" required /></label><small class="sb-cma-url">{{ quickUrls[link.key] }}</small></div>
-              <label class="sb-cma-checkbox"><input v-model="link.isVisible" type="checkbox" :aria-label="`Показывать быструю ссылку ${link.key}`" /> В меню</label>
-              <div class="sb-cma-order"><button type="button" class="sb-cma-button sb-cma-button--white" :disabled="index === 0" :aria-label="`Поднять быструю ссылку ${link.key} выше`" @click="move(quickLinks, index, -1)">Выше</button><button type="button" class="sb-cma-button sb-cma-button--white" :disabled="index === quickLinks.length - 1" :aria-label="`Опустить быструю ссылку ${link.key} ниже`" @click="move(quickLinks, index, 1)">Ниже</button></div>
+        <section data-v-ui-a4aaf54a5982 class="sb-cma-panel sb-cma-section">
+          <header data-v-ui-a4aaf54a5982 class="sb-cma-section-head"><h3 data-v-ui-a4aaf54a5982>Быстрые ссылки</h3><small data-v-ui-a4aaf54a5982>Три фиксированных назначения, без произвольных адресов.</small></header>
+          <ol data-v-ui-a4aaf54a5982 class="sb-cma-list" aria-label="Порядок быстрых ссылок">
+            <li data-v-ui-a4aaf54a5982 v-for="(link, index) in quickLinks" :key="link.key" class="sb-cma-row" :data-quick-key="link.key" @dragover.prevent @drop="dropOrder($event, 'quick', index)">
+              <div data-v-ui-a4aaf54a5982 class="sb-cma-order"><button data-v-ui-a4aaf54a5982 type="button" class="sb-cma-button sb-cma-button--white sb-cma-drag-handle" :draggable="!loading && !saving && !forbidden" :aria-label="'Перетащить ' + link.label" @dragstart="startOrderDrag($event, 'quick', index)" @dragend="dragged = null" @keydown.alt.up.prevent="move(quickLinks, index, -1)" @keydown.alt.down.prevent="move(quickLinks, index, 1)"><GripVertical data-v-ui-a4aaf54a5982 :size="20" /></button></div>
+              <div data-v-ui-a4aaf54a5982 class="sb-cma-row-main"><label data-v-ui-a4aaf54a5982 class="sb-cma-field"><span data-v-ui-a4aaf54a5982>{{ quickDefaults.find(item => item.key === link.key)?.label }}</span><input data-v-ui-a4aaf54a5982 v-model="link.label" maxlength="80" :aria-label="`Название быстрой ссылки ${link.key}`" required /></label><small data-v-ui-a4aaf54a5982 class="sb-cma-url">{{ quickUrls[link.key] }}</small></div>
+              <label data-v-ui-a4aaf54a5982 class="sb-cma-checkbox"><input data-v-ui-a4aaf54a5982 v-model="link.isVisible" type="checkbox" :aria-label="`Показывать быструю ссылку ${link.key}`" /> В меню</label>
+
             </li>
           </ol>
         </section>
       </fieldset>
-      <footer class="sb-cma-panel sb-cma-actions"><span>{{ conflict ? 'Нужна актуальная версия меню' : dirty ? 'Есть несохранённые изменения' : `Версия ${revision} · Изменения сохранены` }}</span><div><button type="button" class="sb-cma-button sb-cma-button--white" :disabled="!dirty || saving || loading" @click="cancel">Отменить изменения</button><button type="submit" class="sb-cma-button" :disabled="!dirty || saving || loading || conflict || forbidden">{{ saving ? 'Сохраняем…' : 'Сохранить меню' }}</button></div></footer>
+      <footer data-v-ui-a4aaf54a5982 class="sb-cma-panel sb-cma-actions"><span data-v-ui-a4aaf54a5982>{{ conflict ? 'Нужна актуальная версия меню' : dirty ? 'Есть несохранённые изменения' : `Версия ${revision} · Изменения сохранены` }}</span><div data-v-ui-a4aaf54a5982><button data-v-ui-a4aaf54a5982 type="button" class="sb-cma-button sb-cma-button--white" :disabled="!dirty || saving || loading" @click="cancel">Отменить изменения</button><button data-v-ui-a4aaf54a5982 type="submit" class="sb-cma-button" :disabled="!dirty || saving || loading || conflict || forbidden">{{ saving ? 'Сохраняем…' : 'Сохранить меню' }}</button></div></footer>
     </form>
-    <section v-if="loaded" class="sb-cma-panel sb-cma-section sb-cma-preview" aria-label="Предпросмотр меню каталога">
-      <header class="sb-cma-section-head"><h3>Предпросмотр</h3><small>Текущий черновик. На сайте изменения появятся после сохранения.</small></header>
-      <div v-if="visibleQuickLinks.length" class="sb-cma-preview-quick"><span v-for="link in visibleQuickLinks" :key="link.key">{{ link.label.trim() || quickDefaults.find(item => item.key === link.key)?.label }}</span></div>
-      <div v-if="previewGroups.length" class="sb-cma-preview-groups"><section v-for="group in previewGroups" :key="group.id"><h4>{{ group.label }}</h4><p v-for="item in group.items" :key="item.id">{{ item.label }}</p></section></div>
-      <p v-else class="sb-cma-note">Нет видимых активных категорий.</p>
-      <p class="sb-cma-note">Скрытие категории скрывает все вложенные категории. Неактивные категории не выводятся; категория с отсутствующим родителем отображается отдельно.</p>
+    <p data-v-ui-a4aaf54a5982 class="sb-cma-order-announcement" aria-live="polite">{{ orderAnnouncement }}</p>
+    <section data-v-ui-a4aaf54a5982 v-if="loaded" class="sb-cma-panel sb-cma-section sb-cma-preview" aria-label="Предпросмотр меню каталога">
+      <header data-v-ui-a4aaf54a5982 class="sb-cma-section-head"><h3 data-v-ui-a4aaf54a5982>Предпросмотр</h3><small data-v-ui-a4aaf54a5982>Текущий черновик. На сайте изменения появятся после сохранения.</small></header>
+      <div data-v-ui-a4aaf54a5982 v-if="visibleQuickLinks.length" class="sb-cma-preview-quick"><span data-v-ui-a4aaf54a5982 v-for="link in visibleQuickLinks" :key="link.key">{{ link.label.trim() || quickDefaults.find(item => item.key === link.key)?.label }}</span></div>
+      <div data-v-ui-a4aaf54a5982 v-if="previewGroups.length" class="sb-cma-preview-groups"><section data-v-ui-a4aaf54a5982 v-for="group in previewGroups" :key="group.id"><h4 data-v-ui-a4aaf54a5982>{{ group.label }}</h4><p data-v-ui-a4aaf54a5982 v-for="item in group.items" :key="item.id">{{ item.label }}</p></section></div>
+      <p data-v-ui-a4aaf54a5982 v-else class="sb-cma-note">Нет видимых активных категорий.</p>
+      <p data-v-ui-a4aaf54a5982 class="sb-cma-note">Скрытие категории скрывает все вложенные категории. Неактивные категории не выводятся; категория с отсутствующим родителем отображается отдельно.</p>
     </section>
   </section>
 </template>
+

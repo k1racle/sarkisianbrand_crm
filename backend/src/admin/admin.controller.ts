@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -6,7 +6,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { AdminService } from './admin.service';
-import { CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
+import { AdminListQueryDto, ReorderStorefrontDto, CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
+import { BulkProductsDto } from './dto/admin.dto';
 import { CreateAdminProductDto, CreateStorefrontBannerDto, CreateStorefrontSocialLinkDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto, UpdateStorefrontSocialLinkDto } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -25,6 +26,18 @@ export class AdminController {
   @Get('products')
   @Permissions('catalog.read')
   products() { return this.admin.products(); }
+
+  @Get('products/list')
+  @Permissions('catalog.read')
+  productList(@Query() query: AdminListQueryDto) { return this.admin.productList(query); }
+
+  @Patch('storefront/reorder')
+  @Permissions('catalog.write')
+  reorderStorefront(@Body() dto: ReorderStorefrontDto) { return this.admin.reorderStorefront(dto); }
+
+  @Get('orders/list')
+  @Permissions('web_orders.read')
+  orderList(@Query() query: AdminListQueryDto) { return this.admin.orderList(query); }
 
   @Get('categories')
   @Permissions('catalog.read')
@@ -100,17 +113,24 @@ export class AdminController {
   uploadStorefrontMedia(@UploadedFile() file: any, @Req() req: any) { return this.admin.saveStorefrontMedia(file, req.user.sub); }
 
   @Post('products')
+  @Roles('ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR')
   @Permissions('catalog.write')
   createProduct(@Body() dto: CreateAdminProductDto) { return this.admin.createProduct(dto); }
 
   @Patch('products/:id')
+  @Roles('ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR')
   @Permissions('catalog.write')
   updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) { return this.admin.updateProduct(id, dto); }
 
   @Delete('products/:id')
+  @Roles('ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR')
   @Permissions('catalog.write')
   archiveProduct(@Param('id') id: string) { return this.admin.archiveProduct(id); }
 
+  @Post('products/bulk')
+  @Roles('ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR')
+  @Permissions('catalog.write')
+  bulkProducts(@Body() dto:BulkProductsDto,@Req() req:any){return this.admin.bulkProducts(dto,req.user.sub);}
   @Get('orders')
   @Permissions('web_orders.read')
   orders() { return this.admin.orders(); }

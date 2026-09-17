@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowRight, Heart, ShoppingBag, Trash2, X } from '@lucide/vue';
+import { storefrontVariantPrice } from '~/shared/product-merchandising';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; 'after-leave': [] }>();
@@ -52,7 +53,7 @@ watch(() => props.open, (value) => { if (value) load().catch(() => undefined); }
               <div>
                 <small>{{ product.categories?.[0]?.category?.nameRu || 'SARKISIAN BRAND' }}</small>
                 <NuxtLink :to="`/products/${product.slug}`" @click="emit('close')">{{ product.nameRu }}</NuxtLink>
-                <strong>{{ Number(product.basePrice).toLocaleString('ru-RU') }} ₽</strong>
+                <strong>{{ (product.variants?.[0]?storefrontVariantPrice(product.variants[0],product.productType==='GIFT_CARD'):Number(product.basePrice)).toLocaleString('ru-RU') }} ₽</strong>
                 <button @click="add(product)"><ShoppingBag :size="15" />{{ addedId === product.id ? 'Добавлено' : 'В корзину' }}</button>
               </div>
               <button class="sb-favorite-list__remove" aria-label="Убрать из избранного" @click="toggleFavorite(product.id)"><Trash2 :size="17" /></button>

@@ -5,6 +5,7 @@ import { readFile } from 'fs/promises';
 import { basename, extname, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { CatalogQueryDto, CreateCategoryDto, CreateProductDto } from './dto/product.dto';
+import { activeCategoryTree, categoryDescendantSlugs, resolveProductBadges } from '../common/product-merchandising';
 
 // Shared by catalogue ordering and cart recommendations: actual purchased units,
 // including the legacy channel marker and verified WEB payments, never badges.
@@ -18,6 +19,12 @@ const purchasedUnits90Days = Prisma.sql`
   GROUP BY v."productId"
 `;
 
+const catalogPrice=Prisma.sql`COALESCE((SELECT MIN(CASE WHEN p."productType" <> 'GIFT_CARD'
+  AND pv."salePrice" IS NOT NULL AND pv."salePrice" < pv.price
+  AND (pv."saleStartsAt" IS NULL OR pv."saleStartsAt" <= NOW())
+  AND (pv."saleEndsAt" IS NULL OR pv."saleEndsAt" > NOW())
+  THEN pv."salePrice" ELSE pv.price END) FROM "ProductVariant" pv
+  WHERE pv."productId"=p.id AND pv."isActive"=true),p."basePrice")`;
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService, private readonly config: ConfigService) {}
@@ -27,11 +34,24 @@ export class ProductsService {
     const limit = Math.min(Math.max(query?.limit ?? 24, 1), 100);
     if (query?.minPrice !== undefined && query?.maxPrice !== undefined && query.minPrice > query.maxPrice) throw new BadRequestException('Минимальная цена не должна превышать максимальную');
     const tags = (value?: string) => [...new Set((value || '').split(',').map(item => item.trim()).filter(Boolean))].slice(0, 20);
-    const categories = tags(query?.category);
+    const selectedCategories=tags(query?.category);
+    const expanded=selectedCategories.length?categoryDescendantSlugs(await this.categories(),selectedCategories):selectedCategories;
+    const categories=selectedCategories.length&&!expanded.length?['__unavailable_category__']:expanded;
     const purposes = tags(query?.purpose);
     const features = tags(query?.feature);
+    const ids = [...new Set((query?.ids || '').split(',').filter(Boolean))];
+    const now=new Date(),range={gte:query?.minPrice,lte:query?.maxPrice};
+    const hasPrice=query?.minPrice!==undefined||query?.maxPrice!==undefined;
+    const saleActive:Prisma.ProductVariantWhereInput={salePrice:{not:null,lt:this.prisma.productVariant.fields.price},AND:[{OR:[{saleStartsAt:null},{saleStartsAt:{lte:now}}]},{OR:[{saleEndsAt:null},{saleEndsAt:{gt:now}}]}]};
+    const saleInactive:Prisma.ProductVariantWhereInput={OR:[{salePrice:null},{salePrice:{gte:this.prisma.productVariant.fields.price}},{saleStartsAt:{gt:now}},{saleEndsAt:{lte:now}}]};
+    const priceWhere:Prisma.ProductWhereInput={OR:[
+      {productType:{not:'GIFT_CARD'},variants:{some:{isActive:true,OR:[{AND:[saleActive,{salePrice:range}]},{AND:[saleInactive,{price:range}]}]}}},
+      {productType:'GIFT_CARD',variants:{some:{isActive:true,price:range}}},
+      {variants:{none:{isActive:true}},basePrice:range},
+    ]};
     const where: Prisma.ProductWhereInput = {
       isActive: true,
+      ...(ids.length ? { id: { in: ids } } : {}),
       ...(query?.search ? { OR: [
         { nameRu: { contains: query.search, mode: 'insensitive' as const } },
         { sku: { contains: query.search, mode: 'insensitive' as const } },
@@ -39,19 +59,19 @@ export class ProductsService {
       ...(categories.length ? { categories: { some: { category: { slug: { in: categories }, isActive: true } } } } : {}),
       ...(purposes.length ? { purposes: { hasSome: purposes } } : {}),
       ...(features.length ? { features: { hasSome: features } } : {}),
-      ...((query?.minPrice !== undefined || query?.maxPrice !== undefined) ? { basePrice: { gte: query?.minPrice, lte: query?.maxPrice } } : {}),
-      ...(query?.inStock === 'true' ? { AND: [{ OR: [
+      ...((hasPrice||query?.inStock==='true')?{AND:[...(hasPrice?[priceWhere]:[]),...(query?.inStock === 'true' ? [{ OR: [
         { productType: 'GIFT_CARD', variants: { some: { isActive: true } } },
         { variants: { some: { isActive: true, stock: { gt: this.prisma.productVariant.fields.reserved } } } },
-      ] }] } : {}),
+      ] }] : [])]}:{}),
     };
     const orderBy: Prisma.ProductOrderByWithRelationInput[] = query?.sort === 'price-asc' ? [{ basePrice: 'asc' }, { id: 'asc' }]
       : query?.sort === 'price-desc' ? [{ basePrice: 'desc' }, { id: 'asc' }]
       : query?.sort === 'name' ? [{ nameRu: 'asc' }, { id: 'asc' }] : [{ createdAt: 'desc' }, { id: 'asc' }];
-    if (query?.sort === 'popular') {
+    if (query?.sort === 'popular'||query?.sort==='price-asc'||query?.sort==='price-desc') {
       // This SQL mirrors the normalized Prisma filters above. Rank only the requested
       // filtered page in PostgreSQL; never fetch every catalogue ID into application memory.
       const predicates: Prisma.Sql[] = [Prisma.sql`p."isActive" = true`];
+      if (ids.length) predicates.push(Prisma.sql`p.id IN (${Prisma.join(ids)})`);
       if (query.search) {
         // Match Prisma contains semantics (including LIKE wildcards), used by count.
         const pattern = `%${query.search}%`;
@@ -63,8 +83,15 @@ export class ProductsService {
       )`);
       if (purposes.length) predicates.push(Prisma.sql`p.purposes && ARRAY[${Prisma.join(purposes)}]::text[]`);
       if (features.length) predicates.push(Prisma.sql`p.features && ARRAY[${Prisma.join(features)}]::text[]`);
-      if (query.minPrice !== undefined) predicates.push(Prisma.sql`p."basePrice" >= ${query.minPrice}`);
-      if (query.maxPrice !== undefined) predicates.push(Prisma.sql`p."basePrice" <= ${query.maxPrice}`);
+      if(hasPrice){
+        const conditions:Prisma.Sql[]=[],fallback:Prisma.Sql[]=[];
+        const value=Prisma.sql`CASE WHEN p."productType" <> 'GIFT_CARD' AND pv."salePrice" IS NOT NULL AND pv."salePrice" < pv.price
+          AND (pv."saleStartsAt" IS NULL OR pv."saleStartsAt" <= ${now}) AND (pv."saleEndsAt" IS NULL OR pv."saleEndsAt" > ${now}) THEN pv."salePrice" ELSE pv.price END`;
+        if(query.minPrice!==undefined){conditions.push(Prisma.sql`${value} >= ${query.minPrice}`);fallback.push(Prisma.sql`p."basePrice" >= ${query.minPrice}`);}
+        if(query.maxPrice!==undefined){conditions.push(Prisma.sql`${value} <= ${query.maxPrice}`);fallback.push(Prisma.sql`p."basePrice" <= ${query.maxPrice}`);}
+        predicates.push(Prisma.sql`(EXISTS (SELECT 1 FROM "ProductVariant" pv WHERE pv."productId"=p.id AND pv."isActive"=true AND ${Prisma.join(conditions,' AND ')}) OR
+          (NOT EXISTS (SELECT 1 FROM "ProductVariant" pv WHERE pv."productId"=p.id AND pv."isActive"=true) AND ${Prisma.join(fallback,' AND ')}))`);
+      }
       if (query.inStock === 'true') predicates.push(Prisma.sql`EXISTS (
         SELECT 1 FROM "ProductVariant" available WHERE available."productId" = p.id
           AND available."isActive" = true
@@ -73,11 +100,12 @@ export class ProductsService {
 
       return this.prisma.$transaction(async tx => {
         const total = await tx.product.count({ where });
+        const ordering=query.sort==='price-asc'?Prisma.sql`${catalogPrice} ASC,p.id ASC`:query.sort==='price-desc'?Prisma.sql`${catalogPrice} DESC,p.id ASC`:Prisma.sql`COALESCE(sales.units, 0) DESC, p."createdAt" DESC, p.id ASC`;
         const ranked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
           SELECT p.id FROM "Product" p
           LEFT JOIN (${purchasedUnits90Days}) sales ON sales."productId" = p.id
           WHERE ${Prisma.join(predicates, ' AND ')}
-          ORDER BY COALESCE(sales.units, 0) DESC, p."createdAt" DESC, p.id ASC
+          ORDER BY ${ordering}
           LIMIT ${limit} OFFSET ${(page - 1) * limit}
         `);
         const products = ranked.length ? await tx.product.findMany({
@@ -101,12 +129,12 @@ export class ProductsService {
 
   async catalogFilters() {
     const [categories, purposes, features, prices] = await Promise.all([
-      this.prisma.category.findMany({ where: { isActive: true, products: { some: { product: { isActive: true } } } }, select: { slug: true, nameRu: true, parentId: true }, orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] }),
+      this.categories(),
       this.prisma.$queryRaw<{ value: string }[]>`SELECT DISTINCT unnest("purposes") AS value FROM "Product" WHERE "isActive" = true ORDER BY value`,
       this.prisma.$queryRaw<{ value: string }[]>`SELECT DISTINCT unnest("features") AS value FROM "Product" WHERE "isActive" = true ORDER BY value`,
-      this.prisma.product.aggregate({ where: { isActive: true }, _min: { basePrice: true }, _max: { basePrice: true } }),
+      this.prisma.$queryRaw<{min:any;max:any}[]>(Prisma.sql`SELECT MIN(${catalogPrice}) AS min,MAX(${catalogPrice}) AS max FROM "Product" p WHERE p."isActive"=true`),
     ]);
-    return { categories, purposes: purposes.map(item => item.value).filter(Boolean), features: features.map(item => item.value).filter(Boolean), price: { min: Number(prices._min.basePrice || 0), max: Number(prices._max.basePrice || 0) } };
+    return { categories, purposes: purposes.map(item => item.value).filter(Boolean), features: features.map(item => item.value).filter(Boolean), price: { min: Number(prices[0]?.min || 0), max: Number(prices[0]?.max || 0) } };
   }
 
   async findBySlug(slug: string) {
@@ -151,7 +179,7 @@ export class ProductsService {
   }
 
   async categories() {
-    return this.prisma.category.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] });
+    return activeCategoryTree(await this.prisma.category.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] }));
   }
 
   async storefrontContent() {
@@ -168,12 +196,12 @@ export class ProductsService {
         },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       }),
-      this.prisma.category.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] }),
+      this.categories(),
       this.prisma.storefrontSocialLink.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
       this.prisma.storefrontMenuItem.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
     ]);
     return {
-      settings: settings || { announcementText: 'SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян' },
+      settings: {...(settings || { announcementText: 'SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян' }),productBadges:resolveProductBadges(settings?.productBadges)},
       banners,
       categories,
       socialLinks,

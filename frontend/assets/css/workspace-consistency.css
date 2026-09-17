@@ -1,0 +1,80 @@
+/* Internal workspace only. Operational pages share the Studio foundations. */
+.workspace-frame.workspace-frame.workspace-frame h1 { font-size:26px!important; line-height:1.3!important; font-weight:600!important; }
+.workspace-frame .marketplace-page .search #channel-order-query { height:40px!important; min-height:40px!important; border:0!important; border-radius:0!important; padding:8px 0!important; background:transparent!important; box-shadow:none!important; font-size:13px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header,.mp-header,.hd-header,.leader-header,.system-header,.crm-header)>div:last-child { min-width:0; }
+.workspace-frame.workspace-frame.workspace-frame :is(.org-page,.customer-page) { background:#f6f6f8!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.marketplace-page,.helpdesk-page,.leader-page,.system-console,.crm-page,.customer-page,.organization-page,.tasks-page,.pipeline-page) { background:#f6f6f8!important; color:#202127!important; min-width:0; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-body,.hd-body,.leader-body,.system-body,.crm-body,.customer-body,.organization-body,.tasks-body,.pipeline-body) { width:100%!important; max-width:none!important; margin:0!important; box-sizing:border-box; padding:0 32px 40px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-header,.hd-header,.leader-header,.system-header,.crm-header,.customer-header,.organization-header,.tasks-header,.pipeline-header) { padding:28px 32px!important; min-height:112px!important; box-sizing:border-box; text-align:left!important; background:transparent!important; border:0!important; box-shadow:none!important; border-radius:0!important; align-items:center; gap:16px; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-header,.hd-header,.leader-header,.system-header,.crm-header,.customer-header,.organization-header,.tasks-header,.pipeline-header) :is(.kicker,.eyebrow) { display:none!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-header,.hd-header,.leader-header,.system-header,.crm-header,.customer-header,.organization-header,.tasks-header,.pipeline-header) h1 { font-size:26px!important; line-height:1.3!important; margin:0 0 8px!important; font-weight:600!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-header,.hd-header,.leader-header,.system-header,.crm-header,.customer-header,.organization-header,.tasks-header,.pipeline-header) :is(.subtitle,span:not(.badge),p:not(.kicker):not(.eyebrow)) { font-size:13px!important; line-height:1.6; color:#73757f; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-header,.hd-header,.leader-header,.system-header,.crm-header,.customer-header,.organization-header,.tasks-header,.pipeline-header) button { min-height:40px!important; border-radius:8px!important; box-shadow:none!important; font-size:13px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-body,.hd-body,.leader-body,.system-body,.crm-body,.customer-body,.organization-body) :is(.panel,.integration-card,.queue-grid>article,.section-card,.empty-card) { background:#fff!important; border:1px solid #e6e7ec!important; border-radius:12px!important; box-shadow:none!important; backdrop-filter:none!important; min-width:0; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-body,.hd-body,.leader-body,.system-body,.crm-body,.customer-body,.organization-body) h2 { font-size:18px!important; line-height:1.4!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-body,.hd-body,.leader-body,.system-body,.crm-body,.customer-body,.organization-body) :is(.panel-head a,.section-intro a) { color:#585285!important; font-size:13px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.mp-body,.hd-body,.leader-body,.system-body,.crm-body,.customer-body,.organization-body) :is(.panel-head .eyebrow,.section-intro .eyebrow) { display:none!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .section-intro { max-width:78ch; margin:0 0 24px; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .section-intro p { font-size:13px!important; line-height:1.7; color:#73757f; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .integration-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .integration-card { padding:24px; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .integration-card label { font-size:13px!important; gap:8px; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .integration-card input { width:100%; height:42px!important; min-height:42px!important; box-sizing:border-box; border-radius:8px!important; font-size:13px!important; padding:10px 12px!important; box-shadow:none!important; background:#fff!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .card-actions { flex-wrap:wrap; gap:8px; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page :is(.card-actions button,.clear) { height:auto!important; min-height:40px!important; border-radius:8px!important; font-size:12px!important; padding:10px 12px!important; box-shadow:none!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .clear { display:inline-flex; align-items:center; gap:6px; background:#fff!important; color:#62646e!important; border:1px solid #e6e7ec!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .filters { gap:10px; padding:20px 24px; border-top:0; flex-wrap:wrap; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .search { border-radius:8px!important; height:42px!important; min-width:200px; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .search input { height:40px!important; min-height:40px!important; border:0!important; background:transparent!important; border-radius:0!important; box-shadow:none!important; padding:8px 0!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .filters>select { height:42px!important; min-height:42px!important; border-radius:8px!important; font-size:13px!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .status-new { background:#eeedf8!important; color:#65608e!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .kpi-grid strong.coral { color:#202127!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .order-row { min-width:0; grid-template-columns:1.25fr 1fr 1.3fr 1fr 1.1fr .9fr; overflow-wrap:anywhere; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .compact-order { cursor:pointer; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .drawer { background:#fff!important; border-radius:0!important; overflow-y:auto; width:min(560px,100vw); padding:28px!important; backdrop-filter:none!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .drawer-backdrop { z-index:450!important; }
+.workspace-frame.workspace-frame.workspace-frame .marketplace-page .drawer .close { display:grid; place-items:center; width:40px; height:40px; border:1px solid #e6e7ec!important; border-radius:8px!important; background:#fff!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.operation-error,.state-error) { margin:0 32px 20px; padding:16px; border:1px solid #ead4d4; border-radius:8px; color:#a94646; background:#fff; font-size:13px; overflow-wrap:anywhere; }
+.workspace-frame.workspace-frame.workspace-frame :is(.system-body,.mp-body,.hd-body) .operation-error { margin:0 0 16px; }
+@media(max-width:1100px) { .workspace-frame.workspace-frame.workspace-frame .marketplace-page .integration-grid { grid-template-columns:minmax(0,1fr); } }
+.workspace-frame.workspace-frame.workspace-frame .command-settings { grid-template-columns:minmax(0,1fr); }
+.workspace-frame.workspace-frame.workspace-frame .command-settings>*,
+.workspace-frame.workspace-frame.workspace-frame .command-kpis>article { min-width:0; }
+.workspace-frame.workspace-frame.workspace-frame .command-kpis { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.workspace-frame.workspace-frame.workspace-frame :is(.command-kpis>article,.commands-panel,.activity-panel) { border-radius:12px; }
+.workspace-frame.workspace-frame.workspace-frame :is(.commands-head,.activity-head) .kicker { display:none; }
+.workspace-frame.workspace-frame.workspace-frame :is(.commands-head,.activity-head) h2 { font-size:18px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.commands-head,.activity-head)>div>span { font-size:12px!important; line-height:1.6; }
+.workspace-frame.workspace-frame.workspace-frame .commands-head .head-actions button { min-height:40px!important; border-radius:8px!important; box-shadow:none!important; font-size:12px!important; }
+.workspace-frame.workspace-frame.workspace-frame .commands-head .head-actions>label { border-radius:8px; height:40px; }
+.workspace-frame .command-settings #bot-command-query { border:0!important; border-radius:0!important; padding:0!important; height:38px!important; min-height:38px!important; background:transparent!important; box-shadow:none!important; font-size:13px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header) { height:auto!important; padding:28px 32px!important; min-height:112px!important; text-align:left!important; background:transparent!important; border:0!important; box-shadow:none!important; border-radius:0!important; gap:16px; }
+.workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header)>div:first-child>p { display:none; }
+.workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header) h1 { margin:0 0 8px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header)>div:first-child>span { font-size:13px!important; line-height:1.6; color:#73757f!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header) button { min-height:40px!important; border-radius:8px!important; font-size:13px!important; box-shadow:none!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page) .page-head button:not(.light) { background:#202127!important; color:#fff!important; border-color:#202127!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page)>.toolbar { margin:0 32px 20px!important; height:auto!important; min-height:64px; padding:12px 16px!important; display:flex!important; flex-wrap:wrap; gap:12px; border:1px solid #e6e7ec!important; border-radius:12px!important; background:#fff!important; box-shadow:none!important; backdrop-filter:none!important; overflow:visible!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page)>.toolbar>label { flex:1 1 240px; min-width:0; width:auto; height:40px; box-sizing:border-box; border-radius:8px; }
+.workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page)>.toolbar>select { min-width:0; max-width:100%; height:40px!important; border-radius:8px!important; font-size:13px!important; }
+.workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page)>.toolbar>nav { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+.workspace-frame :is(#pipeline-query,#task-query) { border:0!important; border-radius:0!important; padding:0!important; height:38px!important; min-height:38px!important; background:transparent!important; box-shadow:none!important; font-size:13px!important; min-width:0; width:100%; }
+@media(max-width:800px) {
+  .workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header) { padding:24px 16px!important; min-height:96px!important; align-items:flex-start!important; flex-direction:column!important; }
+  .workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page)>.toolbar { margin:0 16px 20px!important; }
+  .workspace-frame.workspace-frame.workspace-frame :is(.pipeline-page,.tasks-page)>.toolbar>:is(label,select) { flex-basis:100%; width:100%!important; }
+  .workspace-frame.workspace-frame.workspace-frame .command-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .workspace-frame.workspace-frame.workspace-frame .commands-head .head-actions { display:flex; flex-wrap:wrap; width:100%; min-width:0; gap:8px; }
+  .workspace-frame.workspace-frame.workspace-frame .commands-head .head-actions>label { flex:1 0 100%; width:100%; min-width:0; box-sizing:border-box; }
+  .workspace-frame.workspace-frame.workspace-frame .commands-head .head-actions>label input { width:100%; min-width:0; box-sizing:border-box; }
+  .workspace-frame.workspace-frame.workspace-frame :is(.page-head,.page-header,.mp-header,.hd-header,.leader-header,.system-header,.crm-header)>div:last-child { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
+  .workspace-frame.workspace-frame.workspace-frame :is(.mp-header,.hd-header,.leader-header,.system-header,.crm-header,.customer-header,.organization-header,.tasks-header,.pipeline-header) { padding:24px 16px!important; min-height:96px!important; align-items:flex-start!important; flex-direction:column!important; }
+  .workspace-frame.workspace-frame.workspace-frame :is(.mp-body,.hd-body,.leader-body,.system-body,.crm-body,.customer-body,.organization-body,.tasks-body,.pipeline-body) { padding:0 16px 32px!important; }
+  .workspace-frame.workspace-frame.workspace-frame .marketplace-page .order-row.clickable { display:grid; grid-template-columns:minmax(0,1fr) auto; padding:18px 16px; gap:12px; }
+  .workspace-frame.workspace-frame.workspace-frame .marketplace-page .order-row.table-head { display:none; }
+  .workspace-frame.workspace-frame.workspace-frame .marketplace-page .order-row.clickable>div { grid-column:1/-1; }
+  .workspace-frame.workspace-frame.workspace-frame .marketplace-page .filters { padding:16px; }
+  .workspace-frame.workspace-frame.workspace-frame .marketplace-page .search { width:100%; flex-basis:100%; min-width:0; }
+  .workspace-frame.workspace-frame.workspace-frame :is(.operation-error,.state-error) { margin:0 16px 16px; }
+}
+@media(prefers-reduced-motion:reduce) { .workspace-frame .spin { animation:none!important; } }

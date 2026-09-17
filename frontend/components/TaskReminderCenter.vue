@@ -31,17 +31,15 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll); });
 </script>
 
 <template>
-  <aside v-if="allowed && reminders.length" class="reminder-center" :class="{ collapsed }">
-    <header><span><AlarmClock :size="16"/><b>Напоминания</b><em>{{reminders.length}}</em></span><button :title="collapsed?'Развернуть':'Свернуть'" @click="collapsed=!collapsed"><X v-if="!collapsed" :size="15"/><AlarmClock v-else :size="15"/></button></header>
-    <div v-if="!collapsed">
-      <article v-for="reminder in reminders" :key="reminder.id">
-        <button class="open" @click="openTask(reminder)"><span><b>{{reminder.task.title}}</b><small>Срок: {{due(reminder.task.dueDate)}}</small></span><ChevronRight :size="15"/></button>
-        <button class="done" title="Скрыть напоминание" @click="dismiss(reminder.id)"><Check :size="14"/></button>
+  <aside data-v-ui-639b14d2d5e5 v-if="allowed && reminders.length" class="reminder-center" :class="{ collapsed }">
+    <header data-v-ui-639b14d2d5e5><span data-v-ui-639b14d2d5e5><AlarmClock data-v-ui-639b14d2d5e5 :size="16"/><b data-v-ui-639b14d2d5e5>Напоминания</b><em data-v-ui-639b14d2d5e5>{{reminders.length}}</em></span><button data-v-ui-639b14d2d5e5 :title="collapsed?'Развернуть':'Свернуть'" @click="collapsed=!collapsed"><X data-v-ui-639b14d2d5e5 v-if="!collapsed" :size="15"/><AlarmClock data-v-ui-639b14d2d5e5 v-else :size="15"/></button></header>
+    <div data-v-ui-639b14d2d5e5 v-if="!collapsed">
+      <article data-v-ui-639b14d2d5e5 v-for="reminder in reminders" :key="reminder.id">
+        <button data-v-ui-639b14d2d5e5 class="open" @click="openTask(reminder)"><span data-v-ui-639b14d2d5e5><b data-v-ui-639b14d2d5e5>{{reminder.task.title}}</b><small data-v-ui-639b14d2d5e5>Срок: {{due(reminder.task.dueDate)}}</small></span><ChevronRight data-v-ui-639b14d2d5e5 :size="15"/></button>
+        <button data-v-ui-639b14d2d5e5 class="done" title="Скрыть напоминание" @click="dismiss(reminder.id)"><Check data-v-ui-639b14d2d5e5 :size="14"/></button>
       </article>
     </div>
   </aside>
 </template>
 
-<style scoped>
-.reminder-center{position:fixed;z-index:650;right:18px;top:18px;width:330px;background:#fff;border:1px solid var(--sb-line);box-shadow:0 16px 45px #0002;font-family:var(--sb-font);color:var(--sb-ink)}.reminder-center>header{height:46px;padding:0 10px 0 14px;background:#1d1e22;color:#fff;display:flex;align-items:center;justify-content:space-between}.reminder-center header span{display:flex;align-items:center;gap:8px}.reminder-center header b{font-size:10px}.reminder-center header em{min-width:18px;height:18px;border-radius:10px;background:var(--sb-coral);display:grid;place-items:center;font-size:8px;font-style:normal}.reminder-center header button{border:0;background:none;color:#fff;width:30px;height:30px}.reminder-center article{min-height:58px;display:grid;grid-template-columns:1fr 36px;border-top:1px solid #eee}.reminder-center .open{border:0;background:#fff;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;text-align:left}.reminder-center .open span{display:grid;gap:5px}.reminder-center .open b{font-size:9px}.reminder-center .open small{font-size:7px;color:#888}.reminder-center .done{border:0;background:#fff;color:#888}.reminder-center button:hover{background:#f3f4f5}.reminder-center.collapsed{width:170px}.reminder-center.collapsed>header{border:0}@media(max-width:700px){.reminder-center{right:8px;top:8px;width:min(330px,calc(100vw - 88px))}}
-</style>
+

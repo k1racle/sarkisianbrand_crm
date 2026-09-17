@@ -1,7 +1,8 @@
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CatalogQueryDto {
+  @IsOptional() @IsString() @MaxLength(647) @Matches(/^[A-Za-z0-9-]{1,80}(?:,[A-Za-z0-9-]{1,80}){0,7}$/) ids?: string;
   @IsOptional() @IsString() @MaxLength(200) search?: string;
   @IsOptional() @IsString() @MaxLength(500) category?: string;
   @IsOptional() @IsString() @MaxLength(500) purpose?: string;

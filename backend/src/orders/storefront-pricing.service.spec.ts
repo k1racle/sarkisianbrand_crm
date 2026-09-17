@@ -44,11 +44,17 @@ describe('StorefrontPricingService (mock database only)', () => {
     service = new StorefrontPricingService(db);
   });
 
+  it('applies the active sale before promo/bonus calculations without mutating accounting prices',async()=>{
+    cart.items[0].variant.salePrice='500.25';
+    const result=await service.quote(session,{...dto(),promoCode:'TEST'});
+    expect(result.subtotalMinor).toBe(100050);expect(result.promoDiscountMinor).toBe(10005);expect(result.cart.items[0].variant.price).toBe('500.25');expect(cart.items[0].variant.price).toBe('780.25');
+  });
   it('calculates server prices in minor units and never calls a provider', async () => {
     const result = await service.quote(session, dto());
     expect(result.subtotalMinor).toBe(156050);
     expect(result.finalMinor).toBe(156050);
-    expect(result.cart).toBe(cart);
+    expect(result.cart).not.toBe(cart);
+    expect(result.cart.items[0].variant.regularPrice).toBe(cart.items[0].variant.price);
     expect(result.publicQuote).toMatchObject({ subtotal: 1560.5, shippingAmount: null, total: 1560.5, canPay: false, currency: 'RUB' });
     expect(result.publicQuote.messages[0]).toContain('не бесплатная доставка');
     expect(db.shippingQuote.findUnique).not.toHaveBeenCalled();

@@ -1,0 +1,42 @@
+/* Compact sortable rows. Form fields live only in the banner editor. */
+@layer workspace-banner-layout {
+  .workspace-frame .banner-admin-card {
+    display:grid!important; grid-template-columns:40px 160px minmax(0,1fr) auto!important;
+    gap:16px!important; padding:16px!important; align-items:center!important;
+    background:#fff!important; border:1px solid #e6e7ec!important; border-radius:10px!important;
+  }
+  .workspace-frame .banner-admin-card>.appearance-order-tools { grid-column:1!important; grid-row:1!important; padding:0!important; }
+  .workspace-frame .banner-admin-card>.banner-admin-preview { grid-column:2!important; grid-row:1!important; width:160px!important; height:88px!important; min-height:0!important; border-radius:8px!important; }
+  .workspace-frame .banner-admin-card>.banner-admin-summary { grid-column:3!important; grid-row:1!important; min-width:0; display:grid; gap:6px; }
+  .workspace-frame .banner-admin-summary strong,.workspace-frame .banner-admin-summary small { overflow-wrap:anywhere; }
+  .workspace-frame .banner-admin-summary .studio-status { justify-self:start; }
+  .workspace-frame .banner-admin-card>.banner-admin-actions { grid-column:4!important; grid-row:1!important; display:flex!important; flex-direction:row!important; gap:8px!important; flex-wrap:nowrap!important; }
+  .workspace-frame .banner-admin-actions button { min-width:0!important; }
+  .workspace-frame .banner-admin-actions button.danger { width:40px!important; height:40px!important; padding:0!important; }
+  .workspace-frame .banner-admin-card .appearance-order-tools>button { width:40px!important; height:40px!important; padding:0!important; }
+  @media(max-width:900px) {
+    .workspace-frame .banner-admin-card { grid-template-columns:40px 104px minmax(0,1fr)!important; gap:12px!important; }
+    .workspace-frame .banner-admin-card>.appearance-order-tools { grid-row:1/span 2!important; }
+    .workspace-frame .banner-admin-card>.banner-admin-preview { width:104px!important; height:64px!important; grid-row:1/span 2!important; }
+    .workspace-frame .banner-admin-card>.banner-admin-actions { grid-column:3!important; grid-row:2!important; }
+  }
+  @media(max-width:720px) {
+    .workspace-frame .banner-admin-card { grid-template-columns:40px 72px minmax(0,1fr)!important; padding:12px!important; gap:10px!important; }
+    .workspace-frame .banner-admin-card>.banner-admin-preview { width:72px!important; height:48px!important; }
+    .workspace-frame .banner-admin-actions button { width:40px!important; max-width:40px!important; height:40px!important; padding:0!important; flex:0 0 40px!important; }
+    .workspace-frame .banner-admin-actions button>span { display:none; }
+  }
+  @media(max-width:480px) {
+    .workspace-frame .banner-admin-card>.banner-admin-preview { grid-row:1!important; }
+    .workspace-frame .banner-admin-card>.banner-admin-actions { grid-row:1!important; }
+    .workspace-frame .banner-admin-card>.banner-admin-summary { grid-column:2/span 2!important; grid-row:2!important; }
+  }
+}
+.banner-editor-backdrop { position:fixed; inset:0; z-index:1350; display:flex; justify-content:flex-end; }
+.banner-editor-drawer { width:min(680px,100%); }
+.admin-dialog .banner-admin-fields { border:0; padding:0; margin:0; display:grid; gap:16px; min-width:0; }
+.admin-dialog .banner-editor-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.admin-dialog .banner-active { display:flex!important; align-items:center; justify-content:flex-start; gap:10px; }
+.admin-dialog .banner-editor-preview { overflow:hidden; border:1px solid #e6e7ec; border-radius:8px; background:#f2f2f5; }
+.admin-dialog .banner-editor-preview img { display:block; width:100%; max-height:200px; object-fit:contain; }
+@media(max-width:720px) { .admin-dialog .banner-editor-grid { grid-template-columns:minmax(0,1fr); } }

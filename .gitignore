@@ -39,6 +39,9 @@ prisma/migrations/
 prisma/schema.prisma.bak
 
 # Temporary files
+frontend/test-results/
+frontend/playwright-report/
+frontend/.screenshots/
 *.tmp
 *.temp
 ```

@@ -1,0 +1,93 @@
+/* Internal shell only. Layered important rules supersede legacy page-specific layouts. */
+@layer workspace-layout {
+  .workspace-frame {
+    --workspace-gutter: 24px;
+    padding-left: 250px !important;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .workspace-frame > :is(main, .site-admin-console, .simple-console, .simple-panel, .wn-hub) {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-inline: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .workspace-frame :is(.site-admin-content, .admin-body, .page-body, .pipeline-body, .tasks-body, .mp-body, .leader-body, .hd-body, .system-body, .hub-body, .crm-body, .customer-body, .organization-body),
+  .workspace-frame > main > .body {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-inline: 0 !important;
+    padding: 0 var(--workspace-gutter) 40px !important;
+    box-sizing: border-box !important;
+  }
+  .workspace-frame :is(.site-admin-header, .page-head, .page-header, .pipeline-header, .tasks-header, .mp-header, .leader-header, .hd-header, .system-header, .crm-header, .customer-header, .organization-header),
+  .workspace-frame .wn-hub > header {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 24px var(--workspace-gutter) !important;
+    box-sizing: border-box !important;
+  }
+  .workspace-frame .wn-toolbar { padding-inline: var(--workspace-gutter) !important; }
+  .workspace-frame > .crm-main > :is(.kpis, .dashboard-grid, .error-state) {
+    margin-inline: var(--workspace-gutter) !important;
+    max-width: none !important;
+  }
+  .studio-rail .studio-rail-toggle,
+  .studio-rail .studio-area-reveal,
+  .studio-rail .studio-favorites-reveal {
+    display: grid;
+    place-items: center;
+    flex: 0 0 40px;
+    width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border: 1px solid #e6e7ec !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #595b65 !important;
+    cursor: pointer;
+    box-shadow: none !important;
+  }
+  .studio-rail :is(.studio-rail-toggle, .studio-area-reveal, .studio-favorites-reveal):hover { background: #f6f6f8 !important; color: #202127 !important; }
+  .studio-rail :is(.studio-area-reveal, .studio-favorites-reveal) { display: none; }
+
+  @media (min-width: 801px) {
+    .studio-rail .wn-rail-head { justify-content: space-between; gap: 8px; }
+    .studio-rail .console-rail-brand { flex: 1; min-width: 0; padding: 8px 2px !important; }
+    .studio-rail .console-rail-brand img { width: 150px !important; max-width: 100% !important; }
+    .workspace-frame--collapsed { padding-left: 76px !important; }
+    .console-rail.studio-rail--collapsed { width: 76px !important; padding: 22px 12px 14px !important; gap: 16px !important; }
+    .studio-rail--collapsed .wn-rail-head { justify-content: center; padding-bottom: 8px; }
+    .studio-rail--collapsed :is(.console-rail-brand, .studio-area-switch, .wn-group-items, .wn-nav-empty),
+    .studio-rail--collapsed nav > a > span,
+    .studio-rail--collapsed .wn-group-toggle > span,
+    .studio-rail--collapsed .wn-group-toggle > svg:last-child,
+    .studio-rail--collapsed .rail-user > span,
+    .studio-rail--collapsed .wn-favorites-group > :is(h2, a) { display: none !important; }
+    .studio-rail--collapsed :is(.studio-area-reveal, .studio-favorites-reveal) { display: grid; margin-inline: auto; }
+    .studio-rail--collapsed nav > a,
+    .studio-rail--collapsed .wn-group-toggle,
+    .studio-rail--collapsed .rail-user {
+      justify-content: center !important;
+      padding: 10px 0 !important;
+      min-height: 44px !important;
+      width: 100% !important;
+      gap: 0 !important;
+      box-sizing: border-box !important;
+    }
+    .studio-rail--collapsed .wn-group-toggle--active { background: #eeedf7 !important; color: #585285 !important; }
+    .studio-rail--collapsed .wn-nav-group { margin: 8px 0 !important; }
+    .studio-rail--collapsed .rail-user i { flex-shrink: 0; }
+  }
+  @media (max-width: 800px) {
+    .workspace-frame { --workspace-gutter: 16px; padding-left: 0 !important; padding-top: 56px !important; }
+    .studio-rail .studio-rail-toggle { display: none !important; }
+  }
+  @media (max-width: 360px) {
+    .wn-rail-dock :is(a, button) { flex: 1 !important; justify-content: center !important; min-width: 0 !important; }
+    .wn-rail-dock :is(a, button) > span { display: none !important; }
+  }
+}

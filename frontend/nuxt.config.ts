@@ -1,7 +1,7 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
   experimental: { appManifest: false },
-  css: ['~/assets/css/main.css', '~/assets/css/design-system.css', '~/assets/css/storefront.css', '~/assets/css/storefront-glass.css', '~/assets/css/ecosystem-glass.css', '~/assets/css/typography.css', '~/assets/css/storefront-menu-admin.css', '~/assets/css/storefront-pages.css', '~/assets/css/storefront-system.css', '~/assets/css/storefront-checkout.css', '~/assets/css/storefront-filters.css', '~/assets/css/storefront-account.css', '~/assets/css/storefront-promotions-admin.css', '~/assets/css/storefront-gift-cards-admin.css', '~/assets/css/storefront-gift-products.css', '~/assets/css/storefront-catalog-menu-admin.css', '~/assets/css/admin-design-system.css', '~/assets/css/admin-media-library.css'],
+  css: ['~/assets/css/foundation.css', '~/assets/css/site.css', '~/assets/css/admin.css'],
   components: [{ path: '~/components', pathPrefix: false }],
   routeRules: { '/admin': { redirect: '/admin-workspace' }, '/marketplaces': { redirect: '/crm-marketplaces' }, '/media-library': { headers: { 'X-Robots-Tag': 'noindex,nofollow' } } },
   runtimeConfig: {

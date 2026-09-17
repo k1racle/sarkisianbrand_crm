@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { BackgroundJobsService, JobProgress } from '../background-jobs/background-jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -41,14 +41,14 @@ export class MarketplacesService implements OnModuleInit {
   integrations() { return this.prisma.marketplaceIntegration.findMany({ orderBy: { channel: 'asc' }, select: { id: true, channel: true, shopName: true, isActive: true, lastSyncAt: true, createdAt: true, updatedAt: true } }); }
 
   async saveIntegration(dto: SaveMarketplaceIntegrationDto) {
-    return this.prisma.marketplaceIntegration.upsert({ where: { channel: dto.channel }, update: { shopName: dto.shopName, isActive: dto.isActive, credentials: dto.credentials as Prisma.InputJsonValue }, create: { channel: dto.channel, shopName: dto.shopName, isActive: dto.isActive ?? false, credentials: dto.credentials as Prisma.InputJsonValue }, select: { id: true, channel: true, shopName: true, isActive: true, lastSyncAt: true } });
+    if(dto.credentials&&Object.keys(dto.credentials).length)throw new BadRequestException('Секреты площадки настраиваются только в центре интеграций');
+    // Do not rewrite or expose historical credentials. Migrate them separately.
+    return this.prisma.marketplaceIntegration.upsert({ where: { channel: dto.channel }, update: { shopName: dto.shopName, isActive: dto.isActive }, create: { channel: dto.channel, shopName: dto.shopName, isActive: dto.isActive ?? false }, select: { id: true, channel: true, shopName: true, isActive: true, lastSyncAt: true } });
   }
 
   async testIntegration(channel: string) {
     const integration = await this.prisma.marketplaceIntegration.findUnique({ where: { channel: channel as any } });
     if (!integration) throw new NotFoundException('Интеграция ещё не настроена');
-    await this.prisma.marketplaceIntegration.update({ where: { id: integration.id }, data: { lastSyncAt: new Date() } });
-    await this.prisma.syncLog.create({ data: { system: integration.channel, action: 'CONNECTION_TEST', status: 'SUCCESS', message: 'Тестовый адаптер подключён; ожидаются реальные ключи API', details: { channel: integration.channel } } });
-    return { success: true, channel: integration.channel, message: 'Соединение проверено адаптером разработки' };
+    return { success: false, developmentAdapter: true, message: 'Проверка настоящего подключения пока недоступна' };
   }
 }

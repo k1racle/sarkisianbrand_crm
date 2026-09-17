@@ -1,0 +1,1 @@
+function s(r,n){if(typeof r!="string"||!/^\/(?!\/)/.test(r)||/[\\\u0000-\u001f\u007f]/.test(r))return n;try{const t=new URL(r,"https://sarkisian-workspace.invalid");return t.origin!=="https://sarkisian-workspace.invalid"||/%(?:2f|5c)/i.test(t.pathname)?n:t.pathname+t.search+t.hash}catch{return n}}export{s};

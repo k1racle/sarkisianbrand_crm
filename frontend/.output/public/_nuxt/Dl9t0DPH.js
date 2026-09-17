@@ -1,0 +1,1 @@
+import{bA as a,n as t}from"./IsiwBYLb.js";const c=a(e=>{if(typeof e.query.search=="string"&&e.query.search.trim().toLowerCase()==="нов"){const{search:s,page:o,...r}=e.query;return t({path:"/catalog",query:{...r,sort:"new"}},{replace:!0})}});export{c as default};

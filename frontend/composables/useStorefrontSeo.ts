@@ -43,8 +43,20 @@ export interface StorefrontSeoOptions {
   title?: MaybeRefOrGetter<string | undefined>;
   description?: MaybeRefOrGetter<string | undefined>;
   image?: MaybeRefOrGetter<string | undefined>;
+  canonical?: MaybeRefOrGetter<string | undefined>;
   reviewRequired?: MaybeRefOrGetter<boolean>;
   noindex?: MaybeRefOrGetter<boolean>;
+}
+
+/** Editorial canonical must stay on this storefront's configured origin. */
+export function storefrontEditorialCanonical(origin: string, value: unknown, fallback: string): string {
+  if (typeof value !== 'string' || !value || value.startsWith('//') || /[\\\s\u0000-\u001f\u007f]/.test(value) || (!value.startsWith('/') && !/^https?:\/\//i.test(value))) return fallback;
+  try {
+    const url = new URL(value, origin);
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== storefrontSiteOrigin(origin) || url.username || url.password) return fallback;
+    url.hash = '';
+    return url.toString();
+  } catch { return fallback; }
 }
 
 /** Call once in each public page, replacing its old meta hook. */
@@ -55,7 +67,7 @@ export function useStorefrontSeo(options: StorefrontSeoOptions = {}) {
   const indexing = String((config.public as any).seoIndexingEnabled || 'false') === 'true';
   if (indexing && !(config.public as any).siteUrl) throw new Error('Для индексации необходимо задать публичный домен сайта');
   const origin = storefrontSiteOrigin(String((config.public as any).siteUrl || 'http://localhost:3001'));
-  const canonical = computed(() => storefrontCanonicalUrl(origin, route.path, route.query));
+  const canonical = computed(() => storefrontEditorialCanonical(origin, toValue(options.canonical), storefrontCanonicalUrl(origin, route.path, route.query)));
   const robots = computed(() => toValue(options.noindex) ? 'noindex, follow' : storefrontRobotsPolicy(route.path, route.query, Boolean(toValue(options.reviewRequired)), indexing));
   const image = computed(() => {
     const value = toValue(options.image);

@@ -77,7 +77,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.stopping = false;
     // Default safe mode must not even poll / claim existing customer messages.
-    if (!this.smtp.deliveryEnabled()) return;
+    if (!this.smtp.deliveryEnabled() || process.env.ECOSYSTEM_AUTOMATION_ENABLED === 'false') return;
     this.timer = setInterval(() => { void this.processQueue().catch(() => {
       this.logger.warn('Очередь писем временно недоступна.');
     }); }, 10_000);

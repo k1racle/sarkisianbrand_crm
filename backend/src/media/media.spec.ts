@@ -190,7 +190,14 @@ describe('media controller roles, DENY-compatible permissions and headers', () =
     await controller.upload(input, req); await controller.importExisting(req); await files.file({ filename: FILENAME }, response);
     expect(service.upload).toHaveBeenCalledWith(input, 'trusted-actor'); expect(service.importExisting).toHaveBeenCalledWith('trusted-actor');
     expect(response.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff'); expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
+    expect(response.setHeader).toHaveBeenCalledWith('Cross-Origin-Resource-Policy', 'cross-origin');
     expect(response.send).toHaveBeenCalledWith(png());
+  });
+  it('never relaxes resource policy or sends bytes for an unknown image', async () => {
+    const service = { file: jest.fn().mockRejectedValue(new Error('not found')) };
+    const response: any = { setHeader: jest.fn(), send: jest.fn() };
+    await expect(new MediaFilesController(service as any).file({ filename: FILENAME }, response)).rejects.toThrow('not found');
+    expect(response.setHeader).not.toHaveBeenCalled(); expect(response.send).not.toHaveBeenCalled();
   });
   it('validates search/pagination and rejects numeric q despite implicit conversion', async () => {
     const good = plainToInstance(ListMediaDto, { q: ' image ', page: '2', limit: '20' }, { enableImplicitConversion: true }); expect(await validate(good)).toHaveLength(0);

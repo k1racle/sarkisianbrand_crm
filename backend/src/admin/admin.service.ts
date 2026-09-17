@@ -1,12 +1,16 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateAdminProductDto, CreateStorefrontBannerDto, CreateStorefrontSocialLinkDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto, UpdateStorefrontSocialLinkDto } from './dto/admin.dto';
+import { resolveProductBadges } from '../common/product-merchandising';
+import { BulkProductsDto } from './dto/admin.dto';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
 import { CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
 import { applyStorefrontTransition } from '../common/storefront-order-transition';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MediaService } from '../media/media.service';
+import { AdminListQueryDto, ReorderStorefrontDto } from './dto/admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -15,14 +19,15 @@ export class AdminService {
     @Optional() private readonly media?: MediaService) {}
 
   async dashboard() {
-    const [orders, paidOrders, customers, products, lowStock] = await this.prisma.$transaction([
+    const [orders, paidOrders, customers, products, lowStock, newOrders] = await this.prisma.$transaction([
       this.prisma.order.count({ where: { source: 'WEB' } }),
       this.prisma.order.count({ where: { source: 'WEB', paymentStatus: { in: ['PAID', 'SUCCEEDED'] } } }),
       this.prisma.customer.count(),
       this.prisma.product.count({ where: { isActive: true } }),
       this.prisma.productVariant.count({ where: { isActive: true, stock: { lte: 5 } } }),
+      this.prisma.order.count({ where: { source: 'WEB', status: 'NEW' } }),
     ]);
-    return { orders, paidOrders, customers, products, lowStock };
+    return { orders, paidOrders, customers, products, lowStock, newOrders };
   }
 
   storefrontPages() { return this.prisma.storefrontPage.findMany({ orderBy: { createdAt: 'asc' } }); }
@@ -60,6 +65,34 @@ export class AdminService {
     return this.prisma.product.findMany({ where: { id: { notIn: trashed.map((item) => item.entityId) } }, include: { images: true, variants: true, categories: { include: { category: true } }, seo: true }, orderBy: { updatedAt: 'desc' }, take: 100 });
   }
 
+  async productList(query: AdminListQueryDto) {
+    const trashed = await this.prisma.dataTrashEntry.findMany({ where: { entityType: 'PRODUCT', status: 'TRASHED' }, select: { entityId: true } });
+    const q = query.q?.trim();
+    const where: Prisma.ProductWhereInput = { id: { notIn: trashed.map(item => item.entityId) }, ...(q ? { OR: [{ nameRu: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } }] } : {}) };
+    if(query.categoryId)where.categories={some:{categoryId:query.categoryId}};
+    if(query.visibility)where.isActive=query.visibility==='active';
+    if(query.availability){
+      const available:Prisma.ProductWhereInput={OR:[{productType:'GIFT_CARD',variants:{some:{isActive:true}}},{productType:{not:'GIFT_CARD'},variants:{some:{isActive:true,stock:{gt:this.prisma.productVariant.fields.reserved}}}}]};
+      where.AND=[query.availability==='stocked'?available:{NOT:available}];
+    }
+    const ordering:Prisma.ProductOrderByWithRelationInput[]=query.sort==='name'?[{nameRu:'asc'},{id:'asc'}]:query.sort==='sku'?[{sku:'asc'},{id:'asc'}]:[{updatedAt:'desc'},{id:'asc'}];
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.product.count({ where }),
+      this.prisma.product.findMany({ where, include: { images: true, variants: true, categories: { include: { category: true } }, seo: true }, orderBy: ordering, skip: (query.page - 1) * query.limit, take: query.limit }),
+    ]);
+    return { items, total, page: query.page, limit: query.limit };
+  }
+
+  async orderList(query: AdminListQueryDto) {
+    const q = query.q?.trim();
+    const where: Prisma.OrderWhereInput = { source: 'WEB', ...(query.status ? { status: query.status } : {}), ...(q ? { OR: [{ orderNumber: { contains: q, mode: 'insensitive' } }, { user: { email: { contains: q, mode: 'insensitive' } } }, { customer: { email: { contains: q, mode: 'insensitive' } } }] } : {}) };
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({ where, include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, customer: true, organization: true, items: true, marketplaceStaging: true, history: { orderBy: { createdAt: 'desc' } } }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (query.page - 1) * query.limit, take: query.limit }),
+    ]);
+    return { items, total, page: query.page, limit: query.limit };
+  }
+
   categories() {
     return this.prisma.category.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { nameRu: 'asc' }] });
   }
@@ -91,6 +124,21 @@ export class AdminService {
 
   createStorefrontBanner(dto: CreateStorefrontBannerDto) {
     return this.prisma.storefrontBanner.create({ data: this.bannerData(dto) });
+  }
+
+  async reorderStorefront(dto: ReorderStorefrontDto) {
+    return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('storefront-reorder'))`;
+      const existing = dto.collection === 'banners' ? await tx.storefrontBanner.findMany({ select: { id: true } }) : dto.collection === 'menu' ? await tx.storefrontMenuItem.findMany({ select: { id: true } }) : await tx.storefrontSocialLink.findMany({ select: { id: true } });
+      const ids = new Set(existing.map(item => item.id));
+      if (dto.ids.length !== ids.size || new Set(dto.ids).size !== dto.ids.length || dto.ids.some(id => !ids.has(id))) throw new ConflictException('Список изменён другим сотрудником. Обновите его перед изменением порядка');
+      for (const [sortOrder, id] of dto.ids.entries()) {
+        if (dto.collection === 'banners') await tx.storefrontBanner.update({ where: { id }, data: { sortOrder } });
+        else if (dto.collection === 'menu') await tx.storefrontMenuItem.update({ where: { id }, data: { sortOrder } });
+        else await tx.storefrontSocialLink.update({ where: { id }, data: { sortOrder } });
+      }
+      return { collection: dto.collection, ids: dto.ids };
+    });
   }
 
   async updateStorefrontBanner(id: string, dto: UpdateStorefrontBannerDto) {
@@ -146,6 +194,7 @@ export class AdminService {
   }
 
   private bannerData(dto: CreateStorefrontBannerDto | UpdateStorefrontBannerDto) {
+    if (dto.startsAt && dto.endsAt && new Date(dto.startsAt) > new Date(dto.endsAt)) throw new BadRequestException('Дата окончания баннера должна быть позже даты начала');
     return {
       title: dto.title || null,
       subtitle: dto.subtitle || null,
@@ -161,10 +210,12 @@ export class AdminService {
   }
 
   async createProduct(dto: CreateAdminProductDto) {
+    const sale=this.saleData(dto,{price:dto.price});
     const slug = dto.slug || dto.nameRu.toLowerCase().trim().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '') || dto.sku.toLowerCase();
     return this.prisma.$transaction(async (tx) => {
-      const product = await tx.product.create({ data: { sku: dto.sku, nameRu: dto.nameRu, descriptionRu: dto.descriptionRu, purposes: dto.purposes, features: dto.features, slug, basePrice: dto.price, isActive: true } });
-      await tx.productVariant.create({ data: { productId: product.id, name: 'Основной вариант', options: {}, price: dto.price, stock: dto.stock, sku: dto.sku } });
+      await this.validateBadgeIds(dto.badgeIds,tx);
+      const product = await tx.product.create({ data: { sku: dto.sku, nameRu: dto.nameRu, descriptionRu: dto.descriptionRu, purposes: dto.purposes, features: dto.features, badgeIds:dto.badgeIds, slug, basePrice: dto.price, isActive: true } });
+      await tx.productVariant.create({ data: { productId: product.id, name: 'Основной вариант', options: {}, price: dto.price, stock: dto.stock, sku: dto.sku, ...sale } });
       if (dto.images?.length) await tx.productImage.createMany({ data: dto.images.map((image, index) => ({ productId: product.id, url: image.url, alt: image.alt, sortOrder: index })) });
       if (dto.categoryIds?.length) await tx.productCategory.createMany({ data: dto.categoryIds.map((categoryId, index) => ({ productId: product.id, categoryId, isPrimary: index === 0 })) });
       if (dto.metaTitle || dto.metaDesc || dto.canonical) await tx.seoData.create({ data: { entityType: 'PRODUCT', entityId: product.id, productId: product.id, metaTitle: dto.metaTitle, metaDesc: dto.metaDesc, canonical: dto.canonical } });
@@ -175,11 +226,13 @@ export class AdminService {
   async updateProduct(id: string, dto: UpdateProductDto) {
     const product = await this.prisma.product.findUnique({ where: { id }, include: { variants: { take: 1 } } });
     if (!product) throw new NotFoundException('Товар не найден');
-    if (product.productType === 'GIFT_CARD' && (dto.price !== undefined || dto.stock !== undefined)) throw new BadRequestException('Номиналы подарочной карты изменяются в разделе «Подарочные карты»');
+    if (product.productType === 'GIFT_CARD' && (dto.price !== undefined || dto.stock !== undefined || dto.salePrice !== undefined || dto.saleStartsAt !== undefined || dto.saleEndsAt !== undefined)) throw new BadRequestException('Номиналы подарочной карты изменяются в разделе «Подарочные карты»; скидка на номинал недоступна');
+    const sale=product.productType==='GIFT_CARD'?{}:this.saleData(dto,product.variants[0]||{price:product.basePrice});
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({ where: { id }, data: { ...(dto.price !== undefined ? { basePrice: dto.price } : {}), ...(dto.purposes !== undefined ? { purposes: dto.purposes } : {}), ...(dto.features !== undefined ? { features: dto.features } : {}), ...(dto.nameRu !== undefined ? { nameRu: dto.nameRu } : {}), ...(dto.descriptionRu !== undefined ? { descriptionRu: dto.descriptionRu } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } });
-      if (product.variants[0] && (dto.price !== undefined || dto.stock !== undefined)) {
-        await tx.productVariant.update({ where: { id: product.variants[0].id }, data: { ...(dto.price !== undefined ? { price: dto.price } : {}), ...(dto.stock !== undefined ? { stock: dto.stock } : {}) } });
+      await this.validateBadgeIds(dto.badgeIds,tx);
+      const updated = await tx.product.update({ where: { id }, data: { ...(dto.badgeIds !== undefined ? {badgeIds:dto.badgeIds} : {}), ...(dto.price !== undefined ? { basePrice: dto.price } : {}), ...(dto.purposes !== undefined ? { purposes: dto.purposes } : {}), ...(dto.features !== undefined ? { features: dto.features } : {}), ...(dto.nameRu !== undefined ? { nameRu: dto.nameRu } : {}), ...(dto.descriptionRu !== undefined ? { descriptionRu: dto.descriptionRu } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } });
+      if (product.variants[0] && (dto.price !== undefined || dto.stock !== undefined || Object.keys(sale).length)) {
+        await tx.productVariant.update({ where: { id: product.variants[0].id }, data: { ...(dto.price !== undefined ? { price: dto.price } : {}), ...(dto.stock !== undefined ? { stock: dto.stock } : {}), ...sale } });
       }
       if (dto.images) {
         await tx.productImage.deleteMany({ where: { productId: id } });
@@ -192,10 +245,37 @@ export class AdminService {
       if (dto.metaTitle !== undefined || dto.metaDesc !== undefined || dto.canonical !== undefined) {
         await tx.seoData.upsert({ where: { productId: id }, create: { entityType: 'PRODUCT', entityId: id, productId: id, metaTitle: dto.metaTitle, metaDesc: dto.metaDesc, canonical: dto.canonical }, update: { metaTitle: dto.metaTitle, metaDesc: dto.metaDesc, canonical: dto.canonical } });
       }
-      return tx.product.findUnique({ where: { id: updated.id }, include: { images: true, variants: true, categories: { include: { category: true } } } });
+      return tx.product.findUnique({ where: { id: updated.id }, include: { images: true, variants: true, categories: { include: { category: true } }, seo:true } });
     });
   }
 
+  private saleData(dto:UpdateProductDto|CreateAdminProductDto,variant:any) {
+    if(dto.salePrice===undefined && dto.saleStartsAt===undefined && dto.saleEndsAt===undefined && dto.price===undefined)return {};
+    const sale=dto.salePrice!==undefined?dto.salePrice:variant.salePrice;
+    const starts=dto.saleStartsAt!==undefined?dto.saleStartsAt:variant.saleStartsAt;
+    const ends=dto.saleEndsAt!==undefined?dto.saleEndsAt:variant.saleEndsAt;
+    if(sale!=null && (!Number.isFinite(Number(sale)) || Number(sale)<0 || Number(sale)>=Number(dto.price??variant.price)))throw new BadRequestException('Акционная цена должна быть меньше обычной цены');
+    if(starts&&ends&&new Date(starts)>=new Date(ends))throw new BadRequestException('Окончание акции должно быть позже начала');
+    return sale==null?{salePrice:null,saleStartsAt:null,saleEndsAt:null}:{salePrice:sale,saleStartsAt:starts?new Date(starts):null,saleEndsAt:ends?new Date(ends):null};
+  }
+  private async validateBadgeIds(ids:string[]|undefined,tx:Prisma.TransactionClient){
+    if(ids===undefined)return;
+    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtext('storefront-merchandising-main'))`;
+    const settings=await tx.storefrontSetting.findUnique({where:{key:'main'}});
+    const known=new Set(resolveProductBadges(settings?.productBadges).map(b=>b.id));
+    if(ids.some(id=>!known.has(id)))throw new BadRequestException('Неизвестный бейдж товара. Обновите редактор');
+  }
+  async bulkProducts(dto:BulkProductsDto,actorId:string){
+    if(!dto.ids.length||new Set(dto.ids).size!==dto.ids.length)throw new BadRequestException('Выберите товары без повторений');
+    return this.prisma.$transaction(async tx=>{
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM "Product" WHERE id IN (${Prisma.join(dto.ids)}) ORDER BY id FOR UPDATE`);
+      const trashed=await tx.dataTrashEntry.findMany({where:{entityType:'PRODUCT',status:'TRASHED',entityId:{in:dto.ids}},select:{entityId:true}});
+      if(trashed.length||await tx.product.count({where:{id:{in:dto.ids}}})!==dto.ids.length)throw new ConflictException('Некоторые товары уже удалены. Обновите список');
+      const result=await tx.product.updateMany({where:{id:{in:dto.ids}},data:{isActive:dto.action==='publish'}});
+      await tx.auditLog.create({data:{actorId,action:`catalog.products.${dto.action}`,resource:'product',payload:{ids:dto.ids,count:result.count}}});
+      return {updated:result.count};
+    });
+  }
   async archiveProduct(id: string) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException('Товар не найден');

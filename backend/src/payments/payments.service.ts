@@ -23,6 +23,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   private externalCallsEnabled() { return String(this.config.get('STOREFRONT_EXTERNAL_CALLS_ENABLED', 'false')) === 'true'; }
 
   onModuleInit() {
+    if(process.env.ECOSYSTEM_AUTOMATION_ENABLED==='false')return;
     if (!this.externalCallsEnabled() || this.timer) return;
     this.timer = setInterval(() => { void this.recoverPendingPayments(); }, 60000);
     this.timer.unref();

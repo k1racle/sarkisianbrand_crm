@@ -15,6 +15,7 @@ import {
   Sparkles,
   Trash2,
   X,
+  GripVertical,
 } from "@lucide/vue";
 const config = useRuntimeConfig(),
   route = useRoute();
@@ -34,6 +35,47 @@ const tasks = ref<any[]>([]),
   comment = ref(""),
   dragged = ref(""),
   month = ref(new Date());
+const error = ref("");
+const selectedBaseline = ref("");
+const createBaseline = ref("");
+const dirty = computed(() => !!selected.value && JSON.stringify(selected.value) !== selectedBaseline.value);
+const createDirty = computed(() => dialog.value && JSON.stringify(draft) !== createBaseline.value);
+const cloneTask = (task: any) => {
+  const copy = JSON.parse(JSON.stringify(task));
+  for (const field of ["startDate", "dueDate"]) copy[field] = copy[field] ? String(copy[field]).slice(0, 10) : "";
+  return copy;
+};
+function openTask(task: any) {
+  if (!task || saving.value || !closeTask()) return;
+  selected.value = cloneTask(task);
+  selectedBaseline.value = JSON.stringify(selected.value);
+  error.value = "";
+}
+function canDiscard() {
+  return !saving.value && (!(dirty.value || createDirty.value || comment.value.trim()) || window.confirm("Отменить несохранённые изменения и текст комментария?"));
+}
+function closeTask() {
+  if (!canDiscard()) return false;
+  selected.value = null; selectedBaseline.value = ""; comment.value = "";
+  return true;
+}
+function closeCreate() {
+  if (!canDiscard()) return false;
+  dialog.value = false;
+  return true;
+}
+function failure(exception: any) {
+  error.value = Array.isArray(exception?.data?.message) ? exception.data.message.join(", ") : exception?.data?.message || "Не удалось выполнить действие. Изменения не сохранены — повторите попытку.";
+}
+function commitTask(task: any) {
+  tasks.value = tasks.value.map(item => item.id === task.id ? JSON.parse(JSON.stringify(task)) : item);
+}
+function startTaskDrag(event: DragEvent, id: string) {
+  if (saving.value) { event.preventDefault(); return; }
+  dragged.value = id;
+  if (event.dataTransfer) { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", id); }
+}
+onBeforeRouteLeave(() => canDiscard());
 const draft = reactive<any>({
   title: "",
   description: "",
@@ -119,6 +161,7 @@ function ganttStyle(t: any) {
 }
 async function load() {
   loading.value = true;
+  error.value = "";
   try {
     [tasks.value, team.value, leads.value] = await Promise.all([
       $fetch("/crm/tasks", {
@@ -134,6 +177,8 @@ async function load() {
         headers: headers.value,
       }),
     ]);
+  } catch (exception: any) {
+    failure(exception);
   } finally {
     loading.value = false;
   }
@@ -150,6 +195,7 @@ function person(u: any) {
   );
 }
 function openCreate(seed: any = {}) {
+  if (saving.value || !closeTask()) return;
   Object.assign(draft, {
     title: "",
     description: "",
@@ -166,9 +212,12 @@ function openCreate(seed: any = {}) {
     ...seed,
   });
   dialog.value = true;
+  createBaseline.value = JSON.stringify(draft);
 }
 async function createTask() {
+  if (saving.value) return;
   saving.value = true;
+  error.value = "";
   try {
     await $fetch("/crm/tasks", {
       baseURL: config.public.apiBase,
@@ -195,29 +244,41 @@ async function createTask() {
     dialog.value = false;
     await load();
     flash("Задача создана");
+  } catch (exception: any) {
+    failure(exception);
   } finally {
     saving.value = false;
   }
 }
 async function patchTask(id: string, body: any) {
-  await $fetch(`/crm/tasks/${id}`, {
+  const updated = await $fetch<any>(`/crm/tasks/${id}`, {
     baseURL: config.public.apiBase,
     method: "PATCH",
     headers: headers.value,
     body,
   });
-  await load();
+  commitTask(updated);
+  return updated;
 }
 async function moveTask(id: string, status: string) {
-  if (!id) return;
-  await patchTask(id, { status });
-  flash("Статус задачи изменён");
+  if (!id || saving.value || tasks.value.find(item => item.id === id)?.status === status) return;
+  if (selected.value?.id === id && !canDiscard()) return;
+  saving.value = true; error.value = "";
+  try {
+    const updated = await patchTask(id, { status });
+    if (selected.value?.id === id) {
+      selected.value = cloneTask(updated); selectedBaseline.value = JSON.stringify(selected.value); comment.value = "";
+    }
+    flash("Статус задачи изменён");
+  } catch (exception: any) { failure(exception); }
+  finally { saving.value = false; dragged.value = ""; }
 }
 async function saveSelected() {
-  if (!selected.value) return;
+  if (!selected.value || saving.value) return;
   saving.value = true;
+  error.value = "";
   try {
-    selected.value = await $fetch(`/crm/tasks/${selected.value.id}`, {
+    const updated = await $fetch<any>(`/crm/tasks/${selected.value.id}`, {
       baseURL: config.public.apiBase,
       method: "PATCH",
       headers: headers.value,
@@ -240,34 +301,56 @@ async function saveSelected() {
         labels: selected.value.labels || [],
       },
     });
-    await load();
+    commitTask(updated);
+    selected.value = cloneTask(updated);
+    selectedBaseline.value = JSON.stringify(selected.value);
     flash("Задача сохранена");
-  } finally {
+  } catch (exception: any) { failure(exception); }
+  finally {
     saving.value = false;
   }
 }
 async function archiveTask(item: any) {
-  await $fetch(`/crm/tasks/${item.id}`, {
+  if (saving.value || (selected.value?.id === item.id && !canDiscard())) return;
+  saving.value = true; error.value = "";
+  try {
+    await $fetch(`/crm/tasks/${item.id}`, {
     baseURL: config.public.apiBase,
     method: "DELETE",
     headers: headers.value,
   });
-  selected.value = null;
-  await load();
-  flash("Задача перенесена в архив");
+    tasks.value = tasks.value.filter(task => task.id !== item.id);
+    if (selected.value?.id === item.id) { selected.value = null; selectedBaseline.value = ""; comment.value = ""; }
+    flash("Задача перенесена в архив");
+  } catch (exception: any) { failure(exception); }
+  finally { saving.value = false; }
+}
+function requestArchiveTask(item: any) {
+  if (!saving.value && window.confirm("Перенести задачу в архив?")) void archiveTask(item);
 }
 async function addComment() {
-  if (!selected.value || !comment.value.trim()) return;
-  await $fetch(`/crm/tasks/${selected.value.id}/comments`, {
+  if (!selected.value || !comment.value.trim() || saving.value) return;
+  const id = selected.value.id;
+  saving.value = true; error.value = "";
+  try {
+    const created = await $fetch<any>(`/crm/tasks/${id}/comments`, {
     baseURL: config.public.apiBase,
     method: "POST",
     headers: headers.value,
     body: { body: comment.value },
   });
-  comment.value = "";
-  await load();
-  selected.value = tasks.value.find((t) => t.id === selected.value.id);
-  flash("Комментарий добавлен");
+    comment.value = "";
+    const task = tasks.value.find(item => item.id === id);
+    if (task) commitTask({ ...task, comments: [...(task.comments || []), created], _count: { ...task._count, comments: Number(task._count?.comments || 0) + 1 } });
+    const baseline = JSON.parse(selectedBaseline.value);
+    for (const target of [selected.value, baseline]) {
+      target.comments = [...(target.comments || []), created];
+      target._count = { ...target._count, comments: Number(target._count?.comments || 0) + 1 };
+    }
+    selectedBaseline.value = JSON.stringify(baseline);
+    flash("Комментарий добавлен");
+  } catch (exception: any) { failure(exception); }
+  finally { saving.value = false; }
 }
 function menu(e: MouseEvent, t: any) {
   openContextMenu(
@@ -277,7 +360,7 @@ function menu(e: MouseEvent, t: any) {
       {
         label: "Открыть задачу",
         icon: "open",
-        action: () => (selected.value = t),
+        action: () => openTask(t),
       },
       {
         label: "Отметить выполненной",
@@ -308,40 +391,43 @@ onMounted(async () => {
   if (route.query.lead) openCreate({ leadId: String(route.query.lead) });
   else if (route.query.create) openCreate();
   else if (route.query.task)
-    selected.value = tasks.value.find((item) => item.id === String(route.query.task));
+    openTask(tasks.value.find((item) => item.id === String(route.query.task)));
 });
 </script>
 <template>
-  <main class="tasks-page">
+  <main data-v-ui-acc13851dfa0 class="tasks-page">
+    <div data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }} <button data-v-ui-acc13851dfa0 v-if="!selected && !dialog" :disabled="loading || saving" @click="load">Повторить загрузку</button></div>
     <WorkspaceLoading
       v-if="loading"
       label="Загружаем задачи команды"
     /><template v-else
-      ><header class="page-head">
-        <div>
-          <p>CRM / ЗАДАЧИ</p>
-          <h1>Работа команды</h1>
-          <span>Канбан, сроки, загрузка и контроль выполнения</span>
+      ><header data-v-ui-acc13851dfa0 class="page-head">
+        <div data-v-ui-acc13851dfa0>
+          <p data-v-ui-acc13851dfa0>CRM / ЗАДАЧИ</p>
+          <h1 data-v-ui-acc13851dfa0>Работа команды</h1>
+          <span data-v-ui-acc13851dfa0>Канбан, сроки, загрузка и контроль выполнения</span>
         </div>
-        <div>
-          <button class="light" @click="automationOpen = true">
-            <Sparkles :size="16" />Автоматизация
+        <div data-v-ui-acc13851dfa0>
+          <button data-v-ui-acc13851dfa0 class="light" @click="automationOpen = true">
+            <Sparkles data-v-ui-acc13851dfa0 :size="16" />Автоматизация
           </button>
-          <button class="light" @click="load">
-            <RefreshCw :size="16" />Обновить</button
-          ><button @click="openCreate()">
-            <Plus :size="16" />Новая задача
+          <button data-v-ui-acc13851dfa0 class="light" :disabled="saving" @click="load">
+            <RefreshCw data-v-ui-acc13851dfa0 :size="16" />Обновить</button
+          ><button data-v-ui-acc13851dfa0 @click="openCreate()">
+            <Plus data-v-ui-acc13851dfa0 :size="16" />Новая задача
           </button>
         </div>
       </header>
-      <section class="toolbar">
-        <label
-          ><Search :size="15" /><input
+      <section data-v-ui-acc13851dfa0 class="toolbar">
+        <label data-v-ui-acc13851dfa0
+          ><Search data-v-ui-acc13851dfa0 :size="15" /><input data-v-ui-acc13851dfa0
+            id="task-query"
+            aria-label="Поиск задач"
             v-model="search"
             placeholder="Найти задачу или ответственного"
         /></label>
-        <nav>
-          <button
+        <nav data-v-ui-acc13851dfa0>
+          <button data-v-ui-acc13851dfa0
             v-for="v in [
               { id: 'kanban', l: 'Канбан', i: LayoutGrid },
               { id: 'gantt', l: 'Гант', i: GanttChartSquare },
@@ -351,47 +437,49 @@ onMounted(async () => {
             :class="{ active: view === v.id }"
             @click="view = v.id"
           >
-            <component :is="v.i" :size="14" />{{ v.l }}
+            <component data-v-ui-acc13851dfa0 :is="v.i" :size="14" />{{ v.l }}
           </button>
         </nav>
       </section>
-      <section v-if="view === 'kanban'" class="kanban">
-        <article
+      <section data-v-ui-acc13851dfa0 v-if="view === 'kanban'" class="kanban">
+        <article data-v-ui-acc13851dfa0
           v-for="col in columns"
           :key="col.id"
           @dragover.prevent
           @drop="moveTask(dragged, col.id)"
         >
-          <header>
-            <i :style="{ background: col.color }"></i><b>{{ col.label }}</b
-            ><span>{{
+          <header data-v-ui-acc13851dfa0>
+            <i data-v-ui-acc13851dfa0 :style="{ background: col.color }"></i><b data-v-ui-acc13851dfa0>{{ col.label }}</b
+            ><span data-v-ui-acc13851dfa0>{{
               filtered.filter((t) => t.status === col.id).length
             }}</span>
           </header>
-          <div>
-            <div
+          <div data-v-ui-acc13851dfa0>
+            <div data-v-ui-acc13851dfa0
               v-for="t in filtered.filter((t) => t.status === col.id)"
               :key="t.id"
               class="task-card"
-              draggable="true"
-              @dragstart="dragged = t.id"
-              @click="selected = t"
+              role="button" tabindex="0"
+              @keydown.enter="openTask(t)"
+              @keydown.space.prevent="openTask(t)"
+              @click="openTask(t)"
               @contextmenu.prevent="menu($event, t)"
             >
-              <div>
-                <em :class="t.priority.toLowerCase()">{{
+              <div data-v-ui-acc13851dfa0>
+                <button data-v-ui-acc13851dfa0 class="task-drag-handle" :draggable="!saving" :disabled="saving" :aria-label="`Переместить задачу ${t.title}`" title="Перетащите в другой статус или измените статус в карточке" @click.stop @dragstart.stop="startTaskDrag($event,t.id)" @dragend="dragged = ''"><GripVertical data-v-ui-acc13851dfa0 :size="16" /></button>
+                <em data-v-ui-acc13851dfa0 :class="t.priority.toLowerCase()">{{
                   priorityLabels[t.priority]
                 }}</em
-                ><small>{{ t.progress }}%</small>
+                ><small data-v-ui-acc13851dfa0>{{ t.progress }}%</small>
               </div>
-              <h3>{{ t.title }}</h3>
-              <p v-if="t.lead">
+              <h3 data-v-ui-acc13851dfa0>{{ t.title }}</h3>
+              <p data-v-ui-acc13851dfa0 v-if="t.lead">
                 Сделка: {{ t.lead.title || t.lead.contactName }}
               </p>
-              <footer>
-                <span>{{ person(t.assignedTo).slice(0, 1) }}</span
-                ><time :class="{ late: t.status === 'OVERDUE' }"
-                  ><Clock3 :size="12" />{{
+              <footer data-v-ui-acc13851dfa0>
+                <span data-v-ui-acc13851dfa0>{{ person(t.assignedTo).slice(0, 1) }}</span
+                ><time data-v-ui-acc13851dfa0 :class="{ late: t.status === 'OVERDUE' }"
+                  ><Clock3 data-v-ui-acc13851dfa0 :size="12" />{{
                     t.dueDate
                       ? new Date(t.dueDate).toLocaleDateString("ru-RU")
                       : "Без срока"
@@ -399,767 +487,239 @@ onMounted(async () => {
                 >
               </footer>
             </div>
-            <button class="add" @click="openCreate({ status: col.id })">
-              <Plus :size="13" />Добавить
+            <button data-v-ui-acc13851dfa0 class="add" @click="openCreate({ status: col.id })">
+              <Plus data-v-ui-acc13851dfa0 :size="13" />Добавить
             </button>
           </div>
         </article>
       </section>
-      <section v-else-if="view === 'gantt'" class="gantt panel">
-        <header>
-          <span>Задача и ответственный</span
-          ><b
+      <section data-v-ui-acc13851dfa0 v-else-if="view === 'gantt'" class="gantt panel">
+        <header data-v-ui-acc13851dfa0>
+          <span data-v-ui-acc13851dfa0>Задача и ответственный</span
+          ><b data-v-ui-acc13851dfa0
             >{{ ganttRange.start.toLocaleDateString("ru-RU") }} —
             {{ ganttRange.end.toLocaleDateString("ru-RU") }}</b
           >
         </header>
-        <div v-for="t in filtered" class="gantt-row" @click="selected = t">
-          <span
-            ><strong>{{ t.title }}</strong
-            ><small>{{ person(t.assignedTo) }}</small></span
+        <div data-v-ui-acc13851dfa0 v-for="t in filtered" class="gantt-row" @click="openTask(t)">
+          <span data-v-ui-acc13851dfa0
+            ><strong data-v-ui-acc13851dfa0>{{ t.title }}</strong
+            ><small data-v-ui-acc13851dfa0>{{ person(t.assignedTo) }}</small></span
           >
-          <div>
-            <i :style="ganttStyle(t)" :class="t.status.toLowerCase()"
+          <div data-v-ui-acc13851dfa0>
+            <i data-v-ui-acc13851dfa0 :style="ganttStyle(t)" :class="t.status.toLowerCase()"
               >{{ t.progress }}%</i
             >
           </div>
         </div>
       </section>
-      <section v-else-if="view === 'calendar'" class="calendar panel">
-        <header>
-          <button @click="shiftMonth(-1)"><ChevronLeft :size="16" /></button>
-          <h2>{{ monthLabel }}</h2>
-          <button @click="shiftMonth(1)"><ChevronRight :size="16" /></button>
+      <section data-v-ui-acc13851dfa0 v-else-if="view === 'calendar'" class="calendar panel">
+        <header data-v-ui-acc13851dfa0>
+          <button data-v-ui-acc13851dfa0 @click="shiftMonth(-1)"><ChevronLeft data-v-ui-acc13851dfa0 :size="16" /></button>
+          <h2 data-v-ui-acc13851dfa0>{{ monthLabel }}</h2>
+          <button data-v-ui-acc13851dfa0 @click="shiftMonth(1)"><ChevronRight data-v-ui-acc13851dfa0 :size="16" /></button>
         </header>
-        <div class="week">
-          <b v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']">{{ d }}</b>
+        <div data-v-ui-acc13851dfa0 class="week">
+          <b data-v-ui-acc13851dfa0 v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']">{{ d }}</b>
         </div>
-        <div class="calendar-grid">
-          <article
+        <div data-v-ui-acc13851dfa0 class="calendar-grid">
+          <article data-v-ui-acc13851dfa0
             v-for="day in calendarDays"
             :class="{
               outside: !day.inside,
               today: day.date.toDateString() === new Date().toDateString(),
             }"
           >
-            <time>{{ day.date.getDate() }}</time
-            ><button
+            <time data-v-ui-acc13851dfa0>{{ day.date.getDate() }}</time
+            ><button data-v-ui-acc13851dfa0
               v-for="t in day.tasks.slice(0, 3)"
-              @click="selected = t"
+              @click="openTask(t)"
               :class="t.status.toLowerCase()"
             >
               {{ t.title }}</button
-            ><small v-if="day.tasks.length > 3"
+            ><small data-v-ui-acc13851dfa0 v-if="day.tasks.length > 3"
               >+ ещё {{ day.tasks.length - 3 }}</small
             >
           </article>
         </div>
       </section>
-      <section v-else class="list panel">
-        <div class="list-row head">
-          <span>Задача</span><span>Ответственный</span><span>Статус</span
-          ><span>Приоритет</span><span>Срок</span><span>Прогресс</span>
+      <section data-v-ui-acc13851dfa0 v-else class="list panel">
+        <div data-v-ui-acc13851dfa0 class="list-row head">
+          <span data-v-ui-acc13851dfa0>Задача</span><span data-v-ui-acc13851dfa0>Ответственный</span><span data-v-ui-acc13851dfa0>Статус</span
+          ><span data-v-ui-acc13851dfa0>Приоритет</span><span data-v-ui-acc13851dfa0>Срок</span><span data-v-ui-acc13851dfa0>Прогресс</span>
         </div>
-        <div
+        <div data-v-ui-acc13851dfa0
           v-for="t in filtered"
           class="list-row"
-          @click="selected = t"
+            @click="openTask(t)"
           @contextmenu.prevent="menu($event, t)"
         >
-          <strong>{{ t.title }}</strong
-          ><span>{{ person(t.assignedTo) }}</span
-          ><em>{{ columns.find((c) => c.id === t.status)?.label }}</em
-          ><span>{{ priorityLabels[t.priority] }}</span
-          ><span>{{
+          <strong data-v-ui-acc13851dfa0>{{ t.title }}</strong
+          ><span data-v-ui-acc13851dfa0>{{ person(t.assignedTo) }}</span
+          ><em data-v-ui-acc13851dfa0>{{ columns.find((c) => c.id === t.status)?.label }}</em
+          ><span data-v-ui-acc13851dfa0>{{ priorityLabels[t.priority] }}</span
+          ><span data-v-ui-acc13851dfa0>{{
             t.dueDate ? new Date(t.dueDate).toLocaleDateString("ru-RU") : "—"
           }}</span
-          ><b>{{ t.progress }}%</b>
+          ><b data-v-ui-acc13851dfa0>{{ t.progress }}%</b>
         </div>
       </section></template
     >
-    <aside v-if="selected" class="backdrop" @click.self="selected = null">
-      <div class="drawer">
-        <header>
-          <div>
-            <p>КАРТОЧКА ЗАДАЧИ</p>
-            <h2>{{ selected.title }}</h2>
+    <aside data-v-ui-acc13851dfa0 v-if="selected" class="backdrop admin-dialog-backdrop" @click.self="closeTask">
+      <div data-v-ui-acc13851dfa0 class="drawer admin-dialog admin-dialog--drawer">
+        <header data-v-ui-acc13851dfa0>
+          <div data-v-ui-acc13851dfa0>
+            <p data-v-ui-acc13851dfa0>КАРТОЧКА ЗАДАЧИ</p>
+            <h2 data-v-ui-acc13851dfa0>{{ selected.title }}</h2>
           </div>
-          <button @click="selected = null"><X :size="18" /></button>
+          <button data-v-ui-acc13851dfa0 :disabled="saving" aria-label="Закрыть задачу" @click="closeTask"><X data-v-ui-acc13851dfa0 :size="18" /></button>
         </header>
-        <div class="body fields">
-          <label>Название<input v-model="selected.title" /></label
-          ><label
-            >Описание<textarea v-model="selected.description" rows="4" />
+        <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-1 class="body fields admin-dialog-body" :disabled="saving" >
+          <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
+          <p data-v-ui-acc13851dfa0 v-if="dirty" role="status">Есть несохранённые изменения</p>
+          <label data-v-ui-acc13851dfa0>Название<input data-v-ui-acc13851dfa0 v-model="selected.title" /></label
+          ><label data-v-ui-acc13851dfa0
+            >Описание<textarea data-v-ui-acc13851dfa0 v-model="selected.description" rows="4" />
           </label>
-          <div class="two">
-            <label
-              >Статус<select v-model="selected.status">
-                <option v-for="c in columns" :value="c.id">
+          <div data-v-ui-acc13851dfa0 class="two">
+            <label data-v-ui-acc13851dfa0
+              >Статус<select data-v-ui-acc13851dfa0 v-model="selected.status">
+                <option data-v-ui-acc13851dfa0 v-for="c in columns" :value="c.id">
                   {{ c.label }}
                 </option>
               </select></label
-            ><label
-              >Приоритет<select v-model="selected.priority">
-                <option v-for="(l, k) in priorityLabels" :value="k">
+            ><label data-v-ui-acc13851dfa0
+              >Приоритет<select data-v-ui-acc13851dfa0 v-model="selected.priority">
+                <option data-v-ui-acc13851dfa0 v-for="(l, k) in priorityLabels" :value="k">
                   {{ l }}
                 </option>
               </select></label
             >
           </div>
-          <label
-            >Ответственный<select v-model="selected.assignedToId">
-              <option v-for="u in team" :value="u.id">{{ person(u) }}</option>
+          <label data-v-ui-acc13851dfa0
+            >Ответственный<select data-v-ui-acc13851dfa0 v-model="selected.assignedToId">
+              <option data-v-ui-acc13851dfa0 v-for="u in team" :value="u.id">{{ person(u) }}</option>
             </select></label
           >
-          <div class="two">
-            <label
-              >Начало<input v-model="selected.startDate" type="date" /></label
-            ><label>Срок<input v-model="selected.dueDate" type="date" /></label>
+          <div data-v-ui-acc13851dfa0 class="two">
+            <label data-v-ui-acc13851dfa0
+              >Начало<input data-v-ui-acc13851dfa0 v-model="selected.startDate" type="date" /></label
+            ><label data-v-ui-acc13851dfa0>Срок<input data-v-ui-acc13851dfa0 v-model="selected.dueDate" type="date" /></label>
           </div>
-          <label
-            >Прогресс — {{ selected.progress }}%<input
+          <label data-v-ui-acc13851dfa0
+            >Прогресс — {{ selected.progress }}%<input data-v-ui-acc13851dfa0
               v-model.number="selected.progress"
               type="range"
               min="0"
               max="100" /></label
-          ><button class="save" @click="saveSelected">
+          ><button data-v-ui-acc13851dfa0 class="save" :disabled="saving" @click="saveSelected">
             {{ saving ? "Сохраняем…" : "Сохранить изменения" }}
           </button>
-          <section class="comments">
-            <h3>
-              <MessageSquare :size="15" />Комментарии ·
+          <section data-v-ui-acc13851dfa0 class="comments">
+            <h3 data-v-ui-acc13851dfa0>
+              <MessageSquare data-v-ui-acc13851dfa0 :size="15" />Комментарии ·
               {{ selected._count?.comments || 0 }}
             </h3>
-            <div class="comment-box">
-              <input
+            <div data-v-ui-acc13851dfa0 class="comment-box">
+              <input data-v-ui-acc13851dfa0
                 v-model="comment"
                 placeholder="Написать комментарий"
                 @keyup.enter="addComment"
-              /><button @click="addComment">Отправить</button>
+              /><button data-v-ui-acc13851dfa0 :disabled="saving || !comment.trim()" @click="addComment">{{ saving ? 'Отправляем…' : 'Отправить' }}</button>
             </div>
-            <div v-for="c in selected.comments" class="comment">
-              <span>{{ person(c.author).slice(0, 1) }}</span>
-              <div>
-                <b>{{ person(c.author) }}</b>
-                <p>{{ c.body }}</p>
-                <small>{{
+            <div data-v-ui-acc13851dfa0 v-for="c in selected.comments" class="comment">
+              <span data-v-ui-acc13851dfa0>{{ person(c.author).slice(0, 1) }}</span>
+              <div data-v-ui-acc13851dfa0>
+                <b data-v-ui-acc13851dfa0>{{ person(c.author) }}</b>
+                <p data-v-ui-acc13851dfa0>{{ c.body }}</p>
+                <small data-v-ui-acc13851dfa0>{{
                   new Date(c.createdAt).toLocaleString("ru-RU")
                 }}</small>
               </div>
             </div>
           </section>
-          <button class="archive" @click="archiveTask(selected)">
-            <Trash2 :size="14" />Перенести в архив
+          <button data-v-ui-acc13851dfa0 type="button" class="light" :disabled="saving" @click="closeTask">Отмена</button>
+          <button data-v-ui-acc13851dfa0 class="archive" :disabled="saving" @click="requestArchiveTask(selected)">
+            <Trash2 data-v-ui-acc13851dfa0 :size="14" />Перенести в архив
           </button>
-        </div>
+        </fieldset>
       </div>
     </aside>
-    <div v-if="dialog" class="backdrop" @click.self="dialog = false">
-      <form class="drawer create" @submit.prevent="createTask">
-        <header>
-          <div>
-            <p>НОВАЯ РАБОТА</p>
-            <h2>Создать задачу</h2>
+    <div data-v-ui-acc13851dfa0 v-if="dialog" class="backdrop admin-dialog-backdrop" @click.self="closeCreate">
+      <form data-v-ui-acc13851dfa0 class="drawer create admin-dialog admin-dialog--drawer" @submit.prevent="createTask">
+        <header data-v-ui-acc13851dfa0>
+          <div data-v-ui-acc13851dfa0>
+            <p data-v-ui-acc13851dfa0>НОВАЯ РАБОТА</p>
+            <h2 data-v-ui-acc13851dfa0>Создать задачу</h2>
           </div>
-          <button type="button" @click="dialog = false">
-            <X :size="18" />
+          <button data-v-ui-acc13851dfa0 type="button" :disabled="saving" aria-label="Закрыть создание задачи" @click="closeCreate">
+            <X data-v-ui-acc13851dfa0 :size="18" />
           </button>
         </header>
-        <div class="body fields">
-          <label>Название<input v-model="draft.title" required /></label
-          ><label
-            >Описание<textarea v-model="draft.description" rows="4" />
+        <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-2 class="body fields admin-dialog-body" :disabled="saving" >
+          <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
+          <label data-v-ui-acc13851dfa0>Название<input data-v-ui-acc13851dfa0 v-model="draft.title" required /></label
+          ><label data-v-ui-acc13851dfa0
+            >Описание<textarea data-v-ui-acc13851dfa0 v-model="draft.description" rows="4" />
           </label>
-          <div class="two">
-            <label
-              >Ответственный<select v-model="draft.assignedToId">
-                <option v-for="u in team" :value="u.id">{{ person(u) }}</option>
+          <div data-v-ui-acc13851dfa0 class="two">
+            <label data-v-ui-acc13851dfa0
+              >Ответственный<select data-v-ui-acc13851dfa0 v-model="draft.assignedToId">
+                <option data-v-ui-acc13851dfa0 v-for="u in team" :value="u.id">{{ person(u) }}</option>
               </select></label
-            ><label
-              >Приоритет<select v-model="draft.priority">
-                <option v-for="(l, k) in priorityLabels" :value="k">
+            ><label data-v-ui-acc13851dfa0
+              >Приоритет<select data-v-ui-acc13851dfa0 v-model="draft.priority">
+                <option data-v-ui-acc13851dfa0 v-for="(l, k) in priorityLabels" :value="k">
                   {{ l }}
                 </option>
               </select></label
             >
           </div>
-          <label
-            >Связанная сделка<select v-model="draft.leadId">
-              <option value="">Без сделки</option>
-              <option v-for="l in leads" :value="l.id">
+          <label data-v-ui-acc13851dfa0
+            >Связанная сделка<select data-v-ui-acc13851dfa0 v-model="draft.leadId">
+              <option data-v-ui-acc13851dfa0 value="">Без сделки</option>
+              <option data-v-ui-acc13851dfa0 v-for="l in leads" :value="l.id">
                 {{ l.title || l.contactName }}
               </option>
             </select></label
           >
-          <div class="two">
-            <label
-              >Начало<input
+          <div data-v-ui-acc13851dfa0 class="two">
+            <label data-v-ui-acc13851dfa0
+              >Начало<input data-v-ui-acc13851dfa0
                 v-model="draft.startDate"
                 type="datetime-local" /></label
-            ><label
-              >Срок<input v-model="draft.dueDate" type="datetime-local"
+            ><label data-v-ui-acc13851dfa0
+              >Срок<input data-v-ui-acc13851dfa0 v-model="draft.dueDate" type="datetime-local"
             /></label>
           </div>
-          <label
-            >Метки<input
+          <label data-v-ui-acc13851dfa0
+            >Метки<input data-v-ui-acc13851dfa0
               v-model="draft.labels"
               placeholder="Важно, звонок, документы"
           /></label>
-          <label
-            >Напомнить до срока<select v-model.number="draft.reminderBeforeMinutes">
-              <option :value="0">В момент наступления срока</option>
-              <option :value="15">За 15 минут</option>
-              <option :value="60">За 1 час</option>
-              <option :value="1440">За 1 день</option>
-              <option :value="4320">За 3 дня</option>
+          <label data-v-ui-acc13851dfa0
+            >Напомнить до срока<select data-v-ui-acc13851dfa0 v-model.number="draft.reminderBeforeMinutes">
+              <option data-v-ui-acc13851dfa0 :value="0">В момент наступления срока</option>
+              <option data-v-ui-acc13851dfa0 :value="15">За 15 минут</option>
+              <option data-v-ui-acc13851dfa0 :value="60">За 1 час</option>
+              <option data-v-ui-acc13851dfa0 :value="1440">За 1 день</option>
+              <option data-v-ui-acc13851dfa0 :value="4320">За 3 дня</option>
             </select></label
           >
-        </div>
-        <footer>
-          <button type="button" class="light" @click="dialog = false">
+        </fieldset>
+        <footer data-v-ui-acc13851dfa0>
+          <button data-v-ui-acc13851dfa0 type="button" class="light" :disabled="saving" @click="closeCreate">
             Отмена</button
-          ><button>{{ saving ? "Создаём…" : "Создать задачу" }}</button>
+          ><button data-v-ui-acc13851dfa0 :disabled="saving">{{ saving ? "Создаём…" : "Создать задачу" }}</button>
         </footer>
       </form>
     </div>
     <CrmTaskAutomation
+      v-if="automationOpen"
       v-model="automationOpen"
       @created="load(); flash('Задача создана по шаблону')"
     />
-    <div v-if="notice" class="toast">{{ notice }}</div>
+    <div data-v-ui-acc13851dfa0 v-if="notice" class="toast">{{ notice }}</div>
   </main>
 </template>
-<style scoped>
-.tasks-page {
-  min-height: 100vh;
-  background: var(--sb-bg);
-  color: var(--sb-ink);
-  font-family: var(--sb-font);
-}
-.page-head {
-  height: 120px;
-  background: #fff;
-  border-bottom: 1px solid var(--sb-line);
-  padding: 24px 4%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page-head p,
-.drawer header p {
-  margin: 0 0 7px;
-  color: var(--sb-coral);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-}
-.page-head h1 {
-  font-size: 28px;
-  margin: 0 0 6px;
-}
-.page-head span {
-  font-size: 10px;
-  color: var(--sb-muted);
-}
-.page-head > div:last-child {
-  display: flex;
-  gap: 8px;
-}
-button {
-  height: 38px;
-  border: 0;
-  background: #1d1e22;
-  color: #fff;
-  padding: 0 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  font: 10px var(--sb-font);
-  cursor: pointer;
-}
-.light {
-  background: #fff !important;
-  color: #222 !important;
-  border: 1px solid var(--sb-line) !important;
-}
-.toolbar {
-  margin: 22px 4% 0;
-  height: 55px;
-  background: #fff;
-  border: 1px solid var(--sb-line);
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.toolbar > label {
-  height: 35px;
-  width: 330px;
-  border: 1px solid var(--sb-line);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-}
-.toolbar input {
-  border: 0;
-  outline: 0;
-  width: 100%;
-  font: 10px var(--sb-font);
-}
-.toolbar nav {
-  display: flex;
-}
-.toolbar nav button {
-  height: 34px;
-  background: #fff;
-  color: #777;
-  border: 1px solid transparent;
-}
-.toolbar nav button.active {
-  background: #1d1e22;
-  color: #fff;
-}
-.kanban {
-  display: flex;
-  gap: 11px;
-  overflow: auto;
-  padding: 14px 4% 60px;
-  align-items: flex-start;
-}
-.kanban > article {
-  flex: 0 0 255px;
-  min-height: 590px;
-  background: #eef0f2;
-  border: 1px solid #e1e3e6;
-}
-.kanban > article > header {
-  height: 52px;
-  background: #fff;
-  display: grid;
-  grid-template-columns: 4px 1fr auto;
-  gap: 9px;
-  align-items: center;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--sb-line);
-}
-.kanban header i {
-  height: 28px;
-}
-.kanban header b {
-  font-size: 10px;
-}
-.kanban header span {
-  font-size: 9px;
-  color: #888;
-}
-.kanban > article > div {
-  padding: 8px;
-  display: grid;
-  gap: 8px;
-}
-.task-card {
-  background: #fff;
-  border: 1px solid #e1e3e6;
-  padding: 13px;
-  cursor: pointer;
-}
-.task-card > div,
-.task-card footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.task-card em {
-  font-style: normal;
-  font-size: 7px;
-  padding: 4px 6px;
-  background: #f1f2f3;
-}
-.task-card em.high,
-.task-card em.critical {
-  color: #b44b3e;
-  background: #fff0ed;
-}
-.task-card small {
-  font-size: 8px;
-  color: #888;
-}
-.task-card h3 {
-  font-size: 10px;
-  line-height: 1.45;
-  margin: 10px 0;
-}
-.task-card p {
-  font-size: 8px;
-  color: #777;
-}
-.task-card footer {
-  border-top: 1px solid #eee;
-  padding-top: 10px;
-}
-.task-card footer > span {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  background: #222;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 8px;
-}
-.task-card time {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 7px;
-  color: #777;
-}
-.task-card time.late {
-  color: #b44b3e;
-}
-.add {
-  height: 32px;
-  background: transparent;
-  color: #777;
-  border: 1px dashed #c5c8cc;
-}
-.panel {
-  margin: 14px 4% 60px;
-  background: #fff;
-  border: 1px solid var(--sb-line);
-}
-.gantt > header {
-  height: 50px;
-  padding: 0 18px;
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  align-items: center;
-  border-bottom: 1px solid #eee;
-  font-size: 9px;
-  color: #777;
-}
-.gantt-row {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  min-height: 52px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-}
-.gantt-row > span {
-  padding: 10px 18px;
-  display: grid;
-  gap: 4px;
-}
-.gantt-row strong {
-  font-size: 9px;
-}
-.gantt-row small {
-  font-size: 7px;
-  color: #888;
-}
-.gantt-row > div {
-  position: relative;
-  background: repeating-linear-gradient(
-    90deg,
-    #fff 0,
-    #fff calc(10% - 1px),
-    #eef0f2 calc(10% - 1px),
-    #eef0f2 10%
-  );
-}
-.gantt-row i {
-  position: absolute;
-  top: 14px;
-  height: 24px;
-  background: #4f7dcf;
-  color: #fff;
-  font-style: normal;
-  font-size: 7px;
-  display: flex;
-  align-items: center;
-  padding: 0 6px;
-  box-sizing: border-box;
-  min-width: 28px;
-}
-.gantt-row i.done {
-  background: #2d9568;
-}
-.gantt-row i.overdue {
-  background: #bb5145;
-}
-.calendar > header {
-  height: 55px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 25px;
-  border-bottom: 1px solid #eee;
-}
-.calendar h2 {
-  font-size: 15px;
-  text-transform: capitalize;
-}
-.calendar header button {
-  width: 31px;
-  height: 31px;
-  background: #fff;
-  color: #222;
-  border: 1px solid var(--sb-line);
-  padding: 0;
-}
-.week,
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-}
-.week b {
-  padding: 10px;
-  border-right: 1px solid #eee;
-  font-size: 8px;
-  color: #888;
-}
-.calendar-grid article {
-  min-height: 105px;
-  border-top: 1px solid #eee;
-  border-right: 1px solid #eee;
-  padding: 8px;
-  box-sizing: border-box;
-}
-.calendar-grid article.outside {
-  background: #f7f7f8;
-  color: #aaa;
-}
-.calendar-grid article.today time {
-  background: var(--sb-coral);
-  color: #fff;
-}
-.calendar-grid time {
-  width: 23px;
-  height: 23px;
-  display: grid;
-  place-items: center;
-  font-size: 8px;
-}
-.calendar-grid button {
-  height: 23px;
-  width: 100%;
-  margin-top: 4px;
-  background: #eef3fb;
-  color: #315d9d;
-  justify-content: flex-start;
-  padding: 0 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 7px;
-}
-.calendar-grid button.overdue {
-  background: #fff0ed;
-  color: #a74436;
-}
-.calendar-grid small {
-  font-size: 7px;
-  color: #777;
-}
-.list-row {
-  display: grid;
-  grid-template-columns: 2fr 1.2fr 1fr 0.8fr 0.8fr 0.5fr;
-  gap: 12px;
-  align-items: center;
-  padding: 13px 18px;
-  border-bottom: 1px solid #eee;
-  font-size: 9px;
-  cursor: pointer;
-}
-.list-row.head {
-  font-size: 8px;
-  color: #888;
-  text-transform: uppercase;
-}
-.list-row em {
-  font-style: normal;
-}
-.backdrop {
-  position: fixed;
-  z-index: 700;
-  inset: 0;
-  background: #0005;
-}
-.drawer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: min(550px, 96vw);
-  background: #fff;
-  display: grid;
-  grid-template-rows: auto 1fr;
-}
-.drawer > header {
-  padding: 22px 25px;
-  border-bottom: 1px solid var(--sb-line);
-  display: flex;
-  justify-content: space-between;
-}
-.drawer h2 {
-  font-size: 21px;
-  margin: 0;
-}
-.drawer header button {
-  background: none;
-  color: #222;
-  padding: 0;
-}
-.drawer .body {
-  padding: 22px 25px;
-  overflow: auto;
-}
-.fields {
-  display: grid;
-  gap: 12px;
-}
-.fields label {
-  display: grid;
-  gap: 6px;
-  font-size: 9px;
-  color: #70737a;
-}
-.fields input,
-.fields select,
-.fields textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--sb-line);
-  padding: 0 10px;
-  font: 10px var(--sb-font);
-  background: #fff;
-}
-.fields input,
-.fields select {
-  height: 39px;
-}
-.fields textarea {
-  padding: 10px;
-}
-.two {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.save {
-  margin: 5px 0 12px;
-}
-.comments {
-  border-top: 1px solid #eee;
-  padding-top: 16px;
-}
-.comments h3 {
-  font-size: 11px;
-  display: flex;
-  gap: 7px;
-  align-items: center;
-}
-.comment-box {
-  display: flex;
-}
-.comment-box input {
-  flex: 1;
-  height: 37px;
-  border: 1px solid var(--sb-line);
-  padding: 0 9px;
-}
-.comment-box button {
-  height: 37px;
-}
-.comment {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 9px;
-  padding: 12px 0;
-  border-bottom: 1px solid #eee;
-}
-.comment > span {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #222;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 8px;
-}
-.comment div {
-  display: grid;
-  gap: 3px;
-}
-.comment b,
-.comment p,
-.comment small {
-  font-size: 8px;
-  margin: 0;
-}
-.comment small {
-  color: #888;
-}
-.archive {
-  margin-top: 20px;
-  background: #fff0ed;
-  color: #a74436;
-}
-.create {
-  grid-template-rows: auto 1fr auto;
-}
-.drawer > footer {
-  padding: 14px 25px;
-  border-top: 1px solid var(--sb-line);
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  background: #1d1e22;
-  color: #fff;
-  padding: 13px 18px;
-  font-size: 10px;
-  z-index: 900;
-}
-@media (max-width: 750px) {
-  .page-head {
-    height: auto;
-    align-items: flex-start;
-    gap: 15px;
-    flex-direction: column;
-  }
-  .toolbar {
-    margin: 12px;
-    display: block;
-    height: auto;
-    padding: 9px;
-  }
-  .toolbar > label {
-    width: auto;
-  }
-  .toolbar nav {
-    overflow: auto;
-    margin-top: 8px;
-  }
-  .kanban {
-    padding: 0 12px 40px;
-  }
-  .two {
-    grid-template-columns: 1fr;
-  }
-  .calendar-grid article {
-    min-height: 80px;
-  }
-  .gantt-row,
-  .gantt > header {
-    grid-template-columns: 160px 1fr;
-  }
-}
-</style>
+

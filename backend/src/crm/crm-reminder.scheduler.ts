@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@ne
 import { TaskStatus } from '@prisma/client';
 import { PlatformChatGateway } from '../platform-chat/platform-chat.gateway';
 import { PrismaService } from '../prisma/prisma.service';
+import { ecosystemAutomationEnabled } from '../common/ecosystem-automation';
 
 @Injectable()
 export class CrmReminderScheduler implements OnApplicationBootstrap, OnModuleDestroy {
@@ -11,6 +12,7 @@ export class CrmReminderScheduler implements OnApplicationBootstrap, OnModuleDes
   constructor(private readonly prisma: PrismaService, private readonly realtime: PlatformChatGateway) {}
 
   onApplicationBootstrap() {
+    if(!ecosystemAutomationEnabled())return;
     void this.deliver();
     this.timer = setInterval(() => void this.deliver(), 15000);
   }

@@ -1,0 +1,26 @@
+/* Single employee/B2B stylesheet entry. Partials are implementation details.
+ * Layout, forms, dialogs and typography must be edited here or in these owners,
+ * never inside Vue components. Dynamic business colors/progress remain bindings.
+ */
+@import "./admin-components.css";
+@import "./admin-legacy.css";
+@import "./ecosystem-glass.css";
+@import "./storefront-menu-admin.css";
+@import "./storefront-promotions-admin.css";
+@import "./storefront-gift-cards-admin.css";
+@import "./storefront-catalog-menu-admin.css";
+@import "./admin-design-system.css";
+@import "./admin-media-library.css";
+@import "./workspace-navigation.css";
+@import "./site-content-admin.css";
+@import "./workspace-overview.css";
+@import "./workspace-studio.css";
+@import "./workspace-consistency.css";
+@import "./workspace-controls.css";
+@import "./catalog-settings.css";
+@import "./product-merchandising.css";
+@import "./workspace-dialogs.css";
+@import "./workspace-banner-editor.css";
+@import "./workspace-layout.css";
+@import "./workspace-typography.css";
+@import "./workspace-shared.css";

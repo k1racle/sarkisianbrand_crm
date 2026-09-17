@@ -6,22 +6,22 @@ import { CatalogQueryDto } from './dto/product.dto';
 
 describe('Server-side catalog filtering', () => {
   function setup() {
-    const prisma = { productVariant: { fields: { reserved: 'reserved-field-reference' } }, product: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(33) }, $transaction: jest.fn(async values => Promise.all(values)) };
+    const prisma = { category:{findMany:jest.fn().mockResolvedValue([{id:'gels',slug:'gels',parentId:null,isActive:true},{id:'cutters',slug:'cutters',parentId:null,isActive:true}])}, productVariant: { fields: { reserved: 'reserved-field-reference',price:'price-field-reference' } }, product: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(33) }, $transaction: jest.fn(async values => Promise.all(values)) };
     return { prisma, service: new ProductsService(prisma as any, {} as any) };
   }
   it('combines real category, purpose, features, price and available stock before pagination', async () => {
     const { service, prisma } = setup();
-    const result = await service.list({ category: 'gels,cutters', purpose: 'Маникюр', feature: 'Прозрачный', minPrice: 800, maxPrice: 1500, inStock: 'true', sort: 'price-asc', page: 2, limit: 24 });
+    const result = await service.list({ category: 'gels,cutters', purpose: 'Маникюр', feature: 'Прозрачный', minPrice: 800, maxPrice: 1500, inStock: 'true', sort: 'new', page: 2, limit: 24 });
     const args = prisma.product.findMany.mock.calls[0][0];
     expect(args.where.categories.some.category.slug.in).toEqual(['gels', 'cutters']);
     expect(args.where.purposes.hasSome).toEqual(['Маникюр']);
     expect(args.where.features.hasSome).toEqual(['Прозрачный']);
-    expect(args.where.basePrice).toEqual({ gte: 800, lte: 1500 });
-    expect(args.where.AND[0].OR).toEqual([
+    expect(args.where.AND[0].OR[0].variants.some.OR[0].AND[1].salePrice).toEqual({ gte: 800, lte: 1500 });
+    expect(args.where.AND[1].OR).toEqual([
       { productType: 'GIFT_CARD', variants: { some: { isActive: true } } },
       { variants: { some: { isActive: true, stock: { gt: 'reserved-field-reference' } } } },
     ]);
-    expect(args.orderBy).toEqual([{ basePrice: 'asc' }, { id: 'asc' }]);
+    expect(args.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'asc' }]);
     expect(args.skip).toBe(24);
     expect(prisma.product.count.mock.calls[0][0].where).toEqual(args.where);
     expect(result.pagination.pages).toBe(2);
@@ -47,7 +47,8 @@ describe('Server-side catalog filtering', () => {
         },
       };
       const prisma = {
-        productVariant: { fields: { reserved: 'reserved-field-reference' } },
+        category:{findMany:jest.fn().mockResolvedValue([{id:'gels',slug:'gels',parentId:null,isActive:true},{id:'cutters',slug:'cutters',parentId:null,isActive:true}])},
+        productVariant: { fields: { reserved: 'reserved-field-reference',price:'price-field-reference' } },
         product: { count: jest.fn(), findMany: jest.fn() },
         $queryRaw: jest.fn(),
         $transaction: jest.fn(async (callback: any) => callback(tx)),
@@ -55,6 +56,9 @@ describe('Server-side catalog filtering', () => {
       return { tx, prisma, service: new ProductsService(prisma as any, {} as any) };
     }
 
+    it.each(['price-asc','price-desc'])('sorts %s by current variant sale prices, excluding gift-card discounts',async sort=>{
+      const f=popularSetup();await f.service.list({sort} as any);const sql=f.tx.$queryRaw.mock.calls[0][0];expect(sql.text).toContain('MIN(CASE WHEN p."productType"');expect(sql.text).toContain('pv."salePrice"');expect(sql.text).toContain('pv."saleEndsAt" > NOW()');expect(sql.text).toContain(sort==='price-asc'?'ASC,p.id ASC':'DESC,p.id ASC');
+    });
     it('accepts popular in the public DTO with transformed pagination', async () => {
       expect(await validate(plainToInstance(CatalogQueryDto, { sort: 'popular', page: '100000', limit: '100' }))).toEqual([]);
     });
@@ -96,8 +100,8 @@ describe('Server-side catalog filtering', () => {
       expect(where.categories.some.category.slug.in).toEqual(['gels', 'cutters']);
       expect(where.purposes.hasSome).toEqual(['repair', 'care']);
       expect(where.features.hasSome).toEqual(['clear', 'shimmer']);
-      expect(where.basePrice).toEqual({ gte: 0, lte: 1500 });
-      expect(where.AND[0].OR).toHaveLength(2);
+      expect(where.AND[0].OR[0].variants.some.OR[0].AND[1].salePrice).toEqual({ gte: 0, lte: 1500 });
+      expect(where.AND[1].OR).toHaveLength(2);
       expect(f.tx.product.findMany.mock.calls[0][0]).toMatchObject({
         where: { AND: [where, { id: { in: ['most-sold', 'next-sold'] } }] },
       });
@@ -121,7 +125,8 @@ describe('Server-side catalog filtering', () => {
       await f.service.list({ sort: 'popular', search, category });
       const sql = f.tx.$queryRaw.mock.calls[0][0];
       expect(sql.text).not.toContain('DROP TABLE');
-      expect(sql.values).toContain(category);
+      expect(sql.values).not.toContain(category);
+      expect(sql.values).toContain('__unavailable_category__');
       expect(sql.values).toContain(`%${search}%`);
       expect(f.tx.product.count.mock.calls[0][0].where.OR[0].nameRu.contains).toBe(search);
     });

@@ -6,6 +6,7 @@ import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
 import { OneCClientService } from './one-c-client.service';
 import { applyStorefrontTransition } from '../common/storefront-order-transition';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ecosystemAutomationEnabled } from '../common/ecosystem-automation';
 
 @Injectable()
 export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy {
@@ -22,6 +23,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
   }
 
   onApplicationBootstrap() {
+    if(!ecosystemAutomationEnabled())return;
     this.recoveryTimer = setInterval(() => void this.recoverPendingOrders(), 60_000);
     this.recoveryTimer.unref();
     setTimeout(() => void this.recoverPendingOrders(), 5_000).unref();

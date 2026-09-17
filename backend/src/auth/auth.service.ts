@@ -20,6 +20,19 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
+  async access(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } });
+    if (!user?.isActive) throw new UnauthorizedException('Сессия завершена');
+    const [rolePermissions, overrides] = await Promise.all([
+      this.prisma.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
+      this.prisma.userPermission.findMany({ where: { userId }, select: { effect: true, permission: { select: { key: true } } } }),
+    ]);
+    const allowed = new Set(rolePermissions.map(item => item.permission.key));
+    const denied = new Set(overrides.filter(item => item.effect === 'DENY').map(item => item.permission.key));
+    overrides.filter(item => item.effect === 'ALLOW').forEach(item => allowed.add(item.permission.key));
+    return { role: user.role, permissions: [...allowed].filter(key => !denied.has(key)).sort(), denied: [...denied].sort() };
+  }
+
   async register(dto: RegisterDto, context: SessionContext = {}) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findFirst({ where: { OR: [{ email }, ...(dto.phone ? [{ phone: dto.phone }] : [])] } });

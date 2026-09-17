@@ -1,0 +1,49 @@
+/* Three text sizes for the entire employee workspace, including teleported UI.
+ * Important layered declarations override legacy scoped resets, not storefront UI.
+ * 20px headings/metrics, 14px body/controls, 12px secondary information.
+ */
+@layer workspace-typography {
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login,.workspace-sort-ghost) {
+    --ws-font:Montserrat,Arial,sans-serif;
+    --ws-type-heading:20px;
+    --ws-type-body:14px;
+    --ws-type-caption:12px;
+    --admin-font:var(--ws-font); --sb-font:var(--ws-font);
+    --admin-body:var(--ws-type-body); --admin-small:var(--ws-type-body); --admin-caption:var(--ws-type-caption);
+    --admin-page:var(--ws-type-heading); --admin-section:var(--ws-type-heading); --admin-title:var(--ws-type-body);
+    font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important;
+    font-weight:400!important; font-style:normal!important; line-height:1.5!important;
+    letter-spacing:0!important; font-synthesis:none; -webkit-font-smoothing:antialiased;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :where(*) {
+    font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important;
+    font-weight:400!important; font-style:normal!important; line-height:1.5!important;
+    letter-spacing:0!important; text-transform:none!important;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :is(h1,h2) {
+    font-size:var(--ws-type-heading)!important; font-weight:600!important; line-height:1.35!important;
+    letter-spacing:-.02em!important; min-width:0; max-width:100%; overflow-wrap:anywhere;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :is(h3,h4,h5,h6,legend,strong,b,button) {
+    font-weight:600!important;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :is(small,time,kbd,.eyebrow,.kicker,.hint,.muted,.help,.aml-help,.aml-eyebrow,.aml-total,.cs-status,.cs-error,.studio-status,.studio-order-total,.studio-mobile-order-date,.studio-mobile-order-meta,.wn-command-count,.wn-command-dialog>footer,.wn-breadcrumbs,.wn-unread,.realtime-state,.editor-subtitle,.editor-gallery-status,.drawer-description,.login-brand-kicker,.login-footnote,.login-brand-foot) {
+    font-size:var(--ws-type-caption)!important; font-weight:400!important;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.admin-dialog) :is(.kpis,.kpi-grid,.hero-kpis,.hd-kpis,.command-kpis,.stats,.wo-metrics,.loyalty-balance) :is(strong,b),
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login) :is(.wo-metric>strong,.stat-card>strong,.metric>strong) {
+    font-size:var(--ws-type-heading)!important; font-weight:600!important;
+    font-variant-numeric:tabular-nums;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :is(h1,h2,small,time,kbd,.eyebrow,.kicker,.hint,.muted,.wn-breadcrumbs,button) :where(*) {
+    font-size:inherit!important; font-weight:inherit!important; line-height:inherit!important;
+  }
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.admin-dialog,.workspace-login) :is(input,textarea)::placeholder {
+    font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important; font-weight:400!important;
+    font-style:normal!important; letter-spacing:0!important;
+  }
+  .wn-rail-dock span { font-size:var(--ws-type-caption)!important; }
+  :where(.workspace-frame,.b2b-frame,.admin-dialog) .brand-logo-label {
+    font-size:var(--ws-type-caption)!important; font-weight:600!important;
+  }
+}
