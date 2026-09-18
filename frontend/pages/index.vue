@@ -4,11 +4,11 @@ import { ArrowRight, Award, Gift, PackageCheck, ShieldCheck, Sparkles } from '@l
 
 const config = useRuntimeConfig();
 const { openAuth } = useStorefrontPanels();
-const bonusCardTilt = useStorefrontCardTilt();
 const { content, siteContent, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
 await loadStorefrontContent();
 const home = computed(() => siteContent.value.home);
 const visibleSections = computed(() => home.value.order.filter(key => !home.value.hidden.includes(key)));
+const joinedClub = computed(() => visibleSections.value.indexOf('club') >= 0 && visibleSections.value[visibleSections.value.indexOf('club') + 1] === 'referral');
 const productQuery = computed(() => home.value.bestsellers.mode === 'manual' ? { limit: 8, ids: home.value.bestsellers.productIds.join(','), sort: 'new' } : { limit: 8, sort: 'popular' });
 const { data, pending, error } = await useFetch<any>('/products', { baseURL: config.public.apiBase, query: productQuery });
 const products = computed(() => {
@@ -17,7 +17,6 @@ const products = computed(() => {
   const byId = new Map<string, any>(items.map((item: any) => [item.id, item]));
   return home.value.bestsellers.productIds.flatMap(id => byId.has(id) ? [byId.get(id)] : []);
 });
-const clubIcons = { award: Award, gift: Gift, shield: ShieldCheck };
 const benefitIcons = { package: PackageCheck, shield: ShieldCheck, award: Award, sparkles: Sparkles };
 const bannerIndex = ref(0);
 let bannerTimer: ReturnType<typeof setInterval> | undefined;
@@ -48,6 +47,8 @@ useStorefrontSeo({
   <SiteShell>
     <h1 v-if="home.hidden.includes('hero')" class="sb-visually-hidden">{{ siteContent.brand.name }} — профессиональные материалы для мастеров маникюра</h1>
     <template v-for="section in visibleSections" :key="section">
+    <SitePartnershipBlock v-if="section === 'business' || (section === 'referral' && !joinedClub) || section === 'bloggers'" :block="home[section]" :kind="section" />
+    <SiteClubReferralStack v-if="section === 'club' && joinedClub" :home="home" />
     <section v-if="section === 'hero'" class="sb-hero sb-liquid-hero">
       <h1 class="sb-visually-hidden">{{ siteContent.brand.name }} — профессиональные материалы для мастеров маникюра</h1>
       <Transition name="sb-banner-fade">
@@ -88,21 +89,7 @@ useStorefrontSeo({
       </div>
     </section>
 
-    <section v-if="section === 'club'" class="sb-club-banner">
-      <div class="sb-club-banner__glow"></div>
-      <div class="sb-club-banner__copy">
-        <p class="sb-club-banner__label">{{ home.club.label }}</p>
-        <h2>{{ home.club.title }}<br /><em>{{ home.club.accent }}</em></h2>
-        <ul class="sb-club-perks">
-          <li v-for="benefit in home.club.benefits" :key="benefit.id"><component :is="clubIcons[benefit.icon]" :size="20" /><span>{{ benefit.text }}</span></li>
-        </ul>
-        <div class="sb-club-actions">
-          <button type="button" class="sb-liquid-primary sb-club-join" @click="openAuth('register')">{{ home.club.joinLabel }} <ArrowRight :size="17" /></button>
-          <NuxtLink to="/club" class="sb-liquid-primary sb-club-about">{{ home.club.aboutLabel }} <ArrowRight :size="17" /></NuxtLink>
-        </div>
-      </div>
-      <SiteLoyaltyPreview class="sb-card-tilt" @pointerenter="bonusCardTilt.onPointerEnter" @pointermove="bonusCardTilt.onPointerMove" @pointerleave="bonusCardTilt.onPointerLeave" @pointercancel="bonusCardTilt.onPointerCancel" />
-    </section>
+    <SiteClubBlock v-if="section === 'club' && !joinedClub" :block="home.club" />
 
     <section v-if="section === 'manifesto'" class="sb-brand-manifesto" :aria-label="`О бренде ${siteContent.brand.name}`">
       <h2 v-if="home.manifesto.text === defaultSiteContent.home.manifesto.text"><span class="is-dark">SARKISIAN — премиальный бренд</span><span class="is-dark">для мастеров маникюра, <em>который</em></span><span>понимает профессию изнутри.</span></h2>

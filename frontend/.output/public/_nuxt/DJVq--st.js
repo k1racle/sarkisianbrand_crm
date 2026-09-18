@@ -1,1 +1,0 @@
-import{d as o,aM as n,j as t,n as s,N as c,k as r,a3 as p}from"./IsiwBYLb.js";const u=o({__name:"crm-chat",setup(_){const{openChat:a}=n();return t(async()=>{a(),await s("/workspace",{replace:!0})}),(m,i)=>{const e=p;return r(),c(e,{label:"Открываем чат платформы"})}}});export{u as default};

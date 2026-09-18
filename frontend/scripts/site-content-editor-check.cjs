@@ -79,7 +79,13 @@ async function contentChecks() {
   };
   s.mounts[0](); await settle(); await settle();
   assert(s.t.loaded.value); assert.equal(s.t.revision.value, 0); assert(!s.t.dirty.value);
-  assert.equal(s.t.draft.value.home.order.length, 7); assert.equal(s.t.pages.value.length, 2);
+  assert.equal(s.t.draft.value.home.order.length, shared.homeSectionKeys.length); assert.equal(s.t.pages.value.length, 2);
+  const legacyOrder = ['story', 'hero', 'categories', 'bestsellers', 'club', 'manifesto', 'benefits'];
+  assert.deepEqual(shared.mergeSiteContent({ home: { order: legacyOrder, hidden: ['story'], business: { title: 'Изменено', theme: 'rose' } } }).home.order, ['story', 'hero', 'categories', 'bestsellers', 'business', 'club', 'referral', 'bloggers', 'manifesto', 'benefits']);
+  assert.equal(shared.mergeSiteContent({ home: { bloggers: { visualImageUrl: '/api/v1/media/files/fixture.png' } } }).home.bloggers.visualImageUrl, '/api/v1/media/files/fixture.png');
+  assert.equal(shared.mergeSiteContent({ home: { bloggers: { visualImageUrl: 'javascript:alert(1)' } } }).home.bloggers.visualImageUrl, '/storefront/svetlana-creator-youtube.jpg');
+  assert.equal(shared.mergeSiteContent({ home: { business: { title: 'Изменено', theme: 'rose' } } }).home.business.title, 'Изменено');
+  assert.equal(shared.mergeSiteContent({ home: { business: { url: 'javascript:alert(1)' } } }).home.business.url, '/business');
   assert(s.calls.every(call => call.method === 'GET')); checks.push('Initial GET/default merge/references are readonly PASS');
   await s.t.loadMoreProducts(); assert.equal(s.t.products.value.length, 3); assert.equal(s.calls.at(-1).url, '/admin/products/list'); assert.equal(s.calls.at(-1).method, 'GET');
   s.t.draft.value.home.bestsellers.productIds = ['p1', 'p3']; s.t.moveProduct(0, 1); assert.equal(s.t.draft.value.home.bestsellers.productIds[0], 'p3'); s.t.cancel(); assert(!s.t.dirty.value);

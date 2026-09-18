@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsDefined, IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus } from '@prisma/client';
 
@@ -32,6 +32,7 @@ export class AdminProductImageDto {
   @IsOptional() @IsString() @MaxLength(200) alt?:string;
 }
 export class UpdateProductDto {
+  @IsOptional() @IsString() @Matches(/\S/) @MaxLength(80) variantId?: string;
   @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) salePrice?: number | null;
   @IsOptional() @IsDateString() saleStartsAt?: string | null;
   @IsOptional() @IsDateString() saleEndsAt?: string | null;
@@ -111,10 +112,48 @@ export class CreateStorefrontMenuItemDto {
 
 export class UpdateStorefrontMenuItemDto extends CreateStorefrontMenuItemDto {}
 
+export class AppearanceBannerDto extends CreateStorefrontBannerDto {
+  @IsOptional() @IsString() @Matches(/^(?!new-)[a-zA-Z0-9-]{1,80}$/) id?: string;
+  @IsString() @Matches(/^(?:\/(?!\/)[^\s\\]*|https?:\/\/[^\s\\]+)$/i) imageUrl!: string;
+  @IsOptional() @Matches(/^(?:\/(?!\/)[^\s\\]*|https?:\/\/[^\s\\]+)$/i) mobileImageUrl?: string;
+  @IsOptional() @Matches(/^(?:\/(?!\/)[^\s\\]*|#[^\s\\]+|https?:\/\/[^\s\\]+)$/i) linkUrl?: string;
+}
+export class AppearanceMenuItemDto extends CreateStorefrontMenuItemDto {
+  @IsOptional() @IsString() @Matches(/^(?!new-)[a-zA-Z0-9-]{1,80}$/) id?: string;
+}
+export class AppearanceSocialLinkDto extends CreateStorefrontSocialLinkDto {
+  @IsOptional() @IsString() @Matches(/^(?!new-)[a-zA-Z0-9-]{1,80}$/) id?: string;
+  @IsString() @Matches(/\S/) name!: string;
+  @IsString() @Matches(/^https?:\/\/[^\s\\]+$/i) url!: string;
+}
+export class SaveStorefrontAppearanceDto {
+  @IsString() @Matches(/^[a-f0-9]{64}$/) revision!: string;
+  @IsDefined() @ValidateNested() @Type(() => UpdateStorefrontSettingsDto) settings!: UpdateStorefrontSettingsDto;
+  @IsArray() @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => AppearanceBannerDto) banners!: AppearanceBannerDto[];
+  @IsArray() @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => AppearanceMenuItemDto) menuItems!: AppearanceMenuItemDto[];
+  @IsArray() @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => AppearanceSocialLinkDto) socialLinks!: AppearanceSocialLinkDto[];
+}
+
+export class StorefrontFounderSocialsDto {
+  @IsOptional() @IsString() @MaxLength(500) vk?: string;
+  @IsOptional() @IsString() @MaxLength(500) telegram?: string;
+  @IsOptional() @IsString() @MaxLength(500) instagram?: string;
+  @IsOptional() @IsString() @MaxLength(500) youtube?: string;
+  @IsOptional() @IsString() @MaxLength(500) tiktok?: string;
+}
+
 export class StorefrontPageBlockDto {
   @IsString() @MaxLength(80) @Matches(/^[a-zA-Z0-9_-]+$/) id!: string;
   @IsString() @MaxLength(180) title!: string;
   @IsString() @MaxLength(20000) body!: string;
+  @IsOptional() @IsIn(['text', 'hero', 'feature', 'steps', 'faq', 'action', 'biography']) kind?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(12) @IsString({ each: true }) @MaxLength(500, { each: true }) images?: string[];
+  @IsOptional() @ValidateNested() @Type(() => StorefrontFounderSocialsDto) socials?: StorefrontFounderSocialsDto;
+  @IsOptional() @IsIn(['business', 'calendar', 'users', 'gift', 'link', 'chart', 'wallet', 'shield']) icon?: string;
+  @IsOptional() @IsString() @MaxLength(80) buttonLabel?: string;
+  @IsOptional() @IsString() @MaxLength(500) buttonUrl?: string;
+  @IsOptional() @IsString() @MaxLength(80) secondaryLabel?: string;
+  @IsOptional() @IsString() @MaxLength(500) secondaryUrl?: string;
 }
 
 export class StorefrontPageContentDto {

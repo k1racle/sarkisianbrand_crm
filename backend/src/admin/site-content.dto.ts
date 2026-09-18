@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsInt, Max, Min, Validate, ValidatorConstraint, ValidatorConstraintInterface, isEmail } from 'class-validator';
 
 export const SITE_CONTENT_MAX_BYTES = 32 * 1024;
-export const SITE_CONTENT_SECTION_KEYS = ['hero', 'categories', 'bestsellers', 'club', 'manifesto', 'story', 'benefits'] as const;
+export const SITE_CONTENT_SECTION_KEYS = ['hero', 'categories', 'bestsellers', 'business', 'club', 'referral', 'bloggers', 'manifesto', 'story', 'benefits'] as const;
 export type SiteContent = Record<string, unknown>;
 type Rule = { kind: 'text'; max: number; format?: 'image' | 'url' | 'email' } |
   { kind: 'enum'; values: readonly string[] } | { kind: 'integer'; max: number } |
@@ -14,13 +14,24 @@ const enumeration = (...values: string[]): Rule => ({ kind: 'enum', values });
 const object = (fields: Record<string, Rule>): Rule => ({ kind: 'object', fields });
 const array = (item: Rule, max: number, unique?: string | true, exact?: number): Rule => ({ kind: 'array', item, max, unique, exact });
 const heading = { eyebrow: text(100), title: text(200), buttonLabel: text(80) };
+const partnershipFields = { ...heading, accent: text(200), body: text(1000), url: text(500, 'url'),
+  visualLabel: text(100), visualTitle: text(200), visualImageUrl: text(500, 'image'), visualVideoUrl: text(500, 'image'), visualLines: array(text(150), 4), theme: enumeration('dark', 'light', 'rose') };
+const partnership = object(partnershipFields);
+const businessPreview = object({
+  salonTitle: text(80), purchasesTitle: text(80), scheduleTitle: text(80),
+  appointmentTitle: text(80), appointmentDetail: text(80), secondAppointmentTitle: text(80), secondAppointmentDetail: text(80), breakTitle: text(80),
+  widgetTitle: text(80), widgetAction: text(80),
+  productTitle: text(80), productDetail: text(80), productCaption: text(80), productImageUrl: text(500, 'image'), productPrice: { kind: 'integer', max: 1000000 },
+  orderTitle: text(80), orderBody: text(80), demoLabel: text(80),
+});
 const link = { id: text(80), label: text(80), url: text(500, 'url'), newTab: { kind: 'boolean' } as Rule };
 const schema = object({
   contacts: object({ phone: text(30), email: text(254, 'email'), country: text(80) }),
   brand: object({ name: text(80), logoUrl: text(500, 'image'), footerText: text(500) }),
   home: object({
-    order: array(enumeration(...SITE_CONTENT_SECTION_KEYS), 7, true, 7),
-    hidden: array(enumeration(...SITE_CONTENT_SECTION_KEYS), 7, true),
+    order: array(enumeration(...SITE_CONTENT_SECTION_KEYS), SITE_CONTENT_SECTION_KEYS.length, true),
+    hidden: array(enumeration(...SITE_CONTENT_SECTION_KEYS), SITE_CONTENT_SECTION_KEYS.length, true),
+    business: object({ ...partnershipFields, preview: businessPreview }), referral: partnership, bloggers: partnership,
     categories: object(heading),
     bestsellers: object({ ...heading, mode: enumeration('popular', 'manual'), productIds: array(text(80), 8, true) }),
     club: object({ label: text(80), title: text(200), accent: text(200),
@@ -104,7 +115,13 @@ export function validateSiteContent(value: unknown): SiteContent {
   let serialized: string | undefined;
   try { serialized = JSON.stringify(value); } catch { throw new BadRequestException('Некорректный JSON контента'); }
   if (!serialized || Buffer.byteLength(serialized, 'utf8') > SITE_CONTENT_MAX_BYTES) throw new BadRequestException('Контент должен быть не больше 32 КБ');
-  return walk(value, schema, 'content') as SiteContent;
+  const content = walk(value, schema, 'content') as SiteContent;
+  const order = (content.home as Record<string, unknown> | undefined)?.order as string[] | undefined;
+  const legacy = SITE_CONTENT_SECTION_KEYS.filter(key => !['business', 'referral', 'bloggers'].includes(key));
+  if (order && !(order.length === SITE_CONTENT_SECTION_KEYS.length || order.length === legacy.length && legacy.every(key => order.includes(key)))) {
+    throw new BadRequestException('Порядок главной должен содержать все разделы без повторений');
+  }
+  return content;
 }
 
 @ValidatorConstraint({ name: 'boundedSiteContent', async: false })

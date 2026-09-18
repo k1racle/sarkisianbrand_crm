@@ -1,4 +1,5 @@
 /** Pure document builders: no database, request headers or integration calls. */
+import { catalogCategoryPath, catalogProductPath } from '../common/catalog-paths';
 export const PRIVATE_ROUTES = [
   '/api', '/docs', '/admin', '/account', '/cart', '/checkout', '/favorites',
   '/login', '/password-reset', '/auth', '/workspace', '/workspace-login',
@@ -28,7 +29,7 @@ export function isPublicCmsSlug(slug: string): boolean {
 }
 
 export interface SeoSnapshot {
-  products: Array<{ slug: string; updatedAt: Date | string }>;
+  products: Array<Parameters<typeof catalogProductPath>[0] & { updatedAt: Date | string }>;
   categories: Array<{ slug: string }>;
   pages: Array<{ slug: string; isActive: boolean; reviewRequired: boolean; updatedAt: Date | string }>;
 }
@@ -40,10 +41,10 @@ export function buildSitemap(base: string, snapshot: SeoSnapshot, indexing = tru
     entries.set(`${origin}/`, undefined);
     entries.set(`${origin}/catalog`, undefined);
     for (const category of snapshot.categories) {
-      if (category.slug) entries.set(`${origin}/catalog?category=${encodeURIComponent(category.slug)}`, undefined);
+      if (category.slug) entries.set(origin + catalogCategoryPath(category.slug), undefined);
     }
     for (const product of snapshot.products) {
-      if (product.slug) entries.set(`${origin}/products/${encodeURIComponent(product.slug)}`, product.updatedAt);
+      if (product.slug) entries.set(origin + catalogProductPath(product), product.updatedAt);
     }
     for (const page of snapshot.pages) {
       if (page.isActive && !page.reviewRequired && isPublicCmsSlug(page.slug)) entries.set(`${origin}/${page.slug}`, page.updatedAt);

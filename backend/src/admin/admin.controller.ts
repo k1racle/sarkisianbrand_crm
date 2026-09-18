@@ -6,8 +6,10 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { AdminService } from './admin.service';
+import { SalonSubscriptionDto } from '../b2b/dto/salon-presentation.dto';
 import { AdminListQueryDto, ReorderStorefrontDto, CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
 import { BulkProductsDto } from './dto/admin.dto';
+import { SaveStorefrontAppearanceDto } from './dto/admin.dto';
 import { CreateAdminProductDto, CreateStorefrontBannerDto, CreateStorefrontSocialLinkDto, UpdateCategoryPresentationDto, UpdateOrderStatusDto, UpdateProductDto, UpdateStorefrontBannerDto, UpdateStorefrontSettingsDto, UpdateStorefrontSocialLinkDto } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -17,11 +19,15 @@ import { CreateAdminProductDto, CreateStorefrontBannerDto, CreateStorefrontSocia
 @Roles('ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE')
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
+  @Get('salon-subscription') @Roles('ADMIN') @Permissions('system.manage')
+  salonSubscription() { return this.admin.salonSubscription(); }
+  @Patch('salon-subscription') @Roles('ADMIN') @Permissions('system.manage')
+  saveSalonSubscription(@Body() dto:SalonSubscriptionDto) { return this.admin.saveSalonSubscription(dto); }
 
   @Get('dashboard')
   @Permissions('admin.read')
   @ApiOperation({ summary: 'Dashboard админки' })
-  dashboard() { return this.admin.dashboard(); }
+  dashboard(@Query('days') days?: string) { return this.admin.dashboard(days); }
 
   @Get('products')
   @Permissions('catalog.read')
@@ -46,6 +52,10 @@ export class AdminController {
   @Get('storefront')
   @Permissions('catalog.read')
   storefrontContent() { return this.admin.storefrontContent(); }
+
+  @Patch('storefront/appearance')
+  @Permissions('catalog.write')
+  saveStorefrontAppearance(@Body() dto: SaveStorefrontAppearanceDto) { return this.admin.saveStorefrontAppearance(dto); }
 
   @Get('storefront/pages')
   @Permissions('catalog.read')

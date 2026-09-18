@@ -9,6 +9,7 @@ type PickupPoint = { code: string; name: string; address: string; cityCode?: num
 type ShippingCity = { code: number; city: string; region: string; country: string; countryCode: string };
 
 const config = useRuntimeConfig();
+const partnerToken=useCookie<string|null>('sb-partner-attribution');
 // Checkout must remain private even before parent replaces the cart page SEO hook.
 useSeoMeta({ robots: 'noindex, nofollow' });
 const { cartSession, cart, loadCart, user, accessToken, authHeaders } = useStorefront();
@@ -76,6 +77,7 @@ function shippingAddress() {
 }
 function requestBody(includeQuote = true): Record<string, any> {
   return {
+    ...(/^[a-f0-9]{64}$/.test(partnerToken.value||'')?{partnerToken:partnerToken.value}:{}),
     ...(contactValid.value ? { contact: cleanContact() } : {}), shippingAddress: shippingAddress(),
     ...(isGiftOrder.value ? { deliveryMethod: 'DIGITAL' } : {}),
     ...(!isGiftOrder.value ? {
@@ -478,8 +480,8 @@ onBeforeUnmount(() => {
         <div class="sb-checkout-stage">
           <template v-if="step === 1"><section class="sb-cart-items">
             <article v-for="item in cart.items" :key="item.id" class="sb-cart-item">
-              <NuxtLink :to="'/products/' + item.variant.product.slug" class="sb-cart-thumb"><img v-if="storefrontProductImage(item.variant.product)" :src="storefrontProductImage(item.variant.product)!" :alt="item.variant.product.nameRu" /><span v-else>S</span></NuxtLink>
-              <div><h2><NuxtLink :to="'/products/' + item.variant.product.slug">{{ item.variant.product.nameRu }}</NuxtLink></h2><p>{{ item.variant.name }} · {{ item.variant.sku }}</p><SiteQuantityControl :quantity="item.quantity" :disabled="modifying || locked" compact @change="change(item, $event)" /></div>
+              <NuxtLink :to="storefrontProductLink(item.variant.product)" class="sb-cart-thumb"><img v-if="storefrontProductImage(item.variant.product)" :src="storefrontProductImage(item.variant.product)!" :alt="item.variant.product.nameRu" /><span v-else>S</span></NuxtLink>
+              <div><h2><NuxtLink :to="storefrontProductLink(item.variant.product)">{{ item.variant.product.nameRu }}</NuxtLink></h2><p>{{ item.variant.name }} · {{ item.variant.sku }}</p><SiteQuantityControl :quantity="item.quantity" :disabled="modifying || locked" compact @change="change(item, $event)" /></div>
               <strong>{{ money(Number(item.variant.price) * item.quantity) }}</strong><button class="sb-remove" :disabled="modifying || locked" aria-label="Удалить товар" @click="remove(item)"><Trash2 :size="18" /></button>
             </article>
           </section>

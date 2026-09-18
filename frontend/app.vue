@@ -29,10 +29,8 @@ const showB2B = computed(() => isB2B.value && Boolean(b2bSession.token.value));
     <B2BPortalRail v-if="showB2B" />
     <WorkspaceContextMenu v-if="showB2B" />
     <UserProfileDrawer v-if="showB2B" mode="b2b" />
-    <div :class="{ 'b2b-frame': showB2B }"><NuxtPage /></div>
+    <div :class="{ 'b2b-frame': showB2B, 'b2b-frame--collapsed': showB2B && railCollapsed }"><BusinessToolbar v-if="showB2B" /><NuxtPage /></div>
     <template #fallback><WorkspaceLoading /></template>
   </ClientOnly>
   <NuxtPage v-else />
 </template>
-
-

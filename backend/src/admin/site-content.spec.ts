@@ -8,6 +8,23 @@ import { SiteContentService } from './site-content.service';
 import { MarketplacesService } from '../marketplaces/marketplaces.service';
 
 const copy = (value: any) => JSON.parse(JSON.stringify(value));
+describe('business cabinet demonstration content', () => {
+  it('preserves optional demo copy, local product image and integer price', () => {
+    const content = { home: { business: { preview: { salonTitle: 'Мой салон', appointmentTitle: 'Пример услуги', productImageUrl: '/storefront/products/gel-mousse-23.jpg', productPrice: 663, demoLabel: 'Пример данных' } } } };
+    expect(validateSiteContent(content)).toEqual(content);
+    expect(validateSiteContent({ home: { business: { title: 'Existing copy' } } })).toEqual({ home: { business: { title: 'Existing copy' } } });
+  });
+  it.each([
+    { productPrice: -1 }, { productPrice: 1.5 }, { productPrice: 1000001 }, { productPrice: '663' },
+    { productImageUrl: 'javascript:alert(1)' }, { productImageUrl: 'https://localhost/private.png' },
+    { salonTitle: 'x'.repeat(81) }, { invented: 'unknown' },
+  ])('rejects invalid demo snapshot %j', preview => {
+    expect(() => validateSiteContent({ home: { business: { preview } } })).toThrow(BadRequestException);
+  });
+  it('does not add demonstration fields to the referral or blogger programs', () => {
+    expect(() => validateSiteContent({ home: { referral: { preview: {} } } })).toThrow(BadRequestException);
+  });
+});
 function fixture(initial: any = null) {
   let setting = initial && copy(initial), history: any[] = [], tail = Promise.resolve();
   const tx: any = {
@@ -53,6 +70,20 @@ function fixture(initial: any = null) {
 }
 
 describe('site content strict bounded contract', () => {
+  it('retains legacy orders and accepts the three editable partnership promotions', () => {
+    const legacy = SITE_CONTENT_SECTION_KEYS.filter(key => !['business', 'referral', 'bloggers'].includes(key));
+    expect(validateSiteContent({ home: { order: legacy } })).toEqual({ home: { order: legacy } });
+    const content = { home: { order: [...SITE_CONTENT_SECTION_KEYS], hidden: ['bloggers'], business: { title: 'Для бизнеса', url: '/business', theme: 'dark', visualLines: ['Закупки', 'Запись'] } } };
+    expect(validateSiteContent(content)).toEqual(content);
+    expect(() => validateSiteContent({ home: { business: { url: 'javascript:alert(1)' } } })).toThrow();
+    expect(() => validateSiteContent({ home: { referral: { theme: 'unknown' } } })).toThrow();
+    expect(() => validateSiteContent({ home: { bloggers: { visualLines: Array(5).fill('line') } } })).toThrow();
+    expect(validateSiteContent({ home: { bloggers: { visualImageUrl: '/api/v1/media/files/creator.png' } } })).toEqual({ home: { bloggers: { visualImageUrl: '/api/v1/media/files/creator.png' } } });
+    expect(() => validateSiteContent({ home: { bloggers: { visualImageUrl: 'javascript:alert(1)' } } })).toThrow();
+    expect(validateSiteContent({ home: { bloggers: { visualVideoUrl: '/storefront/svetlana-creator-video.mp4' } } })).toEqual({ home: { bloggers: { visualVideoUrl: '/storefront/svetlana-creator-video.mp4' } } });
+    expect(() => validateSiteContent({ home: { bloggers: { visualVideoUrl: 'javascript:alert(1)' } } })).toThrow();
+    expect(() => validateSiteContent({ home: { bloggers: { visualVideoUrl: 'http://localhost:1234/private.mp4' } } })).toThrow();
+  });
   it('accepts empty content and partial optional blocks without adding frontend defaults', () => {
     expect(validateSiteContent({})).toEqual({});
     expect(validateSiteContent({ home: { story: { title: '  Заголовок  ' } } })).toEqual({ home: { story: { title: 'Заголовок' } } });

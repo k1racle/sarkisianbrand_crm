@@ -4,7 +4,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto, UpdateCartItemDto } from './dto/cart.dto';
 import { moneyMinor } from '../common/storefront-utils';
 import { pricedCart } from '../common/product-merchandising';
-const view = { items: { include: { variant: { include: { product: { include: { images: true } } } } } } };
+const view = {
+  items: {
+    include: {
+      variant: {
+        include: {
+          product: { include: { images: true, categories: { include: { category: true } } } },
+        },
+      },
+    },
+  },
+};
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}

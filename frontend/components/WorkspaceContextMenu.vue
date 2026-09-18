@@ -47,15 +47,17 @@ watch(
     position.left = contextMenuState.value.x;
     position.top = contextMenuState.value.y;
     await nextTick();
-    const box = menu.value?.getBoundingClientRect();
-    if (!box) return;
+    const element = menu.value;
+    if (!element || !contextMenuState.value.visible) return;
+    // The enter transition scales the menu. Measure its layout size, not the
+    // animated bounding rectangle, so the final menu stays inside the viewport.
     position.left = Math.max(
       8,
-      Math.min(contextMenuState.value.x, window.innerWidth - box.width - 8),
+      Math.min(contextMenuState.value.x, window.innerWidth - element.offsetWidth - 8),
     );
     position.top = Math.max(
       8,
-      Math.min(contextMenuState.value.y, window.innerHeight - box.height - 8),
+      Math.min(contextMenuState.value.y, window.innerHeight - element.offsetHeight - 8),
     );
   },
 );
@@ -184,4 +186,3 @@ onBeforeUnmount(() => {
     ></Teleport
   >
 </template>
-

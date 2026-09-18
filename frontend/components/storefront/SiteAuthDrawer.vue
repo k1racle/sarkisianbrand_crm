@@ -46,7 +46,7 @@ async function social(provider: 'yandex' | 'vk') {
   try {
     const result = await $fetch<any>(`/auth/social/${provider}/start`, {
       baseURL: config.public.apiBase,
-      query: { returnUrl: route.path === '/cart' ? '/cart' : '/account' },
+      query: { returnUrl: ['/cart', '/account'].includes(route.path) ? route.fullPath : '/account' },
     });
     if (result.authorizationUrl) window.location.href = result.authorizationUrl;
   } catch (exception: any) {

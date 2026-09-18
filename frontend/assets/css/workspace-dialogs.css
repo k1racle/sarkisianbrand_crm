@@ -193,3 +193,30 @@
   .admin-dialog.admin-dialog.admin-dialog.admin-dialog--chat .composer { padding:12px 16px max(12px,env(safe-area-inset-bottom)); }
 }
 @media(prefers-reduced-motion:reduce) { .admin-dialog { animation:none!important; transition:none!important; } }
+
+/* The shared profile is teleported outside both cabinet roots. Keep all its
+ * section actions on the same 44px contract as the workspace controls. */
+@layer workspace-dialog-fields {
+  .profile-drawer.admin-dialog .profile-content {
+    align-content:start!important;grid-auto-rows:max-content;
+  }
+  .profile-drawer.admin-dialog .profile-section {
+    align-content:start!important;grid-auto-rows:max-content;
+  }
+  .profile-drawer.admin-dialog .profile-section>.section-title {
+    display:flex!important;align-items:flex-start!important;justify-content:space-between;
+    gap:16px;min-width:0;
+  }
+  .profile-drawer.admin-dialog .section-title>div { flex:1;min-width:0; }
+  .profile-drawer.admin-dialog .section-title>svg { flex:none; }
+  .profile-drawer.admin-dialog .profile-section>button {
+    display:inline-flex!important;align-items:center;justify-content:center;
+    justify-self:start;width:auto!important;max-width:100%;
+    height:44px!important;min-height:44px!important;margin:0!important;
+    padding:0 16px!important;border:1px solid var(--ui-line)!important;
+    border-radius:var(--ui-control-radius)!important;box-shadow:none!important;
+  }
+  .profile-drawer.admin-dialog .profile-section>button.primary {
+    background:var(--ui-ink)!important;color:var(--ui-rail-ink)!important;border-color:var(--ui-ink)!important;
+  }
+}

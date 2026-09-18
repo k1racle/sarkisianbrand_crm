@@ -1,5 +1,28 @@
-export const homeSectionKeys = ['hero', 'categories', 'bestsellers', 'club', 'manifesto', 'story', 'benefits'] as const;
+export const homeSectionKeys = ['hero', 'categories', 'bestsellers', 'business', 'club', 'referral', 'bloggers', 'manifesto', 'story', 'benefits'] as const;
+const legacyHomeSections = homeSectionKeys.filter(key => !['business', 'referral', 'bloggers'].includes(key));
 export type HomeSection = typeof homeSectionKeys[number];
+export const partnershipSectionKeys = ['business', 'referral', 'bloggers'] as const;
+export interface BusinessPreview {
+  salonTitle: string; purchasesTitle: string; scheduleTitle: string;
+  appointmentTitle: string; appointmentDetail: string; secondAppointmentTitle: string; secondAppointmentDetail: string; breakTitle: string;
+  widgetTitle: string; widgetAction: string;
+  productTitle: string; productDetail: string; productCaption: string; productImageUrl: string; productPrice: number;
+  orderTitle: string; orderBody: string; demoLabel: string;
+}
+export const defaultBusinessPreview: BusinessPreview = {
+  salonTitle: 'Мой салон', purchasesTitle: 'Закупки SARKISIAN', scheduleTitle: 'Рабочий день',
+  appointmentTitle: 'Маникюр с покрытием', appointmentDetail: 'Запись клиента · 90 минут',
+  secondAppointmentTitle: 'Укрепление и коррекция', secondAppointmentDetail: 'Следующая запись · 60 минут', breakTitle: 'Перерыв',
+  widgetTitle: 'Онлайн-запись для клиентов', widgetAction: 'Выбрать время',
+  productTitle: 'Гель-мусс конструирующий', productDetail: 'Камуфлирующий № 23 · 15 г', productCaption: 'Пример персональной цены',
+  productImageUrl: '/storefront/products/gel-mousse-23.jpg', productPrice: 663,
+  orderTitle: 'Ваш заказ', orderBody: 'Заказ → Склад → Доставка', demoLabel: 'Пример данных',
+};
+export interface HomePartnershipBlock {
+  eyebrow: string; title: string; accent: string; body: string; buttonLabel: string; url: string;
+  visualLabel: string; visualTitle: string; visualImageUrl: string; visualVideoUrl: string; visualLines: string[]; theme: 'dark' | 'light' | 'rose';
+  preview?: BusinessPreview;
+}
 export type SiteContentAction = 'none' | 'account' | 'favorites' | 'cart';
 export interface SiteContentLink { id: string; label: string; url: string; newTab: boolean }
 export interface SiteContentFooterItem extends SiteContentLink { action: SiteContentAction }
@@ -8,6 +31,7 @@ export interface SiteContent {
   brand: { name: string; logoUrl: string; footerText: string };
   home: {
     order: HomeSection[]; hidden: HomeSection[];
+    business: HomePartnershipBlock; referral: HomePartnershipBlock; bloggers: HomePartnershipBlock;
     categories: { eyebrow: string; title: string; buttonLabel: string };
     bestsellers: { eyebrow: string; title: string; buttonLabel: string; mode: 'popular' | 'manual'; productIds: string[] };
     club: { label: string; title: string; accent: string; benefits: Array<{ id: string; icon: 'award' | 'gift' | 'shield'; text: string }>; joinLabel: string; aboutLabel: string; previewLabel: string; previewBalance: number };
@@ -26,6 +50,9 @@ export const defaultSiteContent: SiteContent = {
   brand: { name: 'SARKISIAN BRAND', logoUrl: '/sarkisian-logo.png', footerText: 'Профессиональные материалы и инструменты для мастеров маникюра. От мастера — мастерам.' },
   home: {
     order: [...homeSectionKeys], hidden: [],
+    business: { eyebrow: 'SARKISIAN ДЛЯ БИЗНЕСА', title: 'Сильные материалы.', accent: 'Удобный бизнес.', body: 'Закупайте профессиональные материалы и управляйте записью клиентов в одном аккаунте. Два пространства — для ежедневной работы салона и поставок SARKISIAN.', buttonLabel: 'Решения для бизнеса', url: '/business', visualLabel: 'ВАШ РАБОЧИЙ КАБИНЕТ', visualTitle: 'Всё важное — под рукой', visualImageUrl: '', visualVideoUrl: '', visualLines: ['Закупки и персональные условия', 'Календарь, команда и клиенты', 'Страница и виджет онлайн-записи'], theme: 'light', preview: defaultBusinessPreview },
+    referral: { eyebrow: 'РЕФЕРАЛЬНАЯ ПРОГРАММА', title: 'Делитесь любимым.', accent: 'Получайте бонусы.', body: 'Расскажите друзьям о SARKISIAN по персональной ссылке. За подходящие покупки приглашённых клиентов получайте бонусы для следующих заказов на сайте.', buttonLabel: 'Как это работает', url: '/club#referral', visualLabel: 'ОТ МАСТЕРА — ДРУЗЬЯМ', visualTitle: 'Рекомендация с продолжением', visualImageUrl: '', visualVideoUrl: '', visualLines: ['Ваша персональная ссылка', 'Покупка приглашённого клиента', 'Бонусы для любимых материалов'], theme: 'light' },
+    bloggers: { eyebrow: 'БЛОГЕРАМ И АВТОРАМ', title: 'Создавайте контент.', accent: 'Растите с брендом.', body: 'Делитесь опытом с аудиторией, следите за результатами рекомендаций и получайте денежное вознаграждение. За привлечение нового салона или бизнеса предусмотрена отдельная фиксированная награда.', buttonLabel: 'Обсудить сотрудничество', url: '/partnerships#bloggers', visualLabel: 'ПАРТНЁРЫ SARKISIAN', visualTitle: 'Ваш опыт имеет значение', visualImageUrl: '/storefront/svetlana-creator-youtube.jpg', visualVideoUrl: '/storefront/svetlana-creator-video.mp4', visualLines: ['Ссылка и аналитика рекомендаций', 'Вознаграждение за B2C-покупки', 'Отдельная награда за новый бизнес'], theme: 'dark' },
     categories: { eyebrow: 'ВЫБИРАЙТЕ ПО ЗАДАЧЕ', title: 'Всё необходимое\nдля уверенной работы', buttonLabel: 'Весь каталог' },
     bestsellers: { eyebrow: 'ВЫБОР МАСТЕРОВ', title: 'Бестселлеры', buttonLabel: 'Смотреть все', mode: 'popular', productIds: [] },
     club: { label: 'SARKISIAN CLUB', title: 'Покупайте любимое.', accent: 'Получайте больше.', benefits: [
@@ -44,7 +71,7 @@ export const defaultSiteContent: SiteContent = {
   },
   footer: { columns: [
     { id: 'buyers', title: 'Покупателям', items: [link('catalog', 'Каталог', '/catalog'), link('account', 'Личный кабинет', '/account', 'account'), link('favorites', 'Избранное', '/favorites', 'favorites'), link('cart', 'Корзина', '/cart', 'cart')] },
-    { id: 'company', title: 'Компания', items: [link('about', 'О бренде', '/about'), link('delivery', 'Доставка и оплата', '/delivery'), link('club', 'О клубе', '/club'), link('contacts', 'Контакты', '/contacts'), link('b2b', 'Кабинет B2B', '/b2b-login')] },
+    { id: 'company', title: 'Компания', items: [link('about', 'О бренде', '/about'), link('delivery', 'Доставка и оплата', '/delivery'), link('club', 'О клубе', '/club'), link('business', 'Для бизнеса', '/business'), link('partnerships', 'Для блогеров', '/partnerships'), link('contacts', 'Контакты', '/contacts'), link('b2b', 'Кабинет B2B', '/b2b-login')] },
   ], legalLinks: [
     { id: 'privacy', label: 'Политика конфиденциальности', url: '/privacy', newTab: false },
     { id: 'oferta', label: 'Публичная оферта', url: '/oferta', newTab: false },
@@ -72,7 +99,7 @@ export function siteContentPhoneHref(phone: string): string {
   return `tel:${digits.length === 11 && digits.startsWith('8') ? `+7${digits.slice(1)}` : phone.startsWith('+') ? `+${digits}` : digits.length === 10 ? `+7${digits}` : `+${digits || '79184496394'}`}`;
 }
 
-const limits: Record<string, number> = { phone: 30, email: 254, country: 80, name: 80, logoUrl: 500, footerText: 500, eyebrow: 100, title: 200, buttonLabel: 80, label: 80, accent: 200, text: 250, joinLabel: 80, aboutLabel: 80, previewLabel: 100, body: 1000, portraitUrl: 500, id: 80, url: 500 };
+const limits: Record<string, number> = { phone: 30, email: 254, country: 80, name: 80, logoUrl: 500, footerText: 500, eyebrow: 100, title: 200, visualLabel: 100, visualTitle: 200, visualImageUrl: 500, visualVideoUrl: 500, buttonLabel: 80, label: 80, accent: 200, text: 250, joinLabel: 80, aboutLabel: 80, previewLabel: 100, body: 1000, portraitUrl: 500, id: 80, url: 500 };
 const templates: Record<string, unknown> = {
   'home.club.benefits': { id: '', icon: 'award', text: '' },
   'home.benefits': { id: '', icon: 'package', eyebrow: '', title: '', body: '' },
@@ -86,8 +113,16 @@ function mergeValue(base: any, input: unknown, path: string): any {
     if (!Array.isArray(input)) return base.map(item => mergeValue(item, undefined, path));
     if (path === 'home.order' || path === 'home.hidden') {
       const valid = input.every(item => homeSectionKeys.includes(item as HomeSection)) && new Set(input).size === input.length;
-      return valid && (path !== 'home.order' || input.length === 7) ? [...input] : [...base];
+      if (!valid) return [...base];
+      if (path === 'home.hidden') return [...input];
+      if (input.length === homeSectionKeys.length) return [...input];
+      if (input.length === legacyHomeSections.length && legacyHomeSections.every(key => input.includes(key))) {
+        const clubIndex = input.indexOf('club');
+        return [...input.slice(0, clubIndex), 'business', 'club', 'referral', 'bloggers', ...input.slice(clubIndex + 1)];
+      }
+      return [...base];
     }
+    if (path.endsWith('.visualLines')) return input.length <= 4 && input.every(item => typeof item === 'string' && item.length <= 150) ? [...input] : [...base];
     if (path === 'home.bestsellers.productIds') return input.length <= 8 && input.every(item => typeof item === 'string' && !!item.trim() && item.length <= 80) && new Set(input).size === input.length ? [...input] : [...base];
     const template = templates[path];
     if (!template || input.length > arrayLimits[path]) return base.map(item => mergeValue(item, undefined, path));
@@ -103,13 +138,14 @@ function mergeValue(base: any, input: unknown, path: string): any {
   if (typeof base === 'number') return Number.isInteger(input) && (input as number) >= 0 && (input as number) <= 1_000_000 ? input : base;
   if (typeof input !== 'string') return base;
   const key = path.split('.').pop()!;
-  const max = path === 'home.manifesto.text' ? 500 : path === 'home.story.body' ? 2000 : path === 'footer.columns.title' ? 100 : limits[key] || 80;
+  const max = key === 'productImageUrl' ? 500 : path === 'home.manifesto.text' ? 500 : path === 'home.story.body' ? 2000 : path === 'footer.columns.title' ? 100 : limits[key] || 80;
   if (input.length > max) return base;
-  if (key === 'logoUrl' || key === 'portraitUrl') return safeSiteContentUrl(input, true) ? input : base;
+  if (key === 'visualImageUrl' || key === 'visualVideoUrl') return input === '' || safeSiteContentUrl(input, true) ? input : base;
+  if (key === 'logoUrl' || key === 'portraitUrl' || key === 'productImageUrl') return safeSiteContentUrl(input, true) ? input : base;
   if (key === 'url') return safeSiteContentUrl(input) ? input : base;
   if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) return base;
   if (key === 'phone' && !/^\+?[\d ()-]+$/.test(input)) return base;
-  const allowed = key === 'mode' ? ['popular', 'manual'] : key === 'action' ? ['none', 'account', 'favorites', 'cart'] : key === 'icon' ? path.startsWith('home.club.') ? ['award', 'gift', 'shield'] : ['package', 'shield', 'award', 'sparkles'] : undefined;
+  const allowed = key === 'theme' ? ['dark', 'light', 'rose'] : key === 'mode' ? ['popular', 'manual'] : key === 'action' ? ['none', 'account', 'favorites', 'cart'] : key === 'icon' ? path.startsWith('home.club.') ? ['award', 'gift', 'shield'] : ['package', 'shield', 'award', 'sparkles'] : undefined;
   return allowed && !allowed.includes(input) ? base : input;
 }
 /** Whitelisted deep defaults; arrays replace atomically, missing nested fields retain defaults. */

@@ -21,7 +21,7 @@ export type WorkspacePreferences = { favorites: string[]; recent: string[]; star
 export const WORKSPACE_AREAS = [
   { id: 'crm', label: 'CRM', description: 'Клиенты, сделки и задачи команды', icon: 'Users', groupIds: ['crm'] },
   { id: 'marketplaces', label: 'Маркетплейсы', description: 'Продажи и подключения торговых площадок', icon: 'Cable', groupIds: ['channels'] },
-  { id: 'site', label: 'Сайт', description: 'Заказы, товары и оформление сайта', icon: 'ShoppingBag', groupIds: ['sales', 'catalog', 'site', 'marketing'] },
+  { id: 'site', label: 'Сайт', description: 'Заказы, товары и оформление сайта', icon: 'ShoppingBag', groupIds: ['sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing'] },
   { id: 'support', label: 'Поддержка', description: 'Заявки, очереди и помощь клиентам', icon: 'Headphones', groupIds: ['support'] },
   { id: 'management', label: 'Управление', description: 'Отчёты, сотрудники и настройки платформы', icon: 'Settings', groupIds: ['reports', 'media', 'settings'] },
 ] as const;
@@ -64,8 +64,24 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'organizations', label: 'Организации B2B', to: '/crm-organizations', permission: 'customers.read', roles: CRM, keywords: 'компании партнеры' },
     { id: 'tasks', label: 'Задачи', to: '/crm-tasks', permission: 'crm.read', roles: CRM, keywords: 'календарь gantt команда' },
   ] },
-  { id: 'marketing', label: 'Маркетинг', description: 'Бонусная программа, промокоды и подарочные карты.', icon: 'Award', items: [
-    { id: 'loyalty', label: 'Бонусная программа', to: '/admin-workspace/loyalty', permission: 'loyalty.read', roles: MARKETING, keywords: 'клуб баллы sarkisian club' },
+  { id: 'loyalty', label: 'Бонусная программа', description: 'Правила клуба и бонусные счета клиентов.', icon: 'Award', items: [
+    { id: 'loyalty-settings', label: 'Настройки программы', to: '/admin-workspace/loyalty-settings', permission: 'loyalty.read', roles: MARKETING, keywords: 'клуб баллы правила sarkisian club начисления' },
+    { id: 'loyalty-members', label: 'Участники', to: '/admin-workspace/loyalty-members', permission: 'loyalty.read', roles: MARKETING, keywords: 'клуб счета баланс история бонусы' },
+  ] },
+  { id: 'referral', label: 'Реферальная программа', description: 'Персональные ссылки и бонусы частным клиентам.', icon: 'UserRoundPlus', items: [
+    {id:'referral-settings',label:'Настройки программы',to:'/admin-workspace/referral-settings',roles:MARKETING,permission:'partners.read'},
+    {id:'referral-participants',label:'Участники',to:'/admin-workspace/referral-participants',roles:MARKETING,permission:'partners.read'},
+    {id:'referral-rewards',label:'Начисления',to:'/admin-workspace/referral-rewards',roles:MARKETING,permission:'partners.read'},
+  ] },
+  { id: 'bloggers', label: 'Блогеры', description: 'Партнёры, аналитика, привлечённые организации и выплаты.', icon: 'Users', items: [
+    {id:'bloggers-overview',label:'Обзор',to:'/admin-workspace/bloggers-overview',roles:MARKETING,permission:'partners.read'},
+    {id:'bloggers-participants',label:'Заявки и партнёры',to:'/admin-workspace/bloggers-participants',roles:MARKETING,permission:'partners.read'},
+    {id:'bloggers-registrations',label:'Привлечённые организации',to:'/admin-workspace/bloggers-registrations',roles:MARKETING,permission:'partners.read'},
+    {id:'bloggers-rewards',label:'Начисления',to:'/admin-workspace/bloggers-rewards',roles:MARKETING,permission:'partners.read'},
+    {id:'bloggers-payouts',label:'Выплаты',to:'/admin-workspace/bloggers-payouts',roles:ADMIN,permission:'partners.payouts'},
+    {id:'bloggers-settings',label:'Настройки программы',to:'/admin-workspace/bloggers-settings',roles:MARKETING,permission:'partners.read'},
+  ] },
+  { id: 'marketing', label: 'Маркетинг', description: 'Промокоды и подарочные карты.', icon: 'Megaphone', items: [
     { id: 'promotions', label: 'Промокоды', to: '/admin-workspace/promotions', roles: MARKETING, keywords: 'скидки акции' },
     { id: 'gift-cards', label: 'Подарочные карты', to: '/admin-workspace/gift-cards', roles: MARKETING, keywords: 'сертификаты номиналы' },
   ] },
@@ -93,6 +109,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
   ] },
   { id: 'settings', label: 'Настройки', description: 'Доступ, сотрудники, интеграции и журналы экосистемы.', icon: 'Settings', items: [
     { id: 'system-overview', label: 'Обзор системы', to: '/system-settings/overview', permission: 'system.manage', roles: ADMIN },
+    { id: 'salon-subscription', label: 'Подписка салонов', to: '/system-settings/salon-subscription', permission: 'system.manage', roles: ADMIN, keywords: 'тариф цена онлайн запись виджет салон подписка' },
     { id: 'accounts', label: 'Учётные записи', to: '/system-settings/accounts', permission: 'system.manage', roles: ADMIN },
     { id: 'trash', label: 'Корзина данных', to: '/system-settings/trash', permission: 'system.manage', roles: ADMIN },
     { id: 'staff', label: 'Сотрудники', to: '/system-settings/staff', permission: 'system.manage', roles: ADMIN },
@@ -109,7 +126,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
 
 export function buildWorkspaceNavigation(role?: string | null, can: (permission?: string) => boolean = () => true): WorkspaceGroup[] {
   if (!role || !INTERNAL.includes(role)) return [];
-  const order = ['dashboard', 'sales', 'catalog', 'site', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
+  const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
   return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission)) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 export function flattenWorkspaceNavigation(groups: readonly WorkspaceGroup[]): WorkspaceDestination[] {
@@ -156,7 +173,7 @@ export function useWorkspaceNavigation() {
   const start = computed(() => leaves.value.find(item => item.id === resolved.value.start) || null);
   const breadcrumbs = computed(() => active.value && active.value.id !== 'workspace' ? [
     { label: 'Рабочий стол', to: '/workspace' },
-    { label: active.value.groupLabel, to: groups.value.find(group => group.id === active.value!.groupId)?.items[0]?.to || '/workspace' },
+    ...(active.value.groupLabel !== 'Рабочий стол' ? [{ label: active.value.groupLabel, to: groups.value.find(group => group.id === active.value!.groupId)?.items[0]?.to || '/workspace' }] : []),
     { label: active.value.label, to: active.value.to },
   ] : [{ label: 'Рабочий стол', to: '/workspace' }]);
   function hydratePreferences() {

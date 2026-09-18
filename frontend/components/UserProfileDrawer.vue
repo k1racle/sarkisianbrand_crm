@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, Camera, Check, KeyRound, Laptop, LoaderCircle, LockKeyhole, MapPin, ShieldCheck, Trash2, UserRound, X } from '@lucide/vue';
+import { Bell, Camera, Check, Laptop, LoaderCircle, LockKeyhole, MapPin, ShieldCheck, Trash2, UserRound, X } from '@lucide/vue';
 
 const props = defineProps<{ mode: 'workspace' | 'b2b' }>();
 const config = useRuntimeConfig();
@@ -167,7 +167,7 @@ watch(isOpen, (value) => { if (value) { tab.value = 'profile'; load(); } });
               </template>
               <template v-else-if="tab === 'security'">
                 <section data-v-ui-6d8134092fd8 class="profile-section">
-                  <div data-v-ui-6d8134092fd8 class="section-title"><div data-v-ui-6d8134092fd8><h3 data-v-ui-6d8134092fd8>Смена пароля</h3><p data-v-ui-6d8134092fd8>После смены пароля вход будет завершён на всех устройствах.</p></div><KeyRound data-v-ui-6d8134092fd8 :size="18" /></div>
+                  <div data-v-ui-6d8134092fd8 class="section-title"><div data-v-ui-6d8134092fd8><h3 data-v-ui-6d8134092fd8>Смена пароля</h3><p data-v-ui-6d8134092fd8>После смены пароля вход будет завершён на всех устройствах.</p></div></div>
                   <div data-v-ui-6d8134092fd8 class="field-grid single"><label data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8>Текущий пароль</span><input data-v-ui-6d8134092fd8 v-model="passwords.currentPassword" type="password" autocomplete="current-password" /></label><label data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8>Новый пароль</span><input data-v-ui-6d8134092fd8 v-model="passwords.newPassword" type="password" autocomplete="new-password" placeholder="Не менее 10 символов, буквы и цифры" /></label><label data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8>Повторите новый пароль</span><input data-v-ui-6d8134092fd8 v-model="passwords.repeatPassword" type="password" autocomplete="new-password" /></label></div>
                   <button data-v-ui-6d8134092fd8 class="primary" :disabled="saving || !passwords.currentPassword || !passwords.newPassword" @click="changePassword">Сменить пароль</button>
                 </section>
@@ -189,5 +189,4 @@ watch(isOpen, (value) => { if (value) { tab.value = 'profile'; load(); } });
     </Transition>
   </Teleport>
 </template>
-
 

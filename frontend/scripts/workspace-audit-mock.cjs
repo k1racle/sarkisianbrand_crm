@@ -15,6 +15,7 @@ vm.runInNewContext(stripTypeScriptTypes(navigation.replaceAll('import.meta.clien
 const permissions = [...new Set(registry.leaves.map(x => x.permission).filter(Boolean)), 'web_orders.manage', 'catalog.write', 'marketplace.configure', 'loyalty.write'];
 const marketplaceOrder = { id:'qa-channel-order', orderNumber:'QA-OMS-001', externalId:'QA-OZON-001', channel:'OZON', status:'NEW', buyerName:'Тестовый покупатель', totalAmount:'1560', createdAt:'2026-09-16T10:00:00Z' };
 const fixtures = new Map([
+  ['/admin/salon-subscription',{name:'Кабинет салона',monthlyPrice:1500,annualPrice:15000,freeAccess:true}],
   ['/auth/access', { role:'ADMIN', permissions, denied:[] }],
   ['/marketplaces/orders', [marketplaceOrder]], ['/marketplaces/integrations', [{ channel:'OZON', shopName:'Тестовый кабинет', isActive:false }]],
   ['/helpdesk/tickets', []], ['/helpdesk/agents', []],
@@ -65,7 +66,7 @@ async function main() {
         assert.ok(state.pageWidth<=width+2,'Page overflow');
         assert.deepEqual(state.outside,[],'Controls outside viewport');
         assert.deepEqual(state.fonts,['Montserrat,Arial,sans-serif'],'One workspace font family');
-        assert.deepEqual(await f.page.locator('.studio-area-switch option').allTextContents(),['CRM','Маркетплейсы','Сайт','Поддержка','Управление'],'Business workspace order');
+        assert.deepEqual(await f.page.locator('.workspace-area-switch option').allTextContents(),['CRM','Маркетплейсы','Сайт','Поддержка','Управление'],'Business workspace order');
         assert.equal(await f.page.locator('.wn-toolbar-actions>:last-child').getAttribute('aria-label'),'Выйти','Sign out must be last');
         assert.equal(await f.page.locator('.wn-toolbar-actions>:nth-child(2)').getAttribute('aria-label'),'Чат платформы','Chat follows search');
         assert.equal(await f.page.locator('.wn-toolbar-actions>:nth-child(3)').getAttribute('aria-label'),'Открыть сайт','Site shortcut follows chat');

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronRight, ExternalLink, LogOut, MessageCircle, Pin, Search, Star, X } from '@lucide/vue';
 const router = useRouter();
+const { areas, selectedArea, switchArea } = useWorkspaceAreaSelection();
 const { logout } = useWorkspaceSession();
 const { unread, toggleChat, isOpen: chatOpen } = usePlatformChat();
 const signingOut = useState<boolean>('workspace-signing-out', () => false);
@@ -23,6 +24,7 @@ const results = computed(() => query.value.trim() ? search(query.value) : search
   return priority(a.id) - priority(b.id);
 }));
 let returnFocus: HTMLElement | null = null;
+let searchPreviousOverflow: string | null = null;
 function closePalette() { paletteOpen.value = false; }
 function globalKeys(event: KeyboardEvent) {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); paletteOpen.value = !paletteOpen.value; }
@@ -48,16 +50,19 @@ function dialogKeys(event: KeyboardEvent) {
 }
 watch(query, () => { selected.value = 0; });
 watch(results, () => { if (selected.value >= results.value.length) selected.value = 0; });
+function unlockSearch() { if (searchPreviousOverflow === null) return; document.documentElement.style.overflow = searchPreviousOverflow; searchPreviousOverflow = null; }
 watch(paletteOpen, async open => {
-  if (open) { returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; query.value = ''; selected.value = 0; await nextTick(); searchInput.value?.focus(); }
-  else { await nextTick(); if (returnFocus?.isConnected && returnFocus.getClientRects().length) returnFocus.focus(); else document.querySelector<HTMLElement>('.wn-command-trigger')?.focus(); }
+  if (!import.meta.client) return;
+  if (open) { if (searchPreviousOverflow === null) searchPreviousOverflow = document.documentElement.style.overflow; document.documentElement.style.overflow = 'hidden'; returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; query.value = ''; selected.value = 0; await nextTick(); if (paletteOpen.value) searchInput.value?.focus(); }
+  else { unlockSearch(); await nextTick(); if (returnFocus?.isConnected && returnFocus.getClientRects().length) returnFocus.focus(); else document.querySelector<HTMLElement>('.wn-command-trigger')?.focus(); }
 });
 onMounted(() => { window.addEventListener('keydown', globalKeys); });
-onBeforeUnmount(() => { window.removeEventListener('keydown', globalKeys); paletteOpen.value = false; });
+onBeforeUnmount(() => { window.removeEventListener('keydown', globalKeys); unlockSearch(); paletteOpen.value = false; });
 </script>
 
 <template>
   <div class="wn-toolbar" aria-label="Навигация по рабочему пространству">
+    <div class="studio-area-switch workspace-area-switch"><select :value="selectedArea?.id || ''" aria-label="Выбрать рабочее пространство" @change="switchArea"><option v-for="area in areas" :key="area.id" :value="area.id">{{ area.label }}</option></select></div>
     <nav class="wn-breadcrumbs" aria-label="Хлебные крошки"><template v-for="(crumb, index) in breadcrumbs" :key="index"><ChevronRight v-if="index" :size="14" aria-hidden="true" /><NuxtLink :to="crumb.to" :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined">{{ crumb.label }}</NuxtLink></template></nav>
     <div class="wn-toolbar-actions">
       <button type="button" class="wn-command-trigger" aria-label="Найти раздел" @click="paletteOpen = true"><Search :size="18" /><span>Найти раздел</span><kbd aria-hidden="true">Ctrl K</kbd></button>
@@ -68,5 +73,5 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', globalKeys); palet
       <button type="button" class="wn-icon-control wn-signout" aria-label="Выйти" title="Выйти" :disabled="signingOut" @click="signOut"><LogOut :size="18" /></button>
     </div>
   </div>
-  <Teleport to="body"><Transition name="wn-palette"><div v-if="paletteOpen" class="wn-palette-layer admin-dialog-backdrop" @mousedown.self="closePalette" @keydown="dialogKeys"><section ref="dialog" class="wn-command-dialog admin-dialog admin-dialog--modal" role="dialog" aria-modal="true" aria-labelledby="wn-command-title"><header><div><h2 id="wn-command-title">Перейти в раздел</h2><p>Поиск по доступным разделам. Избранное и недавнее — выше.</p></div><button type="button" class="wn-icon-control" aria-label="Закрыть поиск разделов" @click="closePalette"><X :size="22" /></button></header><label class="wn-command-search"><Search :size="20" aria-hidden="true" /><span class="wn-sr-only">Название раздела</span><input ref="searchInput" v-model="query" type="search" placeholder="Например, товары или заявки" autocomplete="off" /></label><p class="wn-command-count" role="status">{{ results.length ? `Доступных разделов: ${results.length}` : 'Ничего не найдено. Попробуйте другое название.' }}</p><nav class="wn-command-results" aria-label="Результаты поиска"><NuxtLink v-for="(item, index) in results" :key="item.id" :to="item.to" :data-selected="index === selected" :class="{ 'wn-result--selected': index === selected }" @focus="selected = index" @click="closePalette"><span><strong>{{ item.label }}</strong><small>{{ item.groupLabel }}</small></span><ChevronRight :size="18" aria-hidden="true" /></NuxtLink></nav><footer>↑ ↓ — выбрать · Enter — перейти · Esc — закрыть</footer></section></div></Transition></Teleport>
+  <Teleport to="body"><Transition name="wn-palette"><div v-if="paletteOpen" class="wn-palette-layer admin-dialog-backdrop" @mousedown.self="closePalette" @keydown="dialogKeys"><section ref="dialog" class="wn-command-dialog admin-dialog admin-dialog--modal" role="dialog" aria-modal="true" aria-labelledby="wn-command-title"><header><div><h2 id="wn-command-title">Перейти в раздел</h2></div><button type="button" class="wn-icon-control" aria-label="Закрыть поиск разделов" @click="closePalette"><X :size="22" /></button></header><div class="wn-command-body admin-dialog-body"><label class="wn-command-search"><Search :size="20" aria-hidden="true" /><span class="wn-sr-only">Название раздела</span><input ref="searchInput" v-model="query" type="search" aria-label="Поиск разделов" placeholder="Например, товары или заявки" autocomplete="off" /></label><p class="wn-command-count" role="status">{{ results.length ? `Доступных разделов: ${results.length}` : 'Ничего не найдено. Попробуйте другое название.' }}</p><nav class="wn-command-results" aria-label="Результаты поиска"><NuxtLink v-for="(item, index) in results" :key="item.id" :to="item.to" :data-selected="index === selected" :class="{ 'wn-result--selected': index === selected }" @focus="selected = index" @click="closePalette"><span><strong>{{ item.label }}</strong><small>{{ item.groupLabel }}</small></span><ChevronRight :size="18" aria-hidden="true" /></NuxtLink></nav></div><footer>↑ ↓ — выбрать · Enter — перейти · Esc — закрыть</footer></section></div></Transition></Teleport>
 </template>

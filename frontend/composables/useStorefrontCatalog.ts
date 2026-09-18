@@ -1,3 +1,5 @@
+import { catalogCategoryPath, catalogProductPath } from '~/shared/catalog-paths';
+export const storefrontProductLink = (product: Parameters<typeof catalogProductPath>[0]) => catalogProductPath(product);
 export const storefrontCategories = [
   { title: 'Новинки', query: 'нов', image: '/storefront/categories/instruments.jpg' },
   { title: 'Гели', query: 'гель', image: '/storefront/categories/gels.jpg' },
@@ -86,7 +88,7 @@ export function storefrontCatalogQuickLinks(menu?: StorefrontCatalogMenu | null)
   const defaults = [
     { key: 'new' as const, label: 'Новинки', description: 'Свежие продукты бренда', url: '/catalog?sort=new' },
     { key: 'popular' as const, label: 'Бестселлеры', description: 'Выбор мастеров', url: '/catalog?sort=popular' },
-    { key: 'gift-card' as const, label: 'Подарочная карта', description: 'Подарок без ошибки', url: '/products/gift-card' },
+    { key: 'gift-card' as const, label: 'Подарочная карта', description: 'Подарок без ошибки', url: '/catalog/gift-card' },
   ];
   const byKey = new Map(defaults.map(link => [link.key, link]));
   const seen = new Set<StorefrontCatalogQuickLinkKey>();
@@ -106,5 +108,5 @@ export function storefrontCatalogMenu(categories: StorefrontCategory[] = [], men
 
 export function storefrontCatalogLink(category?: string | Pick<StorefrontCategory, 'slug'>) {
   const slug = typeof category === 'string' ? category.trim() : category?.slug?.trim();
-  return slug ? `/catalog?category=${encodeURIComponent(slug)}` : '/catalog';
+  return slug ? catalogCategoryPath(slug) : '/catalog';
 }

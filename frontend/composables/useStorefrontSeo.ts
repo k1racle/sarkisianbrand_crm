@@ -18,8 +18,8 @@ export function storefrontCanonicalUrl(base: string, path: string, query: SeoQue
   url.search = '';
   url.hash = '';
   url.pathname = url.pathname === '/' ? '/' : url.pathname.replace(/\/+$/, '');
-  if (url.pathname === '/catalog') {
-    if (typeof query.category === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(query.category)) url.searchParams.set('category', query.category);
+  if (/^\/catalog(?:\/[^/]+)?$/.test(url.pathname)) {
+    if (url.pathname === '/catalog' && typeof query.category === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(query.category)) url.pathname = '/catalog/' + encodeURIComponent(query.category);
     if (typeof query.page === 'string' || typeof query.page === 'number') {
       const page = Number(query.page);
       if (Number.isInteger(page) && page > 1 && page <= 100_000) url.searchParams.set('page', String(page));
@@ -31,7 +31,7 @@ export function storefrontCanonicalUrl(base: string, path: string, query: SeoQue
 export function storefrontRobotsPolicy(path: string, query: SeoQuery = {}, reviewRequired = false, indexing = false): string {
   const privatePage = privatePrefixes.some(prefix => path.startsWith(prefix));
   const preview = Object.prototype.hasOwnProperty.call(query, 'preview') || Object.prototype.hasOwnProperty.call(query, 'draft');
-  const filtered = path.replace(/\/+$/, '') === '/catalog' && (
+  const filtered = (path.replace(/\/+$/, '') === '/catalog' || path.startsWith('/catalog/')) && (
     ['search', 'purpose', 'feature', 'minPrice', 'maxPrice', 'inStock'].some(key => query[key] !== undefined && query[key] !== '') ||
     (query.sort !== undefined && query.sort !== 'new') ||
     (query.category !== undefined && !(typeof query.category === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(query.category)))

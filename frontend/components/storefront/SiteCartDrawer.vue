@@ -62,12 +62,12 @@ watch(() => props.open, async (value) => {
           <div v-else-if="cart?.items?.length" class="sb-mini-cart">
             <div class="sb-mini-cart__list">
               <article v-for="item in cart.items" :key="item.id">
-                <NuxtLink :to="`/products/${item.variant.product.slug}`" class="sb-mini-cart__image" @click="emit('close')">
+                <NuxtLink :to="storefrontProductLink(item.variant.product)" class="sb-mini-cart__image" @click="emit('close')">
                   <img v-if="storefrontProductImage(item.variant.product)" :src="storefrontProductImage(item.variant.product)!" :alt="item.variant.product.nameRu" />
                   <span v-else>S</span>
                 </NuxtLink>
                 <div class="sb-mini-cart__info">
-                  <NuxtLink :to="`/products/${item.variant.product.slug}`" @click="emit('close')">{{ item.variant.product.nameRu }}</NuxtLink>
+                  <NuxtLink :to="storefrontProductLink(item.variant.product)" @click="emit('close')">{{ item.variant.product.nameRu }}</NuxtLink>
                   <small>{{ item.variant.sku }}</small>
                   <SiteQuantityControl :quantity="item.quantity" :max="Math.max(item.quantity, item.variant.stock - item.variant.reserved)" :disabled="!!busy" compact @change="change(item, $event)" />
                 </div>

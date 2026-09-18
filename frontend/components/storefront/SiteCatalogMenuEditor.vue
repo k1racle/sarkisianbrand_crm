@@ -11,7 +11,7 @@ const quickDefaults: QuickLink[] = [
   { key: 'popular', label: 'Бестселлеры', isVisible: true },
   { key: 'gift-card', label: 'Подарочная карта', isVisible: true },
 ];
-const quickUrls: Record<QuickKey, string> = { new: '/catalog?sort=new', popular: '/catalog?sort=popular', 'gift-card': '/products/gift-card' };
+const quickUrls: Record<QuickKey, string> = { new: '/catalog?sort=new', popular: '/catalog?sort=popular', 'gift-card': '/catalog/gift-card' };
 const categories = ref<Category[]>([]);
 const entries = ref<Entry[]>([]);
 const quickLinks = ref<QuickLink[]>([]);
@@ -195,4 +195,3 @@ onBeforeRouteUpdate(leave);
     </section>
   </section>
 </template>
-

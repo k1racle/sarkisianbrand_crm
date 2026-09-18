@@ -151,3 +151,10 @@
   .workspace-frame.workspace-frame.workspace-frame .wn-toolbar .wn-command-trigger { flex:0 0 40px; width:40px!important; padding:0!important; }
   .workspace-frame.workspace-frame.workspace-frame .wn-command-trigger :is(span,kbd) { display:none; }
 }
+.workspace-frame .sb-cms-biography-images { display: grid; gap: 20px; padding-top: 24px; border-top: 1px solid var(--ui-line); margin-top: 24px; }
+.workspace-frame .sb-cms-founder-socials { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: 24px 0; border-block: 1px solid var(--ui-line); margin-block: 24px; }
+.workspace-frame .sb-cms-founder-socials :is(h3,p) { grid-column: 1 / -1; margin: 0; }
+.workspace-frame .sb-cms-founder-socials p { color: var(--ui-muted); font-size: 14px; }
+@media (max-width: 640px) { .workspace-frame .sb-cms-founder-socials { grid-template-columns: minmax(0,1fr); } }
+.workspace-frame .sb-cms-biography-images > div { display: grid; grid-template-columns: minmax(0,1fr) 44px; gap: 12px; align-items: start; }
+.workspace-frame .sb-cms-biography-images > div > button { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; }

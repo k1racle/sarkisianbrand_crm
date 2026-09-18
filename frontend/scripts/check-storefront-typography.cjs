@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const files = ['storefront.css', 'storefront-glass.css', 'storefront-menu-admin.css', 'storefront-pages.css', 'storefront-system.css', 'storefront-checkout.css', 'storefront-filters.css'];
+const files = ['storefront.css', 'storefront-glass.css', 'storefront-menu-admin.css', 'storefront-pages.css', 'storefront-system.css', 'storefront-checkout.css', 'storefront-filters.css', 'site-partnerships.css'];
 const failures = [];
 for (const name of files) {
   const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', name), 'utf8');

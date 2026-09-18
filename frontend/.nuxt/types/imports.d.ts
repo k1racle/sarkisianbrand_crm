@@ -102,6 +102,7 @@ declare global {
   const storefrontCategoryGroups: typeof import('../../composables/useStorefrontCatalog').storefrontCategoryGroups
   const storefrontEditorialCanonical: typeof import('../../composables/useStorefrontSeo').storefrontEditorialCanonical
   const storefrontProductImage: typeof import('../../composables/useStorefrontCatalog').storefrontProductImage
+  const storefrontProductLink: typeof import('../../composables/useStorefrontCatalog').storefrontProductLink
   const storefrontRobotsPolicy: typeof import('../../composables/useStorefrontSeo').storefrontRobotsPolicy
   const storefrontSiteOrigin: typeof import('../../composables/useStorefrontSeo').storefrontSiteOrigin
   const toRaw: typeof import('vue').toRaw
@@ -116,10 +117,12 @@ declare global {
   const useAsyncData: typeof import('../../node_modules/nuxt/dist/app/composables/asyncData').useAsyncData
   const useAttrs: typeof import('vue').useAttrs
   const useB2BSession: typeof import('../../composables/useB2BSession').useB2BSession
+  const useBusinessWorkspace: typeof import('../../composables/useBusinessWorkspace').useBusinessWorkspace
   const useCatalogDialog: typeof import('../../composables/useCatalogDialog').useCatalogDialog
   const useCatalogSettingsEditor: typeof import('../../composables/useCatalogSettingsEditor').useCatalogSettingsEditor
   const useContextMenu: typeof import('../../composables/useContextMenu').useContextMenu
   const useCookie: typeof import('../../node_modules/nuxt/dist/app/composables/cookie').useCookie
+  const useCreatorReactions: typeof import('../../composables/useCreatorReactions').useCreatorReactions
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
   const useError: typeof import('../../node_modules/nuxt/dist/app/composables/error').useError
@@ -132,6 +135,7 @@ declare global {
   const useLazyFetch: typeof import('../../node_modules/nuxt/dist/app/composables/fetch').useLazyFetch
   const useLink: typeof import('../../node_modules/vue-router/vue-router.node').useLink
   const useLoadingIndicator: typeof import('../../node_modules/nuxt/dist/app/composables/loading-indicator').useLoadingIndicator
+  const useMobileNavigationSheet: typeof import('../../composables/useMobileNavigationSheet').useMobileNavigationSheet
   const useModel: typeof import('vue').useModel
   const useNuxtApp: typeof import('../../node_modules/nuxt/dist/app/nuxt').useNuxtApp
   const useNuxtData: typeof import('../../node_modules/nuxt/dist/app/composables/asyncData').useNuxtData
@@ -208,6 +212,7 @@ declare global {
   const useTransitionState: typeof import('vue').useTransitionState
   const useUserProfilePanel: typeof import('../../composables/useUserProfilePanel').useUserProfilePanel
   const useWorkspaceAccess: typeof import('../../composables/useWorkspaceAccess').useWorkspaceAccess
+  const useWorkspaceAreaSelection: typeof import('../../composables/useWorkspaceAreaSelection').useWorkspaceAreaSelection
   const useWorkspaceEntityDraft: typeof import('../../composables/useWorkspaceEntityDraft').useWorkspaceEntityDraft
   const useWorkspaceLayout: typeof import('../../composables/useWorkspaceLayout').useWorkspaceLayout
   const useWorkspaceNavigation: typeof import('../../composables/useWorkspaceNavigation').useWorkspaceNavigation
@@ -350,6 +355,7 @@ declare module 'vue' {
     readonly storefrontCategoryGroups: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontCategoryGroups']>
     readonly storefrontEditorialCanonical: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['storefrontEditorialCanonical']>
     readonly storefrontProductImage: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontProductImage']>
+    readonly storefrontProductLink: UnwrapRef<typeof import('../../composables/useStorefrontCatalog')['storefrontProductLink']>
     readonly storefrontRobotsPolicy: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['storefrontRobotsPolicy']>
     readonly storefrontSiteOrigin: UnwrapRef<typeof import('../../composables/useStorefrontSeo')['storefrontSiteOrigin']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
@@ -364,10 +370,12 @@ declare module 'vue' {
     readonly useAsyncData: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/asyncData')['useAsyncData']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useB2BSession: UnwrapRef<typeof import('../../composables/useB2BSession')['useB2BSession']>
+    readonly useBusinessWorkspace: UnwrapRef<typeof import('../../composables/useBusinessWorkspace')['useBusinessWorkspace']>
     readonly useCatalogDialog: UnwrapRef<typeof import('../../composables/useCatalogDialog')['useCatalogDialog']>
     readonly useCatalogSettingsEditor: UnwrapRef<typeof import('../../composables/useCatalogSettingsEditor')['useCatalogSettingsEditor']>
     readonly useContextMenu: UnwrapRef<typeof import('../../composables/useContextMenu')['useContextMenu']>
     readonly useCookie: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/cookie')['useCookie']>
+    readonly useCreatorReactions: UnwrapRef<typeof import('../../composables/useCreatorReactions')['useCreatorReactions']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['useError']>
@@ -380,6 +388,7 @@ declare module 'vue' {
     readonly useLazyFetch: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/fetch')['useLazyFetch']>
     readonly useLink: UnwrapRef<typeof import('../../node_modules/vue-router/vue-router.node')['useLink']>
     readonly useLoadingIndicator: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/loading-indicator')['useLoadingIndicator']>
+    readonly useMobileNavigationSheet: UnwrapRef<typeof import('../../composables/useMobileNavigationSheet')['useMobileNavigationSheet']>
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly useNuxtApp: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/nuxt')['useNuxtApp']>
     readonly useNuxtData: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/asyncData')['useNuxtData']>
@@ -456,6 +465,7 @@ declare module 'vue' {
     readonly useTransitionState: UnwrapRef<typeof import('vue')['useTransitionState']>
     readonly useUserProfilePanel: UnwrapRef<typeof import('../../composables/useUserProfilePanel')['useUserProfilePanel']>
     readonly useWorkspaceAccess: UnwrapRef<typeof import('../../composables/useWorkspaceAccess')['useWorkspaceAccess']>
+    readonly useWorkspaceAreaSelection: UnwrapRef<typeof import('../../composables/useWorkspaceAreaSelection')['useWorkspaceAreaSelection']>
     readonly useWorkspaceEntityDraft: UnwrapRef<typeof import('../../composables/useWorkspaceEntityDraft')['useWorkspaceEntityDraft']>
     readonly useWorkspaceLayout: UnwrapRef<typeof import('../../composables/useWorkspaceLayout')['useWorkspaceLayout']>
     readonly useWorkspaceNavigation: UnwrapRef<typeof import('../../composables/useWorkspaceNavigation')['useWorkspaceNavigation']>

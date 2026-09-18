@@ -11,30 +11,56 @@ import { applyStorefrontTransition } from '../common/storefront-order-transition
 import { NotificationsService } from '../notifications/notifications.service';
 import { MediaService } from '../media/media.service';
 import { AdminListQueryDto, ReorderStorefrontDto } from './dto/admin.dto';
+import { SaveStorefrontAppearanceDto } from './dto/admin.dto';
+import { appearanceRevision, saveAppearance } from './storefront-appearance';
+import { storeDashboard } from './store-dashboard';
+import { SalonSubscriptionDto } from '../b2b/dto/salon-presentation.dto';
+import { siteContentUrlValid } from './site-content.dto';
 
 @Injectable()
 export class AdminService {
+  async salonSubscription() {
+    return await this.prisma.salonSubscriptionSetting.findUnique({where:{key:'main'}})||{key:'main',name:'Кабинет салона',monthlyPrice:0,annualPrice:0,freeAccess:true};
+  }
+  saveSalonSubscription(dto:SalonSubscriptionDto) {
+    return this.prisma.salonSubscriptionSetting.upsert({where:{key:'main'},create:{key:'main',...dto},update:dto});
+  }
   constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService, private readonly config: ConfigService,
     @Optional() private readonly notifications?: NotificationsService,
     @Optional() private readonly media?: MediaService) {}
 
-  async dashboard() {
-    const [orders, paidOrders, customers, products, lowStock, newOrders] = await this.prisma.$transaction([
-      this.prisma.order.count({ where: { source: 'WEB' } }),
-      this.prisma.order.count({ where: { source: 'WEB', paymentStatus: { in: ['PAID', 'SUCCEEDED'] } } }),
-      this.prisma.customer.count(),
-      this.prisma.product.count({ where: { isActive: true } }),
-      this.prisma.productVariant.count({ where: { isActive: true, stock: { lte: 5 } } }),
-      this.prisma.order.count({ where: { source: 'WEB', status: 'NEW' } }),
-    ]);
-    return { orders, paidOrders, customers, products, lowStock, newOrders };
-  }
+  dashboard(days: string | number = 30) { return storeDashboard(this.prisma, days); }
 
   storefrontPages() { return this.prisma.storefrontPage.findMany({ orderBy: { createdAt: 'asc' } }); }
 
   private pageData(dto: CreateStorefrontPageDto | UpdateStorefrontPageDto) {
     if (new Set(dto.blocks.map(block => block.id)).size !== dto.blocks.length) throw new BadRequestException('Идентификаторы блоков должны быть уникальными');
-    return { title: dto.title.trim(), eyebrow: dto.eyebrow.trim(), lead: dto.lead.trim(), seoDescription: dto.seoDescription || null, blocks: dto.blocks.map(block => ({ id: block.id, title: block.title.trim(), body: block.body })), isActive: dto.isActive, reviewRequired: dto.reviewRequired };
+    if (dto.blocks.filter(block => block.kind === 'hero').length > 1) throw new BadRequestException('На странице может быть только одна обложка');
+    const blocks = dto.blocks.map(block => {
+      const result: Record<string, any> = { id: block.id, title: block.title.trim(), body: block.body };
+      for (const key of ['kind', 'icon', 'buttonLabel', 'buttonUrl', 'secondaryLabel', 'secondaryUrl'] as const) {
+        if (block[key] != null) result[key] = block[key]!.trim();
+      }
+      for (const [label, url] of [['buttonLabel', 'buttonUrl'], ['secondaryLabel', 'secondaryUrl']]) {
+        if (result[url] && !siteContentUrlValid(result[url])) throw new BadRequestException('Некорректная ссылка кнопки страницы');
+        if (Boolean(result[label]) !== Boolean(result[url])) throw new BadRequestException('Укажите подпись и адрес кнопки вместе');
+      }
+      if (block.images != null) {
+        if (block.images.some(url => !siteContentUrlValid(url, true))) throw new BadRequestException('Некорректный адрес фотографии страницы');
+        result.images = block.images.map(url => url.trim());
+      }
+      if (block.socials != null) {
+        result.socials = {};
+        for (const key of ['vk', 'telegram', 'instagram', 'youtube', 'tiktok'] as const) {
+          const url = block.socials[key]?.trim();
+          if (!url) continue;
+          if (!/^https:\/\//i.test(url) || !siteContentUrlValid(url)) throw new BadRequestException('Укажите безопасную HTTPS-ссылку личной соцсети');
+          result.socials[key] = url;
+        }
+      }
+      return result;
+    });
+    return { title: dto.title.trim(), eyebrow: dto.eyebrow.trim(), lead: dto.lead.trim(), seoDescription: dto.seoDescription || null, blocks, isActive: dto.isActive, reviewRequired: dto.reviewRequired };
   }
 
   async createStorefrontPage(dto: CreateStorefrontPageDto) {
@@ -107,6 +133,7 @@ export class AdminService {
     ]);
     return {
       settings: settings || { key: 'main', announcementText: 'SARKISIAN BRAND – это официальный интернет-магазин скоростного мастера-блогера Светланы Саркисян' },
+      revision: appearanceRevision({ settings, banners, menuItems, socialLinks }),
       banners,
       categories,
       socialLinks,
@@ -120,6 +147,10 @@ export class AdminService {
       create: { key: 'main', announcementText: dto.announcementText },
       update: { announcementText: dto.announcementText },
     });
+  }
+
+  saveStorefrontAppearance(dto: SaveStorefrontAppearanceDto) {
+    return saveAppearance(this.prisma, dto, row => this.bannerData(row));
   }
 
   createStorefrontBanner(dto: CreateStorefrontBannerDto) {
@@ -224,8 +255,9 @@ export class AdminService {
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
-    const product = await this.prisma.product.findUnique({ where: { id }, include: { variants: { take: 1 } } });
+    const product = await this.prisma.product.findUnique({ where: { id }, include: { variants: { ...(dto.variantId ? { where: { id: dto.variantId } } : {}), take: 1 } } });
     if (!product) throw new NotFoundException('Товар не найден');
+    if (dto.variantId && !product.variants.length) throw new NotFoundException('Вариант товара не найден. Обновите список товаров');
     if (product.productType === 'GIFT_CARD' && (dto.price !== undefined || dto.stock !== undefined || dto.salePrice !== undefined || dto.saleStartsAt !== undefined || dto.saleEndsAt !== undefined)) throw new BadRequestException('Номиналы подарочной карты изменяются в разделе «Подарочные карты»; скидка на номинал недоступна');
     const sale=product.productType==='GIFT_CARD'?{}:this.saleData(dto,product.variants[0]||{price:product.basePrice});
     return this.prisma.$transaction(async (tx) => {

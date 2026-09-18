@@ -14,5 +14,5 @@ const {app,rail,writes}=setup('true');assert.equal(app.railCollapsed.value,true)
 rail.toggleRail();assert.equal(app.railCollapsed.value,false);app.toggleRail();assert.equal(rail.railCollapsed.value,true);
 assert.deepEqual(writes,[['sarkisian-workspace-rail-collapsed','false'],['sarkisian-workspace-rail-collapsed','true']]);
 const blocked=setup('true',true);blocked.rail.toggleRail();assert.equal(blocked.app.railCollapsed.value,true);
-const css=fs.readFileSync(path.join(root,'assets/css/workspace-layout.css'),'utf8');assert.match(css,/@layer workspace-layout/);assert.match(css,/min-width: 801px/);assert.match(css,/max-width: 800px/);assert.doesNotMatch(css,/\.b2b-frame|\.sb-storefront/);
+const css=fs.readFileSync(path.join(root,'assets/css/workspace-layout.css'),'utf8');assert.match(css,/@layer workspace-layout/);assert.match(css,/min-width: 801px/);assert.match(css,/max-width: 800px/);assert.doesNotMatch(css,/\.sb-storefront/);assert.match(css,/\.b2b-frame--collapsed/);assert.match(css,/\.b2b-rail--collapsed/);
 console.log('Shared rail state, persisted preference, disabled storage fallback and internal-only responsive scope PASS.');

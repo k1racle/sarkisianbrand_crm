@@ -44,9 +44,11 @@ check('only-real-page-routes-and-coordinated-site-content', () => {
   }
   assert.equal(leaves.filter(x => x.id === 'site-content').length, 1);
 });
-check('nine-current-settings-sections', () => { assert.equal(all.find(x => x.id === 'settings').items.length, 9); });
+check('settings-include-salon-subscription', () => { const items=all.find(x => x.id === 'settings').items;assert.equal(items.length,10);assert.ok(items.some(item=>item.id==='salon-subscription'&&item.permission==='system.manage')); });
 check('human-group-order-and-no-duplicate-channel-settings', () => {
-  assert.deepEqual(plain(all.map(group => group.id)), ['dashboard', 'sales', 'catalog', 'site', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings']);
+  assert.deepEqual(plain(all.map(group => group.id)), ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings']);
+  assert.deepEqual(plain(all.find(group => group.id === 'loyalty').items.map(item => item.id)), ['loyalty-settings', 'loyalty-members']);
+  assert.ok(!all.find(group => group.id === 'marketing').items.some(item => item.id.startsWith('loyalty')));
   assert.ok(!leaves.some(item => item.id === 'channel-settings'));
 });
 check('five-business-spaces-and-independent-marketplace-sales', () => {
@@ -57,7 +59,10 @@ check('five-business-spaces-and-independent-marketplace-sales', () => {
   assert.ok(!leaves.some(item => item.id === 'crm-chat'));
   const rail = fs.readFileSync(path.join(root,'components/ConsoleRail.vue'),'utf8');
   const toolbar = fs.readFileSync(path.join(root,'components/WorkspaceToolbar.vue'),'utf8');
-  assert.ok(rail.includes('WORKSPACE_AREAS') && !rail.includes('platform-chat-button'));
+  assert.ok(rail.includes('useWorkspaceAreaSelection') && !rail.includes('platform-chat-button'));
+  const areaSelection = fs.readFileSync(path.join(root, 'composables/useWorkspaceAreaSelection.ts'), 'utf8');
+  assert.ok(areaSelection.includes('WORKSPACE_AREAS'));
+  assert.ok(toolbar.includes('workspace-area-switch') && toolbar.includes('switchArea'));
   assert.ok(toolbar.includes('wn-chat-trigger') && toolbar.includes('wn-signout'));
 });
 check('unknown-and-client-roles-fail-closed', () => {
@@ -95,7 +100,8 @@ check('access-unavailable-role-fallback-is-usable', () => { assert.ok(h.buildWor
 check('canonical-permission-keys', () => {
   assert.equal(leaves.find(x => x.id === 'web-orders').permission, 'web_orders.read');
   assert.equal(leaves.find(x => x.id === 'products').permission, 'catalog.read');
-  assert.equal(leaves.find(x => x.id === 'loyalty').permission, 'loyalty.read');
+  assert.equal(leaves.find(x => x.id === 'loyalty-settings').permission, 'loyalty.read');
+  assert.equal(leaves.find(x => x.id === 'loyalty-members').permission, 'loyalty.read');
   assert.equal(leaves.find(x => x.id === 'system-overview').permission, 'system.manage');
 });
 check('default-query-sections-and-no-prefix-misclassification', () => {

@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CustomerStatus, DataEntityType, OrganizationMemberRole, OrganizationStatus, Prisma, TrashEntryStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { partnerBusinessActivated } from '../partners/partner-lifecycle';
 import { AddOrganizationMemberDto, CreateOrganizationDto, UpdateCustomerDto, UpdateOrganizationDto } from './dto/customer360.dto';
 
 @Injectable()
@@ -135,7 +136,12 @@ export class Customer360Service {
 
   async updateOrganization(id: string, dto: UpdateOrganizationDto) {
     await this.organizationExists(id);
-    return this.prisma.organization.update({ where: { id }, data: dto });
+    return this.prisma.$transaction(async tx=>{
+      await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${id} FOR UPDATE`;
+      const organization=await tx.organization.update({where:{id},data:dto});
+      if(dto.status==='ACTIVE')await partnerBusinessActivated(tx,organization);
+      return organization;
+    });
   }
 
   async addMember(organizationId: string, dto: AddOrganizationMemberDto) {

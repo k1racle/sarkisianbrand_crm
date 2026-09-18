@@ -23,9 +23,9 @@ const policy = helpers.storefrontRobotsPolicy;
 
 describe('canonical and robots meta (pure)', () => {
   it('keeps category and pagination, removes tracking/sorting/filter/hash', () => {
-    expect(canonical('https://shop.example/', '/catalog/', { category: 'gels', page: '2', sort: 'price-asc', minPrice: '1000', utm_source: 'vk' })).toBe('https://shop.example/catalog?category=gels&page=2');
-    expect(canonical('https://shop.example', '/products/gel-1?utm_source=vk#photo')).toBe('https://shop.example/products/gel-1');
-    expect(canonical('https://shop.example', '/catalog', { category: 'gels', page: '1' })).toBe('https://shop.example/catalog?category=gels');
+    expect(canonical('https://shop.example/', '/catalog/', { category: 'gels', page: '2', sort: 'price-asc', minPrice: '1000', utm_source: 'vk' })).toBe('https://shop.example/catalog/gels?page=2');
+    expect(canonical('https://shop.example', '/catalog/gels/gel-1?utm_source=vk#photo')).toBe('https://shop.example/catalog/gels/gel-1');
+    expect(canonical('https://shop.example', '/catalog', { category: 'gels', page: '1' })).toBe('https://shop.example/catalog/gels');
   });
 
   it.each(['0', '-1', 'abc', '1.5', '100001', ['2', '3']])('ignores invalid pagination %j', page => {
@@ -59,7 +59,7 @@ describe('canonical and robots meta (pure)', () => {
       useHead: head, useSeoMeta: meta,
     });
     const state = module.useStorefrontSeo({ title: () => 'Каталог', image: '/media/photo.jpg' });
-    expect(head.mock.calls[0][0]().link[0].href).toBe('https://shop.example/catalog?category=gels');
+    expect(head.mock.calls[0][0]().link[0].href).toBe('https://shop.example/catalog/gels');
     expect(meta.mock.calls[0][0].ogImage()).toBe('https://shop.example/media/photo.jpg');
     expect(meta.mock.calls[0][0].robots()).toBe('index, follow');
     route.path = '/cart';

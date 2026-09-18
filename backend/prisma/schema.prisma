@@ -289,6 +289,7 @@ model User {
   enrollments             Enrollment[]
   bookings                Booking[]
   loyaltyAccount          LoyaltyAccount?
+  partnerProfiles         PartnerParticipant[]
   ticketsRequested        HelpdeskTicket[]     @relation("TicketRequester")
   ticketsAssigned         HelpdeskTicket[]     @relation("TicketAssignee")
   ticketComments          HelpdeskComment[]
@@ -556,6 +557,9 @@ model Organization {
   businessClients  B2BClient[]
   businessServices B2BService[]
   businessBookings B2BBooking[]
+  salonBookingSetting SalonBookingSetting?
+  salonPresentation SalonPresentation?
+  partnerRegistration PartnerBusinessRegistration?
   tasks            Task[]
 
   createdAt DateTime @default(now())
@@ -629,6 +633,44 @@ model B2BService {
   updatedAt      DateTime     @updatedAt
 
   @@index([organizationId, isActive])
+}
+
+model SalonBookingSetting {
+  organizationId String       @id
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enabled        Boolean      @default(false)
+  timeZone       String       @default("Europe/Moscow")
+  startMinute    Int          @default(540)
+  endMinute      Int          @default(1200)
+  slotStep       Int          @default(15)
+  horizonDays    Int          @default(30)
+  workingDays    Int[]         @default([1, 2, 3, 4, 5, 6])
+  masterIds      String[]      @default([])
+  weeklySchedule Json @default("[]")
+  updatedAt      DateTime      @updatedAt
+}
+
+model SalonPresentation {
+  organizationId String @id
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  displayName String @default("")
+  address String @default("")
+  phones String[] @default([])
+  emails String[] @default([])
+  socialLinks Json @default("[]")
+  logoBytes Bytes?
+  logoMime String?
+  logoVersion String?
+  updatedAt DateTime @updatedAt
+}
+
+model SalonSubscriptionSetting {
+  key String @id @default("main")
+  name String @default("Кабинет салона")
+  monthlyPrice Decimal @default(0) @db.Decimal(12, 2)
+  annualPrice Decimal @default(0) @db.Decimal(12, 2)
+  freeAccess Boolean @default(true)
+  updatedAt DateTime @updatedAt
 }
 
 model B2BBooking {
@@ -932,6 +974,9 @@ model Order {
   promoCode String?
   priceSnapshot Json?
   loyaltyAccruedAt DateTime?
+  partnerCode String?
+  partnerAttribution PartnerAttribution?
+  partnerReward PartnerReward?
   promoRedemption PromoRedemption?
 
   userId String?
@@ -1005,6 +1050,152 @@ model Order {
   @@index([externalId])
   @@index([isSynced1C, source])
   @@index([warehouseDocumentId])
+}
+
+model PartnerProgramSetting {
+  kind String @id
+  name String
+  isEnabled Boolean @default(false)
+  rewardPercent Decimal @default(5) @db.Decimal(5, 2)
+  attributionDays Int @default(30)
+  holdDays Int @default(14)
+  minimumOrderAmount Decimal @default(0) @db.Decimal(15, 2)
+  firstOrderOnly Boolean @default(false)
+  minimumPayout Decimal @default(1000) @db.Decimal(15, 2)
+  signupRewardAmount Decimal @default(0) @db.Decimal(15, 2)
+  signupRewardUnit String @default("RUB")
+  signupHoldDays Int @default(14)
+  termsText String @default("")
+  autoSettlement Boolean @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+model PartnerParticipant {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  kind String
+  code String @unique
+  status String
+  displayName String
+  channels Json @default("[]")
+  description String @default("")
+  rewardPercent Decimal? @db.Decimal(5, 2)
+  payoutVerified Boolean @default(false)
+  bonusDebt Int @default(0)
+  acceptedTermsAt DateTime?
+  termsSnapshot String
+  decisionNote String @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clicks PartnerClick[]
+  attributions PartnerAttribution[]
+  rewards PartnerReward[]
+  payouts PartnerPayout[]
+  events PartnerEvent[]
+  registrations PartnerBusinessRegistration[]
+  @@unique([userId, kind])
+  @@index([kind, status, createdAt])
+}
+
+model PartnerClick {
+  id String @id @default(uuid())
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  tokenHash String @unique
+  visitorHash String
+  expiresAt DateTime
+  visitsCount Int @default(1)
+  createdAt DateTime @default(now())
+  lastVisitAt DateTime @default(now())
+  attributions PartnerAttribution[]
+  @@unique([participantId, visitorHash])
+  @@index([participantId, lastVisitAt])
+}
+
+model PartnerAttribution {
+  orderId String @id
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  clickId String?
+  click PartnerClick? @relation(fields: [clickId], references: [id], onDelete: SetNull)
+  rewardPercent Decimal @db.Decimal(5, 2)
+  baseAmount Decimal @db.Decimal(15, 2)
+  holdDays Int
+  firstOrderOnly Boolean
+  rejectionReason String?
+  createdAt DateTime @default(now())
+  @@index([participantId, createdAt])
+}
+
+model PartnerBusinessRegistration {
+  organizationId String @id
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  ownerId String
+  amount Decimal @db.Decimal(15, 2)
+  unit String
+  holdDays Int
+  verifiedAt DateTime?
+  verifiedBy String?
+  verificationNote String @default("")
+  activatedAt DateTime?
+  createdAt DateTime @default(now())
+  reward PartnerReward?
+  @@index([participantId, createdAt])
+}
+
+model PartnerReward {
+  id String @id @default(uuid())
+  orderId String? @unique
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  registrationId String? @unique
+  registration PartnerBusinessRegistration? @relation(fields: [registrationId], references: [organizationId], onDelete: Restrict)
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  amount Decimal @db.Decimal(15, 2)
+  unit String
+  status String @default("PENDING")
+  readyAt DateTime?
+  approvedAt DateTime?
+  loyaltyEntryId String? @unique
+  creditedBonus Int @default(0)
+  withheldBonus Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([participantId, status, createdAt])
+  @@index([status, readyAt])
+}
+
+model PartnerPayout {
+  id String @id @default(uuid())
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  requestKey String
+  amount Decimal @db.Decimal(15, 2)
+  status String @default("REQUESTED")
+  requestNote String @default("")
+  decisionNote String @default("")
+  paymentReference String? @unique
+  decidedBy String?
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([participantId, requestKey])
+  @@index([status, createdAt])
+}
+
+model PartnerEvent {
+  id String @id @default(uuid())
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  actorId String?
+  type String
+  payload Json
+  createdAt DateTime @default(now())
+  @@index([participantId, createdAt])
 }
 
 model LoyaltyAccount {

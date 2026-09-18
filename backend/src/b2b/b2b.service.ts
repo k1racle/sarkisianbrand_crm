@@ -3,16 +3,22 @@ import { B2BBookingStatus, B2BClientStatus, OrderSource, OrderStatus, Organizati
 import { PrismaService } from '../prisma/prisma.service';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
 import { randomUUID } from 'crypto';
+import { attachPartnerRegistration } from '../partners/partner-lifecycle';
 import { protectB2BFinance } from './b2b-finance';
+import { SalonBookingService } from './salon-booking.service';
+import { dateKey, localInstant } from './salon-booking-time';
+import { presentationSelect, publicPresentation } from './salon-presentation';
+import { BusinessCompanySettingDto } from './dto/salon-presentation.dto';
 import { CreateB2BBookingDto, CreateB2BClientDto, CreateB2BOrderDto, CreateB2BProfileDto, CreateB2BServiceDto, CreateB2BSupportDto, UpdateB2BBookingDto, UpdateB2BClientDto, UpdateB2BServiceDto } from './dto/b2b.dto';
 
 @Injectable()
 export class B2BService {
-  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService) {}
+  constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService, private readonly salon: SalonBookingService) {}
 
-  private async context(userId: string) {
+  private async context(userId: string, salon = false) {
     const membership = await this.prisma.organizationMember.findFirst({ where: { userId, isActive: true }, include: { organization: true, user: { select: { id: true, email: true, phone: true, firstName: true, lastName: true } } } });
     if (!membership) throw new NotFoundException('B2B-организация не найдена или доступ отключён');
+    if (salon && ![OrganizationMemberRole.OWNER, OrganizationMemberRole.EMPLOYEE].includes(membership.role as any)) throw new ForbiddenException('Для вашей роли недоступны данные салона');
     return membership;
   }
 
@@ -20,26 +26,50 @@ export class B2BService {
     if (await this.prisma.b2BProfile.findUnique({ where: { userId } })) throw new ConflictException('B2B-профиль уже существует');
     if (dto.inn && await this.prisma.organization.findUnique({ where: { inn: dto.inn } })) throw new ConflictException('Организация с таким ИНН уже существует');
     return this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId} FOR UPDATE`;
+      if(await tx.b2BProfile.findUnique({where:{userId}}))throw new ConflictException('B2B-профиль уже существует');
       const user = await tx.user.findUnique({ where: { id: userId }, include: { customer: true } });
       if (!user) throw new NotFoundException('Пользователь не найден');
+      if (!user.isActive || ![UserRole.CUSTOMER_B2C,UserRole.CUSTOMER_B2B].includes(user.role as any)) throw new ForbiddenException('Регистрация компании доступна клиентам сайта');
       const profile = await tx.b2BProfile.create({ data: { userId, companyName: dto.companyName, inn: dto.inn, kpp: dto.kpp, legalAddress: dto.legalAddress } });
       const customer = user.customer || await tx.customer.create({ data: { userId, firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone, normalizedEmail: user.email.toLowerCase(), normalizedPhone: user.phone?.replace(/\D/g, '') || null, segment: 'B2B', source: 'WEB' } });
       const organization = await tx.organization.create({ data: { name: dto.companyName, legalName: dto.companyName, inn: dto.inn, kpp: dto.kpp, legalAddress: dto.legalAddress } });
       await tx.organizationMember.create({ data: { organizationId: organization.id, userId, customerId: customer.id, role: OrganizationMemberRole.OWNER, canOrder: true, canSeeFinance: true } });
       await tx.user.update({ where: { id: userId }, data: { role: UserRole.CUSTOMER_B2B } });
       await tx.customer.update({ where: { id: customer.id }, data: { segment: 'B2B' } });
+      if(dto.partnerToken)await attachPartnerRegistration(tx,organization,user,dto.partnerToken);
       return { ...organization, legacyProfileId: profile.id };
     });
   }
 
   async profile(userId: string) {
     const member = await this.context(userId);
+    const presentation=publicPresentation(await this.prisma.salonPresentation.findUnique({where:{organizationId:member.organizationId},select:presentationSelect}),member.organizationId);
     const members = await this.prisma.organizationMember.findMany({ where: { organizationId: member.organizationId, isActive: true }, include: { user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } } }, orderBy: { createdAt: 'asc' } });
-    return protectB2BFinance({ ...member.organization, membership: { id: member.id, role: member.role, jobTitle: member.jobTitle, canOrder: member.canOrder, canSeeFinance: member.canSeeFinance }, user: member.user, members },member.canSeeFinance);
+    return protectB2BFinance({ ...member.organization, presentation, membership: { id: member.id, role: member.role, jobTitle: member.jobTitle, canOrder: member.canOrder, canSeeFinance: member.canSeeFinance }, capabilities: { salon: member.role === OrganizationMemberRole.OWNER || member.role === OrganizationMemberRole.EMPLOYEE }, user: member.user, members },member.canSeeFinance);
+  }
+  async saveCompanySettings(userId:string,dto:BusinessCompanySettingDto) {
+    const member=await this.context(userId);
+    if(member.role!==OrganizationMemberRole.OWNER)throw new ForbiddenException('Данные компании может изменить владелец');
+    if(!dto.name.trim())throw new BadRequestException('Укажите название компании');
+    const data={name:dto.name.trim(),legalName:dto.legalName.trim(),legalAddress:dto.legalAddress.trim()};
+    return this.prisma.organization.update({where:{id:member.organizationId},data,select:{name:true,legalName:true,legalAddress:true}});
   }
 
   async dashboard(userId: string) {
-    const member = await this.context(userId); const now = new Date(); const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0); const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1); const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const member = await this.context(userId); const now = new Date();
+    const timeZone=(await this.prisma.salonBookingSetting.findUnique({where:{organizationId:member.organizationId}}))?.timeZone||'Europe/Moscow';
+    const today=dateKey(now,timeZone),nextDay=new Date(Date.parse(`${today}T00:00:00Z`)+86400000).toISOString().slice(0,10);
+    const dayStart=localInstant(today,0,timeZone)||localInstant(today,60,timeZone)!;
+    const dayEnd=localInstant(nextDay,0,timeZone)||localInstant(nextDay,60,timeZone)!;
+    const monthDay=today.slice(0,7)+'-01',monthStart=localInstant(monthDay,0,timeZone)||localInstant(monthDay,60,timeZone)!;
+    if (![OrganizationMemberRole.OWNER, OrganizationMemberRole.EMPLOYEE].includes(member.role as any)) {
+      const [orders, recentOrders] = await Promise.all([
+        this.prisma.order.aggregate({ where: { organizationId: member.organizationId, source: OrderSource.B2B, createdAt: { gte: monthStart } }, _count: { _all: true }, _sum: { finalAmount: true } }),
+        this.prisma.order.findMany({ where: { organizationId: member.organizationId, source: OrderSource.B2B }, include: { items: true }, orderBy: { createdAt: 'desc' }, take: 5 }),
+      ]);
+      return protectB2BFinance({ purchaseOrdersMonth: orders._count._all, purchasesMonth: Number(orders._sum.finalAmount || 0), recentOrders }, member.canSeeFinance);
+    }
     const [clients, bookingsToday, upcoming, completedMonth, orders, recentOrders, nextBookings, lowStock] = await Promise.all([
       this.prisma.b2BClient.count({ where: { organizationId: member.organizationId, status: B2BClientStatus.ACTIVE } }),
       this.prisma.b2BBooking.count({ where: { organizationId: member.organizationId, startTime: { gte: dayStart, lt: dayEnd }, status: { not: B2BBookingStatus.CANCELLED } } }),
@@ -50,38 +80,41 @@ export class B2BService {
       this.prisma.b2BBooking.findMany({ where: { organizationId: member.organizationId, startTime: { gte: now }, status: { in: [B2BBookingStatus.NEW, B2BBookingStatus.CONFIRMED] } }, include: { client: true, service: true, masterMember: { include: { user: { select: { firstName: true, lastName: true } } } } }, orderBy: { startTime: 'asc' }, take: 6 }),
       this.prisma.productVariant.count({ where: { isActive: true, stock: { lte: 5 } } }),
     ]);
-    return protectB2BFinance({ clients, bookingsToday, upcoming, serviceRevenueMonth: completedMonth.reduce((sum, item) => sum + Number(item.service.price), 0), purchaseOrdersMonth: orders._count._all, purchasesMonth: Number(orders._sum.finalAmount || 0), lowStock, recentOrders, nextBookings },member.canSeeFinance);
+    return protectB2BFinance({ timeZone, clients, bookingsToday, upcoming, serviceRevenueMonth: completedMonth.reduce((sum, item) => sum + Number(item.service.price), 0), purchaseOrdersMonth: orders._count._all, purchasesMonth: Number(orders._sum.finalAmount || 0), lowStock, recentOrders, nextBookings },member.canSeeFinance);
   }
 
   async catalog(userId: string) {
     const member = await this.context(userId); const discount = member.organization.discountTier || 0;
-    const products = await this.prisma.product.findMany({ where: { isActive: true, productType:'PHYSICAL' }, include: { variants: { where: { isActive: true } }, images: true }, orderBy: { updatedAt: 'desc' } });
+    const products = await this.prisma.product.findMany({ where: { isActive: true, productType:'PHYSICAL' }, include: { variants: { where: { isActive: true } }, images: true,categories:{include:{category:true}} }, orderBy: { updatedAt: 'desc' } });
     return products.map(product => ({ ...product, variants: product.variants.map(variant => ({ ...variant, retailPrice: Number(variant.price), b2bPrice: Math.round(Number(variant.price) * (1 - discount / 100) * 100) / 100, available: Math.max(0, variant.stock - variant.reserved) })) }));
   }
 
-  async clients(userId: string, search?: string) { const member = await this.context(userId); return protectB2BFinance(await this.prisma.b2BClient.findMany({ where: { organizationId: member.organizationId, status: B2BClientStatus.ACTIVE, ...(search ? { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, { lastName: { contains: search, mode: 'insensitive' } }, { phone: { contains: search } }, { email: { contains: search, mode: 'insensitive' } }] } : {}) }, orderBy: [{ lastVisitAt: 'desc' }, { createdAt: 'desc' }] }),member.canSeeFinance); }
-  async createClient(userId: string, dto: CreateB2BClientDto) { const member = await this.context(userId); if (dto.phone && await this.prisma.b2BClient.findFirst({ where: { organizationId: member.organizationId, phone: dto.phone, status: B2BClientStatus.ACTIVE } })) throw new ConflictException('Клиент с таким телефоном уже есть в вашей базе'); return protectB2BFinance(await this.prisma.b2BClient.create({ data: { organizationId: member.organizationId, firstName: dto.firstName, lastName: dto.lastName, phone: dto.phone, email: dto.email?.toLowerCase(), birthday: dto.birthday ? new Date(dto.birthday) : undefined, notes: dto.notes, tags: dto.tags || [], consentPersonalDataAt: dto.personalDataConsent ? new Date() : undefined } }),member.canSeeFinance); }
-  async updateClient(userId: string, id: string, dto: UpdateB2BClientDto) { const member = await this.context(userId); await this.ownedClient(member.organizationId, id); return protectB2BFinance(await this.prisma.b2BClient.update({ where: { id }, data: { firstName: dto.firstName, lastName: dto.lastName, phone: dto.phone, email: dto.email?.toLowerCase(), birthday: dto.birthday ? new Date(dto.birthday) : undefined, notes: dto.notes, tags: dto.tags, status: dto.status, ...(dto.personalDataConsent !== undefined ? { consentPersonalDataAt: dto.personalDataConsent ? new Date() : null } : {}) } }),member.canSeeFinance); }
+  async clients(userId: string, search?: string) { const member = await this.context(userId, true); return protectB2BFinance(await this.prisma.b2BClient.findMany({ where: { organizationId: member.organizationId, status: B2BClientStatus.ACTIVE, ...(search ? { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, { lastName: { contains: search, mode: 'insensitive' } }, { phone: { contains: search } }, { email: { contains: search, mode: 'insensitive' } }] } : {}) }, orderBy: [{ lastVisitAt: 'desc' }, { createdAt: 'desc' }] }),member.canSeeFinance); }
+  async createClient(userId: string, dto: CreateB2BClientDto) { const member = await this.context(userId, true); if (dto.phone && await this.prisma.b2BClient.findFirst({ where: { organizationId: member.organizationId, phone: dto.phone, status: B2BClientStatus.ACTIVE } })) throw new ConflictException('Клиент с таким телефоном уже есть в вашей базе'); return protectB2BFinance(await this.prisma.b2BClient.create({ data: { organizationId: member.organizationId, firstName: dto.firstName, lastName: dto.lastName, phone: dto.phone, email: dto.email?.toLowerCase(), birthday: dto.birthday ? new Date(dto.birthday) : undefined, notes: dto.notes, tags: dto.tags || [], consentPersonalDataAt: dto.personalDataConsent ? new Date() : undefined } }),member.canSeeFinance); }
+  async updateClient(userId: string, id: string, dto: UpdateB2BClientDto) { const member = await this.context(userId, true); await this.ownedClient(member.organizationId, id); return protectB2BFinance(await this.prisma.b2BClient.update({ where: { id }, data: { firstName: dto.firstName, lastName: dto.lastName, phone: dto.phone, email: dto.email?.toLowerCase(), birthday: dto.birthday ? new Date(dto.birthday) : undefined, notes: dto.notes, tags: dto.tags, status: dto.status, ...(dto.personalDataConsent !== undefined ? { consentPersonalDataAt: dto.personalDataConsent ? new Date() : null } : {}) } }),member.canSeeFinance); }
 
-  async services(userId: string) { const member = await this.context(userId); return this.prisma.b2BService.findMany({ where: { organizationId: member.organizationId }, orderBy: [{ isActive: 'desc' }, { name: 'asc' }] }); }
-  async createService(userId: string, dto: CreateB2BServiceDto) { const member = await this.context(userId); return this.prisma.b2BService.create({ data: { organizationId: member.organizationId, ...dto } }); }
-  async updateService(userId: string, id: string, dto: UpdateB2BServiceDto) { const member = await this.context(userId); await this.ownedService(member.organizationId, id); return this.prisma.b2BService.update({ where: { id }, data: dto }); }
+  async services(userId: string) { const member = await this.context(userId, true); return this.prisma.b2BService.findMany({ where: { organizationId: member.organizationId }, orderBy: [{ isActive: 'desc' }, { name: 'asc' }] }); }
+  async createService(userId: string, dto: CreateB2BServiceDto) { const member = await this.context(userId, true); return this.prisma.b2BService.create({ data: { organizationId: member.organizationId, ...dto } }); }
+  async updateService(userId: string, id: string, dto: UpdateB2BServiceDto) { const member = await this.context(userId, true); await this.ownedService(member.organizationId, id); return this.prisma.b2BService.update({ where: { id }, data: dto }); }
 
-  async bookings(userId: string, from?: string, to?: string) { const member = await this.context(userId); return protectB2BFinance(await this.prisma.b2BBooking.findMany({ where: { organizationId: member.organizationId, ...(from || to ? { startTime: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lt: new Date(to) } : {}) } } : {}) }, include: { client: true, service: true, masterMember: { include: { user: { select: { firstName: true, lastName: true } } } } }, orderBy: { startTime: 'asc' }, take: 500 }),member.canSeeFinance); }
+  async bookings(userId: string, from?: string, to?: string) {
+    const member=await this.context(userId,true);
+    const start=from?new Date(from):undefined,end=to?new Date(to):undefined;
+    if((start&&!Number.isFinite(start.getTime()))||(end&&!Number.isFinite(end.getTime())))throw new BadRequestException('Некорректный период календаря');
+    if(Boolean(start)!==Boolean(end))throw new BadRequestException('Укажите обе границы периода календаря');
+    if(start&&end&&(end<=start||end.getTime()-start.getTime()>93*86400000))throw new BadRequestException('Выберите период от одного дня до трёх месяцев');
+    const rows=await this.prisma.b2BBooking.findMany({where:{organizationId:member.organizationId,...(start&&end?{startTime:{lt:end},endTime:{gt:start}}:{})},include:{client:true,service:true,masterMember:{include:{user:{select:{firstName:true,lastName:true}}}}},orderBy:{startTime:'asc'},...(start&&end?{}:{take:500})});
+    return protectB2BFinance(rows,member.canSeeFinance);
+  }
 
   async createBooking(userId: string, dto: CreateB2BBookingDto) {
-    const member = await this.context(userId); const [client, service] = await Promise.all([this.ownedClient(member.organizationId, dto.clientId), this.ownedService(member.organizationId, dto.serviceId)]);
-    if (!service.isActive) throw new BadRequestException('Услуга выключена'); if (dto.masterMemberId) await this.ownedMember(member.organizationId, dto.masterMemberId);
-    const start = new Date(dto.startTime); const end = new Date(start.getTime() + service.duration * 60000); if (start < new Date(Date.now() - 60000)) throw new BadRequestException('Нельзя создать запись в прошлом');
-    if (dto.masterMemberId && await this.prisma.b2BBooking.findFirst({ where: { organizationId: member.organizationId, masterMemberId: dto.masterMemberId, status: { not: B2BBookingStatus.CANCELLED }, startTime: { lt: end }, endTime: { gt: start } } })) throw new ConflictException('У выбранного мастера это время уже занято');
-    return protectB2BFinance(await this.prisma.b2BBooking.create({ data: { organizationId: member.organizationId, clientId: client.id, serviceId: service.id, masterMemberId: dto.masterMemberId, startTime: start, endTime: end, notes: dto.notes }, include: { client: true, service: true } }),member.canSeeFinance);
+    const member = await this.context(userId, true);
+    return protectB2BFinance(await this.salon.create(member.organizationId, dto), member.canSeeFinance);
   }
 
   async updateBooking(userId: string, id: string, dto: UpdateB2BBookingDto) {
-    const member = await this.context(userId); const booking = await this.prisma.b2BBooking.findFirst({ where: { id, organizationId: member.organizationId }, include: { service: true } }); if (!booking) throw new NotFoundException('Запись не найдена'); if (dto.masterMemberId) await this.ownedMember(member.organizationId, dto.masterMemberId);
-    const start = dto.startTime ? new Date(dto.startTime) : booking.startTime; const end = new Date(start.getTime() + booking.service.duration * 60000); const masterId = dto.masterMemberId ?? booking.masterMemberId;
-    if (masterId && await this.prisma.b2BBooking.findFirst({ where: { id: { not: id }, organizationId: member.organizationId, masterMemberId: masterId, status: { not: B2BBookingStatus.CANCELLED }, startTime: { lt: end }, endTime: { gt: start } } })) throw new ConflictException('У выбранного мастера это время уже занято');
-    return protectB2BFinance(await this.prisma.$transaction(async tx => { const updated = await tx.b2BBooking.update({ where: { id }, data: { status: dto.status, masterMemberId: dto.masterMemberId, startTime: dto.startTime ? start : undefined, endTime: dto.startTime ? end : undefined, notes: dto.notes }, include: { client: true, service: true } }); if (dto.status === B2BBookingStatus.COMPLETED && booking.status !== B2BBookingStatus.COMPLETED) await tx.b2BClient.update({ where: { id: booking.clientId }, data: { lastVisitAt: booking.startTime, totalVisits: { increment: 1 }, totalSpent: { increment: booking.service.price } } }); return updated; }),member.canSeeFinance);
+    const member = await this.context(userId, true);
+    return protectB2BFinance(await this.salon.update(member.organizationId, id, dto), member.canSeeFinance);
   }
 
   async orders(userId: string) { const member = await this.context(userId); return protectB2BFinance(await this.prisma.order.findMany({ where: { organizationId: member.organizationId, source: OrderSource.B2B }, include: { items: true, history: { orderBy: { createdAt: 'desc' }, take: 1 } }, orderBy: { createdAt: 'desc' }, take: 100 }),member.canSeeFinance); }

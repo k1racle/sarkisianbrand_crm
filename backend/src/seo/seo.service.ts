@@ -24,7 +24,7 @@ export class SeoService {
     if (this.cache && this.cache.expires > Date.now()) return Promise.resolve(this.cache.snapshot);
     if (this.pending) return this.pending;
     this.pending = this.prisma.$transaction([
-      this.prisma.product.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true }, orderBy: { slug: 'asc' } }),
+      this.prisma.product.findMany({ where: { isActive: true }, select: { slug: true, updatedAt: true, categories: { select: { isPrimary: true, category: { select: { slug: true, isActive: true, sortOrder: true } } } } }, orderBy: { slug: 'asc' } }),
       this.prisma.category.findMany({ where: { isActive: true }, select: { slug: true }, orderBy: { slug: 'asc' } }),
       this.prisma.storefrontPage.findMany({ select: { slug: true, updatedAt: true, isActive: true, reviewRequired: true }, orderBy: { slug: 'asc' } }),
     ]).then(([products, categories, pages]) => {

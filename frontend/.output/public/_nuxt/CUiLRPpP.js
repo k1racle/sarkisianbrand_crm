@@ -1,0 +1,1 @@
+import{_ as e}from"./EoTYChSF.js";import{d as t,b3 as n,I as a,o as r}from"./aQOCWfoE.js";import"./CdUVP8v3.js";import"./vjEIQnFU.js";import"./CR1xgq2L.js";const l=t({__name:"referral-participants",setup(s){return n({meta:[{name:"robots",content:"noindex, nofollow"}]}),(p,c)=>{const o=e;return r(),a(o,{kind:"REFERRAL",section:"participants"})}}});export{l as default};

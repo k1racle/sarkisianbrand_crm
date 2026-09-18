@@ -22,7 +22,7 @@ const inFavorite = computed(() => favoriteIds.value.includes(props.product.id));
 
 async function add() {
   if (busy.value || !available.value) return;
-  if (isGiftCard.value) { await navigateTo(`/products/${props.product.slug}`); return; }
+  if (isGiftCard.value) { await navigateTo(storefrontProductLink(props.product)); return; }
   busy.value = true;
   error.value = '';
   try {
@@ -39,7 +39,7 @@ async function add() {
 
 <template>
   <article class="sb-product-card">
-    <NuxtLink :to="`/products/${product.slug}`" class="sb-product-card__visual">
+    <NuxtLink :to="storefrontProductLink(product)" class="sb-product-card__visual">
       <div class="sb-product-badges"><span v-for="item in configuredBadges" :key="item.id" class="sb-product-badge" :style="{background:item.color,color:item.textColor}">{{item.label}}</span></div>
       <button class="sb-favorite" :class="{ active: inFavorite }" :aria-label="inFavorite ? 'Убрать из избранного' : 'Добавить в избранное'" @click.prevent="toggleFavorite(product.id)"><Heart :size="19" :fill="inFavorite ? 'currentColor' : 'none'" /></button>
       <img v-if="image && !imageFailed" :src="image" :alt="product.nameRu" loading="lazy" @error="imageFailed = true" />
@@ -51,7 +51,7 @@ async function add() {
     <div class="sb-product-card__meta">
       <p v-if="error" class="sb-form-error" role="alert">{{ error }}</p>
       <span>{{ (product.categories?.find((item: any) => item.isPrimary) || product.categories?.[0])?.category?.nameRu || 'SARKISIAN BRAND' }}</span>
-      <h3><NuxtLink :to="`/products/${product.slug}`">{{ product.nameRu }}</NuxtLink></h3>
+      <h3><NuxtLink :to="storefrontProductLink(product)">{{ product.nameRu }}</NuxtLink></h3>
       <div class="sb-product-card__price-row"><div class="sb-product-prices"><del v-if="regularPrice>price">{{regularPrice.toLocaleString('ru-RU')}} ₽</del><strong>{{ isGiftCard && variants.length > 1 ? 'от ' : '' }}{{ price.toLocaleString('ru-RU') }} ₽</strong></div><small v-if="!isGiftCard">{{ available ? 'В наличии' : 'Нет в наличии' }}</small></div>
       <button type="button" class="sb-quick-add sb-card-add-mobile" :disabled="busy || !available" @click="add"><Check v-if="added" :size="18" /><ShoppingBag v-else :size="18" />{{ isGiftCard && available ? 'Подробнее' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии' }}</button>
     </div>

@@ -7,7 +7,7 @@ async function main() {
   const api = 'http://localhost:3000/api/v1';
   const content = await fetch(`${api}/products/storefront-content`).then(r => r.json());
   const club = await fetch(`${api}/products/storefront-pages/club`).then(r => r.json());
-  if (!content.menuItems.some(item => item.url === '/club') || club.slug !== 'club' || club.blocks.length !== 6) throw new Error('Страница клуба или пункт меню не опубликованы');
+  if (!content.menuItems.some(item => item.url === '/club') || club.slug !== 'club' || club.blocks.length < 6 || !club.blocks.some(block => block.id === 'referral') || !club.blocks.some(block => block.id === 'referral-rules')) throw new Error('Страница клуба, реферальные условия или пункт меню не опубликованы');
   const output = path.join(__dirname, '..', '.screenshots', 'club');
   fs.mkdirSync(output, { recursive: true });
   const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
@@ -18,7 +18,7 @@ async function main() {
       page.on('pageerror', error => problems.push(error.message));
       // No real registration, CMS writes, or orders are performed by this test.
       await page.goto(base, { waitUntil: 'networkidle' });
-      const banner = page.locator('main > .sb-club-banner');
+      const banner = page.locator('main > .sb-club-banner, .sb-club-referral-stack > .sb-club-banner');
       await banner.scrollIntoViewIfNeeded();
       await page.evaluate(() => document.fonts.ready);
       const metrics = await banner.evaluate(e => {
@@ -49,7 +49,7 @@ async function main() {
       await banner.getByRole('link', { name: 'О клубе' }).click();
       await page.waitForURL('**/club');
       await page.getByRole('heading', { name: club.title, exact: true }).waitFor();
-      if (await page.locator('.is-club .sb-content-block').count() !== club.blocks.length) problems.push(`Не отображается содержимое CMS ${width}`);
+      if (await page.locator('.is-club .sb-content-sections > section').count() !== club.blocks.length) problems.push(`Не отображается содержимое CMS ${width}`);
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) problems.push(`Переполнение страницы ${width}`);
       await page.screenshot({ path: path.join(output, `page-${width}.png`), fullPage: true });
       await page.getByRole('button', { name: 'Вступить в клуб' }).click();

@@ -90,7 +90,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
   if(!options.fixtures?.has?.('/auth/access')){
     const access=responses.get('/auth/access');responses.set('/auth/access',{...access,permissions:[...access.permissions,'customers.read','customers.write']});
   }
-  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, b2b }) => {
+  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, b2b, allowFixtureForms }) => {
     // Retain only this non-sensitive layout choice for the explicit reload test.
     const savedLayout = preserveLayoutPreference ? localStorage.getItem('sarkisian-workspace-rail-collapsed') : null;
     localStorage.clear(); sessionStorage.clear();
@@ -112,11 +112,11 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
     window.WebSocket = InertWebSocket;
     // Native and Vue form submission are both forbidden, including accidental Enter.
     window.__adminMockSubmitAttempts = 0;
-    document.addEventListener('submit', event => { window.__adminMockSubmitAttempts++; event.preventDefault(); event.stopImmediatePropagation(); }, true);
+    if(!allowFixtureForms)document.addEventListener('submit', event => { window.__adminMockSubmitAttempts++; event.preventDefault(); event.stopImmediatePropagation(); }, true);
     HTMLFormElement.prototype.submit = function () { window.__adminMockSubmitAttempts++; };
     HTMLFormElement.prototype.requestSubmit = function () { window.__adminMockSubmitAttempts++; };
     navigator.sendBeacon = () => false;
-  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, b2b: options.b2b === true });
+  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, b2b: options.b2b === true, allowFixtureForms: options.allowFixtureForms === true });
   await context.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -324,7 +324,7 @@ async function main() {
           if (section === 'dashboard') {
             await f.page.keyboard.press('Control+k');
             await f.page.getByRole('dialog', { name: 'Перейти в раздел', exact: true }).waitFor();
-            await f.page.getByRole('searchbox', { name: 'Название раздела', exact: true }).fill('Контент сайта');
+            await f.page.getByRole('searchbox', { name: 'Поиск разделов', exact: true }).fill('Контент сайта');
             await f.page.locator('.wn-command-results a').first().waitFor();
             assert.equal(await f.page.locator('.wn-command-results a').count(), 1);
             await f.page.keyboard.press('Escape');

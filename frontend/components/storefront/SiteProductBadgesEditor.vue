@@ -12,10 +12,10 @@ function remove(id:string){if(busy.value||!canEdit.value)return;if(!window.confi
 function drop(id:string){if(busy.value||!canEdit.value||dragged.value===id)return;const from=badges.value.findIndex(b=>b.id===dragged.value),to=badges.value.findIndex(b=>b.id===id);if(from>=0&&to>=0){const [b]=badges.value.splice(from,1);badges.value.splice(to,0,b);}dragged.value='';}
 function keyboardMove(id:string,direction:number){const index=badges.value.findIndex(b=>b.id===id),target=badges.value[index+direction];if(target){dragged.value=id;drop(target.id);}}
 async function save(){if(revision.value!==null&&dirty.value)await write('','PATCH',{revision:revision.value,badges:badges.value},accept);}
+defineExpose({ load, add, busy: computed(()=>busy.value||loading.value), canAdd: computed(()=>!busy.value&&!loading.value&&canEdit.value&&revision.value!==null&&badges.value.length<30) });
 </script>
 <template>
   <form class="catalog-settings" @submit.prevent="save">
-    <div class="catalog-settings-intro"><p>Настройте подписи, цвета и условия показа. Ручные бейджи назначаются в карточке товара. На витрине выводятся до трёх бейджей в заданном порядке.</p><button type="button" class="cs-primary" :disabled="busy||loading||!canEdit||revision===null||badges.length>=30" @click="add"><Plus :size="16"/>Добавить бейдж</button></div>
     <p v-if="error" class="cs-error" role="alert">{{error}} <button type="button" :disabled="busy" @click="load">Обновить</button></p><p v-if="notice" role="status">{{notice}}</p><p v-if="loading" role="status">Загрузка бейджей…</p>
     <article v-for="badge in badges" :key="badge.id" class="cs-badge-row" @dragover.prevent @drop.stop.prevent="drop(badge.id)">
       <button type="button" class="cs-grip" :disabled="busy||!canEdit" :draggable="!busy&&canEdit" :aria-label="'Перетащить бейдж '+badge.label" title="Перетащить; с клавиатуры Alt + ↑ / ↓" @keydown.alt.up.prevent="keyboardMove(badge.id,-1)" @keydown.alt.down.prevent="keyboardMove(badge.id,1)" @dragstart="dragged=badge.id;$event.dataTransfer?.setData('text/plain',badge.id)" @dragend="dragged=''"><GripVertical :size="18"/></button>

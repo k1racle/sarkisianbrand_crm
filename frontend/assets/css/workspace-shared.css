@@ -37,7 +37,11 @@
     .workspace-frame,
     .b2b-frame,
     .b2b-rail,
+    .studio-rail,
+    .wn-rail-dock,
+    .ui-mobile-dock,
     .admin-dialog,
+    .workspace-context,
     .workspace-login,
     .b2b-login
   ) {
@@ -45,7 +49,18 @@
     --ui-surface: #fff;
     --ui-ink: #202127;
     --ui-muted: #73757f;
+    --ui-danger: #b84f41;
+    --ui-danger-soft: #fff1ef;
+    --ui-success: #238f5d;
+    --ui-success-soft: #edf7f1;
     --ui-on-dark-muted: #c4c4cc;
+    --ui-brand-gradient: radial-gradient(ellipse at 0 0, rgba(157, 145, 132, 0.18), transparent 65%), linear-gradient(145deg, #252321, #151515);
+    --ui-rail-ink: #fff;
+    --ui-rail-muted: #c4c4cc;
+    --ui-rail-line: #ffffff24;
+    --ui-rail-control: #ffffff08;
+    --ui-rail-hover: #ffffff12;
+    --ui-rail-active: #ffffff20;
     --ui-line: #e6e7ec;
     --ui-accent: #77709e;
     --ui-accent-soft: #eeedf7;
@@ -231,27 +246,122 @@
     color: var(--ui-accent) !important;
   }
   .b2b-rail {
-    background: var(--ui-surface) !important;
-    border-right: 1px solid var(--ui-line) !important;
+    background: var(--ui-brand-gradient) !important;
+    border-right: 1px solid var(--ui-rail-line) !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
-    color: var(--ui-ink) !important;
+    color: var(--ui-rail-ink) !important;
   }
   .b2b-rail :is(.brand img) {
-    filter: none !important;
+    filter: brightness(0) invert(1) !important;
   }
   .b2b-rail :is(nav a, .company, .bottom a, .bottom button) {
-    color: var(--ui-ink) !important;
+    color: var(--ui-rail-ink) !important;
     border-radius: 8px !important;
   }
   .b2b-rail nav a.active {
-    background: var(--ui-accent-soft) !important;
-    color: var(--ui-accent) !important;
+    background: var(--ui-rail-active) !important;
+    color: var(--ui-rail-ink) !important;
   }
   .b2b-rail :is(.company-note, .company small, .bottom small) {
-    color: var(--ui-muted) !important;
+    color: var(--ui-rail-muted) !important;
+  }
+  /* One brand surface for login screens, full rails and the mobile dock. */
+  :is(.workspace-login, .b2b-login) .login-brand,
+  .studio-rail,
+  .wn-rail-dock {
+    background: var(--ui-brand-gradient) !important;
+    color: var(--ui-rail-ink) !important;
+    border-color: var(--ui-rail-line) !important;
+  }
+  .studio-rail .console-rail-brand img {
+    filter: brightness(0) invert(1) !important;
+  }
+  .studio-rail :is(nav a, .wn-group-toggle, .rail-user, .rail-user strong),
+  .wn-rail-dock :is(a, button) {
+    color: var(--ui-rail-ink) !important;
+  }
+  .studio-rail :is(.studio-area-switch, .wn-nav-group h2, .wn-nav-empty, .rail-user small) {
+    color: var(--ui-rail-muted) !important;
+  }
+  .studio-rail .studio-area-switch select {
+    color-scheme: dark;
+    color: var(--ui-rail-ink) !important;
+    background: var(--ui-rail-control) !important;
+    border-color: var(--ui-rail-line) !important;
+  }
+  .studio-rail .studio-area-switch option {
+    background: #252321 !important;
+    color: var(--ui-rail-ink) !important;
+  }
+  .studio-rail :is(.wn-group-items, .rail-user),
+  .b2b-rail :is(.company, .company-note, .bottom, .person) {
+    border-color: var(--ui-rail-line) !important;
+  }
+  .b2b-rail .company-note {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 8px;
+    background: #252321 !important;
+    box-shadow: none !important;
+  }
+  .b2b-rail .company svg {
+    color: var(--ui-rail-ink) !important;
+  }
+  .studio-rail nav,
+  .b2b-rail nav {
+    scrollbar-color: #ffffff40 transparent !important;
+  }
+  .studio-rail :is(.rail-user, .wn-group-toggle),
+  .b2b-rail :is(.company, .bottom a, .bottom button) {
+    background: transparent !important;
+  }
+  .studio-rail :is(nav a, .wn-group-toggle, .rail-user):hover,
+  .b2b-rail :is(nav a, .company, .bottom a, .bottom button):hover,
+  .wn-rail-dock :is(a, button):hover {
+    background: var(--ui-rail-hover) !important;
+    color: var(--ui-rail-ink) !important;
+  }
+  .studio-rail nav a.active,
+  .studio-rail .wn-group-toggle--active,
+  .b2b-rail nav a.active {
+    background: var(--ui-rail-active) !important;
+    color: var(--ui-rail-ink) !important;
+  }
+  .studio-rail .rail-user i,
+  .b2b-rail .person i,
+  .studio-rail .wn-mobile-close {
+    background: var(--ui-rail-hover) !important;
+    color: var(--ui-rail-ink) !important;
+    border-color: var(--ui-rail-line) !important;
+  }
+  :is(.studio-rail, .b2b-rail, .wn-rail-dock) :is(a, button, select):focus-visible {
+    outline: 2px solid var(--ui-rail-ink) !important;
+    outline-offset: 3px !important;
   }
   .b2b-login {
+    /* Compatibility names used by the extracted login CSS. Owned here, not
+       inherited from the public .sb-storefront theme. */
+    --sf-black: var(--ui-ink);
+    --sf-on-dark: #fff;
+    --sf-muted-on-dark: var(--ui-on-dark-muted);
+    --sf-muted: var(--ui-muted);
+    --sf-line: var(--ui-line);
+    --sf-surface: var(--ui-surface);
+    --sf-glass: var(--ui-surface);
+    --sf-glass-strong: var(--ui-surface);
+    --sf-glass-border: var(--ui-line);
+    --sf-surface-shadow: none;
+    --sf-action-shadow: 0 8px 20px #20212714;
+    --sf-action-hover: #30313a;
+    --sf-focus-ring: 0 0 0 3px #77709e26;
+    --sf-radius-compact: var(--ui-control-radius);
+    --sf-radius-control: var(--ui-control-radius);
+    --sf-radius-panel: 16px;
+    --sf-gap: 16px;
+    --sf-gap-small: 8px;
+    --sf-motion: 160ms;
+    --sf-ease: ease;
     background: var(--ui-bg) !important;
   }
   .b2b-login .login-card {
@@ -264,8 +374,11 @@
     border-radius: 8px !important;
     border-color: var(--ui-line) !important;
   }
-  .b2b-login :is(.eyebrow, .login-brand-kicker) {
+  .b2b-login .eyebrow {
     color: var(--ui-accent) !important;
+  }
+  .b2b-login .login-brand-kicker {
+    color: var(--ui-on-dark-muted) !important;
   }
   @media (max-width: 800px) {
     .b2b-frame .top,

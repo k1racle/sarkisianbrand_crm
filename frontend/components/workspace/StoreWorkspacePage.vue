@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Award, Coins, Eye, Gift, GripVertical, ImagePlus, Pencil, Plus, RefreshCw, Save, Search, Trash2, X } from "@lucide/vue";
+import { Award, Check, Coins, Eye, Gift, GripVertical, ImagePlus, Pencil, Plus, RefreshCw, Save, Search, Trash2, X } from "@lucide/vue";
+import { inlineProductPrices } from '~/shared/inline-product-prices';
 import { storefrontVariantPrice } from '~/shared/product-merchandising';
 import { storefrontProductImage } from '~/composables/useStorefrontCatalog';
 const config = useRuntimeConfig();
@@ -9,14 +10,17 @@ const { token, user } = useWorkspaceSession();
 const productEditor = useState<any | null>("admin-product-editor", () => null);
 const selected = useState<any | null>("admin-order-selected", () => null);
 const notice = ref("");
-const search = ref("");
-const statusFilter = ref("");
+const search = ref(typeof route.query.q === 'string' ? route.query.q : '');
+const statusFilter = ref(typeof route.query.status === 'string' && ['NEW','CONFIRMED','PAYMENT_WAITING','PAID','ASSEMBLING','SHIPPED','DELIVERED','CANCELLED','REFUNDED'].includes(route.query.status) ? route.query.status : '');
+const catalogSettingsEditor = ref<any>(null);
+const dashboardDays = ref(30);
+function refreshSection() { return ['categories','product-badges','gift-cards'].includes(active.value) ? catalogSettingsEditor.value?.load() : load(); }
 const productCategory=ref(''),productVisibility=ref(''),productAvailability=ref(''),productSort=ref('updated'),selectedProductIds=ref<string[]>([]),bulkSaving=ref(false);
 const productAccess=useWorkspaceAccess();
 const canEditCatalog=computed(()=>['ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR'].includes(user.value?.role||'')&&productAccess.can('catalog.write'));
 const allProductsSelected=computed(()=>filteredProducts.value.length>0&&filteredProducts.value.every(p=>selectedProductIds.value.includes(p.id)));
 const { openContextMenu, copyText } = useContextMenu();
-const siteSections = ["dashboard", "appearance", "site-content", "catalog-menu", "pages", "orders", "products", "categories", "product-badges", "customers", "loyalty", "promotions", "gift-cards"];
+const siteSections = ["loyalty-settings", "loyalty-members", "dashboard", "appearance", "site-content", "catalog-menu", "pages", "orders", "products", "categories", "product-badges", "customers", "loyalty", "promotions", "gift-cards"];
 const initialSection = String(props.pageSection || route.query.section || "dashboard");
 const active = ref(siteSections.includes(initialSection) ? initialSection : "dashboard");
 watch(
@@ -46,7 +50,7 @@ const storefrontMenuItems = ref<any[]>([]);
 const appearanceTabs = [{ id: 'banners', label: 'Баннеры' }, { id: 'menu', label: 'Меню сайта' }, { id: 'social', label: 'Социальные сети' }, { id: 'announcement', label: 'Верхняя строка' }];
 const appearanceTab = ref('banners');
 watch(() => route.query.tab, tab => { if (typeof tab === 'string' && appearanceTabs.some(item => item.id === tab)) appearanceTab.value = tab; }, { immediate: true });
-const appearanceOrderDirty = ref<Record<string, boolean>>({});
+const appearanceRevision = ref('');
 const appearanceBaseline = ref('');
 const bannerEditor = ref<any | null>(null);
 const bannerEditorBaseline = ref('');
@@ -57,59 +61,33 @@ const loyaltyBaseline = ref('');
 function appearanceSnapshot() { return JSON.stringify({ settings: storefrontSettings, banners: storefrontBanners.value, menu: storefrontMenuItems.value, social: storefrontSocialLinks.value }); }
 const appearanceDirty = computed(() => bannerEditorDirty.value || Boolean(appearanceBaseline.value && appearanceSnapshot() !== appearanceBaseline.value));
 const loyaltyDirty = computed(() => Boolean(loyaltyBaseline.value && JSON.stringify(loyaltySettings) !== loyaltyBaseline.value));
-function markAppearanceSaved(collection: 'banners' | 'menu' | 'social' | 'settings', id?: string, removed = false) {
-  const previous = JSON.parse(appearanceBaseline.value || '{}');
-  if (collection === 'settings') previous.settings = JSON.parse(JSON.stringify(storefrontSettings));
-  else {
-    const rows = previous[collection] || [];
-    const index = rows.findIndex((item: any) => item.id === id);
-    if (removed) { if (index >= 0) rows.splice(index, 1); }
-    else {
-      const current = appearanceItems(collection).find(item => item.id === id);
-      if (current) { const saved = JSON.parse(JSON.stringify(current)); if (index >= 0) rows[index] = saved; else rows.push(saved); }
-    }
-    previous[collection] = rows;
-  }
-  appearanceBaseline.value = JSON.stringify(previous);
-}
 onBeforeRouteLeave(() => {
+  if(savingPrice.value) return false;
+  if(priceEditing.value && !confirm('Есть несохранённые цены. Перейти без сохранения?')) return false;
   if(savingAppearance.value){notice.value='Дождитесь завершения сохранения.';return false;}
   if(bulkSaving.value){notice.value='Дождитесь завершения обновления товаров.';return false;}
-  if ((active.value === 'appearance' && appearanceDirty.value) || (active.value === 'loyalty' && loyaltyDirty.value)) return confirm('Есть несохранённые изменения. Перейти без сохранения?');
+  if ((active.value === 'appearance' && appearanceDirty.value) || (['loyalty', 'loyalty-settings'].includes(active.value) && loyaltyDirty.value)) return confirm('Есть несохранённые изменения. Перейти без сохранения?');
 });
 onBeforeRouteUpdate((to, from) => {
   if(savingAppearance.value)return false;
-  if (to.query.section !== from.query.section && ((active.value === 'appearance' && appearanceDirty.value) || (active.value === 'loyalty' && loyaltyDirty.value))) return confirm('Есть несохранённые изменения. Перейти без сохранения?');
+  if (to.query.section !== from.query.section && ((active.value === 'appearance' && appearanceDirty.value) || (['loyalty', 'loyalty-settings'].includes(active.value) && loyaltyDirty.value))) return confirm('Есть несохранённые изменения. Перейти без сохранения?');
 });
 let appearanceDragged: { collection: 'banners' | 'menu' | 'social'; id: string } | undefined;
 function appearanceItems(collection: 'banners' | 'menu' | 'social') { return collection === 'banners' ? storefrontBanners.value : collection === 'menu' ? storefrontMenuItems.value : storefrontSocialLinks.value; }
 function dragAppearance(event: DragEvent, collection: 'banners' | 'menu' | 'social', item: any) {
-  if (savingAppearance.value || item._new) { event.preventDefault(); return; }
+  if (savingAppearance.value) { event.preventDefault(); return; }
   appearanceDragged = { collection, id: item.id }; event.dataTransfer?.setData('text/plain', item.id);
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 }
 function moveAppearance(collection: 'banners' | 'menu' | 'social', id: string, target: number) {
   if (savingAppearance.value) return;
   const items = appearanceItems(collection), index = items.findIndex(item => item.id === id);
-  if (index < 0 || target < 0 || target >= items.length || index === target || items.some(item => item._new)) return;
+  if (index < 0 || target < 0 || target >= items.length || index === target) return;
   items.splice(target, 0, items.splice(index, 1)[0]); items.forEach((item, order) => item.sortOrder = order);
-  appearanceOrderDirty.value[collection] = true;
 }
 function dropAppearance(collection: 'banners' | 'menu' | 'social', targetId: string) {
   if (appearanceDragged?.collection !== collection) return;
   moveAppearance(collection, appearanceDragged.id, appearanceItems(collection).findIndex(item => item.id === targetId)); appearanceDragged = undefined;
-}
-async function saveAppearanceOrder(collection: 'banners' | 'menu' | 'social') {
-  savingAppearance.value = true;
-  try {
-    await $fetch('/admin/storefront/reorder', { baseURL: config.public.apiBase, method: 'PATCH', headers: { Authorization: `Bearer ${token.value}` }, body: { collection, ids: appearanceItems(collection).map(item => item.id) } });
-    appearanceOrderDirty.value[collection] = false; notice.value = 'Порядок сохранён';
-    const previous = JSON.parse(appearanceBaseline.value || '{}');
-    const byId = new Map((previous[collection] || []).map((item: any) => [item.id, item]));
-    previous[collection] = appearanceItems(collection).map((item, sortOrder) => ({ ...(byId.get(item.id) as object), sortOrder }));
-    appearanceBaseline.value = JSON.stringify(previous);
-  } catch (error: any) { notice.value = error?.data?.message || 'Не удалось сохранить порядок. Изменения остаются в редакторе.'; }
-  finally { savingAppearance.value = false; }
 }
 const loyaltyDashboard = ref<any>(null);
 const loyaltySearch = ref("");
@@ -140,8 +118,41 @@ watch(productSaved, saved => {
   if (index >= 0) products.value[index] = saved.product;
 });
 const savingProduct = ref(false);
+const priceEditor = ref<{ id: string; variantId: string; field: 'price' | 'salePrice'; price: string; salePrice: string; error: string } | null>(null);
+const savingPrice = ref(false);
+const priceEditing = computed(() => Boolean(priceEditor.value));
+function editPrices(product: any, field: 'price' | 'salePrice') {
+  if (!canEditCatalog.value || savingPrice.value || product.productType === 'GIFT_CARD' || !product.variants?.[0]) return;
+  if (priceEditor.value && priceEditor.value.id !== product.id) return;
+  if (!priceEditor.value) priceEditor.value = { id: product.id, field, variantId: product.variants[0].id, price: String(product.variants[0].price ?? product.basePrice ?? 0), salePrice: product.variants[0].salePrice == null ? '' : String(product.variants[0].salePrice), error: '' };
+  nextTick(() => document.querySelector<HTMLInputElement>(`[data-product-id="${product.id}"] input[data-price-field="${field}"]`)?.focus());
+}
+function cancelPrices() { if (!savingPrice.value) priceEditor.value = null; }
+async function savePrices() {
+  const draft = priceEditor.value;
+  if (!draft || savingPrice.value || !canEditCatalog.value) return;
+  draft.error = '';
+  let payload;
+  try { payload = inlineProductPrices(draft.price, draft.salePrice); }
+  catch (error: any) { draft.error = error.message; return; }
+  savingPrice.value = true;
+  const actorToken = token.value;
+  try {
+    const updated = await $fetch<any>(`/admin/products/${draft.id}`, { baseURL: config.public.apiBase, method: 'PATCH', headers: { Authorization: `Bearer ${actorToken}` }, body: { ...payload, variantId: draft.variantId } });
+    if (token.value !== actorToken) return;
+    const index = products.value.findIndex(product => product.id === draft.id);
+    if (index >= 0) products.value[index] = updated;
+    priceEditor.value = null;
+    notice.value = 'Цены сохранены';
+  } catch (error: any) {
+    if (token.value === actorToken && priceEditor.value) priceEditor.value.error = Array.isArray(error?.data?.message) ? error.data.message.join('. ') : error?.data?.message || 'Не удалось сохранить цены. Попробуйте ещё раз.';
+  } finally { savingPrice.value = false; }
+}
+watch(token, () => { priceEditor.value = null; });
+const canConfigureLoyalty = computed(() => ['ADMIN', 'SUPERVISOR'].includes(user.value?.role || '') && productAccess.can('loyalty.write'));
+const canAdjustLoyalty = computed(() => ['ADMIN', 'SUPERVISOR', 'MANAGER_SALES'].includes(user.value?.role || '') && productAccess.can('loyalty.write'));
 const menu = [
-  { id: "dashboard", label: "Обзор" },
+  { id: "dashboard", label: "Обзор магазина" },
   { id: "appearance", label: "Витрина" },
   { id: "site-content", label: "Контент сайта" },
   { id: "catalog-menu", label: "Меню каталога" },
@@ -151,13 +162,15 @@ const menu = [
   { id: "categories", label: "Категории" },
   { id: "product-badges", label: "Бейджи товаров" },
   { id: "customers", label: "Клиенты" },
-  { id: "loyalty", label: "Бонусная программа" },
+  { id: "loyalty-settings", label: "Настройки программы" },
+  { id: "loyalty-members", label: "Участники" },
   { id: "promotions", label: "Промокоды" },
   { id: "gift-cards", label: "Подарочные карты" },
 ];
 const orderStatuses = [
   { id: "NEW", label: "Новый" },
   { id: "CONFIRMED", label: "Подтверждён" },
+  { id: "PAYMENT_WAITING", label: "Ожидает оплаты" },
   { id: "PAID", label: "Оплачен" },
   { id: "ASSEMBLING", label: "Сборка" },
   { id: "SHIPPED", label: "Отправлен" },
@@ -167,6 +180,7 @@ const orderStatuses = [
 ];
 function routeOrderStatus() { return typeof route.query.status === 'string' && orderStatuses.some(item => item.id === route.query.status) ? route.query.status : ''; }
 watch(() => route.query.status, () => { if (active.value === 'orders') statusFilter.value = routeOrderStatus(); }, { immediate: true });
+watch(() => route.query.q, q => { if (active.value === 'orders') search.value = typeof q === 'string' ? q : ''; }, { immediate: true });
 const filteredProducts = computed(() =>
   products.value.filter(
     (p) =>
@@ -232,7 +246,7 @@ async function load() {
   const options = { baseURL: config.public.apiBase, headers, signal: controller.signal, timeout: 20000 };
   try {
     if (section === 'dashboard') {
-      const result = await $fetch<any>('/admin/dashboard', options);
+      const result = await $fetch<any>('/admin/dashboard', { ...options, query: { days: dashboardDays.value } });
       if (generation !== loadGeneration) return;
       dashboard.value = result;
     } else if (section === 'products' || section === 'orders') {
@@ -252,14 +266,14 @@ async function load() {
     } else if (section === 'appearance') {
       const storefront = await $fetch<any>('/admin/storefront', options);
       if (generation !== loadGeneration) return;
-      storefrontSettings.announcementText = storefront.settings?.announcementText || storefrontSettings.announcementText;
+      storefrontSettings.announcementText = storefront.settings?.announcementText ?? storefrontSettings.announcementText;
+      appearanceRevision.value = storefront.revision || '';
       storefrontBanners.value = (storefront.banners || []).map((banner: any) => ({ ...banner, startsAt: bannerLocalDate(banner.startsAt), endsAt: bannerLocalDate(banner.endsAt) }));
       storefrontSocialLinks.value = storefront.socialLinks || [];
       storefrontMenuItems.value = storefront.menuItems || [];
       categories.value = storefront.categories || [];
-      appearanceOrderDirty.value = {};
       appearanceBaseline.value = appearanceSnapshot();
-    } else if (section === 'loyalty') {
+    } else if (['loyalty', 'loyalty-settings', 'loyalty-members'].includes(section)) {
       const loyalty = await $fetch<any>('/loyalty/admin/overview', options);
       if (generation !== loadGeneration) return;
       loyaltyDashboard.value = loyalty;
@@ -275,7 +289,7 @@ async function load() {
 }
 
 async function saveLoyaltySettings() {
-  if (savingLoyalty.value) return;
+  if (savingLoyalty.value || !canConfigureLoyalty.value) return;
   savingLoyalty.value = true;
   try {
     const payload = {
@@ -312,7 +326,7 @@ function openLoyaltyAccount(account: any) {
 }
 
 async function applyLoyaltyAdjustment() {
-  if (!loyaltyAccountEditor.value || !loyaltyAdjustment.reason.trim() || loyaltyAdjustment.amount < 1) {
+  if (!canAdjustLoyalty.value || !loyaltyAccountEditor.value || !loyaltyAdjustment.reason.trim() || loyaltyAdjustment.amount < 1) {
     notice.value = "Укажите сумму и причину операции";
     return;
   }
@@ -336,25 +350,57 @@ function loyaltyMenu(event: MouseEvent, account: any) {
     { label: "Копировать email", icon: "copy", action: () => copyText(account.email, "Email скопирован") },
   ], `${account.balance} бонусов`);
 }
-async function saveStorefrontSettings() {
+function appearanceBannerPayload(banner: any, sortOrder: number) {
+  if (!banner.imageUrl?.trim()) throw new Error('Выберите изображение для каждого баннера.');
+  const startsAt = banner.startsAt ? new Date(banner.startsAt).toISOString() : undefined;
+  const endsAt = banner.endsAt ? new Date(banner.endsAt).toISOString() : undefined;
+  if (startsAt && endsAt && startsAt >= endsAt) throw new Error('Окончание показа баннера должно быть позже начала.');
+  return {
+    id: banner._new ? undefined : banner.id,
+    title: banner.title || '', subtitle: banner.subtitle || '',
+    buttonLabel: banner.buttonLabel || 'Перейти в каталог', linkUrl: banner.linkUrl || '/catalog',
+    imageUrl: banner.imageUrl.trim(), mobileImageUrl: banner.mobileImageUrl || undefined,
+    isActive: Boolean(banner.isActive), sortOrder, startsAt, endsAt,
+  };
+}
+async function saveStorefrontAppearance() {
+  if (savingAppearance.value || uploadingMedia.value || !appearanceDirty.value) return;
+  let payload: any;
+  try {
+    payload = {
+      revision: appearanceRevision.value, settings: { ...storefrontSettings },
+      banners: storefrontBanners.value.map(appearanceBannerPayload),
+      menuItems: storefrontMenuItems.value.map((item, sortOrder) => {
+        if (!item.label?.trim() || !item.url?.trim()) throw new Error('Заполните название и ссылку каждого пункта меню.');
+        return { id: item._new ? undefined : item.id, label: item.label.trim(), url: item.url.trim(), newTab: Boolean(item.newTab), isActive: Boolean(item.isActive), sortOrder };
+      }),
+      socialLinks: storefrontSocialLinks.value.map((item, sortOrder) => {
+        if (!item.name?.trim() || !item.url?.trim()) throw new Error('Заполните название и ссылку каждой социальной сети.');
+        return { id: item._new ? undefined : item.id, name: item.name.trim(), iconKey: item.iconKey, url: item.url.trim(), isActive: Boolean(item.isActive), sortOrder };
+      }),
+    };
+  } catch (error: any) { notice.value = error.message || 'Проверьте обязательные поля.'; return; }
+  const actorToken = token.value;
   savingAppearance.value = true;
   try {
-    await $fetch("/admin/storefront/settings", {
-      baseURL: config.public.apiBase,
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token.value}` },
-      body: storefrontSettings,
+    const saved = await $fetch<any>('/admin/storefront/appearance', {
+      baseURL: config.public.apiBase, method: 'PATCH',
+      headers: { Authorization: `Bearer ${actorToken}` }, body: payload,
     });
-    notice.value = "Текст верхней строки сохранён";
-    markAppearanceSaved('settings');
-    setTimeout(() => (notice.value = ""), 2200);
-  } catch (error: any) { notice.value = error?.data?.message || 'Не удалось сохранить верхнюю строку.'; } finally {
-    savingAppearance.value = false;
-  }
+    if (token.value !== actorToken) return;
+    if (!saved?.revision || !Array.isArray(saved.banners) || !Array.isArray(saved.menuItems) || !Array.isArray(saved.socialLinks)) throw new Error('Некорректный ответ сохранения.');
+    Object.assign(storefrontSettings, { announcementText: saved.settings.announcementText });
+    storefrontBanners.value = saved.banners.map((row: any) => ({ ...row, startsAt: bannerLocalDate(row.startsAt), endsAt: bannerLocalDate(row.endsAt) }));
+    storefrontMenuItems.value = saved.menuItems; storefrontSocialLinks.value = saved.socialLinks;
+    appearanceRevision.value = saved.revision; appearanceBaseline.value = appearanceSnapshot();
+    notice.value = 'Все настройки витрины сохранены.';
+  } catch (error: any) {
+    if (token.value === actorToken) notice.value = Array.isArray(error?.data?.message) ? error.data.message.join('. ') : error?.data?.message || error?.message || 'Не удалось сохранить настройки. Черновик остался на экране.';
+  } finally { savingAppearance.value = false; }
 }
 function closeBannerEditor() {
   if(savingAppearance.value)return false;
-  if(bannerEditorDirty.value&&!window.confirm('Закрыть настройки без сохранения баннера?'))return false;
+  if(bannerEditorDirty.value&&!window.confirm('Закрыть настройки без применения изменений в черновик?'))return false;
   bannerEditor.value=null;bannerEditorError.value='';return true;
 }
 function openBannerEditor(banner:any) {
@@ -392,67 +438,21 @@ function bannerLocalDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? '' : new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 async function saveStorefrontBanner(banner: any) {
-  if(savingAppearance.value)return false;
-  bannerEditorError.value='';
-  if (!banner.imageUrl) {
-    notice.value = "Сначала выберите изображение баннера";
-    bannerEditorError.value=notice.value;return false;
-  }
-  savingAppearance.value = true;
+  if (savingAppearance.value) return false;
   try {
-    const body = {
-      title: banner.title || undefined,
-      subtitle: banner.subtitle || undefined,
-      buttonLabel: banner.buttonLabel,
-      linkUrl: banner.linkUrl,
-      imageUrl: banner.imageUrl,
-      mobileImageUrl: banner.mobileImageUrl || undefined,
-      isActive: banner.isActive,
-      sortOrder: Number(banner.sortOrder || 0),
-      startsAt: banner.startsAt ? new Date(banner.startsAt).toISOString() : undefined,
-      endsAt: banner.endsAt ? new Date(banner.endsAt).toISOString() : undefined,
-    };
-    const saved = await $fetch<any>(
-      banner._new ? "/admin/storefront/banners" : `/admin/storefront/banners/${banner.id}`,
-      {
-        baseURL: config.public.apiBase,
-        method: banner._new ? "POST" : "PATCH",
-        headers: { Authorization: `Bearer ${token.value}` },
-        body,
-      },
-    );
-    if(!saved?.id)throw new Error('Invalid banner response');
-    const existing=storefrontBanners.value.find(item=>item.id===banner.id);
-    Object.assign(banner, saved, { _new: false });
-    banner.startsAt = bannerLocalDate(saved.startsAt); banner.endsAt = bannerLocalDate(saved.endsAt);
-    if(existing)Object.assign(existing,banner);else storefrontBanners.value.push({...banner});
-    markAppearanceSaved('banners', banner.id);
-    notice.value = "Баннер сохранён";
-    setTimeout(() => (notice.value = ""), 2200);
+    appearanceBannerPayload(banner, Number(banner.sortOrder || 0));
+    const existing = storefrontBanners.value.find(item => item.id === banner.id);
+    if (existing) Object.assign(existing, JSON.parse(JSON.stringify(banner)));
+    else storefrontBanners.value.push(JSON.parse(JSON.stringify(banner)));
+    bannerEditorError.value = ''; notice.value = 'Баннер добавлен в черновик. Сохраните общие настройки витрины.';
     return true;
-  } catch (error: any) { notice.value = error?.data?.message || 'Не удалось сохранить баннер. Проверьте даты и обязательные поля.';bannerEditorError.value=notice.value;return false; } finally {
-    savingAppearance.value = false;
-  }
+  } catch (error: any) { bannerEditorError.value = error.message || 'Проверьте настройки баннера.'; return false; }
 }
-async function deleteStorefrontBanner(banner: any) {
-  if(savingAppearance.value)return;
-  if (!window.confirm("Удалить этот баннер? Отменить действие будет нельзя.")) return;
-  savingAppearance.value=true;
-  try {
-  if (!banner._new) {
-    await $fetch(`/admin/storefront/banners/${banner.id}`, {
-      baseURL: config.public.apiBase,
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token.value}` },
-    });
-  }
-  storefrontBanners.value = storefrontBanners.value.filter((item) => item.id !== banner.id);
-  if(bannerEditor.value?.id===banner.id)bannerEditor.value=null;
-  markAppearanceSaved('banners', banner.id, true);
-  notice.value = "Баннер удалён";
-  setTimeout(() => (notice.value = ""), 2200);
-  } catch(error:any){notice.value=error?.data?.message||'Не удалось удалить баннер. Попробуйте ещё раз.';bannerEditorError.value=notice.value;}
-  finally{savingAppearance.value=false;}
+function deleteStorefrontBanner(banner: any) {
+  if (savingAppearance.value || !window.confirm('Убрать баннер? Изменение вступит в силу после общего сохранения.')) return;
+  storefrontBanners.value = storefrontBanners.value.filter(item => item.id !== banner.id);
+  if (bannerEditor.value?.id === banner.id) bannerEditor.value = null;
+  notice.value = 'Баннер убран из черновика.';
 }
 async function saveCategoryImage(category: any, imageUrl: string) {
   if (uploadingMedia.value) return;
@@ -480,79 +480,19 @@ function addStorefrontMenuItem() {
   const sortOrder = storefrontMenuItems.value.reduce((max, item) => Math.max(max, Number(item.sortOrder) || 0), -1) + 1;
   storefrontMenuItems.value.push({ id: `new-menu-${Date.now()}`, _new: true, label: "", url: "/", newTab: false, isActive: true, sortOrder });
 }
-async function saveStorefrontMenuItem(item: any) {
-  if (savingAppearance.value) return;
-  if (!item.label?.trim() || !item.url?.trim()) { notice.value = "Заполните название и ссылку пункта меню"; return; }
-  savingAppearance.value = true;
-  try {
-    const saved = await $fetch<any>(item._new ? "/admin/storefront/menu-items" : `/admin/storefront/menu-items/${item.id}`, {
-      baseURL: config.public.apiBase, method: item._new ? "POST" : "PATCH",
-      headers: { Authorization: `Bearer ${token.value}` },
-      body: { label: item.label.trim(), url: item.url.trim(), isActive: item.isActive, newTab: item.newTab, sortOrder: Number(item.sortOrder) || 0 },
-    });
-    Object.assign(item, saved, { _new: false });
-    storefrontMenuItems.value.sort((a, b) => a.sortOrder - b.sortOrder);
-    markAppearanceSaved('menu', item.id);
-    notice.value = "Пункт меню сохранён";
-  } catch (error: any) {
-    notice.value = Array.isArray(error?.data?.message) ? error.data.message.join(". ") : (error?.data?.message || "Не удалось сохранить пункт меню");
-  } finally {
-    savingAppearance.value = false;
-    setTimeout(() => (notice.value = ""), 4000);
-  }
-}
-async function deleteStorefrontMenuItem(item: any) {
-  if (!confirm(`Удалить пункт «${item.label || 'Новый пункт'}» из меню? Сама страница останется на сайте.`)) return;
-  savingAppearance.value = true;
-  try {
-    if (!item._new) await $fetch(`/admin/storefront/menu-items/${item.id}`, { baseURL: config.public.apiBase, method: "DELETE", headers: { Authorization: `Bearer ${token.value}` } });
-    storefrontMenuItems.value = storefrontMenuItems.value.filter(row => row !== item);
-    markAppearanceSaved('menu', item.id, true);
-    notice.value = "Пункт меню удалён";
-  } catch { notice.value = "Не удалось удалить пункт меню"; }
-  finally { savingAppearance.value = false; }
+function deleteStorefrontMenuItem(item: any) {
+  if (savingAppearance.value || !confirm(`Убрать пункт «${item.label || 'Новый пункт'}»? Сама страница останется на сайте. Изменение применится после общего сохранения.`)) return;
+  storefrontMenuItems.value = storefrontMenuItems.value.filter(row => row.id !== item.id);
+  notice.value = 'Пункт меню убран из черновика.';
 }
 
 function addStorefrontSocialLink() {
   storefrontSocialLinks.value.push({ id: `new-social-${Date.now()}`, _new: true, name: "", iconKey: "vk", url: "", isActive: true, sortOrder: storefrontSocialLinks.value.length });
 }
-async function saveStorefrontSocialLink(social: any) {
-  if (savingAppearance.value) return;
-  if (!social.name.trim() || !social.url.trim()) {
-    notice.value = "Укажите название и ссылку социальной сети";
-    return;
-  }
-  savingAppearance.value = true;
-  try {
-    const body = { name: social.name.trim(), iconKey: social.iconKey, url: social.url.trim(), isActive: social.isActive, sortOrder: Number(social.sortOrder || 0) };
-    const saved = await $fetch<any>(social._new ? "/admin/storefront/social-links" : `/admin/storefront/social-links/${social.id}`, {
-      baseURL: config.public.apiBase,
-      method: social._new ? "POST" : "PATCH",
-      headers: { Authorization: `Bearer ${token.value}` },
-      body,
-    });
-    Object.assign(social, saved, { _new: false });
-    markAppearanceSaved('social', social.id);
-    notice.value = "Социальная сеть сохранена";
-    setTimeout(() => (notice.value = ""), 2200);
-  } catch (error: any) {
-    notice.value = error?.data?.message || 'Не удалось сохранить социальную сеть';
-  } finally {
-    savingAppearance.value = false;
-  }
-}
-async function deleteStorefrontSocialLink(social: any) {
-  if (savingAppearance.value) return;
-  if (!window.confirm(`Удалить «${social.name || "социальную сеть"}» из сайта?`)) return;
-  savingAppearance.value = true;
-  try {
-  if (!social._new) await $fetch(`/admin/storefront/social-links/${social.id}`, { baseURL: config.public.apiBase, method: "DELETE", headers: { Authorization: `Bearer ${token.value}` } });
-  storefrontSocialLinks.value = storefrontSocialLinks.value.filter((item) => item !== social);
-  markAppearanceSaved('social', social.id, true);
-  notice.value = "Социальная сеть удалена";
-  setTimeout(() => (notice.value = ""), 2200);
-  } catch { notice.value = 'Не удалось удалить социальную сеть'; }
-  finally { savingAppearance.value = false; }
+function deleteStorefrontSocialLink(social: any) {
+  if (savingAppearance.value || !window.confirm(`Убрать «${social.name || 'социальную сеть'}»? Изменение применится после общего сохранения.`)) return;
+  storefrontSocialLinks.value = storefrontSocialLinks.value.filter(item => item.id !== social.id);
+  notice.value = 'Социальная сеть убрана из черновика.';
 }
 
 async function archiveProduct(product: any) {
@@ -580,18 +520,23 @@ function editProduct(product: any) {
   productEditor.value = {
     id: product.id,
     productType: product.productType,
+    variants: product.variants,
     nameRu: product.nameRu,
     descriptionRu: product.descriptionRu || "",
     purposesText: (product.purposes || []).join(', '),
     featuresText: (product.features || []).join(', '),
     price: Number(product.variants?.[0]?.price || product.basePrice || 0),
+    salePrice: product.variants?.[0]?.salePrice ?? '',
+    saleStartsAt: product.variants?.[0]?.saleStartsAt ?? '',
+    saleEndsAt: product.variants?.[0]?.saleEndsAt ?? '',
+    badgeIds: product.badgeIds || [],
     stock: product.variants?.[0]?.stock || 0,
     isActive: product.isActive,
     images: (product.images || []).map((image: any) => ({
       url: image.url,
       alt: image.alt || "",
     })),
-    categoryIds: (product.categories || []).map((item: any) => item.categoryId),
+    categoryIds: [...(product.categories || [])].sort((a: any, b: any) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary))).map((item: any) => item.categoryId),
     metaTitle: product.seo?.metaTitle || "",
     metaDesc: product.seo?.metaDesc || "",
     canonical: product.seo?.canonical || "",
@@ -759,7 +704,7 @@ function openProductFromTable(event: MouseEvent) {
   const product = products.value.find(item => item.id === productId);
   if (product) editProduct(product);
 }
-watch(active, () => { if (searchTimer) clearTimeout(searchTimer); pageLoaded.value = false; listPage.value = 1; search.value = ''; statusFilter.value = active.value === 'orders' ? routeOrderStatus() : ''; load(); });
+watch(active, () => { if (searchTimer) clearTimeout(searchTimer); pageLoaded.value = false; listPage.value = 1; search.value = active.value === 'orders' && typeof route.query.q === 'string' ? route.query.q : ''; statusFilter.value = active.value === 'orders' ? routeOrderStatus() : ''; load(); });
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 watch([search, statusFilter], () => {
   if (!['products', 'orders'].includes(active.value)) return;
@@ -800,7 +745,7 @@ onBeforeUnmount(() => {
       ><header data-v-ui-642ff821094a
         class="site-admin-header"
         v-if="active !== 'site-content'"
-        :class="{ 'has-new-product': active === 'products' }"
+        :class="{ 'has-new-product': active === 'products', 'has-store-overview': active === 'dashboard' }"
       >
         <div data-v-ui-642ff821094a class="site-admin-heading">
           <p data-v-ui-642ff821094a class="kicker">
@@ -809,64 +754,34 @@ onBeforeUnmount(() => {
           <h1 data-v-ui-642ff821094a>{{ menu.find((m) => m.id === active)?.label }}</h1>
         </div>
         <div data-v-ui-642ff821094a v-if="active !== 'catalog-menu'" class="header-actions">
-          <button data-v-ui-642ff821094a @click="load">
+          <select v-if="active === 'dashboard'" v-model.number="dashboardDays" aria-label="Период обзора" :disabled="busy" @change="load"><option :value="7">За 7 дней</option><option :value="30">За 30 дней</option></select>
+          <button data-v-ui-642ff821094a :disabled="busy || savingAppearance || priceEditing || catalogSettingsEditor?.busy" @click="refreshSection">
             <RefreshCw data-v-ui-642ff821094a :size="16" :class="{ spin: busy }" /> Обновить
           </button>
+          <button v-if="['categories','product-badges'].includes(active)" type="button" class="cs-primary" :disabled="!catalogSettingsEditor?.canAdd" @click="catalogSettingsEditor?.add()"><Plus :size="16"/>{{active === 'categories' ? 'Добавить категорию' : 'Добавить бейдж'}}</button>
+          <button data-v-ui-642ff821094a v-if="active === 'appearance'" type="button" class="appearance-save appearance-save-all" :disabled="savingAppearance || uploadingMedia || !appearanceDirty" @click="saveStorefrontAppearance"><Save data-v-ui-642ff821094a :size="16" /> {{ savingAppearance ? 'Сохраняем…' : 'Сохранить изменения' }}</button>
         </div>
       </header>
       <div data-v-ui-642ff821094a class="admin-body">
         <p data-v-ui-642ff821094a v-if="pageLoaded && loadError" class="panel" role="alert">{{ loadError }}</p>
-        <section data-v-ui-642ff821094a v-if="active === 'dashboard'">
-          <div data-v-ui-642ff821094a class="kpi-grid">
-            <article data-v-ui-642ff821094a>
-              <span data-v-ui-642ff821094a>Заказы</span><strong data-v-ui-642ff821094a>{{ dashboard.orders }}</strong
-              ><small data-v-ui-642ff821094a>всего заказов</small>
-            </article>
-            <article data-v-ui-642ff821094a>
-              <span data-v-ui-642ff821094a>Оплачено</span
-              ><strong data-v-ui-642ff821094a class="green">{{ dashboard.paidOrders }}</strong
-              ><small data-v-ui-642ff821094a>успешных оплат</small>
-            </article>
-            <article data-v-ui-642ff821094a>
-              <span data-v-ui-642ff821094a>Клиенты</span><strong data-v-ui-642ff821094a>{{ dashboard.customers }}</strong
-              ><small data-v-ui-642ff821094a>зарегистрированных</small>
-            </article>
-            <article data-v-ui-642ff821094a>
-              <span data-v-ui-642ff821094a>Активный каталог</span
-              ><strong data-v-ui-642ff821094a>{{ dashboard.products }}</strong
-              ><small data-v-ui-642ff821094a>товаров опубликовано</small>
-            </article>
-          </div>
-          <div data-v-ui-642ff821094a class="welcome">
-            <div data-v-ui-642ff821094a>
-              <p data-v-ui-642ff821094a class="kicker">ПАНЕЛЬ УПРАВЛЕНИЯ</p>
-              <h2 data-v-ui-642ff821094a>Добро пожаловать в SARKISIAN</h2>
-              <p data-v-ui-642ff821094a>Все ключевые операции магазина — в одном месте.</p>
-            </div>
-            <div data-v-ui-642ff821094a class="quick">
-              <button data-v-ui-642ff821094a @click="go('products')">Управлять каталогом</button
-              ><button data-v-ui-642ff821094a @click="go('orders')">Обработать заказы</button
-              >
-            </div>
-          </div>
-        </section>
+        <StoreDashboard v-if="active === 'dashboard' && dashboard" :data="dashboard" :busy="busy" />
         <SitePagesEditor v-else-if="active === 'pages'" />
         <SiteContentEditor v-else-if="active === 'site-content'" :api-base="String(config.public.apiBase)" :token="token" />
         <SiteCatalogMenuEditor v-else-if="active === 'catalog-menu'" :api-base="String(config.public.apiBase)" :token="token" />
-        <SiteCategoriesEditor v-else-if="active === 'categories'" />
-        <SiteProductBadgesEditor v-else-if="active === 'product-badges'" />
+        <SiteCategoriesEditor v-else-if="active === 'categories'" ref="catalogSettingsEditor" />
+        <SiteProductBadgesEditor v-else-if="active === 'product-badges'" ref="catalogSettingsEditor" />
         <SitePromoCodesEditor v-else-if="active === 'promotions'" :api-base="String(config.public.apiBase)" :token="token" />
-        <SiteGiftCardsEditor v-else-if="active === 'gift-cards'" :api-base="String(config.public.apiBase)" :token="token" :role="user?.role" />
+        <SiteGiftCardsEditor v-else-if="active === 'gift-cards'" ref="catalogSettingsEditor" :api-base="String(config.public.apiBase)" :token="token" :role="user?.role" />
         <section data-v-ui-642ff821094a v-else-if="active === 'appearance'" class="appearance-workspace">
           <nav data-v-ui-642ff821094a class="appearance-tabs" aria-label="Настройки оформления"><button data-v-ui-642ff821094a v-for="tab in appearanceTabs" :key="tab.id" type="button" :aria-pressed="appearanceTab === tab.id" @click="appearanceTab = tab.id">{{ tab.label }}</button></nav>
-          <p data-v-ui-642ff821094a class="appearance-guidance">Перетаскивайте элементы за ручку слева. Новый элемент сначала нужно сохранить.</p>
+          <p data-v-ui-642ff821094a class="appearance-guidance">Перетаскивайте элементы за ручку слева. Все разделы сохраняются одной кнопкой «Сохранить изменения».</p>
+          <fieldset data-v-ui-642ff821094a class="ui-fieldset-reset" :disabled="savingAppearance">
           <article data-v-ui-642ff821094a v-if="appearanceTab === 'announcement'" class="panel appearance-panel">
             <div data-v-ui-642ff821094a class="panel-head">
               <div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ВЕРХНЯЯ СТРОКА</p><h2 data-v-ui-642ff821094a>Информационное сообщение</h2><span data-v-ui-642ff821094a>Текст отображается над основной шапкой сайта</span></div>
             </div>
             <div data-v-ui-642ff821094a class="appearance-form">
               <label data-v-ui-642ff821094a>Текст верхней строки<textarea data-v-ui-642ff821094a v-model="storefrontSettings.announcementText" maxlength="280" rows="3"></textarea><small data-v-ui-642ff821094a>{{ storefrontSettings.announcementText.length }} / 280</small></label>
-              <button data-v-ui-642ff821094a class="appearance-save" :disabled="savingAppearance" @click="saveStorefrontSettings"><Save data-v-ui-642ff821094a :size="16" /> Сохранить текст</button>
             </div>
           </article>
 
@@ -877,12 +792,12 @@ onBeforeUnmount(() => {
             </div>
             <div data-v-ui-642ff821094a class="menu-admin-list">
               <section data-v-ui-642ff821094a v-for="(item,index) in storefrontMenuItems" :key="item.id" class="menu-admin-row" @dragover.prevent @drop.prevent="dropAppearance('menu', item.id)">
-                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="item._new || savingAppearance" :draggable="!item._new && !savingAppearance" aria-label="Перетащить пункт меню" @dragstart="dragAppearance($event, 'menu', item)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
+                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить пункт меню" @dragstart="dragAppearance($event, 'menu', item)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
                 <label data-v-ui-642ff821094a>Название<input data-v-ui-642ff821094a v-model="item.label" maxlength="60" placeholder="О бренде" /></label>
                 <label data-v-ui-642ff821094a>Ссылка<input data-v-ui-642ff821094a v-model="item.url" maxlength="500" placeholder="/#about или /страница" /></label>
                 <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="item.isActive" type="checkbox" /> Показывать</label>
                 <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="item.newTab" type="checkbox" /> В новой вкладке</label>
-                <div data-v-ui-642ff821094a class="menu-admin-actions"><button data-v-ui-642ff821094a :disabled="savingAppearance" aria-label="Сохранить пункт меню" @click="saveStorefrontMenuItem(item)"><Save data-v-ui-642ff821094a :size="16" /></button><button data-v-ui-642ff821094a class="danger" :disabled="savingAppearance" aria-label="Удалить пункт меню" @click="deleteStorefrontMenuItem(item)"><Trash2 data-v-ui-642ff821094a :size="16" /></button></div>
+                <div data-v-ui-642ff821094a class="menu-admin-actions"><button data-v-ui-642ff821094a class="danger" :disabled="savingAppearance" aria-label="Удалить пункт меню" @click="deleteStorefrontMenuItem(item)"><Trash2 data-v-ui-642ff821094a :size="16" /></button></div>
               </section>
               <div data-v-ui-642ff821094a v-if="!storefrontMenuItems.length" class="appearance-empty"><span data-v-ui-642ff821094a>Меню пока пустое — добавьте ссылки на страницы сайта.</span></div>
             </div>
@@ -895,7 +810,7 @@ onBeforeUnmount(() => {
             </div>
             <div data-v-ui-642ff821094a class="banner-admin-list">
               <section data-v-ui-642ff821094a v-for="(banner,index) in storefrontBanners" :key="banner.id" :data-banner-id="banner.id" class="banner-admin-card" @dragover.prevent @drop.prevent="dropAppearance('banners', banner.id)">
-                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="banner._new || savingAppearance" :draggable="!banner._new && !savingAppearance" aria-label="Перетащить баннер" title="Перетащить; с клавиатуры Alt + ↑ / ↓" @keydown.alt.up.prevent="moveAppearance('banners',banner.id,index-1)" @keydown.alt.down.prevent="moveAppearance('banners',banner.id,index+1)" @dragstart="dragAppearance($event, 'banners', banner)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
+                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить баннер" title="Перетащить; с клавиатуры Alt + ↑ / ↓" @keydown.alt.up.prevent="moveAppearance('banners',banner.id,index-1)" @keydown.alt.down.prevent="moveAppearance('banners',banner.id,index+1)" @dragstart="dragAppearance($event, 'banners', banner)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
                 <div data-v-ui-642ff821094a class="banner-admin-preview" :class="{ empty: !banner.imageUrl }">
                   <img data-v-ui-642ff821094a v-if="banner.imageUrl" :src="storefrontPreview(banner.imageUrl)" alt="Предпросмотр баннера" />
                   <ImagePlus data-v-ui-642ff821094a v-else :size="30" />
@@ -938,7 +853,7 @@ onBeforeUnmount(() => {
                     </fieldset>
                     <p data-v-ui-642ff821094a v-if="bannerEditorError" class="cs-error" role="alert">{{bannerEditorError}}</p>
                   </div>
-                  <footer data-v-ui-642ff821094a><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" @click="closeBannerEditor">Отмена</button><button data-v-ui-642ff821094a type="submit" class="primary" :disabled="savingAppearance || uploadingMedia"><Save data-v-ui-642ff821094a :size="16"/>{{savingAppearance?'Сохраняем…':'Сохранить баннер'}}</button></footer>
+                  <footer data-v-ui-642ff821094a><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" @click="closeBannerEditor">Отмена</button><button data-v-ui-642ff821094a type="button" class="primary" :disabled="savingAppearance || uploadingMedia" @click="saveBannerEditor">Готово</button></footer>
                 </form>
               </div>
             </Teleport>
@@ -951,29 +866,30 @@ onBeforeUnmount(() => {
             </div>
             <div data-v-ui-642ff821094a class="social-admin-list">
               <section data-v-ui-642ff821094a v-for="(social,index) in storefrontSocialLinks" :key="social.id" class="social-admin-row" @dragover.prevent @drop.prevent="dropAppearance('social', social.id)">
-                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="social._new || savingAppearance" :draggable="!social._new && !savingAppearance" aria-label="Перетащить социальную сеть" @dragstart="dragAppearance($event, 'social', social)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
+                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить социальную сеть" @dragstart="dragAppearance($event, 'social', social)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
                 <div data-v-ui-642ff821094a class="social-admin-icon"><img data-v-ui-642ff821094a v-if="['vk', 'telegram', 'max'].includes(social.iconKey)" :src="`/storefront/icons/${social.iconKey}.svg`" alt="" /><span data-v-ui-642ff821094a v-else>↗</span></div>
                 <label data-v-ui-642ff821094a>Название<input data-v-ui-642ff821094a v-model="social.name" placeholder="Например, ВКонтакте" /></label>
                 <label data-v-ui-642ff821094a>Иконка<select data-v-ui-642ff821094a v-model="social.iconKey"><option data-v-ui-642ff821094a value="vk">ВКонтакте</option><option data-v-ui-642ff821094a value="telegram">Telegram</option><option data-v-ui-642ff821094a value="max">MAX</option><option data-v-ui-642ff821094a value="link">Другая ссылка</option></select></label>
                 <label data-v-ui-642ff821094a class="social-url">Ссылка<input data-v-ui-642ff821094a v-model="social.url" placeholder="https://..." /></label>
                 <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="social.isActive" type="checkbox" /> Показывать</label>
-                <div data-v-ui-642ff821094a class="social-admin-actions"><button data-v-ui-642ff821094a :disabled="savingAppearance" @click="saveStorefrontSocialLink(social)"><Save data-v-ui-642ff821094a :size="15" /></button><button data-v-ui-642ff821094a class="danger" @click="deleteStorefrontSocialLink(social)"><Trash2 data-v-ui-642ff821094a :size="15" /></button></div>
+                <div data-v-ui-642ff821094a class="social-admin-actions"><button data-v-ui-642ff821094a class="danger" @click="deleteStorefrontSocialLink(social)"><Trash2 data-v-ui-642ff821094a :size="15" /></button></div>
               </section>
               <div data-v-ui-642ff821094a v-if="!storefrontSocialLinks.length" class="appearance-empty"><span data-v-ui-642ff821094a>Социальные сети пока не добавлены</span><button data-v-ui-642ff821094a @click="addStorefrontSocialLink"><Plus data-v-ui-642ff821094a :size="15" /> Добавить первую</button></div>
             </div>
           </article>
-          <div data-v-ui-642ff821094a v-if="appearanceOrderDirty[appearanceTab]" class="appearance-order-save"><span data-v-ui-642ff821094a>Порядок изменён, но ещё не сохранён.</span><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" @click="saveAppearanceOrder(appearanceTab as 'banners' | 'menu' | 'social')">Сохранить порядок</button></div>
+          </fieldset>
+          <p data-v-ui-642ff821094a class="appearance-draft-status" role="status">{{ appearanceDirty ? 'Есть несохранённые изменения во вкладках витрины.' : 'Все изменения сохранены.' }}</p>
         </section>
-        <section data-v-ui-642ff821094a v-else-if="active === 'loyalty'" class="loyalty-workspace">
+        <section data-v-ui-642ff821094a v-else-if="['loyalty', 'loyalty-settings', 'loyalty-members'].includes(active)" class="loyalty-workspace">
           <template v-if="loyaltyDashboard">
-            <div data-v-ui-642ff821094a class="loyalty-kpis">
+            <div data-v-ui-642ff821094a v-if="active === 'loyalty-members'" class="loyalty-kpis">
               <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Award data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Участники</span><strong data-v-ui-642ff821094a>{{ loyaltyDashboard.summary.participants }}</strong><small data-v-ui-642ff821094a>зарегистрированных клиентов</small></article>
               <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Coins data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>На балансах</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.activeBalances).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>доступных бонусов</small></article>
               <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Plus data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Начислено</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.earned).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>за всё время</small></article>
               <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Gift data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Использовано</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.spent).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>{{ loyaltyDashboard.summary.operations }} операций</small></article>
             </div>
 
-            <article data-v-ui-642ff821094a class="panel loyalty-settings-panel">
+            <article data-v-ui-642ff821094a v-if="active !== 'loyalty-members'" class="panel loyalty-settings-panel">
               <div data-v-ui-642ff821094a class="loyalty-program-preview">
                 <small data-v-ui-642ff821094a>БОНУСНАЯ ПРОГРАММА</small>
                 <h2 data-v-ui-642ff821094a>{{ loyaltySettings.programName }}</h2>
@@ -982,7 +898,7 @@ onBeforeUnmount(() => {
                 <i data-v-ui-642ff821094a><span data-v-ui-642ff821094a :style="{ width: `${Math.min(100, loyaltySettings.maxWriteOffPercent)}%` }"></span></i>
                 <footer data-v-ui-642ff821094a><span data-v-ui-642ff821094a>Можно списать</span><strong data-v-ui-642ff821094a>до {{ loyaltySettings.maxWriteOffPercent }}%</strong></footer>
               </div>
-              <div data-v-ui-642ff821094a class="loyalty-settings-form">
+              <div data-v-ui-642ff821094a class="loyalty-settings-form"><fieldset class="ui-fieldset-reset" :disabled="savingLoyalty || !canConfigureLoyalty">
                 <div data-v-ui-642ff821094a class="panel-head"><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ПРАВИЛА ПРОГРАММЫ</p><h2 data-v-ui-642ff821094a>Начисления и уровни</h2><span data-v-ui-642ff821094a>Изменения применяются к новым операциям и не пересчитывают историю</span></div><label data-v-ui-642ff821094a class="loyalty-status"><input data-v-ui-642ff821094a v-model="loyaltySettings.isEnabled" type="checkbox" /><span data-v-ui-642ff821094a>{{ loyaltySettings.isEnabled ? 'Активна' : 'Приостановлена' }}</span></label></div>
                 <div data-v-ui-642ff821094a class="loyalty-form-grid">
                   <label data-v-ui-642ff821094a class="wide">Название программы<input data-v-ui-642ff821094a v-model="loyaltySettings.programName" maxlength="80" /></label>
@@ -997,11 +913,11 @@ onBeforeUnmount(() => {
                   <section data-v-ui-642ff821094a><span data-v-ui-642ff821094a>ПРОФЕССИОНАЛ</span><label data-v-ui-642ff821094a>Порог<input data-v-ui-642ff821094a v-model.number="loyaltySettings.proThreshold" type="number" min="0" /></label><label data-v-ui-642ff821094a>Множитель, %<input data-v-ui-642ff821094a v-model.number="loyaltySettings.proMultiplierPercent" type="number" min="100" /></label></section>
                   <section data-v-ui-642ff821094a><span data-v-ui-642ff821094a>ПРЕМИУМ</span><label data-v-ui-642ff821094a>Порог<input data-v-ui-642ff821094a v-model.number="loyaltySettings.premiumThreshold" type="number" min="0" /></label><label data-v-ui-642ff821094a>Множитель, %<input data-v-ui-642ff821094a v-model.number="loyaltySettings.premiumMultiplierPercent" type="number" min="100" /></label></section>
                 </div>
-                <button data-v-ui-642ff821094a class="loyalty-save" :disabled="savingLoyalty" @click="saveLoyaltySettings"><Save data-v-ui-642ff821094a :size="16" /> {{ savingLoyalty ? 'Сохраняем…' : 'Сохранить правила' }}</button>
-              </div>
+                <button data-v-ui-642ff821094a class="loyalty-save" :disabled="savingLoyalty || !canConfigureLoyalty" @click="saveLoyaltySettings"><Save data-v-ui-642ff821094a :size="16" /> {{ savingLoyalty ? 'Сохраняем…' : 'Сохранить правила' }}</button>
+              </fieldset></div>
             </article>
 
-            <article data-v-ui-642ff821094a class="panel loyalty-members-panel">
+            <article data-v-ui-642ff821094a v-if="active === 'loyalty-members'" class="panel loyalty-members-panel">
               <div data-v-ui-642ff821094a class="panel-head"><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">УЧАСТНИКИ</p><h2 data-v-ui-642ff821094a>Бонусные счета клиентов</h2><span data-v-ui-642ff821094a>Открывайте счёт для просмотра истории, начисления или списания</span></div><label data-v-ui-642ff821094a class="search"><Search data-v-ui-642ff821094a :size="16" /><input data-v-ui-642ff821094a v-model="loyaltySearch" placeholder="Имя, email или телефон" /></label></div>
               <div data-v-ui-642ff821094a class="loyalty-table">
                 <div data-v-ui-642ff821094a class="loyalty-row head"><span data-v-ui-642ff821094a>Клиент</span><span data-v-ui-642ff821094a>Уровень</span><span data-v-ui-642ff821094a>Баланс</span><span data-v-ui-642ff821094a>Последняя операция</span><span data-v-ui-642ff821094a></span></div>
@@ -1019,25 +935,13 @@ onBeforeUnmount(() => {
           <WorkspaceLoading v-else label="Загружаем бонусную программу" />
         </section>
         <section data-v-ui-642ff821094a v-else-if="active === 'products'" class="panel">
-          <div data-v-ui-642ff821094a class="panel-head">
-            <div data-v-ui-642ff821094a>
-              <p data-v-ui-642ff821094a class="kicker">ТОВАРЫ И ЦЕНЫ</p>
-              <h2 data-v-ui-642ff821094a>Товары</h2>
-              <span data-v-ui-642ff821094a>Найдено: {{ listTotal }} · на странице: {{ filteredProducts.length }}</span>
-            </div>
-            <label data-v-ui-642ff821094a class="search"
-              ><Search data-v-ui-642ff821094a :size="16" /><input data-v-ui-642ff821094a
-                v-model="search"
-                placeholder="Поиск по названию или SKU"
-            /></label>
-          </div>
-          <div data-v-ui-642ff821094a class="filters cs-product-filters"><select data-v-ui-642ff821094a v-model="productCategory" aria-label="Категория товаров" :disabled="busy||bulkSaving"><option data-v-ui-642ff821094a value="">Все категории</option><option data-v-ui-642ff821094a v-for="category in categories" :key="category.id" :value="category.id">{{category.nameRu}}</option></select><select data-v-ui-642ff821094a v-model="productVisibility" aria-label="Публикация товаров" :disabled="busy||bulkSaving"><option data-v-ui-642ff821094a value="">Любая публикация</option><option data-v-ui-642ff821094a value="active">На сайте</option><option data-v-ui-642ff821094a value="hidden">Скрытые</option></select><select data-v-ui-642ff821094a v-model="productAvailability" aria-label="Наличие товаров" :disabled="busy||bulkSaving"><option data-v-ui-642ff821094a value="">Любой остаток</option><option data-v-ui-642ff821094a value="stocked">В наличии</option><option data-v-ui-642ff821094a value="empty">Нет в наличии</option></select><select data-v-ui-642ff821094a v-model="productSort" aria-label="Порядок товаров" :disabled="busy||bulkSaving"><option data-v-ui-642ff821094a value="updated">По обновлению</option><option data-v-ui-642ff821094a value="name">По названию</option><option data-v-ui-642ff821094a value="sku">По артикулу</option></select></div>
+          <div data-v-ui-642ff821094a class="filters cs-product-filters"><label data-v-ui-642ff821094a class="search cs-product-search"><Search data-v-ui-642ff821094a :size="16" /><input data-v-ui-642ff821094a v-model="search" type="search" aria-label="Поиск товаров" placeholder="Название или SKU" :disabled="bulkSaving" /></label><select data-v-ui-642ff821094a v-model="productCategory" aria-label="Категория товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Все категории</option><option data-v-ui-642ff821094a v-for="category in categories" :key="category.id" :value="category.id">{{category.nameRu}}</option></select><select data-v-ui-642ff821094a v-model="productVisibility" aria-label="Публикация товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Любая публикация</option><option data-v-ui-642ff821094a value="active">На сайте</option><option data-v-ui-642ff821094a value="hidden">Скрытые</option></select><select data-v-ui-642ff821094a v-model="productAvailability" aria-label="Наличие товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Любой остаток</option><option data-v-ui-642ff821094a value="stocked">В наличии</option><option data-v-ui-642ff821094a value="empty">Нет в наличии</option></select><select data-v-ui-642ff821094a v-model="productSort" aria-label="Порядок товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="updated">По обновлению</option><option data-v-ui-642ff821094a value="name">По названию</option><option data-v-ui-642ff821094a value="sku">По артикулу</option></select></div>
           <div data-v-ui-642ff821094a v-if="selectedProductIds.length" class="cs-bulk-bar"><span data-v-ui-642ff821094a>Выбрано: {{selectedProductIds.length}}</span><button data-v-ui-642ff821094a :disabled="busy||bulkSaving||!canEditCatalog" @click="bulkProducts('publish')">Опубликовать</button><button data-v-ui-642ff821094a :disabled="busy||bulkSaving||!canEditCatalog" @click="bulkProducts('hide')">Скрыть</button><button data-v-ui-642ff821094a :disabled="bulkSaving" @click="selectedProductIds=[]">Снять выбор</button></div>
           <div data-v-ui-642ff821094a class="table products-table">
             <div data-v-ui-642ff821094a class="row head">
               <input data-v-ui-642ff821094a type="checkbox" :checked="allProductsSelected" :disabled="busy||bulkSaving||!canEditCatalog||!filteredProducts.length" aria-label="Выбрать товары на странице" @change="selectPage"/>
-              <span data-v-ui-642ff821094a>Товар</span><span data-v-ui-642ff821094a>Цена</span><span data-v-ui-642ff821094a>Остаток</span
-              ><span data-v-ui-642ff821094a>Статус</span><span data-v-ui-642ff821094a></span>
+              <span data-v-ui-642ff821094a>Товар</span><span data-v-ui-642ff821094a>Цена</span><span data-v-ui-642ff821094a>Акционная цена</span><span data-v-ui-642ff821094a>Остаток</span
+              ><span data-v-ui-642ff821094a>Статус</span>
             </div>
             <div data-v-ui-642ff821094a
               v-for="p in filteredProducts"
@@ -1052,19 +956,26 @@ onBeforeUnmount(() => {
                 <button data-v-ui-642ff821094a type="button" class="product-open" @click="editProduct(p)">{{ p.nameRu }}</button
                 ><small data-v-ui-642ff821094a>{{ p.sku }}</small>
               </div>
-              <span data-v-ui-642ff821094a class="cs-product-list-price"><del data-v-ui-642ff821094a v-if="Number(p.variants?.[0]?.price)>currentCatalogPrice(p)">{{Number(p.variants[0].price).toLocaleString('ru-RU')}} ₽</del><strong data-v-ui-642ff821094a>{{currentCatalogPrice(p).toLocaleString('ru-RU')}} ₽</strong></span
-              ><span data-v-ui-642ff821094a>{{ p.variants?.[0]?.stock || 0 }}</span
-              ><span data-v-ui-642ff821094a :class="p.isActive ? 'green' : 'red'">{{
-                p.isActive ? "Активен" : "Скрыт"
-              }}</span
-              ><button data-v-ui-642ff821094a
-                v-if="p.isActive"
-                class="icon"
-                title="Скрыть товар"
-                @click="archiveProduct(p)"
-              >
-                <X data-v-ui-642ff821094a :size="16" />
-              </button>
+              <div class="cs-inline-price">
+                <input v-if="priceEditor?.id === p.id" v-model="priceEditor.price" data-price-field="price" @focus="priceEditor.field = 'price'" class="cs-inline-price-input" type="text" inputmode="decimal" :aria-label="'Цена: ' + p.nameRu" :disabled="savingPrice" @keydown.enter.prevent="savePrices" @keydown.escape.stop.prevent="cancelPrices"/>
+                <div v-if="priceEditor?.id === p.id && priceEditor.field === 'price'" class="cs-inline-price-actions">
+                  <button type="button" class="cs-price-save" :disabled="savingPrice" @click="savePrices" :aria-label="'Сохранить цены: ' + p.nameRu" title="Сохранить цены"><Check :size="16"/></button>
+                  <button type="button" class="cs-price-cancel" :disabled="savingPrice" @click="cancelPrices" aria-label="Отменить изменение цен" title="Отменить изменение цен"><X :size="16"/></button>
+                </div>
+                <button v-if="priceEditor?.id !== p.id" type="button" class="cs-price-value" :disabled="!canEditCatalog || priceEditing || p.productType === 'GIFT_CARD' || !p.variants?.length" :aria-label="'Изменить цену: ' + p.nameRu" :title="p.productType === 'GIFT_CARD' ? 'Номиналы настраиваются в разделе подарочных карт' : 'Нажмите, чтобы изменить цену'" @click="editPrices(p, 'price')">{{ Number(p.variants?.[0]?.price ?? p.basePrice ?? 0).toLocaleString('ru-RU') }} ₽<Pencil v-if="canEditCatalog && p.productType !== 'GIFT_CARD'" :size="14"/></button>
+              </div>
+              <div class="cs-inline-price">
+                <input v-if="priceEditor?.id === p.id" v-model="priceEditor.salePrice" data-price-field="salePrice" @focus="priceEditor.field = 'salePrice'" class="cs-inline-price-input" type="text" inputmode="decimal" placeholder="Без акции" :aria-label="'Акционная цена: ' + p.nameRu" :disabled="savingPrice" @keydown.enter.prevent="savePrices" @keydown.escape.stop.prevent="cancelPrices"/>
+                <div v-if="priceEditor?.id === p.id && priceEditor.field === 'salePrice'" class="cs-inline-price-actions">
+                  <button type="button" class="cs-price-save" :disabled="savingPrice" @click="savePrices" :aria-label="'Сохранить цены: ' + p.nameRu" title="Сохранить цены"><Check :size="16"/></button>
+                  <button type="button" class="cs-price-cancel" :disabled="savingPrice" @click="cancelPrices" aria-label="Отменить изменение цен" title="Отменить изменение цен"><X :size="16"/></button>
+                </div>
+                <button v-if="priceEditor?.id !== p.id" type="button" class="cs-price-value" :disabled="!canEditCatalog || priceEditing || p.productType === 'GIFT_CARD' || !p.variants?.length" :aria-label="'Изменить акционную цену: ' + p.nameRu" @click="editPrices(p, 'salePrice')">{{ p.variants?.[0]?.salePrice != null ? Number(p.variants[0].salePrice).toLocaleString('ru-RU') + ' ₽' : '—' }}<Pencil v-if="canEditCatalog && p.productType !== 'GIFT_CARD'" :size="14"/></button>
+              </div>
+              <span data-v-ui-642ff821094a>{{ p.variants?.[0]?.stock || 0 }}</span>
+              <span data-v-ui-642ff821094a :class="p.isActive ? 'green' : 'red'">{{ p.isActive ? "Активен" : "Скрыт" }}</span>
+
+              <p v-if="priceEditor?.id === p.id && priceEditor.error" class="cs-inline-price-error" role="alert">{{priceEditor.error}}</p>
             </div>
             <p data-v-ui-642ff821094a v-if="!filteredProducts.length" class="empty">
               Товары не найдены
@@ -1107,7 +1018,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </section>
-        <nav data-v-ui-642ff821094a v-if="['products','orders'].includes(active)" class="admin-pagination" aria-label="Страницы списка"><span data-v-ui-642ff821094a>Всего: {{ listTotal }} · Страница {{ listPage }} из {{ Math.max(1, Math.ceil(listTotal / listLimit)) }}</span><div data-v-ui-642ff821094a><button data-v-ui-642ff821094a type="button" :disabled="busy || listPage <= 1" @click="changeListPage(-1)">Назад</button><button data-v-ui-642ff821094a type="button" :disabled="busy || listPage * listLimit >= listTotal" @click="changeListPage(1)">Далее</button></div></nav>
+        <nav data-v-ui-642ff821094a v-if="['products','orders'].includes(active)" class="admin-pagination" aria-label="Страницы списка"><span data-v-ui-642ff821094a>Всего: {{ listTotal }} · Страница {{ listPage }} из {{ Math.max(1, Math.ceil(listTotal / listLimit)) }}</span><div data-v-ui-642ff821094a><button data-v-ui-642ff821094a type="button" :disabled="busy || priceEditing || listPage <= 1" @click="changeListPage(-1)">Назад</button><button data-v-ui-642ff821094a type="button" :disabled="busy || priceEditing || listPage * listLimit >= listTotal" @click="changeListPage(1)">Далее</button></div></nav>
       </div>
     </template>
     <div data-v-ui-642ff821094a v-if="notice" class="toast">{{ notice }}</div>
@@ -1124,9 +1035,3 @@ onBeforeUnmount(() => {
     </div>
   </aside>
 </template>
-
-
-
-
-
-

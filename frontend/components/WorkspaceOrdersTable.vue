@@ -2,9 +2,9 @@
 import { ArrowUpRight, Search, ShoppingBag, X } from '@lucide/vue';
 const props = defineProps<{ items: any[]; total: number; search: string; status: string; busy: boolean }>();
 const emit = defineEmits<{ 'update:search': [value: string]; 'update:status': [value: string]; open: [order: any]; context: [event: MouseEvent, order: any] }>();
-const statuses = [{ id: '', label: 'Все заказы' }, { id: 'NEW', label: 'Новые' }, { id: 'CONFIRMED', label: 'Подтверждены' }, { id: 'ASSEMBLING', label: 'В сборке' }, { id: 'SHIPPED', label: 'Отправлены' }, { id: 'DELIVERED', label: 'Доставлены' }, { id: 'PAID', label: 'Оплачены' }, { id: 'CANCELLED', label: 'Отменены' }, { id: 'REFUNDED', label: 'Возврат' }];
+const statuses = [{ id: '', label: 'Все заказы' }, { id: 'NEW', label: 'Новые' }, { id: 'CONFIRMED', label: 'Подтверждены' }, { id: 'ASSEMBLING', label: 'В сборке' }, { id: 'SHIPPED', label: 'Отправлены' }, { id: 'DELIVERED', label: 'Доставлены' }, { id: 'PAYMENT_WAITING', label: 'Ожидают оплаты' }, { id: 'PAID', label: 'Оплачены' }, { id: 'CANCELLED', label: 'Отменены' }, { id: 'REFUNDED', label: 'Возврат' }];
 const paymentNames: Record<string, string> = { PENDING: 'Ожидает оплаты', PAID: 'Оплачен', SUCCEEDED: 'Оплачен', UNPAID: 'Не оплачен', FAILED: 'Ошибка оплаты', CANCELLED: 'Отменена', REFUNDED: 'Возвращена', PARTIALLY_REFUNDED: 'Частичный возврат' };
-const statusNames: Record<string, string> = { NEW: 'Новый', CONFIRMED: 'Подтверждён', ASSEMBLING: 'В сборке', SHIPPED: 'Отправлен', DELIVERED: 'Доставлен', PAID: 'Оплачен', CANCELLED: 'Отменён', REFUNDED: 'Возврат' };
+const statusNames: Record<string, string> = { NEW: 'Новый', CONFIRMED: 'Подтверждён', ASSEMBLING: 'В сборке', SHIPPED: 'Отправлен', DELIVERED: 'Доставлен', PAID: 'Оплачен', PAYMENT_WAITING: 'Ожидает оплаты', CANCELLED: 'Отменён', REFUNDED: 'Возврат' };
 const customerName = (order: any) => [order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || 'Гостевой заказ';
 function amount(value: unknown) { const n = value == null || value === '' ? NaN : Number(value); return Number.isFinite(n) ? `${n.toLocaleString('ru-RU')} ₽` : '—'; }
 function date(value: string) { const d = new Date(value); return Number.isFinite(d.getTime()) ? d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Дата не указана'; }
@@ -13,7 +13,6 @@ function delivery(order: any) { return order.deliveryMethod === 'PVZ' ? 'Пун�
 
 <template>
   <section class="studio-orders" aria-label="Заказы интернет-магазина" :aria-busy="busy">
-    <nav class="studio-order-views" aria-label="Быстрые фильтры заказов"><button v-for="view in statuses.slice(0, 5)" :key="view.id" type="button" :aria-pressed="status === view.id" @click="emit('update:status', view.id)">{{ view.label }}</button></nav>
     <div class="studio-order-tools">
       <label class="studio-order-search"><Search :size="18" aria-hidden="true" /><span class="wn-sr-only">Поиск заказов</span><input id="studio-orders-query" :value="search" type="search" aria-label="Поиск заказов" placeholder="Номер заказа или email клиента" @input="emit('update:search', ($event.target as HTMLInputElement).value)" /></label>
       <label class="studio-order-filter"><span class="wn-sr-only">Статус заказа</span><select :value="status" aria-label="Статус заказа" @change="emit('update:status', ($event.target as HTMLSelectElement).value)"><option v-for="view in statuses" :key="view.id" :value="view.id">{{ view.label }}</option></select></label>

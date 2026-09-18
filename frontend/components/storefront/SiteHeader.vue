@@ -103,9 +103,9 @@ watch(() => route.fullPath, closeAll);
         </nav>
 
         <nav class="sb-header-actions" aria-label="Покупки и аккаунт">
-          <button aria-label="Избранное" @click="openFavorites"><Heart :size="19" /><span>Избранное</span><b v-if="favoriteIds.length">{{ favoriteIds.length }}</b></button>
-          <button aria-label="Личный кабинет" @click="accountAction"><UserRound :size="19" /><span>{{ user ? (user.firstName || 'Кабинет') : 'Войти' }}</span></button>
-          <button aria-label="Корзина" @click="openCart"><ShoppingBag :size="19" /><span>Корзина</span><b v-if="cartCount">{{ cartCount }}</b></button>
+          <button aria-label="Избранное" title="Избранное" @click="openFavorites"><Heart :size="22" /><b v-if="favoriteIds.length">{{ favoriteIds.length }}</b></button>
+          <button aria-label="Личный кабинет" :title="user ? 'Личный кабинет' : 'Войти'" @click="accountAction"><UserRound :size="22" /></button>
+          <button aria-label="Корзина" title="Корзина" @click="openCart"><ShoppingBag :size="22" /><b v-if="cartCount">{{ cartCount }}</b></button>
         </nav>
       </header>
 

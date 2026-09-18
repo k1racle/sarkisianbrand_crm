@@ -13,6 +13,7 @@ import { DEFAULT_LOYALTY_SETTINGS, loyaltyCreditMetadata, loyaltyWriteOffMetadat
 import { GiftCardsService } from '../gift-cards/gift-cards.service';
 import { giftCodeHash } from '../gift-cards/gift-cards.helpers';
 import { ecosystemAutomationEnabled } from '../common/ecosystem-automation';
+import { attachPartner, partnerOrderPaid } from '../partners/partner-lifecycle';
 type Actor = { sub: string; role?: string };
 const STAFF = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT'];
 const UNPAID = [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_WAITING];
@@ -126,6 +127,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           variantName: item.variant.name, price: item.variant.price, quantity: item.quantity, total: moneyMinor(item.variant.price) * item.quantity / 100 })) },
         history: { create: { toStatus: OrderStatus.NEW, comment: 'Заказ оформлен на сайте. Товары зарезервированы на 30 минут' } },
       }, include: includes });
+      if(dto.partnerToken){const partnerCode=await attachPartner(tx,order,dto.partnerToken,actor);if(partnerCode)order=await tx.order.update({where:{id:order.id},data:{partnerCode},include:includes});}
       if (giftCardMinor > 0) await this.requireGiftCards().reserve(tx, order.id, dto.giftCardCode!, giftCardMinor);
       if (price.promoCode) await tx.promoRedemption.create({ data: { code: price.promoCode, orderId: order.id, customerHash: price.customerHash } });
       if (price.bonusAmount && price.loyaltyAccount) {
@@ -309,6 +311,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     await tx.promoRedemption.updateMany({ where: { orderId: order.id, status: 'RESERVED' }, data: { status: 'APPLIED' } });
     let paid = await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.PAID, paymentStatus: 'SUCCEEDED', loyaltyAccruedAt: new Date(), reservationExpiresAt: null,
       history: { create: { fromStatus: order.status, toStatus: OrderStatus.PAID, comment } } }, include: includes });
+    await partnerOrderPaid(tx,paid);
     if (digital) {
       await this.requireGiftCards().issueForPaidOrder(tx, paid);
       paid = await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.DELIVERED, reservationState: 'CONSUMED',

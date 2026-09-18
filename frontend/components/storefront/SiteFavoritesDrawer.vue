@@ -46,13 +46,13 @@ watch(() => props.open, (value) => { if (value) load().catch(() => undefined); }
           <div v-if="loading" class="sb-drawer-state">Загружаем избранное…</div>
           <div v-else-if="favorites.length" class="sb-favorite-list">
             <article v-for="product in favorites" :key="product.id">
-              <NuxtLink :to="`/products/${product.slug}`" class="sb-favorite-list__image" @click="emit('close')">
+              <NuxtLink :to="storefrontProductLink(product)" class="sb-favorite-list__image" @click="emit('close')">
                 <img v-if="storefrontProductImage(product)" :src="storefrontProductImage(product)!" :alt="product.nameRu" />
                 <span v-else>S</span>
               </NuxtLink>
               <div>
                 <small>{{ product.categories?.[0]?.category?.nameRu || 'SARKISIAN BRAND' }}</small>
-                <NuxtLink :to="`/products/${product.slug}`" @click="emit('close')">{{ product.nameRu }}</NuxtLink>
+                <NuxtLink :to="storefrontProductLink(product)" @click="emit('close')">{{ product.nameRu }}</NuxtLink>
                 <strong>{{ (product.variants?.[0]?storefrontVariantPrice(product.variants[0],product.productType==='GIFT_CARD'):Number(product.basePrice)).toLocaleString('ru-RU') }} ₽</strong>
                 <button @click="add(product)"><ShoppingBag :size="15" />{{ addedId === product.id ? 'Добавлено' : 'В корзину' }}</button>
               </div>

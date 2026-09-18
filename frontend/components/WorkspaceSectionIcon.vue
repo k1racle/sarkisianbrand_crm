@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Award, BarChart3, Boxes, Cable, Headphones, Images, LayoutDashboard, Palette, Settings, ShoppingBag, Users } from '@lucide/vue';
+import { Award, BarChart3, Boxes, Cable, Headphones, Images, LayoutDashboard, Megaphone, Palette, Settings, ShoppingBag, UserRoundPlus, Users } from '@lucide/vue';
 withDefaults(defineProps<{ name?: string; size?: number }>(), { name: 'LayoutDashboard', size: 20 });
-const icons = { Award, BarChart3, Boxes, Cable, Headphones, Images, LayoutDashboard, Palette, Settings, ShoppingBag, Users };
+const icons = { Award, BarChart3, Boxes, Cable, Headphones, Images, LayoutDashboard, Megaphone, Palette, Settings, ShoppingBag, UserRoundPlus, Users };
 </script>
 
 <template>

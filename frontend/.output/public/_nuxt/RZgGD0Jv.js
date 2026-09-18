@@ -1,0 +1,1 @@
+import{_ as e}from"./EoTYChSF.js";import{d as t,b3 as n,I as a,o as r}from"./aQOCWfoE.js";import"./CdUVP8v3.js";import"./vjEIQnFU.js";import"./CR1xgq2L.js";const d=t({__name:"bloggers-payouts",setup(s){return n({meta:[{name:"robots",content:"noindex, nofollow"}]}),(p,c)=>{const o=e;return r(),a(o,{kind:"BLOGGER",section:"payouts"})}}});export{d as default};

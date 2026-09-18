@@ -49,10 +49,10 @@ async function saveCategory(){
   const {id,...fields}=form.value;
   if(await write(id?'/'+encodeURIComponent(id):'',id?'PATCH':'POST',{...fields,revision:revision.value},accept))form.value=null;
 }
+defineExpose({ load, add: edit, busy: computed(()=>busy.value||loading.value), canAdd: computed(()=>!busy.value&&!loading.value&&canEdit.value&&revision.value!==null&&!layoutDirty.value) });
 </script>
 <template>
   <section class="catalog-settings">
-    <div class="catalog-settings-intro"><p>Создавайте категории и подкатегории, меняйте порядок и оформление. Категории сайта не зависят от учетной структуры 1С.</p><button class="cs-primary" :disabled="busy||loading||!canEdit||revision===null||layoutDirty" @click="edit()"><Plus :size="16"/>Добавить категорию</button></div>
     <p v-if="error" role="alert" class="cs-error">{{error}} <button :disabled="busy" @click="load">Обновить список</button></p><p v-if="notice" role="status">{{notice}}</p>
     <div class="cs-toolbar"><label><Search :size="17"/><input v-model="search" placeholder="Название или адрес категории" aria-label="Поиск категорий"/></label><button :disabled="busy||loading" @click="collapsed=[]">Развернуть дерево</button></div>
     <p v-if="loading" role="status">Загрузка категорий…</p>
@@ -60,7 +60,7 @@ async function saveCategory(){
     <div v-else class="cs-tree" aria-label="Дерево категорий">
       <article v-for="row in tree" :key="row.category.id" class="cs-category-row" :data-category-id="row.category.id" @dragover.prevent @drop.stop.prevent="drop(row.category.id)">
         <button type="button" class="cs-grip" :disabled="busy||loading||!canEdit||!!search" :draggable="!busy&&!loading&&canEdit&&!search" :aria-label="'Перетащить категорию '+row.category.nameRu" title="Перетащить; с клавиатуры Alt + ↑ / ↓" @keydown.alt.up.prevent="keyboardMove(row.category.id,-1)" @keydown.alt.down.prevent="keyboardMove(row.category.id,1)" @dragstart="dragged=row.category.id;$event.dataTransfer?.setData('text/plain',row.category.id)" @dragend="dragged='' "><GripVertical :size="18"/></button>
-        <div class="cs-category-content" :style="{ '--category-depth': row.depth }"><button v-if="row.hasChildren" class="cs-expand" :aria-label="'Развернуть или свернуть '+row.category.nameRu" @click="collapsed.includes(row.category.id)?collapsed=collapsed.filter(id=>id!==row.category.id):collapsed.push(row.category.id)"><ChevronRight v-if="collapsed.includes(row.category.id)" :size="16"/><ChevronDown v-else :size="16"/></button><div><strong>{{row.category.nameRu}}</strong><small>/catalog?category={{row.category.slug}} · {{row.category._count?.products||0}} товаров</small></div><span class="cs-status" :class="{'is-hidden':!onSite(row.category)}">{{onSite(row.category)?'На сайте':row.category.isActive?'Скрыта родителем':'Скрыта'}}</span></div>
+        <div class="cs-category-content" :style="{ '--category-depth': row.depth }"><button v-if="row.hasChildren" class="cs-expand" :aria-label="'Развернуть или свернуть '+row.category.nameRu" @click="collapsed.includes(row.category.id)?collapsed=collapsed.filter(id=>id!==row.category.id):collapsed.push(row.category.id)"><ChevronRight v-if="collapsed.includes(row.category.id)" :size="16"/><ChevronDown v-else :size="16"/></button><div><strong>{{row.category.nameRu}}</strong><small>{{storefrontCatalogLink(row.category)}} · {{row.category._count?.products||0}} товаров</small></div><span class="cs-status" :class="{'is-hidden':!onSite(row.category)}">{{onSite(row.category)?'На сайте':row.category.isActive?'Скрыта родителем':'Скрыта'}}</span></div>
         <button :disabled="busy||loading||!canEdit||layoutDirty" :aria-label="'Редактировать категорию '+row.category.nameRu" @click="edit(row.category)"><Pencil :size="16"/></button>
         <div v-if="dragged&&dragged!==row.category.id" class="cs-nest-target" @dragover.stop.prevent @drop.stop.prevent="drop(row.category.id,true)">Вложить в «{{row.category.nameRu}}»</div>
       </article>

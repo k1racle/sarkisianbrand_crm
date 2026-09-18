@@ -1,8 +1,10 @@
 import { Type } from 'class-transformer';
+import { Matches } from 'class-validator';
 import { B2BBookingStatus, B2BClientStatus, TicketPriority } from '@prisma/client';
 import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsHexColor, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 
 export class CreateB2BProfileDto {
+  @IsOptional() @IsString() @Matches(/^[a-f0-9]{64}$/) partnerToken?: string;
   @IsString() @MinLength(2) @MaxLength(160) companyName!: string;
   @IsOptional() @IsString() @MaxLength(12) inn?: string;
   @IsOptional() @IsString() @MaxLength(9) kpp?: string;
@@ -57,9 +59,14 @@ export class CreateB2BBookingDto {
   @IsOptional() @IsString() @MaxLength(1000) notes?: string;
 }
 
+export class B2BBookingRangeDto {
+  @IsOptional() @IsDateString() from?: string;
+  @IsOptional() @IsDateString() to?: string;
+}
+
 export class UpdateB2BBookingDto {
   @IsOptional() @IsEnum(B2BBookingStatus) status?: B2BBookingStatus;
-  @IsOptional() @IsUUID() masterMemberId?: string;
+  @IsOptional() @IsUUID() masterMemberId?: string | null;
   @IsOptional() @IsDateString() startTime?: string;
   @IsOptional() @IsString() @MaxLength(1000) notes?: string;
 }

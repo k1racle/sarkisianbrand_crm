@@ -2,7 +2,7 @@
  * SSR public reads are performed by the already-running frontend, not intercepted.
  */
 const {test,expect}=require('@playwright/test');
-for(const width of [1440,390])for(const route of ['/','/products/gift-card']){
+for(const width of [1440,390])for(const route of ['/','/catalog/gift-card','/catalog/gels']){
  test(`Public storefront ${route} ${width}`,async({browser},testInfo)=>{
   const context=await browser.newContext({viewport:{width,height:960},serviceWorkers:'block'});
   const writes=[],external=[],errors=[];
@@ -24,7 +24,7 @@ for(const width of [1440,390])for(const route of ['/','/products/gift-card']){
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width+2);
    // Employee 20px heading scale must not leak into the public page.
    expect(await page.locator('.sb-storefront h1').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThan(20);
-   if(route==='/products/gift-card')await expect(page.locator('.sb-product-variant select')).toBeVisible();
+   if(route==='/catalog/gift-card')await expect(page.locator('.sb-product-variant select')).toBeVisible();
    expect(errors).toEqual([]);expect(writes).toEqual([]);expect(external).toEqual([]);
    await testInfo.attach('visual',{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
   }finally{await context.close();}

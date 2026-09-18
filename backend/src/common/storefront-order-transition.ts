@@ -4,6 +4,7 @@ import type { NotificationsService } from '../notifications/notifications.servic
 import { loyaltyCreditMetadata } from '../loyalty/loyalty-core.helpers';
 import { moneyMinor } from './storefront-utils';
 import { applyB2BStockTransition } from '../b2b/b2b-order-lifecycle';
+import { partnerOrderDelivered } from '../partners/partner-lifecycle';
 
 /** Order must be locked first. Releases only unspent certificate reservations,
  * using a conditional redemption claim so concurrent/replayed releases cannot
@@ -61,6 +62,7 @@ export async function applyStorefrontTransition(
   }
   const rank: Partial<Record<OrderStatus, number>> = { NEW: 0, CONFIRMED: 1, PAYMENT_WAITING: 1, PAID: 2, ASSEMBLING: 3, SHIPPED: 4, DELIVERED: 5 };
   if (target !== OrderStatus.CANCELLED && (rank[target] ?? -1) < (rank[order.status as OrderStatus] ?? -1)) throw new ConflictException('Заказ не может вернуться на предыдущий этап');
+  if(target===OrderStatus.DELIVERED)await partnerOrderDelivered(tx,order);
   if (order.reservationState === 'CONSUMED') {
     if (!([OrderStatus.SHIPPED, OrderStatus.DELIVERED] as OrderStatus[]).includes(target)) throw new ConflictException('Товары уже отгружены');
     return {};

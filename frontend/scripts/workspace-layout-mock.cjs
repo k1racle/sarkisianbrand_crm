@@ -25,16 +25,17 @@ async function main(){
     await toggle.click();const open=f.page.getByRole('button',{name:'Развернуть боковую панель',exact:true});assert.equal(await open.getAttribute('aria-expanded'),'false');
     assert.equal(await f.page.evaluate(()=>localStorage.getItem('sarkisian-workspace-rail-collapsed')),'true');
     m=await measure();assert.equal(m.rail,76);assert.equal(m.main,width-76);assert.equal(m.left,76);assert.equal(m.gutterLeft,24);assert.equal(m.gutterRight,24);assert.equal(m.overflow,false);
-    assert.equal(await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).isVisible(),false);
+    assert.equal(await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).isVisible(),true);
+    assert.equal(await f.page.locator('.studio-rail .studio-area-switch').count(),0);
     assert.equal(await f.page.locator('.wn-group-items a').first().isVisible(),false);
     assert.ok(await f.page.locator('.wn-group-toggle').first().isVisible());assert.ok(await f.page.locator('.rail-user').isVisible());
     await auditTypography(f.page);await f.page.screenshot({path:path.join(output,width+'-collapsed.png')});
     await f.page.reload({waitUntil:'domcontentloaded'});await open.waitFor();await f.page.locator('.dashboard-grid').waitFor();assert.equal((await measure()).rail,76);
     await f.page.locator('.wn-group-toggle').first().click();await toggle.waitFor();assert.ok(await f.page.locator('.wn-group-items a').first().isVisible());
-    await toggle.click();await f.page.getByRole('button',{name:'Рабочее пространство: CRM',exact:true}).click();assert.ok(await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).evaluate(el=>el===document.activeElement));
+    await toggle.click();await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).focus();assert.ok(await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).evaluate(el=>el===document.activeElement));
     // The remembered desktop preference never hides mobile navigation.
-    await toggle.click();await f.page.setViewportSize({width:390,height:900});await f.page.getByRole('button',{name:'Открыть разделы',exact:true}).click();
-    assert.ok(await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).isVisible());assert.ok(await f.page.locator('.wn-group-items a').first().isVisible());
+    await f.page.setViewportSize({width:390,height:900});await f.page.getByRole('button',{name:'Открыть разделы',exact:true}).click();
+    assert.ok(await f.page.locator('.wn-group-items a').first().isVisible());
     await f.page.getByRole('button',{name:'Закрыть разделы',exact:true}).click();await f.page.setViewportSize({width,height:900});await open.click();
    }else{
     assert.equal(await toggle.isVisible(),false);const m=await measure();assert.equal(m.main,width);assert.equal(m.left,0);assert.equal(m.gutterLeft,16);assert.equal(m.gutterRight,16);assert.equal(m.overflow,false);
@@ -43,7 +44,6 @@ async function main(){
    }
    await auditTypography(f.page);await f.page.screenshot({path:path.join(output,width+'-expanded.png')});
    for(const [area,destination]of [['marketplaces','/crm-marketplaces/overview'],['site','/admin-workspace/dashboard'],['support','/helpdesk/overview'],['management','/leadership/overview']]){
-    if(width<=800)await f.page.getByRole('button',{name:'Открыть разделы',exact:true}).click();
     await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).selectOption(area);await f.page.waitForURL(url=>url.pathname===destination,{waitUntil:'domcontentloaded'});await f.page.locator('.workspace-frame h1').waitFor();
     assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));await auditTypography(f.page);
    }

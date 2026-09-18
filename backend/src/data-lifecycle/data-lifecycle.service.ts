@@ -124,14 +124,15 @@ export class DataLifecycleService {
 
   private async dependencies(type: DataEntityType, id: string): Promise<Dependency[]> {
     if (type === DataEntityType.USER) {
-      const [orders, managedOrders, assignedTasks, createdTasks, interactions, memberships, b2bProfiles, carts, tickets] = await this.prisma.$transaction([
+      const [orders, managedOrders, assignedTasks, createdTasks, interactions, memberships, b2bProfiles, carts, tickets, partners] = await this.prisma.$transaction([
         this.prisma.order.count({ where: { userId: id } }), this.prisma.order.count({ where: { managerId: id } }),
         this.prisma.task.count({ where: { assignedToId: id } }), this.prisma.task.count({ where: { createdById: id } }),
         this.prisma.interaction.count({ where: { userId: id } }), this.prisma.organizationMember.count({ where: { userId: id } }),
         this.prisma.b2BProfile.count({ where: { userId: id } }), this.prisma.cart.count({ where: { userId: id } }),
         this.prisma.helpdeskTicket.count({ where: { OR: [{ requesterUserId: id }, { assignedToId: id }] } }),
+        this.prisma.partnerParticipant.count({where:{userId:id}}),
       ]);
-      return this.dependencyRows([['orders','Заказы покупателя',orders],['managedOrders','Заказы в работе',managedOrders],['assignedTasks','Назначенные задачи',assignedTasks],['createdTasks','Созданные задачи',createdTasks],['interactions','Взаимодействия',interactions],['memberships','Участие в организациях',memberships],['b2bProfiles','B2B-профиль',b2bProfiles],['carts','Корзина покупателя',carts],['tickets','Обращения Helpdesk',tickets]]);
+      return this.dependencyRows([['orders','Заказы покупателя',orders],['managedOrders','Заказы в работе',managedOrders],['assignedTasks','Назначенные задачи',assignedTasks],['createdTasks','Созданные задачи',createdTasks],['interactions','Взаимодействия',interactions],['memberships','Участие в организациях',memberships],['b2bProfiles','B2B-профиль',b2bProfiles],['carts','Корзина покупателя',carts],['tickets','Обращения Helpdesk',tickets],['partners','Партнёрский финансовый журнал',partners]]);
     }
     if (type === DataEntityType.CUSTOMER) {
       const [orders, leads, interactions, memberships, tickets, tasks] = await this.prisma.$transaction([
@@ -142,13 +143,14 @@ export class DataLifecycleService {
       return this.dependencyRows([['orders','Заказы',orders],['leads','Сделки',leads],['interactions','Взаимодействия',interactions],['memberships','Организации',memberships],['tickets','Обращения Helpdesk',tickets],['tasks','Задачи',tasks]]);
     }
     if (type === DataEntityType.ORGANIZATION) {
-      const [orders, leads, members, tickets, clients, services, bookings, tasks] = await this.prisma.$transaction([
+      const [orders, leads, members, tickets, clients, services, bookings, tasks, referrals] = await this.prisma.$transaction([
         this.prisma.order.count({ where: { organizationId: id } }), this.prisma.lead.count({ where: { organizationId: id } }),
         this.prisma.organizationMember.count({ where: { organizationId: id } }), this.prisma.helpdeskTicket.count({ where: { organizationId: id } }),
         this.prisma.b2BClient.count({ where: { organizationId: id } }), this.prisma.b2BService.count({ where: { organizationId: id } }),
         this.prisma.b2BBooking.count({ where: { organizationId: id } }), this.prisma.task.count({ where: { organizationId: id } }),
+        this.prisma.partnerBusinessRegistration.count({where:{organizationId:id}}),
       ]);
-      return this.dependencyRows([['orders','Заказы',orders],['leads','Сделки',leads],['members','Сотрудники организации',members],['tickets','Обращения Helpdesk',tickets],['clients','Клиенты салона',clients],['services','Услуги',services],['bookings','Записи',bookings],['tasks','Задачи',tasks]]);
+      return this.dependencyRows([['orders','Заказы',orders],['leads','Сделки',leads],['members','Сотрудники организации',members],['tickets','Обращения Helpdesk',tickets],['clients','Клиенты салона',clients],['services','Услуги',services],['bookings','Записи',bookings],['tasks','Задачи',tasks],['referrals','Партнёрское привлечение организации',referrals]]);
     }
     if (type === DataEntityType.PRODUCT) {
       const [variants, orderItems, cartItems, categories, images] = await this.prisma.$transaction([

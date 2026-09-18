@@ -114,6 +114,7 @@ function buildPayload(value: ProductDraft) {
     categoryIds: [...value.categoryIds], metaTitle: value.metaTitle.trim(), metaDesc: value.metaDesc.trim(), canonical: value.canonical.trim(),
     badgeIds:[...value.badgeIds],
   };
+  if (value.productType !== 'GIFT_CARD' && source?.variants?.[0]?.id) body.variantId = source.variants[0].id;
   if (value.productType !== 'GIFT_CARD') { body.price = Number(value.price); body.stock = Number(value.stock);body.salePrice=value.salePrice===''?null:Number(value.salePrice);body.saleStartsAt=value.salePrice!==''&&value.saleStartsAt?new Date(value.saleStartsAt).toISOString():null;body.saleEndsAt=value.salePrice!==''&&value.saleEndsAt?new Date(value.saleEndsAt).toISOString():null; }
   return body;
 }
@@ -241,5 +242,4 @@ onBeforeUnmount(() => { mounted = false; ++categoryGeneration; removeRouteGuard?
     </section>
   </aside>
 </template>
-
 

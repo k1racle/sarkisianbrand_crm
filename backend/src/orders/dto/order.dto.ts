@@ -10,6 +10,7 @@ export class CheckoutContactDto {
 }
 
 export class CheckoutDto {
+  @IsOptional() @IsString() @Matches(/^[a-f0-9]{64}$/) partnerToken?: string;
   @IsOptional() @IsObject() shippingAddress?: Record<string, unknown>;
   @IsOptional() @ValidateNested() @Type(() => CheckoutContactDto) contact?: CheckoutContactDto;
   @IsOptional() @IsIn(['COURIER', 'PICKUP_POINT', 'DIGITAL']) deliveryMethod?: 'COURIER' | 'PICKUP_POINT' | 'DIGITAL';

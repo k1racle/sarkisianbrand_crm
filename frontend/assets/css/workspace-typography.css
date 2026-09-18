@@ -3,11 +3,26 @@
  * 20px headings/metrics, 14px body/controls, 12px secondary information.
  */
 @layer workspace-typography {
+  /* Partner legacy aliases must resolve to the same workspace text palette.
+   * Otherwise headings and secondary labels retain the old warmer theme even
+   * when their computed font family, size and weight already match admin. */
+  :where(.b2b-frame,.b2b-rail) {
+    --admin-ink:var(--ui-ink)!important;
+    --admin-muted:var(--ui-muted)!important;
+    --sb-ink:var(--ui-ink)!important;
+    --sb-text:var(--ui-ink)!important;
+    --sb-muted:var(--ui-muted)!important;
+    --sb-font:var(--ws-font)!important;
+    --sb-weight-regular:400!important;
+    --sb-weight-semibold:600!important;
+  }
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login,.workspace-sort-ghost) {
     --ws-font:Montserrat,Arial,sans-serif;
     --ws-type-heading:20px;
     --ws-type-body:14px;
     --ws-type-caption:12px;
+    --ws-weight-body:400;
+    --ws-weight-emphasis:600;
     --admin-font:var(--ws-font); --sb-font:var(--ws-font);
     --admin-body:var(--ws-type-body); --admin-small:var(--ws-type-body); --admin-caption:var(--ws-type-caption);
     --admin-page:var(--ws-type-heading); --admin-section:var(--ws-type-heading); --admin-title:var(--ws-type-body);
@@ -30,7 +45,7 @@
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :is(small,time,kbd,.eyebrow,.kicker,.hint,.muted,.help,.aml-help,.aml-eyebrow,.aml-total,.cs-status,.cs-error,.studio-status,.studio-order-total,.studio-mobile-order-date,.studio-mobile-order-meta,.wn-command-count,.wn-command-dialog>footer,.wn-breadcrumbs,.wn-unread,.realtime-state,.editor-subtitle,.editor-gallery-status,.drawer-description,.login-brand-kicker,.login-footnote,.login-brand-foot) {
     font-size:var(--ws-type-caption)!important; font-weight:400!important;
   }
-  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.admin-dialog) :is(.kpis,.kpi-grid,.hero-kpis,.hd-kpis,.command-kpis,.stats,.wo-metrics,.loyalty-balance) :is(strong,b),
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.admin-dialog) :is(.kpis,.kpi-grid,.hero-kpis,.hd-kpis,.command-kpis,.stats,.wo-metrics,.loyalty-balance,.business-overview-metrics) :is(strong,b),
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login) :is(.wo-metric>strong,.stat-card>strong,.metric>strong) {
     font-size:var(--ws-type-heading)!important; font-weight:600!important;
     font-variant-numeric:tabular-nums;
@@ -43,6 +58,33 @@
     font-style:normal!important; letter-spacing:0!important;
   }
   .wn-rail-dock span { font-size:var(--ws-type-caption)!important; }
+  /* Navigation is one semantic role, whether rendered as a link or a button.
+   * Child spans must not fall back to the legacy universal regular-weight reset. */
+  :is(.studio-rail,.b2b-rail) nav :is(a,.wn-group-toggle),
+  :is(.studio-rail,.b2b-rail) nav :is(a,.wn-group-toggle) > span {
+    font-size:var(--ws-type-body)!important;
+    font-weight:var(--ws-weight-emphasis)!important;
+    line-height:1.5!important;
+  }
+  .studio-rail .wn-group-items :is(a,a > span) {
+    font-weight:var(--ws-weight-body)!important;
+  }
+  :is(.studio-rail .rail-user,.b2b-rail .person) :is(strong,b) {
+    font-size:var(--ws-type-body)!important;
+    font-weight:var(--ws-weight-emphasis)!important;
+  }
+  :is(.studio-rail .rail-user,.b2b-rail .person) small {
+    font-size:var(--ws-type-caption)!important;
+    font-weight:var(--ws-weight-body)!important;
+    line-height:1.5!important;
+  }
+  .workspace-context,
+  .workspace-context :is(button, strong, small, span) {
+    font-size:var(--ws-type-caption)!important;
+    font-weight:400!important;
+    line-height:1.5!important;
+  }
+  .workspace-context header strong { font-weight:600!important; }
   :where(.workspace-frame,.b2b-frame,.admin-dialog) .brand-logo-label {
     font-size:var(--ws-type-caption)!important; font-weight:600!important;
   }

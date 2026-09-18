@@ -4,7 +4,7 @@ import { SeoService } from './seo.service';
 
 const date = new Date('2026-09-16T10:00:00Z');
 const data: SeoSnapshot = {
-  categories: [{ slug: 'gels' }], products: [{ slug: 'gel-1', updatedAt: date }],
+  categories: [{ slug: 'gels' }], products: [{ slug: 'gel-1', updatedAt: date, categories: [{ isPrimary: true, category: { slug: 'gels', isActive: true } }] }],
   pages: [
     { slug: 'about', isActive: true, reviewRequired: false, updatedAt: date },
     { slug: 'privacy-policy', isActive: true, reviewRequired: true, updatedAt: date },
@@ -15,11 +15,11 @@ const data: SeoSnapshot = {
 };
 
 describe('SEO documents (pure)', () => {
-  it('uses real category query routes, products, home/catalog and reviewed active CMS', () => {
+  it('uses real category path routes, products, home/catalog and reviewed active CMS', () => {
     const xml = buildSitemap('https://shop.example/', data);
-    expect(xml).toContain('<loc>https://shop.example/catalog?category=gels</loc>');
-    expect(xml).not.toContain('/catalog/gels');
-    for (const path of ['/', '/catalog', '/products/gel-1', '/about']) expect(xml).toContain(`<loc>https://shop.example${path}</loc>`);
+    expect(xml).toContain('<loc>https://shop.example/catalog/gels</loc>');
+    expect(xml).not.toContain('?category=');
+    for (const path of ['/', '/catalog', '/catalog/gels/gel-1', '/about']) expect(xml).toContain(`<loc>https://shop.example${path}</loc>`);
     for (const slug of ['privacy-policy', 'hidden', 'account', 'escape']) expect(xml).not.toContain(`<loc>https://shop.example/${slug}`);
     expect(xml).toContain('<lastmod>2026-09-16T10:00:00.000Z</lastmod>');
     expect(xml).not.toContain('sarkisianbrand.ru');
@@ -93,7 +93,7 @@ describe('SEO cache and failures (mock DB only)', () => {
     const { prisma, service } = setup();
     prisma.$transaction.mockRejectedValueOnce(new Error('DB password must not leak'));
     await expect(service.sitemap()).rejects.toMatchObject({ status: 503, message: 'SEO-данные временно недоступны' });
-    await expect(service.sitemap()).resolves.toContain('/products/gel-1');
+    await expect(service.sitemap()).resolves.toContain('/catalog/gels/gel-1');
   });
 
   it('does not query DB while indexing disabled', async () => {
