@@ -33,6 +33,7 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { GiftCardsModule } from './gift-cards/gift-cards.module';
 import { MediaModule } from './media/media.module';
 import { PartnersModule } from './partners/partners.module';
+import { ContactMessagesModule } from './contact-messages/contact-messages.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { PartnersModule } from './partners/partners.module';
     PromotionsModule,
     GiftCardsModule,
     PartnersModule,
+    ContactMessagesModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })

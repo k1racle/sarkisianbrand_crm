@@ -47,7 +47,14 @@ for(const width of [1440,390,320])for(const path of ['/','/business','/partnersh
   }else if(path==='/club'){
    await expect(page.locator('.is-club #referral')).toBeVisible();await expect(page.locator('.is-club #referral-rules')).toBeVisible();await expect(page.locator('#referral a')).toHaveAttribute('href','/account?tab=referrals');
   }else{
-   await expect(page.locator('.sb-partnership-page h1')).toBeVisible();await expect(page.locator('.sb-partnership-cover .sb-home-partnership')).toBeVisible();
+   await expect(page.locator('.sb-partnership-page h1')).toBeVisible();
+   if(path==='/business'){
+    await expect(page.locator('.sb-business-hero .sb-business-preview')).toBeVisible();
+    await expect(page.locator('.sb-business-hero__benefits li')).toHaveCount(3);
+    await expect(page.locator('.sb-business-hero__actions a[href="/business-registration"]')).toBeVisible();
+    await expect(page.locator('.sb-business-hero__actions a[href="/b2b-login"]')).toBeVisible();
+    await expect(page.locator('.sb-business-story')).toHaveCount(2);
+   }else await expect(page.locator('.sb-partnership-cover .sb-home-partnership')).toBeVisible();
    await expect(page.locator('.sb-partnership-feature--scene')).toHaveCount(2);await expect(page.locator('.sb-partnership-scene')).toHaveCount(2);
    for(const card of await page.locator('.sb-partnership-calendar,.sb-partnership-link-card,.sb-partnership-business-card,.sb-partnership-product-shot').all())expect(await card.evaluate(el=>getComputedStyle(el).transform)).toBe('none');
    if(path==='/business'){const photos=page.locator('.sb-partnership-product-shot img');expect(await photos.count()).toBeGreaterThan(0);await photos.first().scrollIntoViewIfNeeded();for(const photo of await photos.all())await expect.poll(()=>photo.evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);}

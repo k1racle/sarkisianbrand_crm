@@ -62,6 +62,7 @@ interface _GlobalComponents {
   SiteAccountOrders: typeof import("../../components/storefront/SiteAccountOrders.vue")['default']
   SiteAccountProfile: typeof import("../../components/storefront/SiteAccountProfile.vue")['default']
   SiteAuthDrawer: typeof import("../../components/storefront/SiteAuthDrawer.vue")['default']
+  SiteBusinessPage: typeof import("../../components/storefront/SiteBusinessPage.vue")['default']
   SiteBusinessPreview: typeof import("../../components/storefront/SiteBusinessPreview.vue")['default']
   SiteCartDrawer: typeof import("../../components/storefront/SiteCartDrawer.vue")['default']
   SiteCartRecommendations: typeof import("../../components/storefront/SiteCartRecommendations.vue")['default']
@@ -74,6 +75,7 @@ interface _GlobalComponents {
   SiteClubBlock: typeof import("../../components/storefront/SiteClubBlock.vue")['default']
   SiteClubReferral: typeof import("../../components/storefront/SiteClubReferral.vue")['default']
   SiteClubReferralStack: typeof import("../../components/storefront/SiteClubReferralStack.vue")['default']
+  SiteContactForm: typeof import("../../components/storefront/SiteContactForm.vue")['default']
   SiteContentEditor: typeof import("../../components/storefront/SiteContentEditor.vue")['default']
   SiteContentPage: typeof import("../../components/storefront/SiteContentPage.vue")['default']
   SiteFavoritesDrawer: typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']
@@ -98,6 +100,7 @@ interface _GlobalComponents {
   SiteShell: typeof import("../../components/storefront/SiteShell.vue")['default']
   SiteSocialLoginButtons: typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']
   ChannelsWorkspacePage: typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']
+  ContactMessagesWorkspace: typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']
   PartnerWorkspacePage: typeof import("../../components/workspace/PartnerWorkspacePage.vue")['default']
   ReportsWorkspacePage: typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']
   StoreDashboard: typeof import("../../components/workspace/StoreDashboard.vue")['default']
@@ -175,6 +178,7 @@ interface _GlobalComponents {
   LazySiteAccountOrders: LazyComponent<typeof import("../../components/storefront/SiteAccountOrders.vue")['default']>
   LazySiteAccountProfile: LazyComponent<typeof import("../../components/storefront/SiteAccountProfile.vue")['default']>
   LazySiteAuthDrawer: LazyComponent<typeof import("../../components/storefront/SiteAuthDrawer.vue")['default']>
+  LazySiteBusinessPage: LazyComponent<typeof import("../../components/storefront/SiteBusinessPage.vue")['default']>
   LazySiteBusinessPreview: LazyComponent<typeof import("../../components/storefront/SiteBusinessPreview.vue")['default']>
   LazySiteCartDrawer: LazyComponent<typeof import("../../components/storefront/SiteCartDrawer.vue")['default']>
   LazySiteCartRecommendations: LazyComponent<typeof import("../../components/storefront/SiteCartRecommendations.vue")['default']>
@@ -187,6 +191,7 @@ interface _GlobalComponents {
   LazySiteClubBlock: LazyComponent<typeof import("../../components/storefront/SiteClubBlock.vue")['default']>
   LazySiteClubReferral: LazyComponent<typeof import("../../components/storefront/SiteClubReferral.vue")['default']>
   LazySiteClubReferralStack: LazyComponent<typeof import("../../components/storefront/SiteClubReferralStack.vue")['default']>
+  LazySiteContactForm: LazyComponent<typeof import("../../components/storefront/SiteContactForm.vue")['default']>
   LazySiteContentEditor: LazyComponent<typeof import("../../components/storefront/SiteContentEditor.vue")['default']>
   LazySiteContentPage: LazyComponent<typeof import("../../components/storefront/SiteContentPage.vue")['default']>
   LazySiteFavoritesDrawer: LazyComponent<typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']>
@@ -211,6 +216,7 @@ interface _GlobalComponents {
   LazySiteShell: LazyComponent<typeof import("../../components/storefront/SiteShell.vue")['default']>
   LazySiteSocialLoginButtons: LazyComponent<typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']>
   LazyChannelsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']>
+  LazyContactMessagesWorkspace: LazyComponent<typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']>
   LazyPartnerWorkspacePage: LazyComponent<typeof import("../../components/workspace/PartnerWorkspacePage.vue")['default']>
   LazyReportsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']>
   LazyStoreDashboard: LazyComponent<typeof import("../../components/workspace/StoreDashboard.vue")['default']>

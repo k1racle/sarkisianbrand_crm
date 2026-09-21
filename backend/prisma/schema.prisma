@@ -1907,6 +1907,27 @@ model MailOutbox {
   @@index([status,nextAttemptAt])
 }
 
+model ContactFormSetting {
+  key            String   @id @default("main")
+  recipientEmail String?
+  updatedAt      DateTime @updatedAt
+}
+
+model ContactMessage {
+  id                 String    @id @default(uuid())
+  name               String
+  phone              String
+  email              String
+  message            String
+  notificationStatus String    @default("DISABLED")
+  mailOutboxId       String?
+  createdAt          DateTime  @default(now())
+  readAt             DateTime?
+
+  @@index([createdAt])
+  @@index([readAt, createdAt])
+}
+
 // ===================== SEO =====================
 
 model SeoData {

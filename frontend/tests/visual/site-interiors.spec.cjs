@@ -22,8 +22,8 @@ for (const width of [1440,390,320]) for (const path of paths) test(`Unified publ
    if(width<800){await page.getByRole('button',{name:'Фильтры и сортировка'}).click();await expect(page.getByRole('dialog',{name:'Фильтры каталога'})).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Фильтры каталога'})).toHaveCount(0);}
   }
   if(path==='/catalog/gift-card')await expect(page.locator('.sb-product-variant select')).toBeVisible();
-  if(path==='/contacts'){await expect(page.locator('.sb-page-art--contacts')).toBeVisible();for(const link of await page.locator('.sb-contact-cards a').all())await expect(link).toHaveAttribute('href',/^(tel:|mailto:)/);}
-  if(path==='/delivery')await expect(page.locator('.sb-page-art--delivery')).toBeVisible();
+  if(path==='/contacts'){await expect(page.locator('.sb-contact-form')).toBeVisible();await expect(page.locator('.sb-page-art--contacts,.sb-content-toc')).toHaveCount(0);for(const link of await page.locator('.sb-contact-cards a').all())await expect(link).toHaveAttribute('href',/^(tel:|mailto:)/);}
+  if(path==='/delivery'){await expect(page.locator('.sb-page-art--delivery .sb-page-art__route')).toBeVisible();await expect(page.locator('.is-delivery .sb-content-actions a')).toHaveAttribute('href','/catalog');await expect(page.locator('.sb-page-art__parcel,.is-delivery .sb-content-toc')).toHaveCount(0);}
   for(const art of await page.locator('.sb-page-art__sheet,.sb-page-art__seal,.sb-page-art__parcel,.sb-empty > svg').all())expect(await art.evaluate(el=>getComputedStyle(el).transform)).toBe('none');
   if(['/about','/contacts','/delivery'].includes(path))expect(await page.locator('.sb-content-help').evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgb(21, 21, 21)');
   if(path==='/login')expect(await page.locator('.sb-auth-intro > a b').evaluate(el=>getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');

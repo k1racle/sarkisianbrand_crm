@@ -1,0 +1,1 @@
+import{bL as r,a5 as t}from"./BC3t3dQA.js";const c=r(e=>{if(typeof e.query.search=="string"&&e.query.search.trim().toLowerCase()==="нов"){const{search:s,page:o,...a}=e.query;return t({path:"/catalog",query:{...a,sort:"new"}},{replace:!0})}});export{c as default};

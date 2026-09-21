@@ -1,0 +1,1 @@
+import{_ as e}from"./B94j9M-w.js";import{d as o,b3 as t,I as n,o as a}from"./BC3t3dQA.js";import"./BtoLFsae.js";import"./2iiUCXYT.js";import"./D3bSKZor.js";import"./C4oxm3fw.js";const d=o({__name:"queues",setup(r){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(s,m)=>(a(),n(e,{"page-section":"queues"}))}});export{d as default};

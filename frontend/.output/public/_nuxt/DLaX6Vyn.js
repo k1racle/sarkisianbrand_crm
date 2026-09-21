@@ -1,1 +1,0 @@
-import{_ as o}from"./nQ0at0Um.js";import{d as e,b3 as t,I as n,o as a}from"./aQOCWfoE.js";import"./3YmMdAcw.js";import"./DMhCV9FG.js";import"./DGjUEZSF.js";import"./BNjlxj-A.js";const l=e({__name:"knowledge",setup(r){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(m,s)=>(a(),n(o,{"page-section":"knowledge"}))}});export{l as default};

@@ -1,5 +1,5 @@
 const sections: Record<string, readonly string[]> = {
-  '/admin-workspace': ["dashboard","appearance","site-content","catalog-menu","pages","orders","products","categories","product-badges","customers","loyalty-settings","loyalty-members","promotions","gift-cards","referral-settings","referral-participants","referral-rewards","bloggers-overview","bloggers-participants","bloggers-registrations","bloggers-rewards","bloggers-payouts","bloggers-settings"],
+  '/admin-workspace': ["dashboard","appearance","site-content","catalog-menu","pages","orders","products","categories","product-badges","customers","loyalty-settings","loyalty-members","promotions","gift-cards","contact-messages","referral-settings","referral-participants","referral-rewards","bloggers-overview","bloggers-participants","bloggers-registrations","bloggers-rewards","bloggers-payouts","bloggers-settings"],
   '/crm-marketplaces': ["overview","orders","integrations"],
   '/helpdesk': ["overview","tickets","queues","knowledge"],
   '/system-settings': ["overview","salon-subscription","accounts","trash","staff","access","integrations","bot-commands","audit","logs"],

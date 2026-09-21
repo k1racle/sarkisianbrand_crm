@@ -1,0 +1,1 @@
+import{_ as o}from"./DjLNnPKJ.js";import{d as t,b3 as e,I as a,o as r}from"./BC3t3dQA.js";import"./CKLcFGMi.js";import"./BtoLFsae.js";import"./BYTPvk5i.js";import"./7PDDpW0n.js";const l=t({__name:"gift-cards",setup(n){return e({meta:[{name:"robots",content:"noindex, nofollow"}]}),(s,m)=>(r(),a(o,{"page-section":"gift-cards"}))}});export{l as default};

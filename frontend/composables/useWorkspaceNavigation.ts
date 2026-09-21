@@ -82,6 +82,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     {id:'bloggers-settings',label:'Настройки программы',to:'/admin-workspace/bloggers-settings',roles:MARKETING,permission:'partners.read'},
   ] },
   { id: 'marketing', label: 'Маркетинг', description: 'Промокоды и подарочные карты.', icon: 'Megaphone', items: [
+    { id: 'contact-messages', label: 'Сообщения с сайта', to: '/admin-workspace/contact-messages', permission: 'crm.read', roles: MARKETING, keywords: 'контакты форма обратной связи письма обращения' },
     { id: 'promotions', label: 'Промокоды', to: '/admin-workspace/promotions', roles: MARKETING, keywords: 'скидки акции' },
     { id: 'gift-cards', label: 'Подарочные карты', to: '/admin-workspace/gift-cards', roles: MARKETING, keywords: 'сертификаты номиналы' },
   ] },

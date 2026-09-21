@@ -1,0 +1,1 @@
+import{_ as o}from"./B2wcTHED.js";import{d as r,b3 as n,I as t,o as a}from"./BC3t3dQA.js";import"./Bjb6Q0Q1.js";import"./CKLcFGMi.js";import"./CAshGZ8u.js";const l=r({__name:"referral-rewards",setup(s){return n({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,m)=>{const e=o;return a(),t(e,{kind:"REFERRAL",section:"rewards"})}}});export{l as default};

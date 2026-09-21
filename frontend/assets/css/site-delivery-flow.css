@@ -1,0 +1,24 @@
+.sb-storefront .sb-page-art--delivery { min-height: 350px; display: grid; place-items: center; perspective: none; }
+.sb-storefront .sb-delivery-flow { width: 100%; min-width: 0; padding: clamp(28px, 3.5vw, 50px); box-sizing: border-box; border: 1px solid #eeeae6; border-radius: 28px; background: #faf9f8; box-shadow: 0 18px 45px #201c1809; }
+.sb-storefront .sb-delivery-flow > p { margin: 0 0 12px; color: #85807b; font-size: 11px; font-weight: 650; letter-spacing: .15em; }
+.sb-storefront .sb-delivery-flow h2 { margin: 0; color: #1d1c1b; font-size: clamp(22px, 2vw, 30px); line-height: 1.25; font-weight: 550; }
+.sb-storefront .sb-page-art--delivery .sb-page-art__route { display: flex; align-items: flex-start; width: 100%; margin: 34px 0 22px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; gap: 6px; }
+.sb-storefront .sb-page-art--delivery .sb-delivery-step { flex: 0 0 auto; display: grid; justify-items: center; align-content: start; gap: 11px; width: 86px; color: #6f6c69; }
+.sb-storefront .sb-delivery-step strong { font-size: 12px; font-weight: 550; line-height: 1.25; white-space: nowrap; }
+.sb-storefront .sb-delivery-step__icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; border: 1px solid #e9e5e2; background: #fff; color: #78736f; box-shadow: 0 5px 15px #211a1509; }
+.sb-storefront .sb-page-art--delivery .sb-delivery-line { position: relative; flex: 1; min-width: 12px; height: 2px; margin: 27px -6px 0; overflow: hidden; border-radius: 2px; background: #e6e3df; }
+.sb-storefront .sb-delivery-line::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: #242322; transform: scaleX(0); transform-origin: left; }
+.sb-storefront .sb-delivery-flow__note { display: block; color: #85807b; font-size: 12px; line-height: 1.5; }
+@keyframes sb-delivery-order { 0%, 17% { background: #242322; color: #fff; border-color: #242322; transform: translateY(-3px); } 22%, 100% { background: #f0efed; color: #242322; border-color: #e4e1dd; transform: none; } }
+@keyframes sb-delivery-transit { 0%, 31% { background: #fff; color: #78736f; border-color: #e9e5e2; transform: none; } 36%, 55% { background: #242322; color: #fff; border-color: #242322; transform: translateY(-3px); } 60%, 100% { background: #f0efed; color: #242322; border-color: #e4e1dd; transform: none; } }
+@keyframes sb-delivery-received { 0%, 69% { background: #fff; color: #78736f; border-color: #e9e5e2; transform: none; } 74%, 100% { background: #242322; color: #fff; border-color: #242322; transform: translateY(-3px); } }
+@keyframes sb-delivery-line-one { 0%, 17% { transform: scaleX(0); } 32%, 100% { transform: scaleX(1); } }
+@keyframes sb-delivery-line-two { 0%, 55% { transform: scaleX(0); } 72%, 100% { transform: scaleX(1); } }
+.sb-storefront .sb-delivery-step--order .sb-delivery-step__icon { animation: sb-delivery-order 8s ease-in-out infinite; }
+.sb-storefront .sb-delivery-step--transit .sb-delivery-step__icon { animation: sb-delivery-transit 8s ease-in-out infinite; }
+.sb-storefront .sb-delivery-step--received .sb-delivery-step__icon { animation: sb-delivery-received 8s ease-in-out infinite; }
+.sb-storefront .sb-delivery-line--first::after { animation: sb-delivery-line-one 8s ease-in-out infinite; }
+.sb-storefront .sb-delivery-line--second::after { animation: sb-delivery-line-two 8s ease-in-out infinite; }
+@media (max-width: 700px) { .sb-storefront .sb-page-art--delivery { min-height: 0; } .sb-storefront .sb-delivery-flow { padding: 28px 20px; } }
+@media (max-width: 380px) { .sb-storefront .sb-page-art--delivery .sb-delivery-step { width: 74px; } .sb-storefront .sb-delivery-step__icon { width: 50px; height: 50px; } .sb-storefront .sb-page-art--delivery .sb-delivery-line { margin-top: 24px; } }
+@media (prefers-reduced-motion: reduce) { .sb-storefront .sb-delivery-step .sb-delivery-step__icon, .sb-storefront .sb-delivery-line::after { animation: none; transform: none; } .sb-storefront .sb-delivery-step .sb-delivery-step__icon { background: #f0efed; color: #242322; } .sb-storefront .sb-delivery-line::after { transform: scaleX(1); } }

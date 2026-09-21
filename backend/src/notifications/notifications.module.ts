@@ -9,6 +9,6 @@ import { SmtpMailService } from './smtp-mail.service';
 @Module({
   imports: [ConfigModule, PrismaModule],
   providers: [IntegrationSecretsService, SmtpMailService, NotificationsService],
-  exports: [NotificationsService],
+  exports: [NotificationsService, SmtpMailService],
 })
 export class NotificationsModule {}
