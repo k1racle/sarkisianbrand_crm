@@ -22,7 +22,8 @@ export function storefrontProductImage(product: any) {
   // Legacy demo /catalog/*.jpg values never had corresponding files.
   const apiImage = product?.images?.slice().sort((a: any, b: any) => a.sortOrder - b.sortOrder).find((image: any) => !image.url.startsWith('/catalog/') && /^(https?:\/\/|\/(?!\/))/.test(image.url))?.url;
   if (apiImage?.startsWith('/api/')) return new URL(apiImage, useRuntimeConfig().public.apiBase).toString();
-  return apiImage || productImages[product?.slug] || null;
+  const categoryImage = product?.categories?.find((item: any) => item?.isPrimary)?.category?.imageUrl || product?.categories?.find((item: any) => item?.category?.imageUrl)?.category?.imageUrl;
+  return apiImage || productImages[product?.slug] || categoryImage || null;
 }
 
 export type StorefrontCategory = { id: string; slug: string; nameRu: string; parentId?: string | null; isActive?: boolean; imageUrl?: string | null };

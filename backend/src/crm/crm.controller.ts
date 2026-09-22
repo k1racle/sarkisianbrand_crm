@@ -6,6 +6,7 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CrmService } from './crm.service';
+import { MoveTaskDto } from './dto/crm.dto';
 import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineStageDto, CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, CreateTaskTemplateDto, ReorderPipelineStagesDto, UpdateLeadDto, UpdatePipelineDto, UpdatePipelineStageDto, UpdateTaskDto, UpdateTaskTemplateDto } from './dto/crm.dto';
 
 @ApiTags('crm')
@@ -35,8 +36,12 @@ export class CrmController {
 
   @Get('tasks') @Permissions('crm.read') tasks(@Query('status') status?: TaskStatus, @Query('assignedToId') assignedToId?: string) { return this.crm.tasks(status, assignedToId); }
   @Post('tasks') @Permissions('crm.write') createTask(@Body() dto: CreateTaskDto, @Req() request: any) { return this.crm.createTask(dto, request.user.sub); }
-  @Patch('tasks/:id') @Permissions('crm.write') updateTask(@Param('id') id: string, @Body() dto: UpdateTaskDto) { return this.crm.updateTask(id, dto); }
-  @Delete('tasks/:id') @Permissions('crm.write') archiveTask(@Param('id') id: string) { return this.crm.archiveTask(id); }
+  @Patch('tasks/:id') @Permissions('crm.write') updateTask(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Req() request:any) { return this.crm.updateTask(id, dto, undefined, request.user.sub); }
+  @Delete('tasks/:id') @Permissions('crm.write') archiveTask(@Param('id') id: string, @Req() request:any) { return this.crm.archiveTask(id, request.user.sub); }
+  @Post('tasks/:id/move') @Permissions('crm.write') moveTask(@Param('id') id: string, @Body() dto: MoveTaskDto, @Req() request:any) { return this.crm.moveTask(id, dto.status, dto.beforeId, request.user.sub); }
+  @Get('tasks/:id/history') @Permissions('crm.read') taskHistory(@Param('id') id:string,@Query('before') before?:string){return this.crm.history('task',id,before);}
+  @Get('leads/:id/history') @Permissions('crm.read') leadHistory(@Param('id') id:string,@Query('before') before?:string){return this.crm.history('lead',id,before);}
+  @Get('tasks/:id/comments') @Permissions('crm.read') taskComments(@Param('id') id: string, @Query('before') before?: string) { return this.crm.taskComments(id, before); }
   @Post('tasks/:id/comments') @Permissions('crm.write') taskComment(@Param('id') id: string, @Body() dto: CreateTaskCommentDto, @Req() request: any) { return this.crm.addTaskComment(id, dto, request.user.sub); }
   @Get('task-templates') @Permissions('crm.read') taskTemplates() { return this.crm.taskTemplates(); }
   @Post('task-templates') @Permissions('crm.write') createTaskTemplate(@Body() dto: CreateTaskTemplateDto, @Req() request: any) { return this.crm.createTaskTemplate(dto, request.user.sub); }

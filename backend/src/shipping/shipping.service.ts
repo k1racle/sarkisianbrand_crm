@@ -11,6 +11,7 @@ export class ShippingService {
   constructor(private readonly prisma: PrismaService, private readonly provider: ShippingProvider, private readonly cdek: CdekProvider) {}
 
   async capabilities() {
+    return { providers: [await this.cdek.capabilities(), { provider: 'OZON_DELIVERY', configured: false, available: false, requiresConfiguration: true, canEstimate: false, canListPickupPoints: false, canCreateShipment: false, message: 'Доставка Ozon пока не подключена' }, { provider: 'YANDEX_DELIVERY', configured: false, available: false, requiresConfiguration: true, canEstimate: false, canListPickupPoints: false, canCreateShipment: false, message: 'Яндекс Доставка пока не подключена' }] };
     return { providers: [await this.cdek.capabilities(), { provider: 'OZON_DELIVERY', configured: false, available: false, requiresConfiguration: true, canEstimate: false, canListPickupPoints: false, canCreateShipment: false, message: 'Автоматическая доставка Ozon пока не подключена. Условия будут согласованы до оплаты' }] };
   }
 
@@ -26,6 +27,7 @@ export class ShippingService {
   }
 
   async estimate(session: string | undefined, dto: ShippingEstimateDto, userId?: string) {
+    if (dto.provider === 'YANDEX_DELIVERY') return { ...unavailableShipping('YANDEX_DELIVERY', 'Яндекс Доставка пока не подключена. Стоимость будет подтверждена до оплаты'), canPay: false };
     if (!session || !/^[A-Za-z0-9_-]{16,128}$/.test(session) || session === 'anonymous-session') throw new BadRequestException('Необходимо передать идентификатор корзины');
     if (!dto.city.trim() || (dto.deliveryMethod === 'COURIER' && (!dto.street?.trim() || !dto.house?.trim()))) throw new BadRequestException('Укажите город и адрес доставки');
     const cart = await this.prisma.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: true } } } });
@@ -59,6 +61,7 @@ export class ShippingService {
   }
 
   async pickupPoints(provider: string | undefined, cityCode: number) {
+    if (provider === 'YANDEX_DELIVERY') return { available: false, points: [], message: 'Яндекс Доставка пока не подключена' };
     if (provider === 'OZON_DELIVERY') return { available: false, points: [], message: 'Автоматический выбор пунктов выдачи Ozon пока не подключён' };
     return this.cdek.pickupPoints(cityCode);
   }

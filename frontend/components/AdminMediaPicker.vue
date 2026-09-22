@@ -102,16 +102,16 @@ onBeforeUnmount(() => {
     <span class="aml-label">{{ label }}</span>
     <div v-if="showPreview && currentPreview" class="aml-current"><img :src="currentPreview" :alt="label" /></div>
     <div class="aml-actions">
-      <button type="button" class="aml-button" :disabled="disabled" @click="openLibrary(true)"><Upload :size="18" /> Загрузить файл</button>
-      <button type="button" class="aml-button aml-button--white" :disabled="disabled" @click="openLibrary(false)"><Images :size="18" /> Выбрать из библиотеки</button>
+      <button type="button" class="aml-button crm-button" :disabled="disabled" @click="openLibrary(true)"><Upload :size="18" /> Загрузить файл</button>
+      <button type="button" class="aml-button aml-button--white crm-button" :disabled="disabled" @click="openLibrary(false)"><Images :size="18" /> Выбрать из библиотеки</button>
     </div>
-    <details class="aml-manual"><summary>Указать путь вручную</summary><div class="aml-url-row"><input :id="inputId" v-model="urlDraft" type="text" maxlength="2048" :disabled="disabled" :aria-label="'Путь: ' + label" placeholder="/api/v1/media/files/…" /><button type="button" class="aml-button aml-button--white" :disabled="disabled" @click="applyManualUrl">Применить путь</button></div></details>
+    <details class="aml-manual"><summary>Указать путь вручную</summary><div class="aml-url-row"><input class="crm-input" :id="inputId" v-model="urlDraft" type="text" maxlength="2048" :disabled="disabled" :aria-label="'Путь: ' + label" placeholder="/api/v1/media/files/…" /><button type="button" class="aml-button aml-button--white crm-button" :disabled="disabled" @click="applyManualUrl">Применить путь</button></div></details>
     <p v-if="error && !opened" class="aml-message" role="alert">{{ error }}</p>
     <p v-if="status && !opened" class="aml-message" role="status">{{ status }}</p>
     <Teleport to="body"><Transition name="aml-dialog">
       <div v-if="opened" class="admin-media-library aml-backdrop admin-dialog-backdrop" @click.self="closeLibrary" @keydown.stop="dialogKeys">
         <section ref="dialogEl" class="aml-panel admin-dialog admin-dialog--modal" role="dialog" aria-modal="true" :aria-labelledby="dialogId" :aria-describedby="dialogId + '-description'">
-          <header class="aml-head"><div><p class="aml-eyebrow">ОБЩАЯ БИБЛИОТЕКА</p><h2 :id="dialogId">Выбрать изображение</h2></div><button type="button" class="aml-close" aria-label="Закрыть медиабиблиотеку" @click="closeLibrary"><X :size="20" /></button></header>
+          <header class="aml-head"><div><p class="aml-eyebrow">ОБЩАЯ БИБЛИОТЕКА</p><h2 :id="dialogId">Выбрать изображение</h2></div><button type="button" class="aml-close crm-button crm-button--icon" aria-label="Закрыть медиабиблиотеку" @click="closeLibrary"><X :size="20" /></button></header>
           <p :id="dialogId + '-description'" class="aml-help">Выбор меняет только поле текущего редактора. Сохраняется путь файла без адреса хоста.</p>
           <p v-if="error" class="aml-message" role="alert">{{ error }}</p>
           <AdminMediaBrowser ref="browser" :api-base="apiBase" :token="token" :disabled="disabled" show-cancel @select="chooseAsset" @cancel="closeLibrary" />

@@ -58,7 +58,7 @@ onBeforeUnmount(() => { observer?.disconnect(); reduced?.removeEventListener('ch
       <p class="sb-kicker">{{ block.eyebrow }}</p>
       <component :is="headingTag || 'h2'" class="sb-partnership-heading">{{ block.title }} <em>{{ block.accent }}</em></component>
       <p class="sb-home-partnership__body">{{ block.body }}</p>
-      <NuxtLink v-if="block.buttonLabel && safeSiteContentUrl(block.url)" :to="block.url === '/partnerships#referral' ? '/club#referral' : block.url" class="sb-partnership-button sb-liquid-primary">{{ block.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink>
+      <NuxtLink v-if="block.buttonLabel && safeSiteContentUrl(block.url)" :to="block.url === '/partnerships#referral' || block.url === '/club#referral' ? '/club/referrals' : block.url" class="sb-partnership-button sb-liquid-primary">{{ block.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink>
     </div>
     <div v-if="kind === 'bloggers'" class="sb-creator-art">
       <div class="sb-creator-reactions" aria-hidden="true">

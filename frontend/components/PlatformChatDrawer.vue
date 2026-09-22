@@ -501,7 +501,7 @@ onBeforeUnmount(() => {
         <section data-v-ui-6f58f7dddb37 ref="chatPanel" class="platform-chat admin-dialog admin-dialog--chat" role="dialog" aria-modal="true" aria-label="Чат платформы" tabindex="-1" @keydown="chatKeys">
           <header data-v-ui-6f58f7dddb37 class="chat-head admin-dialog-head">
             <div data-v-ui-6f58f7dddb37>
-              <button data-v-ui-6f58f7dddb37 type="button" class="chat-channel-toggle" :aria-label="mobileChannels ? 'Вернуться к переписке' : 'Показать каналы'" :aria-expanded="mobileChannels" :disabled="mobileChannels && !active" @click="mobileChannels = !mobileChannels"><ChevronLeft data-v-ui-6f58f7dddb37 v-if="mobileChannels" :size="20"/><Hash data-v-ui-6f58f7dddb37 v-else :size="20"/></button>
+              <button data-v-ui-6f58f7dddb37 type="button" class="chat-channel-toggle crm-button" :aria-label="mobileChannels ? 'Вернуться к переписке' : 'Показать каналы'" :aria-expanded="mobileChannels" :disabled="mobileChannels && !active" @click="mobileChannels = !mobileChannels"><ChevronLeft data-v-ui-6f58f7dddb37 v-if="mobileChannels" :size="20"/><Hash data-v-ui-6f58f7dddb37 v-else :size="20"/></button>
               <i data-v-ui-6f58f7dddb37><MessageCircle data-v-ui-6f58f7dddb37 :size="18" /></i
               ><span data-v-ui-6f58f7dddb37
                 ><p data-v-ui-6f58f7dddb37>ЕДИНАЯ ЭКОСИСТЕМА</p>
@@ -512,7 +512,7 @@ onBeforeUnmount(() => {
               ><i data-v-ui-6f58f7dddb37></i
               >{{ connected ? "В реальном времени" : "Подключаемся…" }}</em
             >
-            <button data-v-ui-6f58f7dddb37 aria-label="Закрыть чат" @click="closeChat">
+            <button class="crm-button crm-button--icon" data-v-ui-6f58f7dddb37 aria-label="Закрыть чат" @click="closeChat">
               <X data-v-ui-6f58f7dddb37 :size="19" />
             </button>
           </header>
@@ -521,15 +521,15 @@ onBeforeUnmount(() => {
             <aside data-v-ui-6f58f7dddb37 class="channels">
               <header data-v-ui-6f58f7dddb37>
                 <b data-v-ui-6f58f7dddb37>Каналы</b
-                ><button data-v-ui-6f58f7dddb37 type="button" aria-label="Создать канал" @click="createOpen = true"><Plus data-v-ui-6f58f7dddb37 :size="15" /></button>
+                ><button class="crm-button crm-button--primary crm-button--icon" data-v-ui-6f58f7dddb37 type="button" aria-label="Создать канал" @click="createOpen = true"><Plus data-v-ui-6f58f7dddb37 :size="15" /></button>
               </header>
-              <label data-v-ui-6f58f7dddb37
-                ><Search data-v-ui-6f58f7dddb37 :size="14" /><input data-v-ui-6f58f7dddb37
+              <label class="crm-input-group" data-v-ui-6f58f7dddb37
+                ><Search data-v-ui-6f58f7dddb37 :size="14" /><input class="crm-input" data-v-ui-6f58f7dddb37
                   v-model="channelSearch"
                   placeholder="Найти канал"
               /></label>
               <nav data-v-ui-6f58f7dddb37>
-                <button data-v-ui-6f58f7dddb37
+                <button class="crm-button" data-v-ui-6f58f7dddb37
                   v-for="channel in visibleChannels"
                   :key="channel.id"
                   :class="{ active: active?.id === channel.id }"
@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
                       >
                         <button data-v-ui-6f58f7dddb37
                           v-if="item.kind === 'ENTITY'"
-                          class="entity-card"
+                          class="entity-card crm-button"
                           @click="openEntityCard(item)"
                         >
                           <i data-v-ui-6f58f7dddb37
@@ -612,7 +612,7 @@ onBeforeUnmount(() => {
                         </button>
                         <button data-v-ui-6f58f7dddb37
                           v-else-if="item.kind === 'IMAGE'"
-                          class="image-card"
+                          class="image-card crm-button"
                           @click="downloadAttachment(item)"
                         >
                           <img data-v-ui-6f58f7dddb37
@@ -638,7 +638,7 @@ onBeforeUnmount(() => {
                         ></audio>
                         <button data-v-ui-6f58f7dddb37
                           v-else
-                          class="file-card"
+                          class="file-card crm-button"
                           @click="downloadAttachment(item)"
                         >
                           <i data-v-ui-6f58f7dddb37><FileText data-v-ui-6f58f7dddb37 :size="18" /></i
@@ -683,7 +683,7 @@ onBeforeUnmount(() => {
                       >{{ item.file.name }} ·
                       {{ formatSize(item.file.size) }}</em
                     >
-                    <button data-v-ui-6f58f7dddb37 @click="removeQueuedFile(index)">
+                    <button class="crm-button" data-v-ui-6f58f7dddb37 @click="removeQueuedFile(index)">
                       <X data-v-ui-6f58f7dddb37 :size="12" />
                     </button>
                   </span>
@@ -692,7 +692,7 @@ onBeforeUnmount(() => {
                     :key="entity.type + entity.id"
                     ><component data-v-ui-6f58f7dddb37 :is="entityIcon(entity.type)" :size="12" />{{
                       entity.name || entity.title
-                    }}<button data-v-ui-6f58f7dddb37
+                    }}<button class="crm-button" data-v-ui-6f58f7dddb37
                       @click="
                         entities = entities.filter((item) => item !== entity)
                       "
@@ -704,11 +704,11 @@ onBeforeUnmount(() => {
                 <div data-v-ui-6f58f7dddb37 v-if="recording" class="recording">
                   <i data-v-ui-6f58f7dddb37></i><b data-v-ui-6f58f7dddb37>Запись голосового сообщения</b
                   ><time data-v-ui-6f58f7dddb37>{{ recordingTime() }}</time
-                  ><button data-v-ui-6f58f7dddb37 @click="toggleRecording">
+                  ><button class="crm-button" data-v-ui-6f58f7dddb37 @click="toggleRecording">
                     <Square data-v-ui-6f58f7dddb37 :size="14" />Завершить
                   </button>
                 </div>
-                <textarea data-v-ui-6f58f7dddb37
+                <textarea class="crm-input" data-v-ui-6f58f7dddb37
                   v-else
                   v-model="text"
                   aria-label="Сообщение"
@@ -723,20 +723,20 @@ onBeforeUnmount(() => {
                     hidden
                     @change="chooseFiles"
                   />
-                  <button data-v-ui-6f58f7dddb37
+                  <button class="crm-button" data-v-ui-6f58f7dddb37
                     title="Прикрепить файл до 10 МБ"
                     @click="fileInput?.click()"
                   >
                     <Paperclip data-v-ui-6f58f7dddb37 :size="17" />
                   </button>
-                  <button data-v-ui-6f58f7dddb37
+                  <button class="crm-button" data-v-ui-6f58f7dddb37
                     title="Прикрепить карточку"
                     :class="{ active: entityOpen }"
                     @click="openEntities"
                   >
                     <Archive data-v-ui-6f58f7dddb37 :size="17" />
                   </button>
-                  <button data-v-ui-6f58f7dddb37
+                  <button class="crm-button" data-v-ui-6f58f7dddb37
                     title="Добавить смайлик"
                     :class="{ active: emojiOpen }"
                     @click="
@@ -746,7 +746,7 @@ onBeforeUnmount(() => {
                   >
                     <Smile data-v-ui-6f58f7dddb37 :size="18" />
                   </button>
-                  <button data-v-ui-6f58f7dddb37
+                  <button class="crm-button" data-v-ui-6f58f7dddb37
                     title="Записать голосовое"
                     :class="{ recording }"
                     @click="toggleRecording"
@@ -754,24 +754,24 @@ onBeforeUnmount(() => {
                     <Mic data-v-ui-6f58f7dddb37 :size="18" />
                   </button>
                   <span data-v-ui-6f58f7dddb37>Enter — отправить · Shift+Enter — новая строка</span>
-                  <button data-v-ui-6f58f7dddb37 type="button" class="send" aria-label="Отправить сообщение" :disabled="sending || (!text.trim() && !files.length && !entities.length)" @click="send">
+                  <button data-v-ui-6f58f7dddb37 type="button" class="send crm-button crm-button--primary crm-button--icon" aria-label="Отправить сообщение" :disabled="sending || (!text.trim() && !files.length && !entities.length)" @click="send">
                     <Send data-v-ui-6f58f7dddb37 :size="17" />
                   </button>
                 </footer>
                 <div data-v-ui-6f58f7dddb37 v-if="emojiOpen" class="emoji-picker">
-                  <button data-v-ui-6f58f7dddb37 v-for="emoji in emojis" @click="addEmoji(emoji)">
+                  <button class="crm-button" data-v-ui-6f58f7dddb37 v-for="emoji in emojis" @click="addEmoji(emoji)">
                     {{ emoji }}
                   </button>
                 </div>
                 <div data-v-ui-6f58f7dddb37 v-if="entityOpen" class="entity-picker">
                   <header data-v-ui-6f58f7dddb37>
                     <b data-v-ui-6f58f7dddb37>Прикрепить карточку</b
-                    ><button data-v-ui-6f58f7dddb37 @click="entityOpen = false">
+                    ><button class="crm-button" data-v-ui-6f58f7dddb37 @click="entityOpen = false">
                       <X data-v-ui-6f58f7dddb37 :size="15" />
                     </button>
                   </header>
                   <nav data-v-ui-6f58f7dddb37>
-                    <button data-v-ui-6f58f7dddb37
+                    <button class="crm-button" data-v-ui-6f58f7dddb37
                       v-for="type in entityTypes"
                       :class="{ active: entityType === type.id }"
                       @click="switchEntityType(type.id)"
@@ -779,14 +779,14 @@ onBeforeUnmount(() => {
                       <component data-v-ui-6f58f7dddb37 :is="type.icon" :size="14" />{{ type.label }}
                     </button>
                   </nav>
-                  <label data-v-ui-6f58f7dddb37
-                    ><Search data-v-ui-6f58f7dddb37 :size="14" /><input data-v-ui-6f58f7dddb37
+                  <label class="crm-input-group" data-v-ui-6f58f7dddb37
+                    ><Search data-v-ui-6f58f7dddb37 :size="14" /><input class="crm-input" data-v-ui-6f58f7dddb37
                       v-model="entitySearch"
                       placeholder="Поиск"
                       @input="delayedEntitySearch"
                   /></label>
                   <div data-v-ui-6f58f7dddb37>
-                    <button data-v-ui-6f58f7dddb37
+                    <button class="crm-button" data-v-ui-6f58f7dddb37
                       v-for="item in entityResults"
                       @click="attachEntity(item)"
                     >
@@ -813,25 +813,25 @@ onBeforeUnmount(() => {
                 <p data-v-ui-6f58f7dddb37>НОВЫЙ КАНАЛ</p>
                 <h3 data-v-ui-6f58f7dddb37>Создать обсуждение</h3>
               </div>
-              <button data-v-ui-6f58f7dddb37 type="button" aria-label="Закрыть создание канала" @click="createOpen = false">
+              <button class="crm-button crm-button--icon" data-v-ui-6f58f7dddb37 type="button" aria-label="Закрыть создание канала" @click="createOpen = false">
                 <X data-v-ui-6f58f7dddb37 :size="17" />
               </button>
             </header>
             <div data-v-ui-6f58f7dddb37>
               <label data-v-ui-6f58f7dddb37
-                >Название<input data-v-ui-6f58f7dddb37 v-model="draftChannel.name" required /></label
+                >Название<input class="crm-input" data-v-ui-6f58f7dddb37 v-model="draftChannel.name" required /></label
               ><label data-v-ui-6f58f7dddb37
-                >Описание<textarea data-v-ui-6f58f7dddb37
+                >Описание<textarea class="crm-input" data-v-ui-6f58f7dddb37
                   v-model="draftChannel.description"
                   rows="3"
                 /></label
               ><label data-v-ui-6f58f7dddb37
-                >Доступ<select data-v-ui-6f58f7dddb37 v-model="draftChannel.type">
+                >Доступ<select class="crm-input" data-v-ui-6f58f7dddb37 v-model="draftChannel.type">
                   <option data-v-ui-6f58f7dddb37 value="TEAM">Все сотрудники</option>
                   <option data-v-ui-6f58f7dddb37 value="PRIVATE">Только участники</option>
                 </select></label
               ><label data-v-ui-6f58f7dddb37 v-if="draftChannel.type === 'PRIVATE'"
-                >Участники<select data-v-ui-6f58f7dddb37 v-model="draftChannel.memberIds" multiple>
+                >Участники<select class="crm-input" data-v-ui-6f58f7dddb37 v-model="draftChannel.memberIds" multiple>
                   <option data-v-ui-6f58f7dddb37 v-for="member in team" :value="member.id">
                     {{ person(member) }}
                   </option>
@@ -839,8 +839,8 @@ onBeforeUnmount(() => {
               >
             </div>
             <footer data-v-ui-6f58f7dddb37>
-              <button data-v-ui-6f58f7dddb37 type="button" @click="createOpen = false">Отмена</button
-              ><button data-v-ui-6f58f7dddb37 class="primary">Создать канал</button>
+              <button class="crm-button" data-v-ui-6f58f7dddb37 type="button" @click="createOpen = false">Отмена</button
+              ><button data-v-ui-6f58f7dddb37 class="primary crm-button crm-button--primary">Создать канал</button>
             </footer>
           </form>
         </div>
@@ -848,4 +848,3 @@ onBeforeUnmount(() => {
     </Transition>
   </Teleport>
 </template>
-

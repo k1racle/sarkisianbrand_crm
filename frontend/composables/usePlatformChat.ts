@@ -48,5 +48,11 @@ export function usePlatformChat() {
     realtime?.emit('platform-chat:join', { channelId });
   }
 
-  return { isOpen, unread, connected, lastMessage, lastChannel, lastReminder, openChat, closeChat, toggleChat, refreshUnread, connectRealtime, joinRealtimeChannel };
+  function disconnectRealtime() {
+    realtime?.disconnect(); realtime = null; realtimeToken = '';
+    connected.value = false; isOpen.value = false; unread.value = 0;
+    lastMessage.value = null; lastChannel.value = null; lastReminder.value = null;
+  }
+
+  return { isOpen, unread, connected, lastMessage, lastChannel, lastReminder, openChat, closeChat, toggleChat, refreshUnread, connectRealtime, joinRealtimeChannel, disconnectRealtime };
 }

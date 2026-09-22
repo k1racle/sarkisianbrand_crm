@@ -16,7 +16,7 @@ export class CheckoutDto {
   @IsOptional() @IsIn(['COURIER', 'PICKUP_POINT', 'DIGITAL']) deliveryMethod?: 'COURIER' | 'PICKUP_POINT' | 'DIGITAL';
   @IsOptional() @IsString() paymentMethod?: string;
   @IsOptional() @IsString() comments?: string;
-  @IsOptional() @IsIn(['CDEK', 'OZON_DELIVERY']) shippingProvider?: 'CDEK' | 'OZON_DELIVERY';
+  @IsOptional() @IsIn(['CDEK', 'OZON_DELIVERY', 'YANDEX_DELIVERY']) shippingProvider?: 'CDEK' | 'OZON_DELIVERY' | 'YANDEX_DELIVERY';
   @IsOptional() @IsString() @MaxLength(80) shippingQuoteId?: string;
   @IsOptional() @IsString() @MaxLength(40) promoCode?: string;
   @IsOptional() @IsString() @MaxLength(100) @Matches(GIFT_CODE_PATTERN, { message: 'Неверный формат сертификата' }) giftCardCode?: string;

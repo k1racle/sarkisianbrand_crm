@@ -2,6 +2,10 @@
  * Layout, forms, dialogs and typography must be edited here or in these owners,
  * never inside Vue components. Dynamic business colors/progress remain bindings.
  */
+@import "./crm-elements.css";
+@import "./crm-shell.css";
+@import "./crm-work.css";
+@import "./crm-content.css";
 @import "./admin-components.css";
 @import "./admin-legacy.css";
 @import "./ecosystem-glass.css";

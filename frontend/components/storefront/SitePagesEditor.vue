@@ -3,6 +3,8 @@ import { GripVertical, Plus, Save, Trash2 } from '@lucide/vue';
 const config = useRuntimeConfig();
 const { token } = useWorkspaceSession();
 const pages = ref<any[]>([]);
+const editorialLabels: Record<string, string> = { club: 'О клубе', 'club-referrals': 'Для покупателей', business: 'Для бизнеса', partnerships: 'Для блогеров' };
+const editorialLabel = (page: any) => editorialLabels[page.slug] || page.title;
 const editor = ref<any>(null);
 const baseline = ref('');
 const busy = ref(false);
@@ -112,7 +114,7 @@ onBeforeRouteUpdate(() => !busy.value && (!dirty.value || confirm('Перейт�
     <article data-v-ui-bffa0889dfe6 class="panel"><div data-v-ui-bffa0889dfe6 class="panel-head sb-cms-hero"><div data-v-ui-bffa0889dfe6><p data-v-ui-bffa0889dfe6 class="kicker">КОНТЕНТ САЙТА</p><h2 data-v-ui-bffa0889dfe6>Страницы</h2><span data-v-ui-bffa0889dfe6>Заголовки, тексты, порядок блоков и публикация — в одном редакторе.</span></div><button data-v-ui-bffa0889dfe6 class="sb-cms-primary" :disabled="busy" @click="createPage"><Plus data-v-ui-bffa0889dfe6 :size="16" /> Новая страница</button></div></article>
     <p data-v-ui-bffa0889dfe6 v-if="notice" class="sb-cms-notice" role="status">{{ notice }}</p>
     <div data-v-ui-bffa0889dfe6 class="sb-cms-layout">
-      <aside data-v-ui-bffa0889dfe6 class="sb-cms-list panel"><button data-v-ui-bffa0889dfe6 v-for="page in pages" :key="page.slug" :class="{ active: editor?.slug === page.slug && !editor?._new }" :disabled="busy" @click="select(page)"><strong data-v-ui-bffa0889dfe6>{{ page.title }}</strong><span data-v-ui-bffa0889dfe6>/{{ page.slug }} · {{ page.isActive ? 'Опубликована' : 'Скрыта' }}</span><small data-v-ui-bffa0889dfe6 v-if="page.reviewRequired">Требует утверждения</small></button><p data-v-ui-bffa0889dfe6 v-if="!pages.length">{{ busy ? 'Загружаем…' : 'Создайте первую страницу' }}</p></aside>
+      <aside data-v-ui-bffa0889dfe6 class="sb-cms-list panel"><button data-v-ui-bffa0889dfe6 v-for="page in pages" :key="page.slug" :class="{ active: editor?.slug === page.slug && !editor?._new }" :disabled="busy" @click="select(page)"><strong data-v-ui-bffa0889dfe6>{{ editorialLabel(page) }}</strong><span data-v-ui-bffa0889dfe6>{{ page.title }} · /{{ page.slug }} · {{ page.isActive ? 'Опубликована' : 'Скрыта' }}</span><small data-v-ui-bffa0889dfe6 v-if="page.reviewRequired">Требует утверждения</small></button><p data-v-ui-bffa0889dfe6 v-if="!pages.length">{{ busy ? 'Загружаем…' : 'Создайте первую страницу' }}</p></aside>
       <article data-v-ui-bffa0889dfe6 v-if="editor" class="panel sb-cms-form">
         <div data-v-ui-bffa0889dfe6 class="sb-cms-toolbar"><div data-v-ui-bffa0889dfe6><b data-v-ui-bffa0889dfe6>{{ editor._new ? 'Новая страница' : 'Редактирование страницы' }}</b><small data-v-ui-bffa0889dfe6>{{ dirty ? 'Есть несохранённые изменения' : 'Изменения сохранены' }}<template v-if="editor.revision"> · версия {{ editor.revision }}</template></small></div><a data-v-ui-bffa0889dfe6 v-if="!editor._new && editor.isActive" :href="`/${editor.slug}`" target="_blank" rel="noopener noreferrer">Посмотреть на сайте</a></div>
         <label data-v-ui-bffa0889dfe6>Адрес страницы<input data-v-ui-bffa0889dfe6 v-model="editor.slug" :disabled="!editor._new || busy" maxlength="80" placeholder="about" /><small data-v-ui-bffa0889dfe6>Латинские буквы, цифры и дефисы. Адрес существующей страницы не меняется.</small></label>

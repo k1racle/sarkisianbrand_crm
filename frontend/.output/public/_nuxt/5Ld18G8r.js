@@ -1,0 +1,1 @@
+import{_ as e}from"./B-LAiBvW.js";import{d as o,b6 as a,A as n,m as t}from"./S8Twd-2B.js";import"./B2nSseZT.js";import"./CWg6VWpq.js";import"./0mz2YK1a.js";const d=o({__name:"appearance",setup(r){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(p,m)=>(t(),n(e,{"page-section":"appearance"}))}});export{d as default};

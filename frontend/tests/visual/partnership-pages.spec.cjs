@@ -43,9 +43,9 @@ for(const width of [1440,390,320])for(const path of ['/','/business','/partnersh
     await info.attach('bloggers-overflow',{body:await page.screenshot(),contentType:'image/png'});
    }else{await phone.dispatchEvent('pointerenter',{pointerType:'touch',clientX:100,clientY:100});await expect(phone).not.toHaveClass(/is-card-tilting/);}
    expect(await page.locator('main').evaluate(el=>Array.from(el.querySelectorAll('.sb-home-partnership, .sb-club-banner')).map(s=>s.classList.contains('sb-club-banner')?'club':s.classList.contains('sb-home-partnership--business')?'business':s.classList.contains('sb-home-partnership--referral')?'referral':'bloggers'))).toEqual(['business','club','referral','bloggers']);
-   for(const [kind,href]of [['business','/business'],['referral','/club#referral'],['bloggers','/partnerships#bloggers']])await expect(page.locator('.sb-home-partnership--'+kind+' .sb-partnership-button')).toHaveAttribute('href',href);
+   for(const [kind,href]of [['business','/business'],['referral','/club/referrals'],['bloggers','/partnerships#bloggers']])await expect(page.locator('.sb-home-partnership--'+kind+' .sb-partnership-button')).toHaveAttribute('href',href);
   }else if(path==='/club'){
-   await expect(page.locator('.is-club #referral')).toBeVisible();await expect(page.locator('.is-club #referral-rules')).toBeVisible();await expect(page.locator('#referral a')).toHaveAttribute('href','/account?tab=referrals');
+   await expect(page.locator('.sb-club-hub')).toBeVisible();await expect(page.locator('.sb-club-direction')).toHaveCount(3);await expect(page.locator('.sb-club-direction a[href="/club/referrals"]')).toBeVisible();await expect(page.locator('.sb-club-direction a[href="/business"]')).toBeVisible();await expect(page.locator('.sb-club-direction a[href="/partnerships"]')).toBeVisible();
   }else{
    await expect(page.locator('.sb-partnership-page h1')).toBeVisible();
    if(path==='/business'){
@@ -54,8 +54,9 @@ for(const width of [1440,390,320])for(const path of ['/','/business','/partnersh
     await expect(page.locator('.sb-business-hero__actions a[href="/business-registration"]')).toBeVisible();
     await expect(page.locator('.sb-business-hero__actions a[href="/b2b-login"]')).toBeVisible();
     await expect(page.locator('.sb-business-story')).toHaveCount(2);
-   }else await expect(page.locator('.sb-partnership-cover .sb-home-partnership')).toBeVisible();
-   await expect(page.locator('.sb-partnership-feature--scene')).toHaveCount(2);await expect(page.locator('.sb-partnership-scene')).toHaveCount(2);
+   }else if(path==='/partnerships') await expect(page.locator('.sb-blogger-hero')).toBeVisible();
+   else await expect(page.locator('.sb-partnership-cover .sb-home-partnership')).toBeVisible();
+   if(path==='/partnerships'){await expect(page.locator('.sb-blogger-offer')).toHaveCount(2);await expect(page.locator('.sb-partnership-scene')).toHaveCount(1);}else{await expect(page.locator('.sb-partnership-feature--scene')).toHaveCount(2);await expect(page.locator('.sb-partnership-scene')).toHaveCount(2);}
    for(const card of await page.locator('.sb-partnership-calendar,.sb-partnership-link-card,.sb-partnership-business-card,.sb-partnership-product-shot').all())expect(await card.evaluate(el=>getComputedStyle(el).transform)).toBe('none');
    if(path==='/business'){const photos=page.locator('.sb-partnership-product-shot img');expect(await photos.count()).toBeGreaterThan(0);await photos.first().scrollIntoViewIfNeeded();for(const photo of await photos.all())await expect.poll(()=>photo.evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);}
    if(path==='/partnerships'){await expect(page.locator('#referral')).toHaveCount(0);await expect(page.locator('#bloggers a')).toHaveAttribute('href','/account?tab=bloggers');await expect(page.locator('.sb-partnership-page')).not.toContainText('Рефералы');await expect(page.locator('.sb-partnership-page')).not.toContainText('Реферальная');}
@@ -63,7 +64,7 @@ for(const width of [1440,390,320])for(const path of ['/','/business','/partnersh
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width+2);
   await expect(page.locator('.sb-header-actions button > span')).toHaveCount(0);
-  if(width===1440){await expect(page.locator('.sb-page-menu a[href="/business"]')).toHaveText('Для бизнеса');await expect(page.locator('.sb-page-menu a[href="/partnerships"]')).toHaveText('Для блогеров');}
+  if(width===1440){const clubMenu=page.locator('.sb-club-menu');await expect(clubMenu.locator('.sb-club-menu__trigger')).toHaveText(/О клубе/);await clubMenu.locator('.sb-club-menu__trigger').click();await expect(clubMenu.locator('.sb-club-menu__dropdown a[href="/business"]')).toBeVisible();await expect(clubMenu.locator('.sb-club-menu__dropdown a[href="/partnerships"]')).toBeVisible();}
   expect(errors).toEqual([]);expect(writes).toEqual([]);expect(external).toEqual([]);
   if(path!=='/'){await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(400);}
   await info.attach('page',{body:await page.screenshot({fullPage:true}),contentType:'image/png'});

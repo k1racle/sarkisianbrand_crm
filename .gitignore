@@ -2,6 +2,7 @@
 # Dependencies
 node_modules/
 backend/uploads/media/
+backend/private-crm-files/
 .screenshots/
 
 # Build outputs

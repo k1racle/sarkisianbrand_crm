@@ -18,7 +18,7 @@ for (const width of [1440,390,320]) for (const path of paths) test(`Unified publ
   await expect(page.locator('main h1').first()).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width+2);
   if(path==='/catalog'||path==='/catalog/gels'){
-   await expect(page.locator('.sb-catalog-cover img')).toBeVisible();await expect(page.getByRole('navigation',{name:'Категории коллекции'})).toBeVisible();
+   await expect(page.locator('.sb-catalog-cover img')).toHaveCount(0);await expect(page.locator('.sb-catalog-cover h1')).toBeVisible();await expect(page.getByRole('navigation',{name:'Категории коллекции'})).toBeVisible();
    if(width<800){await page.getByRole('button',{name:'Фильтры и сортировка'}).click();await expect(page.getByRole('dialog',{name:'Фильтры каталога'})).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Фильтры каталога'})).toHaveCount(0);}
   }
   if(path==='/catalog/gift-card')await expect(page.locator('.sb-product-variant select')).toBeVisible();

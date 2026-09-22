@@ -7,7 +7,7 @@ function harness(file){
  assert.deepEqual(compileTemplate({source:d.template.content,id:'check',filename:file,compilerOptions:{bindingMetadata:compileScript(d,{id:'check'}).bindings}}).errors,[]);
  const calls=[],hooks={leave:[],update:[]},state={confirm:false,handler:()=>{throw {data:{message:'Mock failure'}}}},route=Vue.reactive({query:{section:'clients'}}),token=Vue.ref('invalid-mock-token');
  const ctx={...Vue,AbortController,console,window:{confirm:()=>state.confirm},setTimeout:()=>0,clearTimeout:()=>{},
-  onMounted:()=>{},onBeforeUnmount:()=>{},onBeforeRouteLeave:f=>hooks.leave.push(f),onBeforeRouteUpdate:f=>hooks.update.push(f),watch:()=>{},
+  useHead:()=>{},onMounted:()=>{},onBeforeUnmount:()=>{},onBeforeRouteLeave:f=>hooks.leave.push(f),onBeforeRouteUpdate:f=>hooks.update.push(f),watch:()=>{},
   useRoute:()=>route,useRouter:()=>({push:async()=>{assert.equal(ctx.result.saving.value,false,'Own successful navigation must run after save unlock');}}),
   useRuntimeConfig:()=>({public:{apiBase:'http://mock.invalid/api/v1',siteUrl:'http://mock.invalid'}}),
   useWorkspaceSession:()=>({token,user:Vue.ref({id:'mock-user',role:'ADMIN'})}),useB2BSession:()=>({token,hydrate:()=>{},restore:async()=>({role:'CUSTOMER_B2B'})}),
@@ -22,7 +22,7 @@ function harness(file){
 }
 async function main(){
  let count=0;function passed(){count++;}
- for(const file of ['pages/crm-customers.vue','pages/crm-organizations.vue']){
+ for(const file of ['pages/crm/customers.vue','pages/crm/organizations.vue']){
   const h=harness(file),a=h.api,open=a.openCustomer||a.openOrganization,save=a.saveCustomer||a.saveOrganization;
   await open({id:'fixture'});assert.equal(a.selected.value,null);assert.match(a.error.value,/Mock failure/);passed();
   h.state.handler=async()=>({id:'fixture',firstName:'Before',name:'Before'});await open({id:'fixture'});
@@ -30,6 +30,7 @@ async function main(){
   h.state.handler=()=>{throw {data:{message:['Validation failed','Keep draft']}}};await save();assert.equal(a.selected.value.firstName,'Unsaved');assert.match(a.error.value,/Validation failed/);assert.equal(a.actionBusy.value,false);passed();
   let release;h.state.handler=()=>new Promise(resolve=>release=resolve);const pending=save();await save();assert.equal(a.actionBusy.value,true);assert.equal(h.hooks.leave.every(f=>f()),false);release({id:'fixture',name:'Saved'});h.state.handler=async()=>file.includes('organizations')?[]:{};await pending;assert.equal(a.actionBusy.value,false);passed();
  }
+ if(process.argv.includes('--crm-only')) { console.log(count+' CRM operation groups PASS: load errors, draft guards, validation, single-flight and save unlock. Network writes: 0.'); return; }
  const b=harness('pages/b2b.vue'),a=b.api;
  a.open('client');a.draft.firstName='Draft';assert.equal(a.close(),false);assert.equal(a.dialog.value,'client');passed();
  await a.saveClient();assert.equal(a.draft.firstName,'Draft');assert.equal(a.dialog.value,'client');assert.match(a.error.value,/Mock failure/);passed();

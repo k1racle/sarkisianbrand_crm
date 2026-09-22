@@ -24,7 +24,8 @@ const context = { exports: {}, URLSearchParams, computed: vue.computed, watch: v
   onMounted: fn => mounted.push(fn),
   localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
 };
-const compiled = stripTypeScriptTypes(source.replaceAll('import.meta.client', 'true')).replace(/^export /gm, '')
+const crmSource = stripTypeScriptTypes(fs.readFileSync(path.join(root, 'shared/crm-workspace.ts'), 'utf8')).replace(/^export /gm, '');
+const compiled = crmSource + '\n' + stripTypeScriptTypes(source.replaceAll('import.meta.client', 'true')).replace(/^import .*;\s*$/gm, '').replace(/^export /gm, '')
   + '\nexports = { WORKSPACE_NAVIGATION, WORKSPACE_AREAS, buildWorkspaceNavigation, flattenWorkspaceNavigation, findWorkspaceLeaf, searchWorkspaceLeaves, sanitizeWorkspacePreferences, useWorkspaceNavigation };';
 vm.runInNewContext(compiled, context, { filename: 'workspace-navigation-isolated.js' });
 const h = context.exports;
@@ -39,7 +40,7 @@ check('unique-registry-ids-and-destinations', () => {
 check('only-real-page-routes-and-coordinated-site-content', () => {
   for (const leaf of leaves) {
     const routePath = leaf.to.split('?')[0].slice(1);
-    assert.ok(fs.existsSync(path.join(root, 'pages', routePath + '.vue')), leaf.id);
+    assert.ok(fs.existsSync(path.join(root, 'pages', routePath + '.vue')) || fs.existsSync(path.join(root, 'pages', routePath, 'index.vue')), leaf.id);
     assert.ok(!/warehouse|refund/.test(leaf.to), leaf.id);
   }
   assert.equal(leaves.filter(x => x.id === 'site-content').length, 1);
@@ -108,7 +109,7 @@ check('default-query-sections-and-no-prefix-misclassification', () => {
   assert.equal(h.findWorkspaceLeaf(all, '/admin-workspace').id, 'web-dashboard');
   assert.equal(h.findWorkspaceLeaf(all, '/crm-marketplaces').id, 'channel-dashboard');
   assert.equal(h.findWorkspaceLeaf(all, '/system-settings', 'overview').id, 'system-overview');
-  assert.equal(h.findWorkspaceLeaf(all, '/crm-customers').id, 'customers');
+  assert.equal(h.findWorkspaceLeaf(all, '/crm/customers').id, 'customers');
   assert.equal(h.findWorkspaceLeaf(all, '/crm-unknown'), null);
   assert.equal(h.findWorkspaceLeaf(all, '/admin-workspace', ['orders', 'products']), null);
 });

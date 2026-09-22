@@ -1,0 +1,45 @@
+@layer crm-shell {
+ html[data-crm-ui] .crm-content-toolbar { display:grid; gap:12px; padding:16px; }
+ html[data-crm-ui] .crm-content-toolbar > select { min-width:0; }
+ html[data-crm-ui] .crm-content-archive { display:flex; align-items:center; gap:10px; }
+ html[data-crm-ui] .crm-content-controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:20px 0 8px; }
+ html[data-crm-ui] .crm-content-controls strong { text-transform:capitalize!important; }
+ html[data-crm-ui] .crm-content-views { display:flex; flex-wrap:wrap; padding:4px; gap:4px; background:#fff; border:1px solid var(--crm-line); border-radius:12px; }
+ html[data-crm-ui] .crm-content-views button { display:flex; gap:8px; align-items:center; padding:10px 12px; min-height:44px; }
+ html[data-crm-ui] .crm-content-period { font-size:var(--crm-type-caption)!important; margin:12px 0 20px; }
+ html[data-crm-ui] .crm-content-empty { display:grid; justify-items:center; text-align:center; padding:40px 24px; gap:12px; }
+ html[data-crm-ui] .crm-content-empty p { max-width:550px; margin:0; }
+ html[data-crm-ui] .crm-content-empty > svg { color:var(--crm-accent); }
+ html[data-crm-ui] .crm-content-list { display:grid; gap:10px; }
+ html[data-crm-ui] .crm-publication { display:flex!important; flex-wrap:wrap!important; align-items:center; justify-content:space-between; gap:10px 16px!important; width:100%; padding:16px!important; text-align:left; cursor:pointer; min-width:0; }
+ html[data-crm-ui] .crm-publication > div { flex:1 0 100%; display:grid; gap:5px; min-width:0; }
+ html[data-crm-ui] .crm-publication strong { overflow-wrap:anywhere; }
+ html[data-crm-ui] .crm-content-status { display:inline-flex; align-items:center; padding:4px 8px; }
+ html[data-crm-ui] .crm-content-board { display:flex; gap:16px; overflow-x:auto; padding-bottom:16px; align-items:flex-start; }
+ html[data-crm-ui] .crm-content-board > section { flex:0 0 270px; padding:12px; min-height:220px; display:grid; gap:12px; }
+ html[data-crm-ui] .crm-content-board > section > header { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:4px; }
+ html[data-crm-ui] .crm-content-board h2 { font-size:var(--crm-type-body)!important; margin:0; }
+ html[data-crm-ui] .crm-content-board .crm-publication { display:grid!important; justify-content:stretch; gap:6px!important; cursor:grab; user-select:none; -webkit-touch-callout:none; }
+ html[data-crm-ui] .crm-content-calendar { display:grid; gap:12px; }
+ html[data-crm-ui] .crm-content-day { background:#fff; border:1px solid var(--crm-line); border-radius:12px; padding:12px; min-width:0; min-height:110px; }
+ html[data-crm-ui] .crm-content-day.is-today { border-color:var(--crm-accent); box-shadow:inset 0 3px var(--crm-accent); }
+ html[data-crm-ui] .crm-content-day > header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+ html[data-crm-ui] .crm-content-day .crm-publication { display:grid!important; padding:10px!important; margin-bottom:8px; gap:5px!important; }
+ html[data-crm-ui] .crm-content-unscheduled { margin-top:24px; }
+ html[data-crm-ui] .crm-content-footnote { font-size:var(--crm-type-caption)!important; margin-top:24px; }
+ html[data-crm-ui] .crm-content-notice { padding:12px 16px; background:var(--crm-success-bg); border-radius:10px; color:var(--crm-success)!important; }
+ html[data-crm-ui] .crm-content-editor { width:min(800px,100%); max-height:calc(100dvh - 32px); overflow:auto; padding:20px; border-radius:16px; overscroll-behavior:contain; }
+ html[data-crm-ui] .crm-content-fields { border:0; padding:0; margin:0 0 20px; display:grid; gap:16px; min-width:0; }
+ html[data-crm-ui] .crm-content-fields > label,html[data-crm-ui] .crm-content-comment-form > label { display:grid; gap:8px; min-width:0; }
+ html[data-crm-ui] .crm-content-fields :is(input,select,textarea),html[data-crm-ui] .crm-content-comment-form textarea { width:100%; min-width:0; resize:vertical; }
+ html[data-crm-ui] .crm-content-editor .crm-primary-button { width:auto!important; min-height:44px; padding:10px 16px; }
+ html[data-crm-ui] .crm-content-related { margin-top:24px; border-top:1px solid var(--crm-line); padding-top:20px; }
+ html[data-crm-ui] .crm-content-comments { border-top:1px solid var(--crm-line); margin-top:24px; padding-top:20px; }
+ html[data-crm-ui] .crm-content-comments h3 { display:flex; gap:10px; align-items:center; }
+ html[data-crm-ui] .crm-content-comment-form { display:grid; gap:10px; margin:16px 0; }
+ html[data-crm-ui] .crm-content-comments article { padding:16px 0; border-bottom:1px solid var(--crm-line); }
+ html[data-crm-ui] .crm-content-comments article header { display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; }
+ html[data-crm-ui] .crm-content-comments article p { white-space:pre-wrap; overflow-wrap:anywhere; margin-bottom:0; }
+ @media(min-width:640px){html[data-crm-ui] .crm-content-fields {grid-template-columns:repeat(2,minmax(0,1fr));}html[data-crm-ui] .crm-content-fields .wide {grid-column:1/-1;}html[data-crm-ui] .crm-content-toolbar {grid-template-columns:repeat(2,minmax(0,1fr));}html[data-crm-ui] .crm-publication > div {flex:1;}html[data-crm-ui] .crm-content-calendar {grid-template-columns:repeat(3,minmax(0,1fr));}}
+ @media(min-width:1280px){html[data-crm-ui] .crm-content-toolbar {grid-template-columns:2fr repeat(3,minmax(0,1fr)) auto;}html[data-crm-ui] .crm-content-calendar {grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}html[data-crm-ui] .crm-content-day {padding:8px;}}
+}

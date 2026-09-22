@@ -116,4 +116,5 @@ async function main(){
   }}finally{await browser.close();}
   console.log(total+' isolated rendered dialog scenarios PASS. Actual API writes: 0.');
 }
-main().catch(error=>{console.error(error);process.exitCode=1;});
+module.exports={fixtures,cases};
+if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;});

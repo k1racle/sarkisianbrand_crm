@@ -1,0 +1,1 @@
+import{_ as e}from"./B2YQVt4K.js";import{d as o,b6 as n,A as t,m as a}from"./S8Twd-2B.js";import"./CQLdF6ND.js";const p=o({__name:"integrations",setup(s){return n({meta:[{name:"robots",content:"noindex, nofollow"}]}),(r,i)=>(a(),t(e,{"page-section":"integrations"}))}});export{p as default};

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { LeadStatus, Prisma, TaskStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { recordCrmChange, taskHistoryFields, leadHistoryFields } from './history';
 import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineStageDto, CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, CreateTaskTemplateDto, ReorderPipelineStagesDto, UpdateLeadDto, UpdatePipelineDto, UpdatePipelineStageDto, UpdateTaskDto, UpdateTaskTemplateDto } from './dto/crm.dto';
 
 const crmRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER_B2B, UserRole.MANAGER_SALES, UserRole.SUPERVISOR];
@@ -163,6 +164,7 @@ export class CrmService {
         expectedCloseAt: dto.expectedCloseAt ? new Date(dto.expectedCloseAt) : undefined, nextContactAt: dto.nextContactAt ? new Date(dto.nextContactAt) : undefined, tags: dto.tags || [],
       } });
       await tx.interaction.create({ data: { leadId: created.id, customerId: customer.id, userId: actorId, type: 'CREATED', content: `Сделка создана на этапе «${stage.name}»` } });
+      await recordCrmChange(tx,actorId,'crm.lead',created.id,null,created,leadHistoryFields,'Создана сделка');
       return created;
     });
     return this.lead(lead.id);
@@ -180,7 +182,7 @@ export class CrmService {
     }
     const nextStatus = stage ? this.statusForStage(stage) : dto.status;
     await this.prisma.$transaction(async tx => {
-      await tx.lead.update({ where: { id }, data: {
+      const updated = await tx.lead.update({ where: { id }, data: {
         source: dto.source, title: dto.title, contactName: dto.contactName, contactPhone: dto.contactPhone, contactEmail: dto.contactEmail, message: dto.message,
         status: nextStatus, stageId: dto.stageId, managerId: dto.managerId, customerId: dto.customerId, organizationId: dto.organizationId,
         amount: dto.amount, probability: dto.probability ?? stage?.probability, expectedCloseAt: dto.expectedCloseAt ? new Date(dto.expectedCloseAt) : undefined,
@@ -188,6 +190,7 @@ export class CrmService {
         closedAt: nextStatus && ([LeadStatus.WON, LeadStatus.LOST] as LeadStatus[]).includes(nextStatus) ? new Date() : nextStatus ? null : undefined,
       } });
       if (stage && stage.id !== current.stageId) await tx.interaction.create({ data: { leadId: id, customerId: current.customerId, userId: actorId, type: 'STAGE_CHANGED', content: `Этап изменён: «${current.stage?.name || current.status}» → «${stage.name}»` } });
+      await recordCrmChange(tx,actorId,'crm.lead',id,current,updated,leadHistoryFields);
     });
     return this.lead(id);
   }
@@ -207,40 +210,119 @@ export class CrmService {
     const assignedToId = dto.assignedToId || actorId;
     await this.assertTeamMember(assignedToId);
     this.assertDates(dto.startDate, dto.dueDate);
-    const task = await this.prisma.task.create({ data: {
+    if (!dto.title.trim()) throw new BadRequestException('Введите название задачи');
+    const task = await this.taskTransaction(async db => {
+      await this.assertTaskParent(db, dto.parentId);
+      const created = await db.task.create({ data: {
       title: dto.title, description: dto.description, assignedToId, createdById: actorId, leadId: dto.leadId, customerId: dto.customerId, organizationId: dto.organizationId,
-      orderId: dto.orderId, parentId: dto.parentId, status: dto.status || TaskStatus.TODO, priority: dto.priority || 'MEDIUM', progress: dto.progress || 0,
+      orderId: dto.orderId, parentId: dto.parentId, status: dto.status || TaskStatus.TODO, priority: dto.priority || 'MEDIUM', progress: dto.status === TaskStatus.DONE ? 100 : dto.progress || 0,
       position: dto.position || 0, startDate: dto.startDate ? new Date(dto.startDate) : undefined, dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       estimateMinutes: dto.estimateMinutes, labels: dto.labels || [], templateId: dto.templateId, completedAt: dto.status === TaskStatus.DONE ? new Date() : undefined,
-    } });
+      } });
+      await this.syncParentProgress(db, created.parentId);
+      await recordCrmChange(db,actorId,'crm.task',created.id,null,created,taskHistoryFields,'Создана задача');
+      if(created.leadId)await recordCrmChange(db,actorId,'crm.lead',created.leadId,null,{task:created.title},['task'],'Добавлена подзадача');
+      return created;
+    });
     await this.syncTaskReminder(task.id, assignedToId, task.dueDate, dto.reminderBeforeMinutes ?? 60);
     return this.prisma.task.findUniqueOrThrow({ where: { id: task.id }, include: this.taskInclude() });
   }
 
-  async updateTask(id: string, dto: UpdateTaskDto) {
-    const current = await this.prisma.task.findUnique({ where: { id } });
-    if (!current) throw new NotFoundException('Задача не найдена');
+  async updateTask(id: string, dto: UpdateTaskDto, beforeId?: string | null, actorId?: string) {
+    if (dto.title !== undefined && !dto.title.trim()) throw new BadRequestException('Введите название задачи');
     if (dto.assignedToId) await this.assertTeamMember(dto.assignedToId);
+    const task = await this.taskTransaction(async db => {
+    const current = await db.task.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Задача не найдена');
+    await this.assertTaskParent(db, dto.parentId, id);
     this.assertDates(dto.startDate || current.startDate?.toISOString(), dto.dueDate || current.dueDate?.toISOString());
     const status = dto.status;
-    const task = await this.prisma.task.update({ where: { id }, data: {
+    const children = await db.task.findMany({ where: { parentId: id, status: { not: TaskStatus.CANCELLED } } });
+    if (status === TaskStatus.CANCELLED && children.length) throw new BadRequestException('Сначала перенесите в архив подзадачи');
+    if (status === TaskStatus.DONE && children.some((child: any) => child.status !== TaskStatus.DONE)) throw new BadRequestException('Сначала завершите все подзадачи');
+    const progress = children.length ? Math.round(children.reduce((sum: number, c: any) => sum + c.progress, 0) / children.length) : (status || current.status) === TaskStatus.DONE ? 100 : dto.progress ?? (current.status === TaskStatus.DONE && status ? 0 : undefined);
+    const updated = await db.task.update({ where: { id }, data: {
       title: dto.title, description: dto.description, assignedToId: dto.assignedToId, leadId: dto.leadId, customerId: dto.customerId, organizationId: dto.organizationId,
-      orderId: dto.orderId, parentId: dto.parentId, status, priority: dto.priority, progress: status === TaskStatus.DONE ? 100 : dto.progress,
+      orderId: dto.orderId, parentId: dto.parentId, status, priority: dto.priority, progress,
       position: dto.position, startDate: dto.startDate ? new Date(dto.startDate) : undefined, dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       estimateMinutes: dto.estimateMinutes, labels: dto.labels, completedAt: status === TaskStatus.DONE ? new Date() : status ? null : undefined,
     } });
+    await this.syncParentProgress(db, current.parentId);
+    if (updated.parentId !== current.parentId) await this.syncParentProgress(db, updated.parentId);
+    await recordCrmChange(db,actorId,'crm.task',id,current,updated,taskHistoryFields);
+    if (beforeId !== undefined) {
+      const cards = await db.task.findMany({ where: { status: updated.status, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'desc' }] });
+      const index = beforeId ? cards.findIndex((item: any) => item.id === beforeId) : cards.length;
+      cards.splice(index < 0 ? cards.length : index, 0, { id });
+      for (let i = 0; i < cards.length; i++) if (cards[i].position !== i) await db.task.update({ where: { id: cards[i].id }, data: { position: i } });
+    }
+    return updated;
+    });
     if (dto.dueDate !== undefined || dto.assignedToId !== undefined || dto.reminderBeforeMinutes !== undefined) await this.syncTaskReminder(task.id, task.assignedToId, task.dueDate, dto.reminderBeforeMinutes ?? 60);
     return this.prisma.task.findUniqueOrThrow({ where: { id }, include: this.taskInclude() });
   }
 
-  async archiveTask(id: string) {
-    if (!await this.prisma.task.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Задача не найдена');
-    return this.prisma.task.update({ where: { id }, data: { status: TaskStatus.CANCELLED, completedAt: null } });
+  async archiveTask(id: string, actorId?: string) {
+    return this.taskTransaction(async db => {
+      const task = await db.task.findUnique({ where: { id } });
+      if (!task) throw new NotFoundException('Задача не найдена');
+      if (await db.task.count({ where: { parentId: id, status: { not: TaskStatus.CANCELLED } } })) throw new BadRequestException('Сначала перенесите в архив подзадачи');
+      const archived = await db.task.update({ where: { id }, data: { status: TaskStatus.CANCELLED, completedAt: null } });
+      await this.syncParentProgress(db, task.parentId);
+      await recordCrmChange(db,actorId,'crm.task',id,task,archived,taskHistoryFields,'Перенесена в архив');
+      return archived;
+    });
   }
 
   async addTaskComment(id: string, dto: CreateTaskCommentDto, actorId: string) {
+    if (!dto.body.trim()) throw new BadRequestException('Введите текст комментария');
     if (!await this.prisma.task.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Задача не найдена');
-    return this.prisma.crmTaskComment.create({ data: { taskId: id, authorId: actorId, body: dto.body }, include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
+    return this.prisma.crmTaskComment.create({ data: { taskId: id, authorId: actorId, body: dto.body.trim() }, include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
+  }
+
+  async taskComments(id: string, before?: string) {
+    if (!await this.prisma.task.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Задача не найдена');
+    if (before && !await this.prisma.crmTaskComment.findFirst({ where: { id: before, taskId: id } })) throw new BadRequestException('Некорректный курсор комментариев');
+    return this.prisma.crmTaskComment.findMany({ where: { taskId: id }, ...(before ? { cursor: { id: before }, skip: 1 } : {}), take: 30, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
+  }
+
+  async moveTask(id: string, status: TaskStatus, beforeId?: string, actorId?: string) {
+    if (status === TaskStatus.CANCELLED) throw new BadRequestException('Для архива используйте действие «Перенести в архив»');
+    return this.updateTask(id, { status }, beforeId || null, actorId);
+  }
+
+  async history(kind:'task'|'lead',id:string,before?:string){
+    const entity=kind==='task'?await this.prisma.task.findUnique({where:{id}}):await this.prisma.lead.findUnique({where:{id}});
+    if(!entity)throw new NotFoundException('Карточка не найдена');
+    const where={resource:`crm.${kind}`,resourceId:id};
+    if(before&&!await this.prisma.auditLog.findFirst({where:{...where,id:before}}))throw new BadRequestException('Некорректный курсор истории');
+    const items=await this.prisma.auditLog.findMany({where,...(before?{cursor:{id:before},skip:1}:{}),take:31,orderBy:[{createdAt:'desc'},{id:'desc'}],select:{id:true,action:true,payload:true,createdAt:true,actor:{select:{id:true,firstName:true,lastName:true,email:true}}}});
+    return {items:items.slice(0,30),more:items.length>30};
+  }
+
+  private taskTransaction<T>(operation: (db: any) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async db => { await db.$executeRaw`SELECT pg_advisory_xact_lock(73422110)`; return operation(db); });
+  }
+  private async assertTaskParent(db: any, parentId?: string | null, id?: string) {
+    let current = parentId, depth = 0;
+    while (current) {
+      if (current === id || ++depth > 30) throw new BadRequestException('Циклическая или слишком глубокая вложенность подзадач');
+      const parent = await db.task.findFirst({ where: { id: current, status: { not: TaskStatus.CANCELLED } } });
+      if (!parent) throw new BadRequestException('Родительская задача не найдена');
+      current = parent.parentId;
+    }
+  }
+  private async syncParentProgress(db: any, parentId?: string | null) {
+    let current = parentId;
+    for (let depth = 0; current && depth < 30; depth++) {
+      const parent = await db.task.findUnique({ where: { id: current } });
+      if (!parent) break;
+      const children = await db.task.findMany({ where: { parentId: current, status: { not: TaskStatus.CANCELLED } } });
+      const progress = children.length ? Math.round(children.reduce((sum: number, c: any) => sum + c.progress, 0) / children.length) : parent.progress;
+      const reopen = parent.status === TaskStatus.DONE && children.some((c: any) => c.status !== TaskStatus.DONE);
+      await db.task.update({ where: { id: current }, data: { progress, ...(reopen ? { status: TaskStatus.IN_PROGRESS, completedAt: null } : {}) } });
+      current = parent.parentId;
+    }
   }
 
   taskTemplates() {
@@ -352,6 +434,6 @@ export class CrmService {
   }
 
   private taskInclude() {
-    return { assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } }, createdBy: { select: { id: true, firstName: true, lastName: true, email: true } }, lead: { select: { id: true, title: true, contactName: true } }, customer: { select: { id: true, firstName: true, lastName: true, email: true } }, organization: { select: { id: true, name: true } }, order: { select: { id: true, orderNumber: true } }, template: { select: { id: true, name: true } }, reminders: { where: { dismissedAt: null }, orderBy: { remindAt: 'asc' as const } }, comments: { include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } }, orderBy: { createdAt: 'desc' as const }, take: 10 }, _count: { select: { children: true, comments: true } } };
+    return { children: { where: { status: { not: TaskStatus.CANCELLED } }, orderBy: { createdAt: 'asc' as const }, include: { assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } } } }, parent: { select: { id: true, title: true } }, assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } }, createdBy: { select: { id: true, firstName: true, lastName: true, email: true } }, lead: { select: { id: true, title: true, contactName: true } }, customer: { select: { id: true, firstName: true, lastName: true, email: true } }, organization: { select: { id: true, name: true } }, order: { select: { id: true, orderNumber: true } }, template: { select: { id: true, name: true } }, reminders: { where: { dismissedAt: null }, orderBy: { remindAt: 'asc' as const } }, comments: { include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } }, orderBy: { createdAt: 'desc' as const }, take: 10 }, _count: { select: { children: true, comments: true } } };
   }
 }

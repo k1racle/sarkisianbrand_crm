@@ -36,7 +36,7 @@ for (const width of [1440, 390, 320]) test(`Club editorial layout ${width}`, asy
   const f = await isolated(browser, width);
   try {
     const { page } = f;
-    await page.goto('/club', { waitUntil: 'networkidle' });
+    await page.goto('/club/referrals', { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
     const hero = page.locator('.is-club .sb-content-hero');
     expect(await hero.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');

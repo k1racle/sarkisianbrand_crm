@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Grid2X2, Heart, Menu, ShoppingBag, UserRound } from '@lucide/vue';
+import { ArrowRight, ChevronDown, Grid2X2, Heart, Menu, ShoppingBag, UserRound } from '@lucide/vue';
 
 const route = useRoute();
 const scrolled = ref(false);
@@ -7,6 +7,14 @@ let scrollFrame: number | undefined;
 const { user, cartCount, favoriteIds, loadCart, loadMe, syncFavorites, bindCart } = useStorefront();
 const { content, siteContent, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
 await loadStorefrontContent();
+const clubMenuOpen = ref(false);
+const primaryMenuItems = computed(() => content.value.menuItems.filter(item => !['/club', '/business', '/partnerships'].includes(item.url)));
+const clubMenuItem = computed(() => content.value.menuItems.find(item => item.url === '/club') || { id: 'club', label: 'О клубе', url: '/club' });
+const clubMenuDirections = [
+  { label: 'Для покупателей', description: 'Бонусы и история покупок', url: '/club/referrals' },
+  { label: 'Для бизнеса', description: 'Закупки, команда и запись', url: '/business' },
+  { label: 'Для блогеров', description: 'Контент и вознаграждение', url: '/partnerships' },
+];
 const { catalogOpen, authOpen, cartOpen, favoritesOpen, menuOpen, closeAll, openCatalog, openAuth, openCart, openFavorites, openMenu } = useStorefrontPanels();
 const panelOpen = computed(() => catalogOpen.value || authOpen.value || cartOpen.value || favoritesOpen.value || menuOpen.value);
 let previousOverflow = '';
@@ -22,6 +30,7 @@ function afterPanelLeave() {
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && panelOpen.value) closeAll();
+  if (event.key === 'Escape' && clubMenuOpen.value) clubMenuOpen.value = false;
   if (event.key !== 'Tab' || !panelOpen.value) return;
   const drawer = activeDrawer();
   const controls = [...(drawer?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]') || [])].filter(el => el.getClientRects().length);
@@ -58,9 +67,14 @@ function onScroll() {
   });
 }
 
+function onDocumentPointerdown(event: PointerEvent) {
+  if (clubMenuOpen.value && !(event.target instanceof Node && (event.target as Element).closest('.sb-club-menu'))) clubMenuOpen.value = false;
+}
+
 onMounted(async () => {
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('keydown', onKeydown);
+  document.addEventListener('pointerdown', onDocumentPointerdown);
   onScroll();
   loadStorefrontContent().catch(() => undefined);
   await loadMe().catch(() => undefined);
@@ -72,6 +86,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll);
   window.removeEventListener('keydown', onKeydown);
+  document.removeEventListener('pointerdown', onDocumentPointerdown);
   if (scrollFrame !== undefined) window.cancelAnimationFrame(scrollFrame);
   if (scrollLocked) document.documentElement.style.overflow = previousOverflow;
 });
@@ -85,6 +100,7 @@ watch(panelOpen, (open) => {
 });
 
 watch(() => route.fullPath, closeAll);
+watch(() => route.fullPath, () => { clubMenuOpen.value = false; });
 </script>
 
 <template>
@@ -99,7 +115,14 @@ watch(() => route.fullPath, closeAll);
         <button class="sb-catalog-button" @click="openCatalog"><Menu :size="17" /><span>Каталог</span></button>
 
         <nav class="sb-page-menu" aria-label="Страницы сайта">
-          <SiteMenuLink v-for="item in content.menuItems" :key="item.id" :item="item" />
+          <div class="sb-club-menu" :class="{ 'is-open': clubMenuOpen }" @mouseenter="clubMenuOpen = true">
+            <button type="button" class="sb-menu-link sb-club-menu__trigger" :aria-expanded="clubMenuOpen" aria-haspopup="true" @click="clubMenuOpen = true"><span>{{ clubMenuItem.label }}</span><ChevronDown :size="15" aria-hidden="true" /></button>
+            <div v-show="clubMenuOpen" class="sb-club-menu__dropdown" role="menu">
+              <NuxtLink class="sb-club-menu__home" to="/club" role="menuitem" @click="clubMenuOpen = false"><strong>О клубе</strong></NuxtLink>
+              <NuxtLink v-for="direction in clubMenuDirections" :key="direction.url" :to="direction.url" role="menuitem" @click="clubMenuOpen = false"><span><strong>{{ direction.label }}</strong><small>{{ direction.description }}</small></span><ArrowRight :size="15" aria-hidden="true" /></NuxtLink>
+            </div>
+          </div>
+          <SiteMenuLink v-for="item in primaryMenuItems" :key="item.id" :item="item" />
         </nav>
 
         <nav class="sb-header-actions" aria-label="Покупки и аккаунт">

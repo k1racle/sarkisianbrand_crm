@@ -1,3 +1,4 @@
+import { crmDestination } from '~/shared/crm-workspace';
 /** Navigation is presentation only. Backend permissions remain authoritative. */
 export type WorkspaceLeaf = {
   id: string;
@@ -57,12 +58,14 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'product-badges', label: 'Бейджи товаров', to: '/admin-workspace/product-badges', permission: 'catalog.read', roles: CATALOG, keywords: 'новинка популярное скидка метки' },
   ] },
   { id: 'crm', label: 'CRM', description: 'Клиенты, организации, воронка и задачи команды.', icon: 'Users', items: [
-    { id: 'crm-dashboard', label: 'Обзор CRM', to: '/crm', permission: 'crm.read', roles: CRM },
-    { id: 'pipeline', label: 'Воронка продаж', to: '/crm-pipeline', permission: 'crm.read', roles: CRM, keywords: 'сделки лиды kanban' },
-    { id: 'customers', label: 'Клиенты 360°', to: '/crm-customers', permission: 'customers.read', roles: CRM },
+    { id: 'crm-dashboard', label: 'Обзор CRM', to: '/crm/', permission: 'crm.read', roles: CRM },
+    { id: 'pipeline', label: 'Воронка продаж', to: '/crm/deals', permission: 'crm.read', roles: CRM, keywords: 'сделки лиды kanban' },
+    { id: 'customers', label: 'Клиенты 360°', to: '/crm/customers', permission: 'customers.read', roles: CRM },
     { id: 'web-customers', label: 'Клиенты интернет-магазина', to: '/admin-workspace/customers', permission: 'crm.read', roles: MARKETING },
-    { id: 'organizations', label: 'Организации B2B', to: '/crm-organizations', permission: 'customers.read', roles: CRM, keywords: 'компании партнеры' },
-    { id: 'tasks', label: 'Задачи', to: '/crm-tasks', permission: 'crm.read', roles: CRM, keywords: 'календарь gantt команда' },
+    { id: 'organizations', label: 'Организации B2B', to: '/crm/organizations', permission: 'customers.read', roles: CRM, keywords: 'компании партнеры' },
+    { id: 'tasks', label: 'Задачи', to: '/crm/tasks', permission: 'crm.read', roles: CRM, keywords: 'календарь gantt команда' },
+    { id: 'crm-files', label: 'Файлы', to: '/crm/files', permission: 'crm.read', roles: CRM, keywords: 'диск документы папки вложения загрузка' },
+    { id: 'content-plan', label: 'Контент-план', to: '/crm/content-plan', permission: 'content_plan.read', roles: [...CRM, 'CONTENT_MANAGER'], keywords: 'smm смм контент календарь рилс reels shorts шортс сценарий публикации' },
   ] },
   { id: 'loyalty', label: 'Бонусная программа', description: 'Правила клуба и бонусные счета клиентов.', icon: 'Award', items: [
     { id: 'loyalty-settings', label: 'Настройки программы', to: '/admin-workspace/loyalty-settings', permission: 'loyalty.read', roles: MARKETING, keywords: 'клуб баллы правила sarkisian club начисления' },
@@ -135,6 +138,8 @@ export function flattenWorkspaceNavigation(groups: readonly WorkspaceGroup[]): W
 }
 const DEFAULT_SECTIONS: Record<string, string> = { '/admin-workspace': 'dashboard', '/crm-marketplaces': 'dashboard', '/helpdesk': 'overview', '/leadership': 'overview', '/system-settings': 'overview' };
 export function findWorkspaceLeaf(groups: readonly WorkspaceGroup[], path: string, section?: unknown): WorkspaceDestination | null {
+  const crm = crmDestination(path);
+  if (crm) return flattenWorkspaceNavigation(groups).find(item => item.id === crm.id) || null;
   if (Array.isArray(section)) return null;
   const current = String(section || DEFAULT_SECTIONS[path] || '');
   const destination = DEFAULT_SECTIONS[path] ? `${path}/${path === '/crm-marketplaces' && ['dashboard', 'settings'].includes(current) ? current === 'settings' ? 'integrations' : 'overview' : current}` : path;

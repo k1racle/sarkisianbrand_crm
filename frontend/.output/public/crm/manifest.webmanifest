@@ -1,0 +1,23 @@
+{
+  "id": "/crm/",
+  "name": "SARKISIAN CRM",
+  "short_name": "SARKISIAN",
+  "description": "Клиенты, сделки и задачи команды SARKISIAN",
+  "lang": "ru",
+  "start_url": "/crm/",
+  "scope": "/crm/",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#f6f7fb",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/crm/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/crm/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/crm/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Клиенты", "url": "/crm/customers" },
+    { "name": "Сделки", "url": "/crm/deals" },
+    { "name": "Задачи", "url": "/crm/tasks" }
+  ]
+}

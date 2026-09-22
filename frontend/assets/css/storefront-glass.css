@@ -86,6 +86,21 @@
 .sb-page-menu { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; padding: 10px 0; }
 .sb-page-menu a { color: var(--sf-black); font-size: var(--sb-type-small); font-weight: var(--sb-weight-medium); line-height: var(--sb-leading-control); text-align: center; overflow-wrap: anywhere; }
 .sb-menu-link { position: relative; isolation: isolate; border-radius: 14px; padding: 12px 14px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.sb-club-menu { position: relative; z-index: 20; }
+.sb-club-menu__trigger { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 14px; padding: 12px 14px; appearance: none; background: transparent !important; color: var(--sf-black); font-family: var(--sb-font) !important; font-size: var(--sb-type-small) !important; font-weight: var(--sb-weight-medium) !important; line-height: var(--sb-leading-control) !important; cursor: pointer; }
+.sb-club-menu__trigger svg { transition: transform .22s ease; }
+.sb-club-menu.is-open .sb-club-menu__trigger svg { transform: rotate(180deg); }
+.sb-club-menu__dropdown { position: absolute; z-index: 30; top: calc(100% - 1px); left: 50%; width: min(292px, calc(100vw - 32px)); padding: 9px; transform: translateX(-50%); border: 1px solid rgba(28,27,26,.10); border-radius: 20px; background: #fff; box-shadow: 0 22px 50px rgba(25,20,18,.16), inset 0 1px 0 #fff; }
+.sb-club-menu__dropdown::before { content: ''; position: absolute; top: -7px; left: 50%; width: 13px; height: 13px; transform: translateX(-50%) rotate(45deg); border-top: 1px solid rgba(28,27,26,.10); border-left: 1px solid rgba(28,27,26,.10); background: #fff; }
+.sb-club-menu__dropdown a { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 50px; padding: 11px 12px; border-radius: 13px; color: var(--sf-black); text-align: left; text-decoration: none; }
+.sb-club-menu__dropdown a:hover { background: #f3f1ef; }
+.sb-club-menu__dropdown a > span { display: grid; gap: 3px; }
+.sb-club-menu__dropdown strong { font-size: var(--sb-type-caption); font-weight: var(--sb-weight-semibold); }
+.sb-club-menu__dropdown small { color: var(--sf-muted); font-size: var(--sb-type-micro); line-height: 1.35; }
+.sb-club-menu__dropdown svg { flex: none; color: var(--sf-muted); transition: transform .2s ease; }
+.sb-club-menu__dropdown a:hover svg { transform: translateX(3px); color: var(--sf-black); }
+.sb-club-menu__home { margin-bottom: 5px; padding-bottom: 14px !important; border-bottom: 1px solid var(--sf-line); border-radius: 0 !important; }
+.sb-club-menu__home strong { font-size: var(--sb-type-small); }
 .sb-menu-link > span,
 .sb-header-actions > button > span { position: relative; display: inline-block; }
 .sb-menu-link > span::after,
@@ -365,7 +380,7 @@
   font-size:var(--sb-type-caption);
   transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
 }
-.sb-liquid-primary:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 18px 34px rgba(20,18,17,.22); }
+.sb-liquid-primary:hover { transform: translateY(-2px); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 18px 34px rgba(20,18,17,.22); }
 .sb-liquid-primary:disabled { opacity: .55; transform: none; }
 
 .sb-brand-manifesto {
@@ -638,6 +653,12 @@
 .sb-catalog-menu section > a:first-child { width: 100%; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; color: var(--sf-black); }
 .sb-catalog-menu h3 { margin: 0; font-size:var(--sb-type-body); font-weight:var(--sb-weight-semibold); }
 .sb-catalog-menu section > a:hover { color: var(--sf-coral); }
+.sb-catalog-menu section > a:first-child.sb-catalog-group-link { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px; border-radius: 16px; }
+.sb-catalog-group-link:hover { color: var(--sf-black) !important; background: #f3f1ef; }
+.sb-catalog-group-link__image { width: 48px; height: 48px; overflow: hidden; border-radius: 12px; background: #f1eeeb; }
+.sb-catalog-group-link__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sb-catalog-group-link__copy { min-width: 0; }
+.sb-catalog-group-link__copy h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-catalog-all { width: 100%; margin-top: 32px; }
 
 .sb-catalog-search {

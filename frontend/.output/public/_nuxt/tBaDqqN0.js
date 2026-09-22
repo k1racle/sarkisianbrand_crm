@@ -1,0 +1,1 @@
+import{_ as n}from"./CxQC0d_o.js";import{d as o,b6 as t,A as s,m as a}from"./S8Twd-2B.js";const p=o({__name:"referral-settings",setup(r){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,_)=>{const e=n;return a(),s(e,{kind:"REFERRAL",section:"settings"})}}});export{p as default};

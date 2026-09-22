@@ -738,12 +738,12 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <main data-v-ui-642ff821094a class="site-admin-console">
+  <main data-v-ui-642ff821094a class="site-admin-console crm-standard">
     <WorkspaceLoading v-if="!pageLoaded && !loadError" label="Загружаем раздел" />
-    <section data-v-ui-642ff821094a v-else-if="!pageLoaded && loadError" class="panel admin-load-error" role="alert"><h1 data-v-ui-642ff821094a>Управление платформой</h1><p data-v-ui-642ff821094a>{{ loadError }}</p><button data-v-ui-642ff821094a type="button" :disabled="busy" @click="load">Повторить загрузку</button></section>
+    <section data-v-ui-642ff821094a v-else-if="!pageLoaded && loadError" class="panel admin-load-error crm-surface" role="alert"><h1 data-v-ui-642ff821094a>Управление платформой</h1><p data-v-ui-642ff821094a>{{ loadError }}</p><button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="busy" @click="load">Повторить загрузку</button></section>
     <template v-else
       ><header data-v-ui-642ff821094a
-        class="site-admin-header"
+        class="site-admin-header crm-page-header"
         v-if="active !== 'site-content'"
         :class="{ 'has-new-product': active === 'products', 'has-store-overview': active === 'dashboard' }"
       >
@@ -753,64 +753,64 @@ onBeforeUnmount(() => {
           </p>
           <h1 data-v-ui-642ff821094a>{{ menu.find((m) => m.id === active)?.label }}</h1>
         </div>
-        <div data-v-ui-642ff821094a v-if="active !== 'catalog-menu'" class="header-actions">
-          <select v-if="active === 'dashboard'" v-model.number="dashboardDays" aria-label="Период обзора" :disabled="busy" @change="load"><option :value="7">За 7 дней</option><option :value="30">За 30 дней</option></select>
-          <button data-v-ui-642ff821094a :disabled="busy || savingAppearance || priceEditing || catalogSettingsEditor?.busy" @click="refreshSection">
+        <div data-v-ui-642ff821094a v-if="active !== 'catalog-menu' && !(route.path.startsWith('/crm/') && active === 'promotions')" class="header-actions">
+          <select class="crm-input" v-if="active === 'dashboard'" v-model.number="dashboardDays" aria-label="Период обзора" :disabled="busy" @change="load"><option :value="7">За 7 дней</option><option :value="30">За 30 дней</option></select>
+          <button class="crm-button crm-button--refresh" data-v-ui-642ff821094a :disabled="busy || savingAppearance || priceEditing || catalogSettingsEditor?.busy" @click="refreshSection">
             <RefreshCw data-v-ui-642ff821094a :size="16" :class="{ spin: busy }" /> Обновить
           </button>
-          <button v-if="['categories','product-badges'].includes(active)" type="button" class="cs-primary" :disabled="!catalogSettingsEditor?.canAdd" @click="catalogSettingsEditor?.add()"><Plus :size="16"/>{{active === 'categories' ? 'Добавить категорию' : 'Добавить бейдж'}}</button>
-          <button data-v-ui-642ff821094a v-if="active === 'appearance'" type="button" class="appearance-save appearance-save-all" :disabled="savingAppearance || uploadingMedia || !appearanceDirty" @click="saveStorefrontAppearance"><Save data-v-ui-642ff821094a :size="16" /> {{ savingAppearance ? 'Сохраняем…' : 'Сохранить изменения' }}</button>
+          <button v-if="['categories','product-badges'].includes(active)" type="button" class="cs-primary crm-button" :disabled="!catalogSettingsEditor?.canAdd" @click="catalogSettingsEditor?.add()"><Plus :size="16"/>{{active === 'categories' ? 'Добавить категорию' : 'Добавить бейдж'}}</button>
+          <button data-v-ui-642ff821094a v-if="active === 'appearance'" type="button" class="appearance-save appearance-save-all crm-button" :disabled="savingAppearance || uploadingMedia || !appearanceDirty" @click="saveStorefrontAppearance"><Save data-v-ui-642ff821094a :size="16" /> {{ savingAppearance ? 'Сохраняем…' : 'Сохранить изменения' }}</button>
         </div>
       </header>
-      <div data-v-ui-642ff821094a class="admin-body">
-        <p data-v-ui-642ff821094a v-if="pageLoaded && loadError" class="panel" role="alert">{{ loadError }}</p>
+      <div data-v-ui-642ff821094a class="admin-body crm-page-content">
+        <p data-v-ui-642ff821094a v-if="pageLoaded && loadError" class="panel crm-surface" role="alert">{{ loadError }}</p>
         <StoreDashboard v-if="active === 'dashboard' && dashboard" :data="dashboard" :busy="busy" />
         <SitePagesEditor v-else-if="active === 'pages'" />
         <SiteContentEditor v-else-if="active === 'site-content'" :api-base="String(config.public.apiBase)" :token="token" />
         <SiteCatalogMenuEditor v-else-if="active === 'catalog-menu'" :api-base="String(config.public.apiBase)" :token="token" />
         <SiteCategoriesEditor v-else-if="active === 'categories'" ref="catalogSettingsEditor" />
         <SiteProductBadgesEditor v-else-if="active === 'product-badges'" ref="catalogSettingsEditor" />
-        <SitePromoCodesEditor v-else-if="active === 'promotions'" :api-base="String(config.public.apiBase)" :token="token" />
+        <SitePromoCodesEditor v-else-if="active === 'promotions'" :compact="route.path.startsWith('/crm/')" :api-base="String(config.public.apiBase)" :token="token" />
         <SiteGiftCardsEditor v-else-if="active === 'gift-cards'" ref="catalogSettingsEditor" :api-base="String(config.public.apiBase)" :token="token" :role="user?.role" />
         <section data-v-ui-642ff821094a v-else-if="active === 'appearance'" class="appearance-workspace">
-          <nav data-v-ui-642ff821094a class="appearance-tabs" aria-label="Настройки оформления"><button data-v-ui-642ff821094a v-for="tab in appearanceTabs" :key="tab.id" type="button" :aria-pressed="appearanceTab === tab.id" @click="appearanceTab = tab.id">{{ tab.label }}</button></nav>
+          <nav data-v-ui-642ff821094a class="appearance-tabs" aria-label="Настройки оформления"><button class="crm-button" data-v-ui-642ff821094a v-for="tab in appearanceTabs" :key="tab.id" type="button" :aria-pressed="appearanceTab === tab.id" @click="appearanceTab = tab.id">{{ tab.label }}</button></nav>
           <p data-v-ui-642ff821094a class="appearance-guidance">Перетаскивайте элементы за ручку слева. Все разделы сохраняются одной кнопкой «Сохранить изменения».</p>
           <fieldset data-v-ui-642ff821094a class="ui-fieldset-reset" :disabled="savingAppearance">
-          <article data-v-ui-642ff821094a v-if="appearanceTab === 'announcement'" class="panel appearance-panel">
+          <article data-v-ui-642ff821094a v-if="appearanceTab === 'announcement'" class="panel appearance-panel crm-surface">
             <div data-v-ui-642ff821094a class="panel-head">
               <div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ВЕРХНЯЯ СТРОКА</p><h2 data-v-ui-642ff821094a>Информационное сообщение</h2><span data-v-ui-642ff821094a>Текст отображается над основной шапкой сайта</span></div>
             </div>
             <div data-v-ui-642ff821094a class="appearance-form">
-              <label data-v-ui-642ff821094a>Текст верхней строки<textarea data-v-ui-642ff821094a v-model="storefrontSettings.announcementText" maxlength="280" rows="3"></textarea><small data-v-ui-642ff821094a>{{ storefrontSettings.announcementText.length }} / 280</small></label>
+              <label data-v-ui-642ff821094a>Текст верхней строки<textarea class="crm-input" data-v-ui-642ff821094a v-model="storefrontSettings.announcementText" maxlength="280" rows="3"></textarea><small data-v-ui-642ff821094a>{{ storefrontSettings.announcementText.length }} / 280</small></label>
             </div>
           </article>
 
-          <article data-v-ui-642ff821094a v-if="appearanceTab === 'menu'" class="panel appearance-panel menu-settings-panel">
+          <article data-v-ui-642ff821094a v-if="appearanceTab === 'menu'" class="panel appearance-panel menu-settings-panel crm-surface">
             <div data-v-ui-642ff821094a class="panel-head appearance-panel-head">
               <div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">НАВИГАЦИЯ</p><h2 data-v-ui-642ff821094a>Меню сайта</h2><span data-v-ui-642ff821094a>Пункты отображаются в центре шапки на ПК и в мобильном меню. Страницы: /about, /delivery, /contacts, /club. Их содержимое редактируется в разделе «Страницы».</span></div>
-              <button data-v-ui-642ff821094a class="appearance-add" @click="addStorefrontMenuItem"><Plus data-v-ui-642ff821094a :size="16" /> Добавить пункт</button>
+              <button data-v-ui-642ff821094a class="appearance-add crm-button" @click="addStorefrontMenuItem"><Plus data-v-ui-642ff821094a :size="16" /> Добавить пункт</button>
             </div>
             <div data-v-ui-642ff821094a class="menu-admin-list">
               <section data-v-ui-642ff821094a v-for="(item,index) in storefrontMenuItems" :key="item.id" class="menu-admin-row" @dragover.prevent @drop.prevent="dropAppearance('menu', item.id)">
-                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить пункт меню" @dragstart="dragAppearance($event, 'menu', item)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
-                <label data-v-ui-642ff821094a>Название<input data-v-ui-642ff821094a v-model="item.label" maxlength="60" placeholder="О бренде" /></label>
-                <label data-v-ui-642ff821094a>Ссылка<input data-v-ui-642ff821094a v-model="item.url" maxlength="500" placeholder="/#about или /страница" /></label>
-                <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="item.isActive" type="checkbox" /> Показывать</label>
-                <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="item.newTab" type="checkbox" /> В новой вкладке</label>
-                <div data-v-ui-642ff821094a class="menu-admin-actions"><button data-v-ui-642ff821094a class="danger" :disabled="savingAppearance" aria-label="Удалить пункт меню" @click="deleteStorefrontMenuItem(item)"><Trash2 data-v-ui-642ff821094a :size="16" /></button></div>
+                <div data-v-ui-642ff821094a class="appearance-order-tools"><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить пункт меню" @dragstart="dragAppearance($event, 'menu', item)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
+                <label data-v-ui-642ff821094a>Название<input class="crm-input" data-v-ui-642ff821094a v-model="item.label" maxlength="60" placeholder="О бренде" /></label>
+                <label data-v-ui-642ff821094a>Ссылка<input class="crm-input" data-v-ui-642ff821094a v-model="item.url" maxlength="500" placeholder="/#about или /страница" /></label>
+                <label data-v-ui-642ff821094a class="banner-active"><input class="crm-check" data-v-ui-642ff821094a v-model="item.isActive" type="checkbox" /> Показывать</label>
+                <label data-v-ui-642ff821094a class="banner-active"><input class="crm-check" data-v-ui-642ff821094a v-model="item.newTab" type="checkbox" /> В новой вкладке</label>
+                <div data-v-ui-642ff821094a class="menu-admin-actions"><button data-v-ui-642ff821094a class="danger crm-button crm-button--danger crm-button--icon" :disabled="savingAppearance" aria-label="Удалить пункт меню" @click="deleteStorefrontMenuItem(item)"><Trash2 data-v-ui-642ff821094a :size="16" /></button></div>
               </section>
               <div data-v-ui-642ff821094a v-if="!storefrontMenuItems.length" class="appearance-empty"><span data-v-ui-642ff821094a>Меню пока пустое — добавьте ссылки на страницы сайта.</span></div>
             </div>
           </article>
 
-          <article data-v-ui-642ff821094a v-if="appearanceTab === 'banners'" class="panel appearance-panel">
+          <article data-v-ui-642ff821094a v-if="appearanceTab === 'banners'" class="panel appearance-panel crm-surface">
             <div data-v-ui-642ff821094a class="panel-head appearance-panel-head">
               <div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ГЛАВНЫЙ ЭКРАН</p><h2 data-v-ui-642ff821094a>Баннеры</h2><span data-v-ui-642ff821094a>Можно создать несколько баннеров — на сайте они сменяются автоматически</span></div>
-              <button data-v-ui-642ff821094a class="appearance-add" @click="addStorefrontBanner"><Plus data-v-ui-642ff821094a :size="16" /> Новый баннер</button>
+              <button data-v-ui-642ff821094a class="appearance-add crm-button" @click="addStorefrontBanner"><Plus data-v-ui-642ff821094a :size="16" /> Новый баннер</button>
             </div>
             <div data-v-ui-642ff821094a class="banner-admin-list">
               <section data-v-ui-642ff821094a v-for="(banner,index) in storefrontBanners" :key="banner.id" :data-banner-id="banner.id" class="banner-admin-card" @dragover.prevent @drop.prevent="dropAppearance('banners', banner.id)">
-                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить баннер" title="Перетащить; с клавиатуры Alt + ↑ / ↓" @keydown.alt.up.prevent="moveAppearance('banners',banner.id,index-1)" @keydown.alt.down.prevent="moveAppearance('banners',banner.id,index+1)" @dragstart="dragAppearance($event, 'banners', banner)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
+                <div data-v-ui-642ff821094a class="appearance-order-tools"><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить баннер" title="Перетащить; с клавиатуры Alt + ↑ / ↓" @keydown.alt.up.prevent="moveAppearance('banners',banner.id,index-1)" @keydown.alt.down.prevent="moveAppearance('banners',banner.id,index+1)" @dragstart="dragAppearance($event, 'banners', banner)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
                 <div data-v-ui-642ff821094a class="banner-admin-preview" :class="{ empty: !banner.imageUrl }">
                   <img data-v-ui-642ff821094a v-if="banner.imageUrl" :src="storefrontPreview(banner.imageUrl)" alt="Предпросмотр баннера" />
                   <ImagePlus data-v-ui-642ff821094a v-else :size="30" />
@@ -821,29 +821,29 @@ onBeforeUnmount(() => {
                   <span data-v-ui-642ff821094a class="studio-status">{{bannerDisplayStatus(banner)}}</span>
                 </div>
                 <div data-v-ui-642ff821094a class="banner-admin-actions">
-                  <button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :aria-label="'Настройки баннера '+(index+1)" @click="openBannerEditor(banner)"><Pencil data-v-ui-642ff821094a :size="16"/><span data-v-ui-642ff821094a>Настройки</span></button>
-                  <button data-v-ui-642ff821094a type="button" class="danger" :disabled="savingAppearance" :aria-label="'Удалить баннер '+(index+1)" @click="deleteStorefrontBanner(banner)"><Trash2 data-v-ui-642ff821094a :size="16"/></button>
+                  <button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :aria-label="'Настройки баннера '+(index+1)" @click="openBannerEditor(banner)"><Pencil data-v-ui-642ff821094a :size="16"/><span data-v-ui-642ff821094a>Настройки</span></button>
+                  <button data-v-ui-642ff821094a type="button" class="danger crm-button crm-button--danger" :disabled="savingAppearance" :aria-label="'Удалить баннер '+(index+1)" @click="deleteStorefrontBanner(banner)"><Trash2 data-v-ui-642ff821094a :size="16"/></button>
                 </div>
               </section>
-              <div data-v-ui-642ff821094a v-if="!storefrontBanners.length" class="appearance-empty"><ImagePlus data-v-ui-642ff821094a :size="28" /><span data-v-ui-642ff821094a>Баннеров пока нет</span><button data-v-ui-642ff821094a @click="addStorefrontBanner">Создать первый баннер</button></div>
+              <div data-v-ui-642ff821094a v-if="!storefrontBanners.length" class="appearance-empty"><ImagePlus data-v-ui-642ff821094a :size="28" /><span data-v-ui-642ff821094a>Баннеров пока нет</span><button class="crm-button" data-v-ui-642ff821094a @click="addStorefrontBanner">Создать первый баннер</button></div>
             </div>
             <Teleport to="body">
               <div data-v-ui-642ff821094a v-if="bannerEditor" class="banner-editor-backdrop admin-dialog-backdrop" @click.self="closeBannerEditor">
                 <form data-v-ui-642ff821094a ref="bannerPanel" class="banner-editor-drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" aria-labelledby="banner-editor-title" :aria-busy="savingAppearance" tabindex="-1" @keydown="bannerKeyboard" @submit.prevent="saveBannerEditor">
-                  <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="eyebrow">Сайт / Баннеры</p><h2 data-v-ui-642ff821094a id="banner-editor-title">{{bannerEditor._new?'Новый баннер':'Настройки баннера'}}</h2><p data-v-ui-642ff821094a class="editor-subtitle">{{bannerEditorDirty?'Есть несохранённые изменения':'Главный экран сайта'}}</p></div><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" aria-label="Закрыть настройки баннера" @click="closeBannerEditor"><X data-v-ui-642ff821094a :size="20"/></button></header>
+                  <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="eyebrow">Сайт / Баннеры</p><h2 data-v-ui-642ff821094a id="banner-editor-title">{{bannerEditor._new?'Новый баннер':'Настройки баннера'}}</h2><p data-v-ui-642ff821094a class="editor-subtitle">{{bannerEditorDirty?'Есть несохранённые изменения':'Главный экран сайта'}}</p></div><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" aria-label="Закрыть настройки баннера" @click="closeBannerEditor"><X data-v-ui-642ff821094a :size="20"/></button></header>
                   <div data-v-ui-642ff821094a class="admin-dialog-body">
                     <fieldset data-v-ui-642ff821094a class="banner-admin-fields" :disabled="savingAppearance">
                       <section data-v-ui-642ff821094a class="cs-category-section" aria-labelledby="banner-image-heading">
                         <h3 data-v-ui-642ff821094a id="banner-image-heading">Изображение</h3>
                         <div data-v-ui-642ff821094a v-if="bannerEditor.imageUrl" class="banner-editor-preview"><img data-v-ui-642ff821094a :src="storefrontPreview(bannerEditor.imageUrl)" alt="Предпросмотр баннера"/></div>
                         <AdminMediaPicker v-model="bannerEditor.imageUrl" :disabled="savingAppearance" :show-preview="false" label="Изображение баннера" />
-                        <label data-v-ui-642ff821094a>Описание изображения<input data-v-ui-642ff821094a v-model="bannerEditor.title" placeholder="Для доступности, не выводится поверх фото" /></label>
-                        <label data-v-ui-642ff821094a>Внутреннее описание<textarea data-v-ui-642ff821094a v-model="bannerEditor.subtitle" rows="2" placeholder="Не выводится поверх баннера"></textarea></label>
+                        <label data-v-ui-642ff821094a>Описание изображения<input class="crm-input" data-v-ui-642ff821094a v-model="bannerEditor.title" placeholder="Для доступности, не выводится поверх фото" /></label>
+                        <label data-v-ui-642ff821094a>Внутреннее описание<textarea class="crm-input" data-v-ui-642ff821094a v-model="bannerEditor.subtitle" rows="2" placeholder="Не выводится поверх баннера"></textarea></label>
                       </section>
                       <section data-v-ui-642ff821094a class="cs-category-section" aria-labelledby="banner-link-heading">
                         <h3 data-v-ui-642ff821094a id="banner-link-heading">Переход и расписание</h3>
-                        <div data-v-ui-642ff821094a class="banner-editor-grid"><label data-v-ui-642ff821094a>Описание перехода<input data-v-ui-642ff821094a v-model="bannerEditor.buttonLabel" /></label><label data-v-ui-642ff821094a>Ссылка<input data-v-ui-642ff821094a v-model="bannerEditor.linkUrl" placeholder="/catalog" /></label><label data-v-ui-642ff821094a>Начало показа<input data-v-ui-642ff821094a v-model="bannerEditor.startsAt" type="datetime-local" /></label><label data-v-ui-642ff821094a>Окончание показа<input data-v-ui-642ff821094a v-model="bannerEditor.endsAt" type="datetime-local" /></label></div>
-                        <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="bannerEditor.isActive" type="checkbox" /> Показывать на сайте</label>
+                        <div data-v-ui-642ff821094a class="banner-editor-grid"><label data-v-ui-642ff821094a>Описание перехода<input class="crm-input" data-v-ui-642ff821094a v-model="bannerEditor.buttonLabel" /></label><label data-v-ui-642ff821094a>Ссылка<input class="crm-input" data-v-ui-642ff821094a v-model="bannerEditor.linkUrl" placeholder="/catalog" /></label><label data-v-ui-642ff821094a>Начало показа<input class="crm-input" data-v-ui-642ff821094a v-model="bannerEditor.startsAt" type="datetime-local" /></label><label data-v-ui-642ff821094a>Окончание показа<input class="crm-input" data-v-ui-642ff821094a v-model="bannerEditor.endsAt" type="datetime-local" /></label></div>
+                        <label data-v-ui-642ff821094a class="banner-active"><input class="crm-check" data-v-ui-642ff821094a v-model="bannerEditor.isActive" type="checkbox" /> Показывать на сайте</label>
                       </section>
                       <section data-v-ui-642ff821094a class="cs-category-section" aria-labelledby="banner-mobile-heading">
                         <h3 data-v-ui-642ff821094a id="banner-mobile-heading">Изображение для телефона</h3>
@@ -853,28 +853,28 @@ onBeforeUnmount(() => {
                     </fieldset>
                     <p data-v-ui-642ff821094a v-if="bannerEditorError" class="cs-error" role="alert">{{bannerEditorError}}</p>
                   </div>
-                  <footer data-v-ui-642ff821094a><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" @click="closeBannerEditor">Отмена</button><button data-v-ui-642ff821094a type="button" class="primary" :disabled="savingAppearance || uploadingMedia" @click="saveBannerEditor">Готово</button></footer>
+                  <footer data-v-ui-642ff821094a><button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" @click="closeBannerEditor">Отмена</button><button data-v-ui-642ff821094a type="button" class="primary crm-button crm-button--primary" :disabled="savingAppearance || uploadingMedia" @click="saveBannerEditor">Готово</button></footer>
                 </form>
               </div>
             </Teleport>
           </article>
 
-          <article data-v-ui-642ff821094a v-if="appearanceTab === 'social'" class="panel appearance-panel">
+          <article data-v-ui-642ff821094a v-if="appearanceTab === 'social'" class="panel appearance-panel crm-surface">
             <div data-v-ui-642ff821094a class="panel-head appearance-panel-head">
               <div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ПОДВАЛ САЙТА</p><h2 data-v-ui-642ff821094a>Социальные сети</h2><span data-v-ui-642ff821094a>Добавляйте ссылки, меняйте порядок и скрывайте временно неиспользуемые каналы</span></div>
-              <button data-v-ui-642ff821094a class="appearance-add" @click="addStorefrontSocialLink"><Plus data-v-ui-642ff821094a :size="16" /> Добавить соцсеть</button>
+              <button data-v-ui-642ff821094a class="appearance-add crm-button" @click="addStorefrontSocialLink"><Plus data-v-ui-642ff821094a :size="16" /> Добавить соцсеть</button>
             </div>
             <div data-v-ui-642ff821094a class="social-admin-list">
               <section data-v-ui-642ff821094a v-for="(social,index) in storefrontSocialLinks" :key="social.id" class="social-admin-row" @dragover.prevent @drop.prevent="dropAppearance('social', social.id)">
-                <div data-v-ui-642ff821094a class="appearance-order-tools"><button data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить социальную сеть" @dragstart="dragAppearance($event, 'social', social)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
+                <div data-v-ui-642ff821094a class="appearance-order-tools"><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" :draggable="!savingAppearance" aria-label="Перетащить социальную сеть" @dragstart="dragAppearance($event, 'social', social)" @dragend="appearanceDragged = undefined"><GripVertical data-v-ui-642ff821094a :size="18" /></button></div>
                 <div data-v-ui-642ff821094a class="social-admin-icon"><img data-v-ui-642ff821094a v-if="['vk', 'telegram', 'max'].includes(social.iconKey)" :src="`/storefront/icons/${social.iconKey}.svg`" alt="" /><span data-v-ui-642ff821094a v-else>↗</span></div>
-                <label data-v-ui-642ff821094a>Название<input data-v-ui-642ff821094a v-model="social.name" placeholder="Например, ВКонтакте" /></label>
-                <label data-v-ui-642ff821094a>Иконка<select data-v-ui-642ff821094a v-model="social.iconKey"><option data-v-ui-642ff821094a value="vk">ВКонтакте</option><option data-v-ui-642ff821094a value="telegram">Telegram</option><option data-v-ui-642ff821094a value="max">MAX</option><option data-v-ui-642ff821094a value="link">Другая ссылка</option></select></label>
-                <label data-v-ui-642ff821094a class="social-url">Ссылка<input data-v-ui-642ff821094a v-model="social.url" placeholder="https://..." /></label>
-                <label data-v-ui-642ff821094a class="banner-active"><input data-v-ui-642ff821094a v-model="social.isActive" type="checkbox" /> Показывать</label>
-                <div data-v-ui-642ff821094a class="social-admin-actions"><button data-v-ui-642ff821094a class="danger" @click="deleteStorefrontSocialLink(social)"><Trash2 data-v-ui-642ff821094a :size="15" /></button></div>
+                <label data-v-ui-642ff821094a>Название<input class="crm-input" data-v-ui-642ff821094a v-model="social.name" placeholder="Например, ВКонтакте" /></label>
+                <label data-v-ui-642ff821094a>Иконка<select class="crm-input" data-v-ui-642ff821094a v-model="social.iconKey"><option data-v-ui-642ff821094a value="vk">ВКонтакте</option><option data-v-ui-642ff821094a value="telegram">Telegram</option><option data-v-ui-642ff821094a value="max">MAX</option><option data-v-ui-642ff821094a value="link">Другая ссылка</option></select></label>
+                <label data-v-ui-642ff821094a class="social-url">Ссылка<input class="crm-input" data-v-ui-642ff821094a v-model="social.url" placeholder="https://..." /></label>
+                <label data-v-ui-642ff821094a class="banner-active"><input class="crm-check" data-v-ui-642ff821094a v-model="social.isActive" type="checkbox" /> Показывать</label>
+                <div data-v-ui-642ff821094a class="social-admin-actions"><button data-v-ui-642ff821094a class="danger crm-button crm-button--danger" @click="deleteStorefrontSocialLink(social)"><Trash2 data-v-ui-642ff821094a :size="15" /></button></div>
               </section>
-              <div data-v-ui-642ff821094a v-if="!storefrontSocialLinks.length" class="appearance-empty"><span data-v-ui-642ff821094a>Социальные сети пока не добавлены</span><button data-v-ui-642ff821094a @click="addStorefrontSocialLink"><Plus data-v-ui-642ff821094a :size="15" /> Добавить первую</button></div>
+              <div data-v-ui-642ff821094a v-if="!storefrontSocialLinks.length" class="appearance-empty"><span data-v-ui-642ff821094a>Социальные сети пока не добавлены</span><button class="crm-button" data-v-ui-642ff821094a @click="addStorefrontSocialLink"><Plus data-v-ui-642ff821094a :size="15" /> Добавить первую</button></div>
             </div>
           </article>
           </fieldset>
@@ -883,13 +883,13 @@ onBeforeUnmount(() => {
         <section data-v-ui-642ff821094a v-else-if="['loyalty', 'loyalty-settings', 'loyalty-members'].includes(active)" class="loyalty-workspace">
           <template v-if="loyaltyDashboard">
             <div data-v-ui-642ff821094a v-if="active === 'loyalty-members'" class="loyalty-kpis">
-              <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Award data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Участники</span><strong data-v-ui-642ff821094a>{{ loyaltyDashboard.summary.participants }}</strong><small data-v-ui-642ff821094a>зарегистрированных клиентов</small></article>
-              <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Coins data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>На балансах</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.activeBalances).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>доступных бонусов</small></article>
-              <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Plus data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Начислено</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.earned).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>за всё время</small></article>
-              <article data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Gift data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Использовано</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.spent).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>{{ loyaltyDashboard.summary.operations }} операций</small></article>
+              <article class="crm-surface" data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Award data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Участники</span><strong data-v-ui-642ff821094a>{{ loyaltyDashboard.summary.participants }}</strong><small data-v-ui-642ff821094a>зарегистрированных клиентов</small></article>
+              <article class="crm-surface" data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Coins data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>На балансах</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.activeBalances).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>доступных бонусов</small></article>
+              <article class="crm-surface" data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Plus data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Начислено</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.earned).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>за всё время</small></article>
+              <article class="crm-surface" data-v-ui-642ff821094a><i data-v-ui-642ff821094a><Gift data-v-ui-642ff821094a :size="20" /></i><span data-v-ui-642ff821094a>Использовано</span><strong data-v-ui-642ff821094a>{{ Number(loyaltyDashboard.summary.spent).toLocaleString('ru-RU') }}</strong><small data-v-ui-642ff821094a>{{ loyaltyDashboard.summary.operations }} операций</small></article>
             </div>
 
-            <article data-v-ui-642ff821094a v-if="active !== 'loyalty-members'" class="panel loyalty-settings-panel">
+            <article data-v-ui-642ff821094a v-if="active !== 'loyalty-members'" class="panel loyalty-settings-panel crm-surface">
               <div data-v-ui-642ff821094a class="loyalty-program-preview">
                 <small data-v-ui-642ff821094a>БОНУСНАЯ ПРОГРАММА</small>
                 <h2 data-v-ui-642ff821094a>{{ loyaltySettings.programName }}</h2>
@@ -899,26 +899,26 @@ onBeforeUnmount(() => {
                 <footer data-v-ui-642ff821094a><span data-v-ui-642ff821094a>Можно списать</span><strong data-v-ui-642ff821094a>до {{ loyaltySettings.maxWriteOffPercent }}%</strong></footer>
               </div>
               <div data-v-ui-642ff821094a class="loyalty-settings-form"><fieldset class="ui-fieldset-reset" :disabled="savingLoyalty || !canConfigureLoyalty">
-                <div data-v-ui-642ff821094a class="panel-head"><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ПРАВИЛА ПРОГРАММЫ</p><h2 data-v-ui-642ff821094a>Начисления и уровни</h2><span data-v-ui-642ff821094a>Изменения применяются к новым операциям и не пересчитывают историю</span></div><label data-v-ui-642ff821094a class="loyalty-status"><input data-v-ui-642ff821094a v-model="loyaltySettings.isEnabled" type="checkbox" /><span data-v-ui-642ff821094a>{{ loyaltySettings.isEnabled ? 'Активна' : 'Приостановлена' }}</span></label></div>
+                <div data-v-ui-642ff821094a class="panel-head"><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">ПРАВИЛА ПРОГРАММЫ</p><h2 data-v-ui-642ff821094a>Начисления и уровни</h2><span data-v-ui-642ff821094a>Изменения применяются к новым операциям и не пересчитывают историю</span></div><label data-v-ui-642ff821094a class="loyalty-status"><input class="crm-check" data-v-ui-642ff821094a v-model="loyaltySettings.isEnabled" type="checkbox" /><span data-v-ui-642ff821094a>{{ loyaltySettings.isEnabled ? 'Активна' : 'Приостановлена' }}</span></label></div>
                 <div data-v-ui-642ff821094a class="loyalty-form-grid">
-                  <label data-v-ui-642ff821094a class="wide">Название программы<input data-v-ui-642ff821094a v-model="loyaltySettings.programName" maxlength="80" /></label>
-                  <label data-v-ui-642ff821094a>Начислять с покупки, %<input data-v-ui-642ff821094a v-model.number="loyaltySettings.earnPercent" type="number" min="0" max="100" /></label>
-                  <label data-v-ui-642ff821094a>Максимум списания, %<input data-v-ui-642ff821094a v-model.number="loyaltySettings.maxWriteOffPercent" type="number" min="0" max="100" /></label>
-                  <label data-v-ui-642ff821094a>За регистрацию<input data-v-ui-642ff821094a v-model.number="loyaltySettings.signupBonus" type="number" min="0" /></label>
-                  <label data-v-ui-642ff821094a>На день рождения<input data-v-ui-642ff821094a v-model.number="loyaltySettings.birthdayBonus" type="number" min="0" /></label>
-                  <label data-v-ui-642ff821094a>Срок действия, дней<input data-v-ui-642ff821094a v-model.number="loyaltySettings.bonusValidityDays" type="number" min="1" /></label>
+                  <label data-v-ui-642ff821094a class="wide">Название программы<input class="crm-input" data-v-ui-642ff821094a v-model="loyaltySettings.programName" maxlength="80" /></label>
+                  <label data-v-ui-642ff821094a>Начислять с покупки, %<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.earnPercent" type="number" min="0" max="100" /></label>
+                  <label data-v-ui-642ff821094a>Максимум списания, %<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.maxWriteOffPercent" type="number" min="0" max="100" /></label>
+                  <label data-v-ui-642ff821094a>За регистрацию<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.signupBonus" type="number" min="0" /></label>
+                  <label data-v-ui-642ff821094a>На день рождения<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.birthdayBonus" type="number" min="0" /></label>
+                  <label data-v-ui-642ff821094a>Срок действия, дней<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.bonusValidityDays" type="number" min="1" /></label>
                 </div>
                 <div data-v-ui-642ff821094a class="loyalty-levels">
-                  <section data-v-ui-642ff821094a><span data-v-ui-642ff821094a>СТАРТ</span><b data-v-ui-642ff821094a>Базовые условия</b><small data-v-ui-642ff821094a>Сразу после регистрации</small></section>
-                  <section data-v-ui-642ff821094a><span data-v-ui-642ff821094a>ПРОФЕССИОНАЛ</span><label data-v-ui-642ff821094a>Порог<input data-v-ui-642ff821094a v-model.number="loyaltySettings.proThreshold" type="number" min="0" /></label><label data-v-ui-642ff821094a>Множитель, %<input data-v-ui-642ff821094a v-model.number="loyaltySettings.proMultiplierPercent" type="number" min="100" /></label></section>
-                  <section data-v-ui-642ff821094a><span data-v-ui-642ff821094a>ПРЕМИУМ</span><label data-v-ui-642ff821094a>Порог<input data-v-ui-642ff821094a v-model.number="loyaltySettings.premiumThreshold" type="number" min="0" /></label><label data-v-ui-642ff821094a>Множитель, %<input data-v-ui-642ff821094a v-model.number="loyaltySettings.premiumMultiplierPercent" type="number" min="100" /></label></section>
+                  <section class="crm-surface crm-surface--tint" data-v-ui-642ff821094a><span data-v-ui-642ff821094a>СТАРТ</span><b data-v-ui-642ff821094a>Базовые условия</b><small data-v-ui-642ff821094a>Сразу после регистрации</small></section>
+                  <section class="crm-surface" data-v-ui-642ff821094a><span data-v-ui-642ff821094a>ПРОФЕССИОНАЛ</span><label data-v-ui-642ff821094a>Порог<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.proThreshold" type="number" min="0" /></label><label data-v-ui-642ff821094a>Множитель, %<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.proMultiplierPercent" type="number" min="100" /></label></section>
+                  <section class="crm-surface" data-v-ui-642ff821094a><span data-v-ui-642ff821094a>ПРЕМИУМ</span><label data-v-ui-642ff821094a>Порог<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.premiumThreshold" type="number" min="0" /></label><label data-v-ui-642ff821094a>Множитель, %<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltySettings.premiumMultiplierPercent" type="number" min="100" /></label></section>
                 </div>
-                <button data-v-ui-642ff821094a class="loyalty-save" :disabled="savingLoyalty || !canConfigureLoyalty" @click="saveLoyaltySettings"><Save data-v-ui-642ff821094a :size="16" /> {{ savingLoyalty ? 'Сохраняем…' : 'Сохранить правила' }}</button>
+                <button data-v-ui-642ff821094a class="loyalty-save crm-button crm-button--primary" :disabled="savingLoyalty || !canConfigureLoyalty" @click="saveLoyaltySettings"><Save data-v-ui-642ff821094a :size="16" /> {{ savingLoyalty ? 'Сохраняем…' : 'Сохранить правила' }}</button>
               </fieldset></div>
             </article>
 
-            <article data-v-ui-642ff821094a v-if="active === 'loyalty-members'" class="panel loyalty-members-panel">
-              <div data-v-ui-642ff821094a class="panel-head"><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">УЧАСТНИКИ</p><h2 data-v-ui-642ff821094a>Бонусные счета клиентов</h2><span data-v-ui-642ff821094a>Открывайте счёт для просмотра истории, начисления или списания</span></div><label data-v-ui-642ff821094a class="search"><Search data-v-ui-642ff821094a :size="16" /><input data-v-ui-642ff821094a v-model="loyaltySearch" placeholder="Имя, email или телефон" /></label></div>
+            <article data-v-ui-642ff821094a v-if="active === 'loyalty-members'" class="panel loyalty-members-panel crm-surface">
+              <div data-v-ui-642ff821094a class="panel-head"><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">УЧАСТНИКИ</p><h2 data-v-ui-642ff821094a>Бонусные счета клиентов</h2><span data-v-ui-642ff821094a>Открывайте счёт для просмотра истории, начисления или списания</span></div><label data-v-ui-642ff821094a class="search crm-input-group"><Search data-v-ui-642ff821094a :size="16" /><input class="crm-input" data-v-ui-642ff821094a v-model="loyaltySearch" placeholder="Имя, email или телефон" /></label></div>
               <div data-v-ui-642ff821094a class="loyalty-table">
                 <div data-v-ui-642ff821094a class="loyalty-row head"><span data-v-ui-642ff821094a>Клиент</span><span data-v-ui-642ff821094a>Уровень</span><span data-v-ui-642ff821094a>Баланс</span><span data-v-ui-642ff821094a>Последняя операция</span><span data-v-ui-642ff821094a></span></div>
                 <div data-v-ui-642ff821094a v-for="account in filteredLoyaltyAccounts" :key="account.userId" class="loyalty-row" @click="openLoyaltyAccount(account)" @contextmenu.prevent="loyaltyMenu($event, account)">
@@ -926,7 +926,7 @@ onBeforeUnmount(() => {
                   <span data-v-ui-642ff821094a class="loyalty-level">{{ loyaltyLevelLabel(account.level) }}</span>
                   <strong data-v-ui-642ff821094a>{{ Number(account.balance).toLocaleString('ru-RU') }}</strong>
                   <span data-v-ui-642ff821094a>{{ account.entries[0] ? `${account.entries[0].amount > 0 ? '+' : ''}${account.entries[0].amount} · ${account.entries[0].reason}` : 'Операций ещё нет' }}</span>
-                  <button data-v-ui-642ff821094a aria-label="Открыть бонусный счёт" @click.stop="openLoyaltyAccount(account)"><Eye data-v-ui-642ff821094a :size="16" /></button>
+                  <button class="crm-button crm-button--icon" data-v-ui-642ff821094a aria-label="Открыть бонусный счёт" @click.stop="openLoyaltyAccount(account)"><Eye data-v-ui-642ff821094a :size="16" /></button>
                 </div>
                 <div data-v-ui-642ff821094a v-if="!filteredLoyaltyAccounts.length" class="appearance-empty">Клиенты не найдены</div>
               </div>
@@ -934,12 +934,12 @@ onBeforeUnmount(() => {
           </template>
           <WorkspaceLoading v-else label="Загружаем бонусную программу" />
         </section>
-        <section data-v-ui-642ff821094a v-else-if="active === 'products'" class="panel">
-          <div data-v-ui-642ff821094a class="filters cs-product-filters"><label data-v-ui-642ff821094a class="search cs-product-search"><Search data-v-ui-642ff821094a :size="16" /><input data-v-ui-642ff821094a v-model="search" type="search" aria-label="Поиск товаров" placeholder="Название или SKU" :disabled="bulkSaving" /></label><select data-v-ui-642ff821094a v-model="productCategory" aria-label="Категория товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Все категории</option><option data-v-ui-642ff821094a v-for="category in categories" :key="category.id" :value="category.id">{{category.nameRu}}</option></select><select data-v-ui-642ff821094a v-model="productVisibility" aria-label="Публикация товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Любая публикация</option><option data-v-ui-642ff821094a value="active">На сайте</option><option data-v-ui-642ff821094a value="hidden">Скрытые</option></select><select data-v-ui-642ff821094a v-model="productAvailability" aria-label="Наличие товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Любой остаток</option><option data-v-ui-642ff821094a value="stocked">В наличии</option><option data-v-ui-642ff821094a value="empty">Нет в наличии</option></select><select data-v-ui-642ff821094a v-model="productSort" aria-label="Порядок товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="updated">По обновлению</option><option data-v-ui-642ff821094a value="name">По названию</option><option data-v-ui-642ff821094a value="sku">По артикулу</option></select></div>
-          <div data-v-ui-642ff821094a v-if="selectedProductIds.length" class="cs-bulk-bar"><span data-v-ui-642ff821094a>Выбрано: {{selectedProductIds.length}}</span><button data-v-ui-642ff821094a :disabled="busy||bulkSaving||!canEditCatalog" @click="bulkProducts('publish')">Опубликовать</button><button data-v-ui-642ff821094a :disabled="busy||bulkSaving||!canEditCatalog" @click="bulkProducts('hide')">Скрыть</button><button data-v-ui-642ff821094a :disabled="bulkSaving" @click="selectedProductIds=[]">Снять выбор</button></div>
+        <section data-v-ui-642ff821094a v-else-if="active === 'products'" class="panel crm-surface">
+          <div data-v-ui-642ff821094a class="filters cs-product-filters crm-toolbar"><label data-v-ui-642ff821094a class="search cs-product-search crm-input-group"><Search data-v-ui-642ff821094a :size="16" /><input class="crm-input" data-v-ui-642ff821094a v-model="search" type="search" aria-label="Поиск товаров" placeholder="Название или SKU" :disabled="bulkSaving" /></label><select class="crm-input" data-v-ui-642ff821094a v-model="productCategory" aria-label="Категория товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Все категории</option><option data-v-ui-642ff821094a v-for="category in categories" :key="category.id" :value="category.id">{{category.nameRu}}</option></select><select class="crm-input" data-v-ui-642ff821094a v-model="productVisibility" aria-label="Публикация товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Любая публикация</option><option data-v-ui-642ff821094a value="active">На сайте</option><option data-v-ui-642ff821094a value="hidden">Скрытые</option></select><select class="crm-input" data-v-ui-642ff821094a v-model="productAvailability" aria-label="Наличие товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="">Любой остаток</option><option data-v-ui-642ff821094a value="stocked">В наличии</option><option data-v-ui-642ff821094a value="empty">Нет в наличии</option></select><select class="crm-input" data-v-ui-642ff821094a v-model="productSort" aria-label="Порядок товаров" :disabled="busy||bulkSaving||priceEditing"><option data-v-ui-642ff821094a value="updated">По обновлению</option><option data-v-ui-642ff821094a value="name">По названию</option><option data-v-ui-642ff821094a value="sku">По артикулу</option></select></div>
+          <div data-v-ui-642ff821094a v-if="selectedProductIds.length" class="cs-bulk-bar"><span data-v-ui-642ff821094a>Выбрано: {{selectedProductIds.length}}</span><button class="crm-button" data-v-ui-642ff821094a :disabled="busy||bulkSaving||!canEditCatalog" @click="bulkProducts('publish')">Опубликовать</button><button class="crm-button" data-v-ui-642ff821094a :disabled="busy||bulkSaving||!canEditCatalog" @click="bulkProducts('hide')">Скрыть</button><button class="crm-button" data-v-ui-642ff821094a :disabled="bulkSaving" @click="selectedProductIds=[]">Снять выбор</button></div>
           <div data-v-ui-642ff821094a class="table products-table">
             <div data-v-ui-642ff821094a class="row head">
-              <input data-v-ui-642ff821094a type="checkbox" :checked="allProductsSelected" :disabled="busy||bulkSaving||!canEditCatalog||!filteredProducts.length" aria-label="Выбрать товары на странице" @change="selectPage"/>
+              <input class="crm-check" data-v-ui-642ff821094a type="checkbox" :checked="allProductsSelected" :disabled="busy||bulkSaving||!canEditCatalog||!filteredProducts.length" aria-label="Выбрать товары на странице" @change="selectPage"/>
               <span data-v-ui-642ff821094a>Товар</span><span data-v-ui-642ff821094a>Цена</span><span data-v-ui-642ff821094a>Акционная цена</span><span data-v-ui-642ff821094a>Остаток</span
               ><span data-v-ui-642ff821094a>Статус</span>
             </div>
@@ -950,27 +950,27 @@ onBeforeUnmount(() => {
               class="row"
               @contextmenu.prevent="productMenu($event, p)"
             >
-              <input data-v-ui-642ff821094a v-model="selectedProductIds" type="checkbox" :value="p.id" :disabled="busy||bulkSaving||!canEditCatalog" :aria-label="'Выбрать товар '+p.nameRu"/>
+              <input class="crm-check" data-v-ui-642ff821094a v-model="selectedProductIds" type="checkbox" :value="p.id" :disabled="busy||bulkSaving||!canEditCatalog" :aria-label="'Выбрать товар '+p.nameRu"/>
               <div data-v-ui-642ff821094a class="cs-product-identity">
                 <img data-v-ui-642ff821094a v-if="productPreview(p)" :src="productPreview(p)!" :alt="p.nameRu" loading="lazy" @error="productPreviewFailed(p)"/><span data-v-ui-642ff821094a v-else class="cs-product-thumb" :class="{ 'cs-product-thumb--gift': p.productType === 'GIFT_CARD' }" :aria-label="p.productType === 'GIFT_CARD' ? 'Подарочная карта' : 'Нет фотографии товара'"><Gift data-v-ui-642ff821094a v-if="p.productType === 'GIFT_CARD'" :size="20"/><ImagePlus data-v-ui-642ff821094a v-else :size="20"/></span>
-                <button data-v-ui-642ff821094a type="button" class="product-open" @click="editProduct(p)">{{ p.nameRu }}</button
+                <button data-v-ui-642ff821094a type="button" class="product-open crm-button" @click="editProduct(p)">{{ p.nameRu }}</button
                 ><small data-v-ui-642ff821094a>{{ p.sku }}</small>
               </div>
               <div class="cs-inline-price">
-                <input v-if="priceEditor?.id === p.id" v-model="priceEditor.price" data-price-field="price" @focus="priceEditor.field = 'price'" class="cs-inline-price-input" type="text" inputmode="decimal" :aria-label="'Цена: ' + p.nameRu" :disabled="savingPrice" @keydown.enter.prevent="savePrices" @keydown.escape.stop.prevent="cancelPrices"/>
+                <input v-if="priceEditor?.id === p.id" v-model="priceEditor.price" data-price-field="price" @focus="priceEditor.field = 'price'" class="cs-inline-price-input crm-input" type="text" inputmode="decimal" :aria-label="'Цена: ' + p.nameRu" :disabled="savingPrice" @keydown.enter.prevent="savePrices" @keydown.escape.stop.prevent="cancelPrices"/>
                 <div v-if="priceEditor?.id === p.id && priceEditor.field === 'price'" class="cs-inline-price-actions">
-                  <button type="button" class="cs-price-save" :disabled="savingPrice" @click="savePrices" :aria-label="'Сохранить цены: ' + p.nameRu" title="Сохранить цены"><Check :size="16"/></button>
-                  <button type="button" class="cs-price-cancel" :disabled="savingPrice" @click="cancelPrices" aria-label="Отменить изменение цен" title="Отменить изменение цен"><X :size="16"/></button>
+                  <button type="button" class="cs-price-save crm-button" :disabled="savingPrice" @click="savePrices" :aria-label="'Сохранить цены: ' + p.nameRu" title="Сохранить цены"><Check :size="16"/></button>
+                  <button type="button" class="cs-price-cancel crm-button crm-button--icon" :disabled="savingPrice" @click="cancelPrices" aria-label="Отменить изменение цен" title="Отменить изменение цен"><X :size="16"/></button>
                 </div>
-                <button v-if="priceEditor?.id !== p.id" type="button" class="cs-price-value" :disabled="!canEditCatalog || priceEditing || p.productType === 'GIFT_CARD' || !p.variants?.length" :aria-label="'Изменить цену: ' + p.nameRu" :title="p.productType === 'GIFT_CARD' ? 'Номиналы настраиваются в разделе подарочных карт' : 'Нажмите, чтобы изменить цену'" @click="editPrices(p, 'price')">{{ Number(p.variants?.[0]?.price ?? p.basePrice ?? 0).toLocaleString('ru-RU') }} ₽<Pencil v-if="canEditCatalog && p.productType !== 'GIFT_CARD'" :size="14"/></button>
+                <button v-if="priceEditor?.id !== p.id" type="button" class="cs-price-value crm-button" :disabled="!canEditCatalog || priceEditing || p.productType === 'GIFT_CARD' || !p.variants?.length" :aria-label="'Изменить цену: ' + p.nameRu" :title="p.productType === 'GIFT_CARD' ? 'Номиналы настраиваются в разделе подарочных карт' : 'Нажмите, чтобы изменить цену'" @click="editPrices(p, 'price')">{{ Number(p.variants?.[0]?.price ?? p.basePrice ?? 0).toLocaleString('ru-RU') }} ₽<Pencil v-if="canEditCatalog && p.productType !== 'GIFT_CARD'" :size="14"/></button>
               </div>
               <div class="cs-inline-price">
-                <input v-if="priceEditor?.id === p.id" v-model="priceEditor.salePrice" data-price-field="salePrice" @focus="priceEditor.field = 'salePrice'" class="cs-inline-price-input" type="text" inputmode="decimal" placeholder="Без акции" :aria-label="'Акционная цена: ' + p.nameRu" :disabled="savingPrice" @keydown.enter.prevent="savePrices" @keydown.escape.stop.prevent="cancelPrices"/>
+                <input v-if="priceEditor?.id === p.id" v-model="priceEditor.salePrice" data-price-field="salePrice" @focus="priceEditor.field = 'salePrice'" class="cs-inline-price-input crm-input" type="text" inputmode="decimal" placeholder="Без акции" :aria-label="'Акционная цена: ' + p.nameRu" :disabled="savingPrice" @keydown.enter.prevent="savePrices" @keydown.escape.stop.prevent="cancelPrices"/>
                 <div v-if="priceEditor?.id === p.id && priceEditor.field === 'salePrice'" class="cs-inline-price-actions">
-                  <button type="button" class="cs-price-save" :disabled="savingPrice" @click="savePrices" :aria-label="'Сохранить цены: ' + p.nameRu" title="Сохранить цены"><Check :size="16"/></button>
-                  <button type="button" class="cs-price-cancel" :disabled="savingPrice" @click="cancelPrices" aria-label="Отменить изменение цен" title="Отменить изменение цен"><X :size="16"/></button>
+                  <button type="button" class="cs-price-save crm-button" :disabled="savingPrice" @click="savePrices" :aria-label="'Сохранить цены: ' + p.nameRu" title="Сохранить цены"><Check :size="16"/></button>
+                  <button type="button" class="cs-price-cancel crm-button crm-button--icon" :disabled="savingPrice" @click="cancelPrices" aria-label="Отменить изменение цен" title="Отменить изменение цен"><X :size="16"/></button>
                 </div>
-                <button v-if="priceEditor?.id !== p.id" type="button" class="cs-price-value" :disabled="!canEditCatalog || priceEditing || p.productType === 'GIFT_CARD' || !p.variants?.length" :aria-label="'Изменить акционную цену: ' + p.nameRu" @click="editPrices(p, 'salePrice')">{{ p.variants?.[0]?.salePrice != null ? Number(p.variants[0].salePrice).toLocaleString('ru-RU') + ' ₽' : '—' }}<Pencil v-if="canEditCatalog && p.productType !== 'GIFT_CARD'" :size="14"/></button>
+                <button v-if="priceEditor?.id !== p.id" type="button" class="cs-price-value crm-button" :disabled="!canEditCatalog || priceEditing || p.productType === 'GIFT_CARD' || !p.variants?.length" :aria-label="'Изменить акционную цену: ' + p.nameRu" @click="editPrices(p, 'salePrice')">{{ p.variants?.[0]?.salePrice != null ? Number(p.variants[0].salePrice).toLocaleString('ru-RU') + ' ₽' : '—' }}<Pencil v-if="canEditCatalog && p.productType !== 'GIFT_CARD'" :size="14"/></button>
               </div>
               <span data-v-ui-642ff821094a>{{ p.variants?.[0]?.stock || 0 }}</span>
               <span data-v-ui-642ff821094a :class="p.isActive ? 'green' : 'red'">{{ p.isActive ? "Активен" : "Скрыт" }}</span>
@@ -983,7 +983,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <WorkspaceOrdersTable v-else-if="active === 'orders'" :items="filteredOrders" :total="listTotal" v-model:search="search" v-model:status="statusFilter" :busy="busy" @open="selected = $event" @context="orderMenu" />
-        <section data-v-ui-642ff821094a v-else-if="active === 'customers'" class="panel">
+        <section data-v-ui-642ff821094a v-else-if="active === 'customers'" class="panel crm-surface">
           <div data-v-ui-642ff821094a class="panel-head">
             <div data-v-ui-642ff821094a>
               <p data-v-ui-642ff821094a class="kicker">КЛИЕНТСКАЯ БАЗА</p>
@@ -1018,20 +1018,21 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </section>
-        <nav data-v-ui-642ff821094a v-if="['products','orders'].includes(active)" class="admin-pagination" aria-label="Страницы списка"><span data-v-ui-642ff821094a>Всего: {{ listTotal }} · Страница {{ listPage }} из {{ Math.max(1, Math.ceil(listTotal / listLimit)) }}</span><div data-v-ui-642ff821094a><button data-v-ui-642ff821094a type="button" :disabled="busy || priceEditing || listPage <= 1" @click="changeListPage(-1)">Назад</button><button data-v-ui-642ff821094a type="button" :disabled="busy || priceEditing || listPage * listLimit >= listTotal" @click="changeListPage(1)">Далее</button></div></nav>
+        <nav data-v-ui-642ff821094a v-if="['products','orders'].includes(active)" class="admin-pagination" aria-label="Страницы списка"><span data-v-ui-642ff821094a>Всего: {{ listTotal }} · Страница {{ listPage }} из {{ Math.max(1, Math.ceil(listTotal / listLimit)) }}</span><div data-v-ui-642ff821094a><button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="busy || priceEditing || listPage <= 1" @click="changeListPage(-1)">Назад</button><button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="busy || priceEditing || listPage * listLimit >= listTotal" @click="changeListPage(1)">Далее</button></div></nav>
       </div>
     </template>
     <div data-v-ui-642ff821094a v-if="notice" class="toast">{{ notice }}</div>
   </main>
   <aside data-v-ui-642ff821094a v-if="loyaltyAccountEditor" class="drawer-backdrop loyalty-drawer-backdrop admin-dialog-backdrop" @click.self="loyaltyAccountEditor = null">
     <div data-v-ui-642ff821094a class="drawer loyalty-drawer admin-dialog admin-dialog--drawer">
-      <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">БОНУСНЫЙ СЧЁТ</p><h2 data-v-ui-642ff821094a>{{ [loyaltyAccountEditor.firstName, loyaltyAccountEditor.lastName].filter(Boolean).join(' ') || 'Клиент' }}</h2><span data-v-ui-642ff821094a class="loyalty-client-email">{{ loyaltyAccountEditor.email }}</span></div><button data-v-ui-642ff821094a type="button" aria-label="Закрыть бонусный счёт" @click="loyaltyAccountEditor = null"><X data-v-ui-642ff821094a :size="18" /></button></header>
+      <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">БОНУСНЫЙ СЧЁТ</p><h2 data-v-ui-642ff821094a>{{ [loyaltyAccountEditor.firstName, loyaltyAccountEditor.lastName].filter(Boolean).join(' ') || 'Клиент' }}</h2><span data-v-ui-642ff821094a class="loyalty-client-email">{{ loyaltyAccountEditor.email }}</span></div><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" aria-label="Закрыть бонусный счёт" @click="loyaltyAccountEditor = null"><X data-v-ui-642ff821094a :size="18" /></button></header>
       <div data-v-ui-642ff821094a class="admin-dialog-body">
       <div data-v-ui-642ff821094a class="loyalty-drawer-balance"><small data-v-ui-642ff821094a>Доступно</small><strong data-v-ui-642ff821094a>{{ Number(loyaltyAccountEditor.balance).toLocaleString('ru-RU') }}</strong><span data-v-ui-642ff821094a>бонусов · {{ loyaltyLevelLabel(loyaltyAccountEditor.level) }}</span></div>
-      <div data-v-ui-642ff821094a class="loyalty-operation-tabs"><button data-v-ui-642ff821094a :class="{ active: loyaltyAdjustment.type === 'ACCRUAL' }" @click="loyaltyAdjustment.type = 'ACCRUAL'">Начислить</button><button data-v-ui-642ff821094a :class="{ active: loyaltyAdjustment.type === 'WRITE_OFF' }" @click="loyaltyAdjustment.type = 'WRITE_OFF'">Списать</button></div>
-      <div data-v-ui-642ff821094a class="loyalty-adjustment-form"><label data-v-ui-642ff821094a>Количество бонусов<input data-v-ui-642ff821094a v-model.number="loyaltyAdjustment.amount" type="number" min="1" /></label><label data-v-ui-642ff821094a>Причина<textarea data-v-ui-642ff821094a v-model="loyaltyAdjustment.reason" maxlength="240" rows="3" placeholder="Например, компенсация по обращению"></textarea></label><button data-v-ui-642ff821094a :disabled="savingLoyalty" @click="applyLoyaltyAdjustment">{{ savingLoyalty ? 'Проводим операцию…' : loyaltyAdjustment.type === 'ACCRUAL' ? 'Начислить бонусы' : 'Списать бонусы' }}</button></div>
+      <div data-v-ui-642ff821094a class="loyalty-operation-tabs"><button class="crm-button" data-v-ui-642ff821094a :class="{ active: loyaltyAdjustment.type === 'ACCRUAL' }" @click="loyaltyAdjustment.type = 'ACCRUAL'">Начислить</button><button class="crm-button" data-v-ui-642ff821094a :class="{ active: loyaltyAdjustment.type === 'WRITE_OFF' }" @click="loyaltyAdjustment.type = 'WRITE_OFF'">Списать</button></div>
+      <div data-v-ui-642ff821094a class="loyalty-adjustment-form"><label data-v-ui-642ff821094a>Количество бонусов<input class="crm-input" data-v-ui-642ff821094a v-model.number="loyaltyAdjustment.amount" type="number" min="1" /></label><label data-v-ui-642ff821094a>Причина<textarea class="crm-input" data-v-ui-642ff821094a v-model="loyaltyAdjustment.reason" maxlength="240" rows="3" placeholder="Например, компенсация по обращению"></textarea></label><button class="crm-button" data-v-ui-642ff821094a :disabled="savingLoyalty" @click="applyLoyaltyAdjustment">{{ savingLoyalty ? 'Проводим операцию…' : loyaltyAdjustment.type === 'ACCRUAL' ? 'Начислить бонусы' : 'Списать бонусы' }}</button></div>
       <div data-v-ui-642ff821094a class="loyalty-history"><h3 data-v-ui-642ff821094a>Последние операции</h3><article data-v-ui-642ff821094a v-for="entry in loyaltyAccountEditor.entries" :key="entry.id"><div data-v-ui-642ff821094a><b data-v-ui-642ff821094a>{{ entry.reason }}</b><small data-v-ui-642ff821094a>{{ new Date(entry.createdAt).toLocaleString('ru-RU') }}</small></div><strong data-v-ui-642ff821094a :class="{ minus: entry.amount < 0 }">{{ entry.amount > 0 ? '+' : '' }}{{ entry.amount }}</strong></article><p data-v-ui-642ff821094a v-if="!loyaltyAccountEditor.entries.length">Операций ещё нет</p></div>
       </div>
     </div>
   </aside>
+  <AdminOrderDrawer v-if="active === 'orders' && route.path.startsWith('/crm/')" />
 </template>

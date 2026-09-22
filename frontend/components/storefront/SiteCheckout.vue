@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, CreditCard, Mail, MapPin, ShoppingBag, Trash2, Truck, UserRound, X } from '@lucide/vue';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, CreditCard, Mail, MapPin, Package, ShoppingBag, Trash2, Truck, UserRound, X } from '@lucide/vue';
 
 type DeliveryMethod = 'COURIER' | 'PICKUP_POINT';
-type ShippingProvider = 'CDEK' | 'OZON_DELIVERY';
+type ShippingProvider = 'CDEK' | 'OZON_DELIVERY' | 'YANDEX_DELIVERY';
 type PublicQuote = { subtotal: number; discount: number; bonusAmount: number; giftCardAmount: number; digitalDelivery: boolean; shippingAmount: number | null; total: number; currency: string; deliveryConfirmed: boolean; maxBonusAmount: number; earnEstimate: number; messages: string[]; canPay: boolean };
 type CheckoutIntent = { key: string; fingerprint: string; body: Record<string, any>; uncertain: boolean; quote?: PublicQuote; giftCodeHash?: string; needsGiftCardCode?: boolean };
 type PickupPoint = { code: string; name: string; address: string; cityCode?: number; workTime?: string };
@@ -18,11 +18,12 @@ const loading = ref(true), busy = ref(false), modifying = ref(false), error = re
 const success = ref<any>(null), step = ref(1), accepted = ref(false), formElement = ref<HTMLFormElement>();
 const contact = reactive({ firstName: '', lastName: '', email: '', phone: '' });
 const address = reactive({ city: '', street: '', house: '', apartment: '', pickupPointName: '', pickupPointAddress: '', cityCode: '' });
-const deliveryMethod = ref<DeliveryMethod>('COURIER'), shippingProvider = ref<ShippingProvider>('CDEK'), comments = ref('');
+const deliveryMethod = ref<DeliveryMethod>('COURIER'), shippingProvider = ref<ShippingProvider | ''>(''), comments = ref('');
 const promoInput = ref(''), promoCode = ref(''), useBonuses = ref(false);
 const giftInput = ref(''), giftCardCode = ref(''), giftCodeHash = ref(''), giftRecoveryInput = ref(''), giftError = ref('');
 const quote = ref<PublicQuote | null>(null), quotePending = ref(false), shippingPending = ref(false);
 const shippingCapabilities = ref<any[]>([]), paymentCapability = ref<any>(null), capabilitiesPending = ref(true);
+const providerName = (provider: string) => provider === 'CDEK' ? 'СДЭК' : provider === 'YANDEX_DELIVERY' ? 'Яндекс Доставка' : 'Ozon Доставка';
 const shippingResult = ref<any>(null), pickupPoints = ref<PickupPoint[]>([]), pickupCode = ref(''), pickupPending = ref(false), pickupMessage = ref('');
 const savedAddresses = ref<any[]>([]), savedAddressId = ref(''), addressesError = ref('');
 const cities = ref<ShippingCity[]>([]), selectedCity = ref<ShippingCity | null>(null), cityPending = ref(false), cityMessage = ref(''), cityActive = ref(-1);
@@ -35,7 +36,7 @@ const contactValid = computed(() => Boolean(contact.firstName.trim() && /^[^\s@]
 const cityCode = computed(() => shippingProvider.value === 'CDEK' && selectedCity.value?.city === address.city.trim() && selectedCity.value.code === Number(address.cityCode) ? selectedCity.value.code : undefined);
 const capability = computed(() => shippingCapabilities.value.find(item => item.provider === shippingProvider.value));
 const actualPoint = computed(() => pickupPoints.value.find(point => point.code === pickupCode.value));
-const deliveryValid = computed(() => isGiftOrder.value ? contactValid.value : Boolean(address.city.trim() && (deliveryMethod.value === 'COURIER' ? address.street.trim() && address.house.trim() : actualPoint.value || (address.pickupPointName.trim() && address.pickupPointAddress.trim()))));
+const deliveryValid = computed(() => isGiftOrder.value ? contactValid.value : Boolean(shippingProvider.value && address.city.trim() && (deliveryMethod.value === 'COURIER' ? address.street.trim() && address.house.trim() : actualPoint.value || (address.pickupPointName.trim() && address.pickupPointAddress.trim()))));
 const basketTotal = computed(() => Number(cart.value?.total || 0));
 const displayTotal = computed(() => step.value <= 2 && quote.value ? quote.value.subtotal - quote.value.discount : quote.value?.total ?? basketTotal.value);
 const summaryMessages = computed(() => (quote.value?.messages || []).filter(message => {
@@ -421,7 +422,7 @@ onMounted(async () => {
       for (const key of Object.keys(contact) as (keyof typeof contact)[]) if (typeof draft.contact?.[key] === 'string') contact[key] = draft.contact[key];
       for (const key of Object.keys(address) as (keyof typeof address)[]) if (key !== 'cityCode' && typeof draft.address?.[key] === 'string') address[key] = draft.address[key];
       deliveryMethod.value = draft.deliveryMethod === 'PICKUP_POINT' ? 'PICKUP_POINT' : 'COURIER';
-      shippingProvider.value = draft.shippingProvider === 'OZON_DELIVERY' ? 'OZON_DELIVERY' : 'CDEK';
+      shippingProvider.value = draft.shippingProvider === 'OZON_DELIVERY' || draft.shippingProvider === 'YANDEX_DELIVERY' ? draft.shippingProvider : 'CDEK';
       comments.value = typeof draft.comments === 'string' ? draft.comments : '';
       promoInput.value = typeof draft.promoInput === 'string' ? draft.promoInput.slice(0, 40) : '';
       promoCode.value = typeof draft.promoCode === 'string' ? draft.promoCode.slice(0, 40) : '';
@@ -504,9 +505,10 @@ onBeforeUnmount(() => {
           </section>
           <section v-else-if="step === 3" class="sb-checkout-panel sb-checkout">
             <h2><Truck :size="20" /> Способ получения</h2><p>Выберите доставку до двери или получение в пункте выдачи.</p>
-            <div class="sb-delivery-options" role="group" aria-label="Способ получения"><button type="button" :disabled="locked" :aria-pressed="deliveryMethod === 'COURIER'" :class="{ active: deliveryMethod === 'COURIER' }" @click="deliveryMethod = 'COURIER'"><Truck :size="20" /><b>Курьером до двери</b><span>Привезём по указанному адресу</span></button><button type="button" :disabled="locked" :aria-pressed="deliveryMethod === 'PICKUP_POINT'" :class="{ active: deliveryMethod === 'PICKUP_POINT' }" @click="deliveryMethod = 'PICKUP_POINT'"><MapPin :size="20" /><b>В пункт выдачи</b><span>Получение в удобном для вас ПВЗ</span></button></div>
+            <div class="sb-delivery-providers" role="radiogroup" aria-label="Служба доставки"><button v-for="provider in shippingCapabilities" :key="provider.provider" type="button" role="radio" :aria-checked="shippingProvider === provider.provider" :class="{ active: shippingProvider === provider.provider }" :disabled="locked" @click="shippingProvider = provider.provider"><span class="sb-delivery-provider__mark" :class="'is-' + provider.provider"><Package v-if="provider.provider === 'CDEK'" :size="19" aria-hidden="true" /><Truck v-else-if="provider.provider === 'OZON_DELIVERY'" :size="19" aria-hidden="true" /><span v-else class="sb-delivery-provider__logo" aria-hidden="true">Я</span></span><strong>{{ providerName(provider.provider) }}</strong><span>{{ provider.available === true ? 'Пункт выдачи или курьер' : 'Подключение службы уточняется' }}</span></button></div>
+            <div v-if="shippingProvider" class="sb-delivery-method-block"><p class="sb-checkout-label">Как получить заказ</p><div class="sb-delivery-options" role="group" aria-label="Способ получения"><button type="button" :disabled="locked" :aria-pressed="deliveryMethod === 'COURIER'" :class="{ active: deliveryMethod === 'COURIER' }" @click="deliveryMethod = 'COURIER'"><Truck :size="20" /><b>Курьером до двери</b><span>Привезём по указанному адресу</span></button><button type="button" :disabled="locked" :aria-pressed="deliveryMethod === 'PICKUP_POINT'" :class="{ active: deliveryMethod === 'PICKUP_POINT' }" @click="deliveryMethod = 'PICKUP_POINT'"><MapPin :size="20" /><b>В пункт выдачи</b><span>Получение в удобном для вас ПВЗ</span></button></div></div>
             <form ref="formElement" @submit.prevent="nextStep">
-              <label>Служба доставки<select v-model="shippingProvider" :disabled="locked"><option value="CDEK">СДЭК</option><option value="OZON_DELIVERY">Ozon Доставка</option></select></label>
+              <p v-if="!shippingProvider" class="sb-checkout-note">Сначала выберите службу доставки, затем способ получения заказа.</p>
               <p v-if="capabilitiesPending" class="sb-checkout-hint" role="status">Проверяем доступность доставки…</p>
               <p v-else-if="capability?.available !== true" class="sb-checkout-note">{{ capability?.message || 'Автоматический расчёт недоступен. Способ и стоимость доставки подтвердим до оплаты.' }}</p>
               <label v-if="savedAddresses.length && deliveryMethod === 'COURIER'">Сохранённый адрес<select v-model="savedAddressId" :disabled="locked" @change="selectAddress"><option value="">Заполнить вручную</option><option v-for="saved in savedAddresses" :key="saved.id" :value="saved.id">{{ saved.label || [saved.city, saved.street, saved.house].filter(Boolean).join(', ') }}</option></select></label>

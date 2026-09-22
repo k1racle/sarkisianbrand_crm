@@ -16,6 +16,7 @@ type NuxtAppInjections =
   InjectionType<typeof import("../../node_modules/nuxt/dist/app/plugins/chunk-reload.client.js")> &
   InjectionType<typeof import("../../node_modules/nuxt/dist/app/plugins/island-link-navigation.client.js")> &
   InjectionType<typeof import("../../node_modules/nuxt/dist/pages/runtime/plugins/prefetch.client.js")> &
+  InjectionType<typeof import("../../plugins/crm-pwa.client")> &
   InjectionType<typeof import("../../plugins/russian-statuses.client")> &
   InjectionType<typeof import("../../plugins/workspace-drag.client")> &
   InjectionType<typeof import("../../plugins/workspace-session.client")>

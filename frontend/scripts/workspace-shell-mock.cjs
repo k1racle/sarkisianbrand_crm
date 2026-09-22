@@ -17,19 +17,28 @@ async function main(){
     try{
       await f.page.goto('http://127.0.0.1:3001/workspace',{waitUntil:'domcontentloaded'});
       await f.page.locator('.workspace-frame h1').waitFor();
-      for(const [area,path] of [['crm','/crm'],['marketplaces','/crm-marketplaces/overview'],['site','/admin-workspace/dashboard'],['support','/helpdesk/overview'],['management','/leadership/overview']]){
+      for(const [area,path] of [['crm','/crm/'],['marketplaces','/crm-marketplaces/overview'],['site','/admin-workspace/dashboard'],['support','/helpdesk/overview'],['management','/leadership/overview']]){
         if(width<800)await f.page.getByRole('button',{name:'Открыть разделы',exact:true}).click();
         await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).selectOption(area);
         await f.page.waitForURL(url=>url.pathname===path,{waitUntil:'domcontentloaded'});
         await f.page.locator('.workspace-frame h1').waitFor();
+        if(area==='crm'){
+          assert.equal(await f.page.locator('.crm-app').count(),1);
+          if(width<1024)await f.page.getByRole('button',{name:'Открыть разделы CRM',exact:true}).click();
+          await f.page.getByRole('link',{name:'Управление платформой',exact:true}).click();
+          await f.page.waitForURL('**/workspace');
+          await f.page.waitForFunction(()=>!document.documentElement.hasAttribute('data-crm-ui'));
+          continue;
+        }
         assert.equal(await f.page.getByLabel('Выбрать рабочее пространство',{exact:true}).inputValue(),area);
         if(area==='marketplaces')assert.equal(await f.page.locator('.wn-group-items a[href="/crm-marketplaces/orders"]').count(),1);
         assert.ok(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'No page overflow');
       }
-      await f.page.locator('.wn-chat-trigger').click();
+      const chatTrigger=width<800 ? f.page.getByRole('button',{name:'Открыть чат',exact:true}) : f.page.locator('.wn-chat-trigger');
+      await chatTrigger.click();
       await f.page.locator('.platform-chat .chat-body').waitFor();
       assert.ok(f.traffic.mockedReads.includes('/platform-chat/channels'));
-      assert.equal(await f.page.locator('.wn-chat-trigger').getAttribute('aria-expanded'),'true');
+      assert.equal(await chatTrigger.getAttribute('aria-expanded'),'true');
       await f.page.getByRole('button',{name:'Закрыть чат',exact:true}).click();
       await f.page.locator('.platform-chat').waitFor({state:'hidden'});
       await f.page.locator('.wn-signout').click();

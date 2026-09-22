@@ -1,0 +1,1 @@
+import{d as t,f as n,o as s,ao as c,A as r,m,b3 as p}from"./S8Twd-2B.js";import{u as _}from"./9HV-2CAp.js";const h=t({__name:"chat",setup(i){const{openChat:a}=n(),{home:o}=_();return s(async()=>{await c(o.value,{replace:!0}),a()}),(u,f)=>{const e=p;return m(),r(e,{label:"Открываем чат платформы"})}}});export{h as default};

@@ -1,19 +1,31 @@
 <script setup lang="ts">
 import WorkspaceContextMenu from './components/WorkspaceContextMenu.vue';
+import { isCrmPath } from '~/shared/crm-workspace';
 const route = useRoute();
 const { token } = useWorkspaceSession();
 const { railCollapsed } = useWorkspaceLayout();
 const internalRoutes = ['/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/crm-chat', '/crm-marketplaces', '/leadership', '/helpdesk', '/system-settings'];
 const isInternal = computed(() => internalRoutes.some(path => route.path === path || route.path.startsWith(`${path}/`)));
+const isCrm = computed(() => isCrmPath(route.path));
 const showWorkspace = computed(() => isInternal.value && Boolean(token.value));
 const isStoreWorkspace = computed(() => route.path === '/admin-workspace' || route.path.startsWith('/admin-workspace/'));
 const b2bSession = useB2BSession();
 const isB2B = computed(() => route.path === '/b2b' || route.path.startsWith('/b2b/'));
 const showB2B = computed(() => isB2B.value && Boolean(b2bSession.token.value));
+useHead(() => isCrm.value ? {
+  htmlAttrs: { lang: 'ru', 'data-crm-ui': 'true' },
+  link: [{ rel: 'manifest', href: '/crm/manifest.webmanifest' }, { rel: 'apple-touch-icon', href: '/crm/pwa/icon-180.png' }],
+  meta: [{ name: 'theme-color', content: '#f6f7fb' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'SARKISIAN CRM' }, { name: 'robots', content: 'noindex, nofollow' }],
+} : {});
 </script>
 
 <template>
-  <ClientOnly v-if="isInternal">
+  <ClientOnly v-if="isCrm">
+    <LazyCrmShell v-if="token && route.path !== '/crm/login'"><NuxtPage /></LazyCrmShell>
+    <NuxtPage v-else />
+    <template #fallback><WorkspaceLoading label="Открываем CRM" /></template>
+  </ClientOnly>
+  <ClientOnly v-else-if="isInternal">
     <ConsoleRail v-if="showWorkspace" />
     <AdminProductEditor v-if="showWorkspace && isStoreWorkspace" />
     <AdminOrderDrawer v-if="showWorkspace && isStoreWorkspace" />

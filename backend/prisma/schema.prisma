@@ -1509,6 +1509,7 @@ model CrmPipelineStage {
 }
 
 model Lead {
+  files CrmLeadFile[]
   id             String        @id @default(uuid())
   b2bProfileId   String?
   b2bProfile     B2BProfile?   @relation(fields: [b2bProfileId], references: [id])
@@ -1603,6 +1604,8 @@ model Task {
   parent         Task?             @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children       Task[]            @relation("TaskHierarchy")
   comments       CrmTaskComment[]
+  files          CrmTaskFile[]
+  publication    CrmPublication?
   reminders      CrmTaskReminder[]
   templateId     String?
   template       CrmTaskTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
@@ -1619,6 +1622,35 @@ model Task {
   @@index([organizationId])
   @@index([orderId])
   @@index([templateId])
+}
+
+// One publication is a platform-specific version of an idea; production uses an ordinary task.
+model CrmPublication {
+  id            String   @id @default(uuid())
+  taskId        String   @unique
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  ideaId        String
+  platform      String
+  format        String
+  campaign      String   @default("")
+  brief         String   @default("")
+  script        String   @default("")
+  caption       String   @default("")
+  cta           String   @default("")
+  status        String   @default("IDEA")
+  scheduledAt   DateTime?
+  timezone      String   @default("Europe/Moscow")
+  publishedUrl  String   @default("")
+  approvedAt    DateTime?
+  approvedById  String?
+  version       Int      @default(1)
+  archivedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([archivedAt, scheduledAt])
+  @@index([ideaId])
+  @@index([status, platform])
 }
 
 model CrmTaskTemplate {
@@ -1668,6 +1700,48 @@ model CrmTaskComment {
   createdAt DateTime @default(now())
 
   @@index([taskId, createdAt])
+}
+
+// Private CRM drive; bytes are never exposed through the public media service.
+model CrmDriveNode {
+  id          String   @id @default(uuid())
+  name        String
+  kind        String   // FOLDER or FILE
+  scope       String   // PERSONAL or TEAM
+  ownerId     String
+  parentId    String?
+  parent      CrmDriveNode?  @relation("DriveTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    CrmDriveNode[] @relation("DriveTree")
+  storageKey  String?  @unique
+  mime        String?
+  size        Int     @default(0)
+  deletedAt   DateTime?
+  trashBatch  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tasks       CrmTaskFile[]
+  leads       CrmLeadFile[]
+
+  @@index([scope, ownerId, parentId, deletedAt])
+  @@index([trashBatch])
+}
+
+model CrmTaskFile {
+  taskId    String
+  nodeId    String
+  task      Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  node      CrmDriveNode  @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  createdAt DateTime     @default(now())
+  @@id([taskId, nodeId])
+}
+
+model CrmLeadFile {
+  leadId String
+  nodeId String
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  node CrmDriveNode @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@id([leadId, nodeId])
 }
 
 model CrmChatChannel {

@@ -11,9 +11,10 @@ function submitSearch() {
   emit('close');
 }
 
-const { content, loadStorefrontContent } = useStorefrontContent();
+const { content, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
 const menu = computed(() => storefrontCatalogMenu(content.value.categories || [], content.value.settings.catalogMenu));
 const groups = computed(() => menu.value.groups);
+const groupsWithImages = computed(() => groups.value.filter(group => Boolean(group.imageUrl || group.items?.some(item => item.imageUrl))));
 watch(() => props.open, open => { if (open) loadStorefrontContent(true); }, { immediate: true });
 </script>
 
@@ -38,12 +39,18 @@ watch(() => props.open, open => { if (open) loadStorefrontContent(true); }, { im
           </div>
 
           <div class="sb-catalog-menu">
-            <section v-for="group in groups" :key="group.id">
-              <NuxtLink :to="storefrontCatalogLink(group)" @click="emit('close')"><h3>{{ group.label }}</h3><ChevronRight :size="16" /></NuxtLink>
+            <section v-for="group in groupsWithImages" :key="group.id">
+              <NuxtLink :to="storefrontCatalogLink(group)" class="sb-catalog-group-link" @click="emit('close')">
+                <span v-if="group.imageUrl || group.items?.find(item => item.imageUrl)?.imageUrl" class="sb-catalog-group-link__image">
+                  <img :src="storefrontMediaUrl(group.imageUrl || group.items?.find(item => item.imageUrl)?.imageUrl)" :alt="group.label" loading="lazy" />
+                </span>
+                <span class="sb-catalog-group-link__copy"><h3>{{ group.label }}</h3></span>
+                <ChevronRight :size="16" />
+              </NuxtLink>
               <NuxtLink v-for="item in group.items" :key="item.id" :to="storefrontCatalogLink(item)" @click="emit('close')">{{ item.label }}</NuxtLink>
             </section>
           </div>
-          <p v-if="!groups.length">Категории пока недоступны. Откройте весь каталог или попробуйте позже.</p>
+          <p v-if="!groupsWithImages.length">Категории пока недоступны. Откройте весь каталог или попробуйте позже.</p>
 
           <NuxtLink to="/catalog" class="sb-catalog-all sb-liquid-primary" @click="emit('close')">
             Смотреть весь каталог <ArrowRight :size="17" />

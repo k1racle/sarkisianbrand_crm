@@ -106,7 +106,7 @@ export class CreateInteractionDto {
 }
 
 export class CreateTaskDto {
-  @IsString() title!: string;
+  @IsString() @MaxLength(200) title!: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsUUID() assignedToId?: string;
   @IsOptional() @IsUUID() createdById?: string;
@@ -128,7 +128,7 @@ export class CreateTaskDto {
 }
 
 export class UpdateTaskDto {
-  @IsOptional() @IsString() title?: string;
+  @IsOptional() @IsString() @MaxLength(200) title?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsUUID() assignedToId?: string;
   @IsOptional() @IsUUID() leadId?: string;
@@ -147,4 +147,8 @@ export class UpdateTaskDto {
   @IsOptional() @IsInt() @Min(0) reminderBeforeMinutes?: number;
 }
 
-export class CreateTaskCommentDto { @IsString() body!: string; }
+export class CreateTaskCommentDto { @IsString() @MaxLength(10000) body!: string; }
+export class MoveTaskDto {
+  @IsEnum(TaskStatus) status!: TaskStatus;
+  @IsOptional() @IsUUID() beforeId?: string;
+}

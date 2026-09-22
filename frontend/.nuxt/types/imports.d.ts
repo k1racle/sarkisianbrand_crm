@@ -123,6 +123,10 @@ declare global {
   const useContextMenu: typeof import('../../composables/useContextMenu').useContextMenu
   const useCookie: typeof import('../../node_modules/nuxt/dist/app/composables/cookie').useCookie
   const useCreatorReactions: typeof import('../../composables/useCreatorReactions').useCreatorReactions
+  const useCrmCardDrag: typeof import('../../composables/useCrmCardDrag').useCrmCardDrag
+  const useCrmDrive: typeof import('../../composables/useCrmDrive').useCrmDrive
+  const useCrmNavigation: typeof import('../../composables/useCrmNavigation').useCrmNavigation
+  const useCrmPwa: typeof import('../../composables/useCrmPwa').useCrmPwa
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
   const useError: typeof import('../../node_modules/nuxt/dist/app/composables/error').useError
@@ -237,6 +241,12 @@ declare global {
   // @ts-ignore
   export type { ContextMenuIcon, ContextMenuItem } from '../../composables/useContextMenu'
   import('../../composables/useContextMenu')
+  // @ts-ignore
+  export type { CrmDriveItem } from '../../composables/useCrmDrive'
+  import('../../composables/useCrmDrive')
+  // @ts-ignore
+  export type { CrmInstallPrompt } from '../../composables/useCrmPwa'
+  import('../../composables/useCrmPwa')
   // @ts-ignore
   export type { StorefrontCategory, StorefrontCatalogQuickLinkKey, StorefrontCatalogMenu } from '../../composables/useStorefrontCatalog'
   import('../../composables/useStorefrontCatalog')
@@ -376,6 +386,10 @@ declare module 'vue' {
     readonly useContextMenu: UnwrapRef<typeof import('../../composables/useContextMenu')['useContextMenu']>
     readonly useCookie: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/cookie')['useCookie']>
     readonly useCreatorReactions: UnwrapRef<typeof import('../../composables/useCreatorReactions')['useCreatorReactions']>
+    readonly useCrmCardDrag: UnwrapRef<typeof import('../../composables/useCrmCardDrag')['useCrmCardDrag']>
+    readonly useCrmDrive: UnwrapRef<typeof import('../../composables/useCrmDrive')['useCrmDrive']>
+    readonly useCrmNavigation: UnwrapRef<typeof import('../../composables/useCrmNavigation')['useCrmNavigation']>
+    readonly useCrmPwa: UnwrapRef<typeof import('../../composables/useCrmPwa')['useCrmPwa']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['useError']>

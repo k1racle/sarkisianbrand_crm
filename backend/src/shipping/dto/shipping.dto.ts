@@ -10,7 +10,7 @@ export class ShippingAddressDto {
 }
 
 export class ShippingEstimateDto {
-  @IsIn(['CDEK', 'OZON_DELIVERY']) provider!: 'CDEK' | 'OZON_DELIVERY';
+  @IsIn(['CDEK', 'OZON_DELIVERY', 'YANDEX_DELIVERY']) provider!: 'CDEK' | 'OZON_DELIVERY' | 'YANDEX_DELIVERY';
   @IsIn(['COURIER', 'PICKUP_POINT']) deliveryMethod!: 'COURIER' | 'PICKUP_POINT';
   @IsString() @IsNotEmpty() @MaxLength(200) city!: string;
   @ValidateIf(dto => dto.deliveryMethod === 'COURIER') @IsString() @IsNotEmpty() @MaxLength(300) street?: string;
@@ -20,12 +20,12 @@ export class ShippingEstimateDto {
 }
 
 export class PickupPointsQueryDto {
-  @IsOptional() @IsIn(['CDEK', 'OZON_DELIVERY']) provider?: 'CDEK' | 'OZON_DELIVERY';
+  @IsOptional() @IsIn(['CDEK', 'OZON_DELIVERY', 'YANDEX_DELIVERY']) provider?: 'CDEK' | 'OZON_DELIVERY' | 'YANDEX_DELIVERY';
   @Type(() => Number) @IsInt() @Min(1) @Max(100000000) cityCode!: number;
 }
 
 export class ShippingCitiesQueryDto {
-  @IsOptional() @IsIn(['CDEK', 'OZON_DELIVERY']) provider?: 'CDEK' | 'OZON_DELIVERY';
+  @IsOptional() @IsIn(['CDEK', 'OZON_DELIVERY', 'YANDEX_DELIVERY']) provider?: 'CDEK' | 'OZON_DELIVERY' | 'YANDEX_DELIVERY';
   @Transform(({ obj, key }) => typeof obj[key] === 'string' ? obj[key].trim() : obj[key])
   @IsString() @MinLength(2) @MaxLength(100) search!: string;
 }

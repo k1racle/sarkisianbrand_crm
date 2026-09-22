@@ -27,13 +27,20 @@ interface _GlobalComponents {
   BusinessSettings: typeof import("../../components/BusinessSettings.vue")['default']
   BusinessToolbar: typeof import("../../components/BusinessToolbar.vue")['default']
   ConsoleRail: typeof import("../../components/ConsoleRail.vue")['default']
+  CrmCardTabs: typeof import("../../components/CrmCardTabs.vue")['default']
+  CrmChangeHistory: typeof import("../../components/CrmChangeHistory.vue")['default']
+  CrmDrivePicker: typeof import("../../components/CrmDrivePicker.vue")['default']
+  CrmDriveThumbnail: typeof import("../../components/CrmDriveThumbnail.vue")['default']
+  CrmFilePreview: typeof import("../../components/CrmFilePreview.vue")['default']
+  CrmLeadTasks: typeof import("../../components/CrmLeadTasks.vue")['default']
+  CrmPdfViewer: typeof import("../../components/CrmPdfViewer.vue")['default']
   CrmPipelineSettings: typeof import("../../components/CrmPipelineSettings.vue")['default']
   CrmTaskAutomation: typeof import("../../components/CrmTaskAutomation.vue")['default']
+  CrmTaskFiles: typeof import("../../components/CrmTaskFiles.vue")['default']
   EcosystemAccounts: typeof import("../../components/EcosystemAccounts.vue")['default']
   EcosystemIntegrations: typeof import("../../components/EcosystemIntegrations.vue")['default']
   EcosystemTrash: typeof import("../../components/EcosystemTrash.vue")['default']
   IntegrationBrandLogo: typeof import("../../components/IntegrationBrandLogo.vue")['default']
-  MarketplaceRail: typeof import("../../components/MarketplaceRail.vue")['default']
   PlatformChatDrawer: typeof import("../../components/PlatformChatDrawer.vue")['default']
   SalonBookingForm: typeof import("../../components/SalonBookingForm.vue")['default']
   SalonCalendar: typeof import("../../components/SalonCalendar.vue")['default']
@@ -53,6 +60,8 @@ interface _GlobalComponents {
   WorkspaceOverview: typeof import("../../components/WorkspaceOverview.vue")['default']
   WorkspaceSectionIcon: typeof import("../../components/WorkspaceSectionIcon.vue")['default']
   WorkspaceToolbar: typeof import("../../components/WorkspaceToolbar.vue")['default']
+  CrmInstallButton: typeof import("../../components/crm/CrmInstallButton.vue")['default']
+  CrmShell: typeof import("../../components/crm/CrmShell.vue")['default']
   ProductCard: typeof import("../../components/storefront/ProductCard.vue")['default']
   SiteAccountAddresses: typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']
   SiteAccountDashboard: typeof import("../../components/storefront/SiteAccountDashboard.vue")['default']
@@ -62,6 +71,7 @@ interface _GlobalComponents {
   SiteAccountOrders: typeof import("../../components/storefront/SiteAccountOrders.vue")['default']
   SiteAccountProfile: typeof import("../../components/storefront/SiteAccountProfile.vue")['default']
   SiteAuthDrawer: typeof import("../../components/storefront/SiteAuthDrawer.vue")['default']
+  SiteBloggersPage: typeof import("../../components/storefront/SiteBloggersPage.vue")['default']
   SiteBusinessPage: typeof import("../../components/storefront/SiteBusinessPage.vue")['default']
   SiteBusinessPreview: typeof import("../../components/storefront/SiteBusinessPreview.vue")['default']
   SiteCartDrawer: typeof import("../../components/storefront/SiteCartDrawer.vue")['default']
@@ -73,6 +83,7 @@ interface _GlobalComponents {
   SiteCategoriesEditor: typeof import("../../components/storefront/SiteCategoriesEditor.vue")['default']
   SiteCheckout: typeof import("../../components/storefront/SiteCheckout.vue")['default']
   SiteClubBlock: typeof import("../../components/storefront/SiteClubBlock.vue")['default']
+  SiteClubHub: typeof import("../../components/storefront/SiteClubHub.vue")['default']
   SiteClubReferral: typeof import("../../components/storefront/SiteClubReferral.vue")['default']
   SiteClubReferralStack: typeof import("../../components/storefront/SiteClubReferralStack.vue")['default']
   SiteContactForm: typeof import("../../components/storefront/SiteContactForm.vue")['default']
@@ -143,13 +154,20 @@ interface _GlobalComponents {
   LazyBusinessSettings: LazyComponent<typeof import("../../components/BusinessSettings.vue")['default']>
   LazyBusinessToolbar: LazyComponent<typeof import("../../components/BusinessToolbar.vue")['default']>
   LazyConsoleRail: LazyComponent<typeof import("../../components/ConsoleRail.vue")['default']>
+  LazyCrmCardTabs: LazyComponent<typeof import("../../components/CrmCardTabs.vue")['default']>
+  LazyCrmChangeHistory: LazyComponent<typeof import("../../components/CrmChangeHistory.vue")['default']>
+  LazyCrmDrivePicker: LazyComponent<typeof import("../../components/CrmDrivePicker.vue")['default']>
+  LazyCrmDriveThumbnail: LazyComponent<typeof import("../../components/CrmDriveThumbnail.vue")['default']>
+  LazyCrmFilePreview: LazyComponent<typeof import("../../components/CrmFilePreview.vue")['default']>
+  LazyCrmLeadTasks: LazyComponent<typeof import("../../components/CrmLeadTasks.vue")['default']>
+  LazyCrmPdfViewer: LazyComponent<typeof import("../../components/CrmPdfViewer.vue")['default']>
   LazyCrmPipelineSettings: LazyComponent<typeof import("../../components/CrmPipelineSettings.vue")['default']>
   LazyCrmTaskAutomation: LazyComponent<typeof import("../../components/CrmTaskAutomation.vue")['default']>
+  LazyCrmTaskFiles: LazyComponent<typeof import("../../components/CrmTaskFiles.vue")['default']>
   LazyEcosystemAccounts: LazyComponent<typeof import("../../components/EcosystemAccounts.vue")['default']>
   LazyEcosystemIntegrations: LazyComponent<typeof import("../../components/EcosystemIntegrations.vue")['default']>
   LazyEcosystemTrash: LazyComponent<typeof import("../../components/EcosystemTrash.vue")['default']>
   LazyIntegrationBrandLogo: LazyComponent<typeof import("../../components/IntegrationBrandLogo.vue")['default']>
-  LazyMarketplaceRail: LazyComponent<typeof import("../../components/MarketplaceRail.vue")['default']>
   LazyPlatformChatDrawer: LazyComponent<typeof import("../../components/PlatformChatDrawer.vue")['default']>
   LazySalonBookingForm: LazyComponent<typeof import("../../components/SalonBookingForm.vue")['default']>
   LazySalonCalendar: LazyComponent<typeof import("../../components/SalonCalendar.vue")['default']>
@@ -169,6 +187,8 @@ interface _GlobalComponents {
   LazyWorkspaceOverview: LazyComponent<typeof import("../../components/WorkspaceOverview.vue")['default']>
   LazyWorkspaceSectionIcon: LazyComponent<typeof import("../../components/WorkspaceSectionIcon.vue")['default']>
   LazyWorkspaceToolbar: LazyComponent<typeof import("../../components/WorkspaceToolbar.vue")['default']>
+  LazyCrmInstallButton: LazyComponent<typeof import("../../components/crm/CrmInstallButton.vue")['default']>
+  LazyCrmShell: LazyComponent<typeof import("../../components/crm/CrmShell.vue")['default']>
   LazyProductCard: LazyComponent<typeof import("../../components/storefront/ProductCard.vue")['default']>
   LazySiteAccountAddresses: LazyComponent<typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']>
   LazySiteAccountDashboard: LazyComponent<typeof import("../../components/storefront/SiteAccountDashboard.vue")['default']>
@@ -178,6 +198,7 @@ interface _GlobalComponents {
   LazySiteAccountOrders: LazyComponent<typeof import("../../components/storefront/SiteAccountOrders.vue")['default']>
   LazySiteAccountProfile: LazyComponent<typeof import("../../components/storefront/SiteAccountProfile.vue")['default']>
   LazySiteAuthDrawer: LazyComponent<typeof import("../../components/storefront/SiteAuthDrawer.vue")['default']>
+  LazySiteBloggersPage: LazyComponent<typeof import("../../components/storefront/SiteBloggersPage.vue")['default']>
   LazySiteBusinessPage: LazyComponent<typeof import("../../components/storefront/SiteBusinessPage.vue")['default']>
   LazySiteBusinessPreview: LazyComponent<typeof import("../../components/storefront/SiteBusinessPreview.vue")['default']>
   LazySiteCartDrawer: LazyComponent<typeof import("../../components/storefront/SiteCartDrawer.vue")['default']>
@@ -189,6 +210,7 @@ interface _GlobalComponents {
   LazySiteCategoriesEditor: LazyComponent<typeof import("../../components/storefront/SiteCategoriesEditor.vue")['default']>
   LazySiteCheckout: LazyComponent<typeof import("../../components/storefront/SiteCheckout.vue")['default']>
   LazySiteClubBlock: LazyComponent<typeof import("../../components/storefront/SiteClubBlock.vue")['default']>
+  LazySiteClubHub: LazyComponent<typeof import("../../components/storefront/SiteClubHub.vue")['default']>
   LazySiteClubReferral: LazyComponent<typeof import("../../components/storefront/SiteClubReferral.vue")['default']>
   LazySiteClubReferralStack: LazyComponent<typeof import("../../components/storefront/SiteClubReferralStack.vue")['default']>
   LazySiteContactForm: LazyComponent<typeof import("../../components/storefront/SiteContactForm.vue")['default']>

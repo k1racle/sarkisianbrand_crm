@@ -34,8 +34,32 @@
 .sb-checkout-summary b { font-variant-numeric: tabular-nums; }
 .sb-checkout-summary > p:not(.sb-kicker) { font-size: var(--sb-type-small); }
 .sb-checkout-summary .sb-primary { width: 100%; margin-top: 12px; }
+.sb-storefront .sb-checkout-summary .sb-primary:hover:not(:disabled) {
+  background: #35312e;
+  border-color: #35312e;
+  color: #fff;
+  box-shadow: var(--sf-action-shadow);
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.sb-storefront .sb-checkout-summary .sb-primary:hover:not(:disabled) svg { color: #fff; }
 .sb-checkout-summary .sb-checkout-text { width: 100%; margin-top: 12px; }
 .sb-checkout-summary > small { color: var(--sf-muted); font-size: var(--sb-type-caption); }
+.sb-storefront .sb-delivery-providers { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 24px 0 18px; }
+.sb-storefront .sb-delivery-providers button { min-width: 0; min-height: 142px; padding: 16px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); display: grid; align-content: start; gap: 10px; text-align: left; background: var(--sf-glass); color: var(--sf-black); cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+.sb-storefront .sb-delivery-providers button:hover:not(:disabled) { background: var(--sf-glass-strong); border-color: rgba(28,27,26,.28); }
+.sb-storefront .sb-delivery-providers button.active { border-color: var(--sf-black); box-shadow: var(--sf-focus-ring); background: #fff; }
+.sb-storefront .sb-delivery-providers button:disabled { opacity: .62; cursor: default; }
+.sb-storefront .sb-delivery-provider__mark { width: 42px; height: 42px; box-sizing: border-box; display: inline-flex; flex: 0 0 42px; align-items: center; justify-content: center; gap: 6px; overflow: hidden; border-radius: 12px; background: #e9e6e3; color: var(--sf-black); }
+.sb-storefront .sb-delivery-provider__mark > svg.lucide { position: static !important; inset: auto !important; display: block; width: 20px !important; height: 20px !important; flex: 0 0 20px !important; margin: 0 !important; transform: none !important; }
+.sb-storefront .sb-delivery-provider__mark > b { display: none; }
+.sb-storefront .sb-delivery-provider__mark.is-CDEK { background: #e8f2e8; color: #278242; }
+.sb-storefront .sb-delivery-provider__mark.is-OZON_DELIVERY { background: #e8f0ff; color: #1769d2; }
+.sb-storefront .sb-delivery-provider__mark.is-YANDEX_DELIVERY { background: #fff3c4; color: #111; }
+.sb-storefront .sb-delivery-provider__logo { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; background: #ffcc00; color: #111; font-size: 16px; font-weight: 800; line-height: 1; }
+.sb-storefront .sb-delivery-providers strong { font-size: var(--sb-type-small); font-weight: var(--sb-weight-semibold); }
+.sb-storefront .sb-delivery-providers button > span:last-child { color: var(--sf-muted); font-size: var(--sb-type-caption); line-height: 1.45; }
+.sb-storefront .sb-checkout-label { margin: 22px 0 0; color: var(--sf-muted); font-size: var(--sb-type-small); font-weight: var(--sb-weight-semibold); }
+.sb-storefront .sb-delivery-method-block + form { margin-top: 0; }
 .sb-delivery-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 24px 0; }
 .sb-delivery-options button { padding: 20px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); display: grid; gap: 12px; text-align: left; background: var(--sf-glass); color: var(--sf-black); }
 .sb-delivery-options button.active { border-color: var(--sf-black); box-shadow: var(--sf-focus-ring); }
@@ -138,6 +162,8 @@
 @media (max-width: 1000px) { .sb-checkout-flow { grid-template-columns: minmax(0,1fr) 280px; gap: 20px; } }
 @media (max-width: 760px) {
   .sb-storefront .sb-checkout-rewards { grid-template-columns: minmax(0,1fr); }
+  .sb-storefront .sb-delivery-providers { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+  .sb-storefront .sb-delivery-providers button { min-height: 126px; padding: 12px; }
   .sb-cart-recommendations-track { grid-auto-columns: 78%; }
   .sb-storefront .sb-checkout-heading { scroll-margin-top: 16px; }
   .sb-checkout-steps { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 24px; }

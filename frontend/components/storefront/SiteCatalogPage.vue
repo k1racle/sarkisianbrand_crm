@@ -14,8 +14,6 @@ const { data: filterData, error: filterError, refresh: refreshFilters } = await 
 const facets = computed(() => filterData.value || { categories: [], purposes: [], features: [], price: { min: 0, max: 0 } });
 const selectedCategory=computed(()=>model.categories.length===1?facets.value.categories.find((category:any)=>category.slug===model.categories[0]):null);
 const categoryDescription=computed(()=>typeof selectedCategory.value?.description==='string'?selectedCategory.value.description:selectedCategory.value?.description?.ru||'');
-const { content, storefrontMediaUrl } = useStorefrontContent();
-const categoryImage = computed(() => { const category = content.value.categories.find((c: any) => c.slug === selectedCategory.value?.slug); return storefrontMediaUrl(category?.imageUrl) || '/storefront/categories/gels.jpg'; });
 const products = computed(() => data.value?.items || []);
 const pagination = computed(() => data.value?.pagination || { pages: 0 });
 const active = computed(() => [
@@ -43,7 +41,7 @@ useStorefrontSeo({ title:()=>`${selectedCategory.value?.nameRu||'Каталог'
 <template>
 <SiteShell><div class="sb-catalog-page">
  <div class="sb-breadcrumbs"><NuxtLink to="/">Главная</NuxtLink><span>/</span><template v-if="selectedCategory"><NuxtLink to="/catalog">Каталог</NuxtLink><span>/</span><span>{{selectedCategory.nameRu}}</span></template><span v-else>Каталог</span></div>
- <header class="sb-catalog-cover"><div><p class="sb-kicker">SARKISIAN / КОЛЛЕКЦИЯ</p><div class="sb-catalog-title"><h1>{{selectedCategory?.nameRu||'Каталог'}}</h1><button ref="trigger" type="button" class="sb-filter-mobile" @click="mobileFilters = true"><SlidersHorizontal :size="18" /><span>Фильтры и сортировка</span></button></div><p v-if="categoryDescription" class="sb-category-description">{{categoryDescription}}</p></div><figure><img :src="categoryImage" :alt="selectedCategory?.nameRu || 'Материалы SARKISIAN'" decoding="async" /></figure></header>
+ <header class="sb-catalog-cover"><div><p class="sb-kicker">SARKISIAN / КОЛЛЕКЦИЯ</p><div class="sb-catalog-title"><h1>{{selectedCategory?.nameRu||'Каталог'}}</h1><button ref="trigger" type="button" class="sb-filter-mobile" @click="mobileFilters = true"><SlidersHorizontal :size="18" /><span>Фильтры и сортировка</span></button></div><p v-if="categoryDescription" class="sb-category-description">{{categoryDescription}}</p></div></header>
  <nav v-if="facets.categories.length" class="sb-catalog-category-tabs" aria-label="Категории коллекции"><NuxtLink to="/catalog" :aria-current="!selectedCategory ? 'page' : undefined">Все материалы</NuxtLink><NuxtLink v-for="category in facets.categories" :key="category.slug" :to="storefrontCatalogLink(category.slug)" :aria-current="selectedCategory?.slug === category.slug ? 'page' : undefined">{{ category.nameRu }}</NuxtLink></nav>
  <div class="sb-catalog-layout sb-catalog-layout--filtered">
   <aside class="sb-filters sb-filters--catalog" aria-label="Фильтры каталога"><h2>Фильтры</h2><p v-if="filterError" class="sb-filter-note">Не удалось загрузить фильтры. <button type="button" class="sb-checkout-text" @click="refreshFilters()">Повторить</button></p><SiteCatalogFilters v-else :model="model" :facets="facets" @change="update" @prices="prices" @reset="reset" /></aside>

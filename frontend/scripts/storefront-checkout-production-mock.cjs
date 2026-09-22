@@ -181,6 +181,7 @@ async function contactStep(page, auth) {
     await stage.getByLabel('Электронная почта', { exact: true }).fill('anna@example.test'); await stage.getByLabel('Телефон', { exact: true }).fill('+79991234567');
   }
   await stage.getByRole('button', { name: /^(?:К доставке|К получению карты)/ }).click();
+  if (await stage.locator('.sb-delivery-providers button').count()) await stage.locator('.sb-delivery-providers button').first().click();
   if (await page.getByLabel('Промокод', { exact: true }).count()) {
     await assertSummaryPromo(page);
     const promo = page.locator('.sb-checkout-summary-promo');

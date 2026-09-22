@@ -12,7 +12,7 @@ const Vue = require('vue');
 const esbuild = require('esbuild');
 const { parse, compileScript, compileTemplate, compileStyle } = require('@vue/compiler-sfc');
 const frontend = path.resolve(__dirname, '..');
-const files = ['pages/crm-tasks.vue', 'components/workspace/SupportWorkspacePage.vue', 'components/workspace/ChannelsWorkspacePage.vue', 'components/CrmPipelineSettings.vue', 'components/EcosystemIntegrations.vue', 'components/BotCommandsSettings.vue', 'components/workspace/SystemWorkspacePage.vue', 'components/AdminNewProduct.vue'];
+const files = ['pages/crm/tasks.vue', 'components/workspace/SupportWorkspacePage.vue', 'components/workspace/ChannelsWorkspacePage.vue', 'components/CrmPipelineSettings.vue', 'components/EcosystemIntegrations.vue', 'components/BotCommandsSettings.vue', 'components/workspace/SystemWorkspacePage.vue', 'components/AdminNewProduct.vue'];
 const scripts = new Map();
 for (const file of files) {
   const filename = path.join(frontend, file), source = fs.readFileSync(filename, 'utf8');

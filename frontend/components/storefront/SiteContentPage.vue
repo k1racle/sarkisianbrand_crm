@@ -2,7 +2,9 @@
 import { siteContentPhoneHref, safeSiteContentUrl } from '~/shared/site-content';
 import { ArrowRight, Mail, Phone, UserRound } from '@lucide/vue';
 const props = defineProps<{ page: any }>();
-const club = computed(() => props.page.slug === 'club');
+const club = computed(() => ['club', 'club-referrals'].includes(props.page.slug));
+const route = useRoute();
+const clubHub = computed(() => props.page.slug === 'club' && route.path === '/club');
 const { openAuth } = useStorefrontPanels();
 const clubTilt = useStorefrontCardTilt();
 const paragraphs = (body: string) => String(body || '').split(/\n+/).filter(Boolean);
@@ -19,8 +21,10 @@ const contactEmail = computed(() => structuredContacts.value ? siteContent.value
 </script>
 
 <template>
-  <SiteBusinessPage v-if="page.slug === 'business'" :page="page" />
-  <SitePartnershipPage v-else-if="!club && page.slug !== 'about' && (page.slug === 'partnerships' || page.blocks?.some((block: any) => block.kind && block.kind !== 'text'))" :page="page" />
+  <SiteClubHub v-if="clubHub" :page="page" />
+  <SiteBusinessPage v-else-if="page.slug === 'business'" :page="page" />
+  <SiteBloggersPage v-else-if="page.slug === 'partnerships'" :page="page" />
+  <SitePartnershipPage v-else-if="!club && page.slug !== 'about' && page.blocks?.some((block: any) => block.kind && block.kind !== 'text')" :page="page" />
   <article v-else class="sb-content-page" :class="{ 'is-legal': legal, 'is-about': page.slug === 'about', 'is-club': club, 'is-contacts': page.slug === 'contacts', 'is-delivery': page.slug === 'delivery' }">
     <nav class="sb-breadcrumbs" aria-label="Навигационная цепочка"><NuxtLink to="/">Главная</NuxtLink><span>/</span><span>{{ page.eyebrow || page.title }}</span></nav>
     <header class="sb-content-hero">

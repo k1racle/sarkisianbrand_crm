@@ -1,0 +1,1 @@
+import{_ as o}from"./CxQC0d_o.js";import{d as n,b6 as a,A as r,m as s}from"./S8Twd-2B.js";const d=n({__name:"bloggers-rewards",setup(t){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,_)=>{const e=o;return s(),r(e,{kind:"BLOGGER",section:"rewards"})}}});export{d as default};

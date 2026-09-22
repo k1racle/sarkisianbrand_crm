@@ -1,0 +1,133 @@
+/* Operational screens use the same CRM tokens; never changes storefront/admin. */
+@layer crm-shell {
+  html[data-crm-ui] .crm-subtask-open { justify-content:stretch!important; justify-items:start!important; align-items:center!important; }
+  html[data-crm-ui] .crm-app .partner-toggle input { position:absolute!important; opacity:0!important; width:44px!important; height:44px!important; min-width:44px!important; min-height:44px!important; }
+  html[data-crm-ui] .crm-app .partner-toggle input:checked + span { background:var(--crm-accent)!important; }
+  html[data-crm-ui] .crm-pdf-viewer { display:flex!important; flex-direction:column!important; width:100%!important; height:100%!important; min-height:0!important; gap:8px!important; }
+  html[data-crm-ui] .crm-pdf-stage { flex:1!important; overflow:auto!important; min-height:100px!important; padding:6px!important; }
+  html[data-crm-ui] .crm-pdf-stage canvas { display:block!important; max-width:none!important; background:#fff!important; margin:0 auto!important; box-shadow:0 2px 8px #27253815!important; }
+  html[data-crm-ui] .crm-pdf-text { max-height:160px!important; overflow:auto!important; }
+  html[data-crm-ui] .crm-pdf-text summary { min-height:44px!important; padding:10px!important; cursor:pointer!important; color:var(--crm-accent-ink)!important; }
+  html[data-crm-ui] .crm-app input.crm-visually-hidden { display:none!important; }
+  html[data-crm-ui] .crm-app .crm-primary-button { display:inline-flex!important; align-items:center!important; justify-content:center!important; gap:8px!important; width:auto!important; min-height:44px!important; padding:10px 16px!important; }
+  html[data-crm-ui] .crm-app .crm-skip-link:not(:focus) { transform:translateY(-300%)!important; }
+  html[data-crm-ui] .crm-app .crm-file-open > svg { width:42px!important; height:42px!important; }
+  html[data-crm-ui] .crm-file-thumbnail { display:grid!important; place-items:center!important; width:100%!important; height:62px!important; margin:0 0 10px!important; }
+  html[data-crm-ui] .crm-file-thumbnail svg { width:42px!important; height:42px!important; color:var(--crm-accent)!important; }
+  html[data-crm-ui] .is-folder .crm-file-thumbnail svg { color:#b57b21!important; fill:#fff5df!important; }
+  html[data-crm-ui] .crm-file-thumbnail img { width:100%!important; height:62px!important; object-fit:contain!important; border-radius:8px!important; }
+  html[data-crm-ui] .crm-drive-list .crm-file-thumbnail { width:32px!important; height:42px!important; grid-row:1/4!important; align-self:center!important; margin:0!important; }
+  html[data-crm-ui] .crm-drive-list .crm-file-thumbnail :is(svg,img) { width:28px!important; height:28px!important; }
+  html[data-crm-ui] .crm-frame :is(.partner-card-icon,.hero-kpis article > svg) { color:var(--crm-accent)!important; }
+  html[data-crm-ui] .crm-frame :is(.page-head,.page-header,.workspace-page-head) { gap:16px!important; margin-bottom:24px!important; }
+  html[data-crm-ui] .crm-frame :is(.page-head,.page-header,.workspace-page-head) :is(h1,h2) { margin:4px 0 8px!important; }
+  html[data-crm-ui] .crm-frame :is(.toolbar,.filters) { padding:14px!important; gap:12px!important; }
+  html[data-crm-ui] .crm-frame :is(.task-card,.deal) { cursor:grab!important; user-select:none !important; -webkit-touch-callout:none !important; }
+  html[data-crm-ui] .crm-frame :is(.kanban,.board) { align-items:start!important; overflow-x:auto!important; max-width:100% !important; padding-bottom:18px !important; }
+  html[data-crm-ui] .crm-frame :is(.kanban > article > header,.column > header) { padding:16px!important; }
+  html[data-crm-ui] .crm-frame .task-card :is(em.high,em.critical) { background:var(--crm-danger-bg)!important; color:var(--crm-danger)!important; }
+  html[data-crm-ui] .crm-frame :is(.is-drop-target,.crm-card-lifted) { outline:2px solid var(--crm-accent)!important; outline-offset:-2px !important; background:var(--crm-tint)!important; }
+  html[data-crm-ui] .crm-frame .crm-card-lifted { opacity:.65 !important; transform:rotate(1deg) !important; }
+  html[data-crm-ui] .crm-task-progress, html[data-crm-ui] .crm-app progress { width:100% !important; height:6px !important; appearance:none !important; border:0 !important; border-radius:10px !important; background:var(--crm-line) !important; accent-color:var(--crm-accent) !important; }
+  html[data-crm-ui] progress::-webkit-progress-bar { background:var(--crm-line) !important; border-radius:10px !important; }
+  html[data-crm-ui] progress::-webkit-progress-value { background:var(--crm-accent) !important; border-radius:10px !important; }
+  html[data-crm-ui] progress::-moz-progress-bar { background:var(--crm-accent) !important; border-radius:10px !important; }
+  html[data-crm-ui] .crm-task-summary { display:flex !important; align-items:center !important; gap:6px !important; margin-top:8px !important; color:var(--crm-muted) !important; }
+  html[data-crm-ui] .crm-frame :is(input[type=checkbox],input[type=radio]) { min-height:20px!important; min-width:20px!important; width:20px!important; height:20px!important; flex:0 0 20px !important; }
+  html[data-crm-ui] .crm-frame input[type=range] { accent-color:var(--crm-accent) !important; }
+  html[data-crm-ui] :is(.crm-subtasks,.crm-task-files) { border-top:1px solid var(--crm-line) !important; margin-top:20px !important; padding-top:20px !important; display:grid !important; gap:12px !important; }
+  html[data-crm-ui] :is(.crm-subtasks,.crm-task-files) h3 { display:flex !important; gap:8px !important; align-items:center !important; margin:0 !important; }
+  html[data-crm-ui] .crm-subtask-row { display:flex !important; align-items:center !important; gap:12px !important; padding:8px 0 !important; }
+  html[data-crm-ui] .crm-subtask-open { display:grid!important; gap:3px !important; min-width:0 !important; flex:1 !important; text-align:left!important; background:transparent!important; color:var(--crm-ink)!important; border:0!important; padding:6px!important; }
+  html[data-crm-ui] .crm-subtask-open strong { overflow-wrap:anywhere !important; }
+  html[data-crm-ui] .crm-subtask-create { display:grid !important; gap:8px !important; }
+  html[data-crm-ui] .crm-attachment { display:flex !important; align-items:center !important; gap:8px !important; border:1px solid var(--crm-line) !important; border-radius:12px !important; padding:6px !important; }
+  html[data-crm-ui] .crm-attachment > button:first-child { flex:1 !important; min-width:0 !important; justify-content:flex-start !important; border:0!important; }
+  html[data-crm-ui] .crm-attachment span { text-align:left !important; overflow-wrap:anywhere !important; min-width:0 !important; }
+  html[data-crm-ui] .crm-attachment small { display:block !important; color:var(--crm-muted) !important; }
+  html[data-crm-ui] .tasks-page .comment-box { display:flex!important; flex-direction:column !important; gap:8px !important; }
+  html[data-crm-ui] .tasks-page .comment-box button { align-self:flex-end !important; background:var(--crm-accent)!important; color:#fff!important; }
+  html[data-crm-ui] .tasks-page .comment p { white-space:pre-wrap !important; overflow-wrap:anywhere !important; }
+  html[data-crm-ui] .crm-work-page { padding:24px 16px !important; min-width:0 !important; }
+  html[data-crm-ui] .crm-work-header { display:flex !important; align-items:center !important; flex-wrap:wrap !important; gap:12px !important; justify-content:space-between !important; margin-bottom:20px !important; }
+  html[data-crm-ui] .crm-work-header > div:first-child { flex:1 !important; min-width:0 !important; }
+  html[data-crm-ui] .crm-work-header :is(h1,h2,h3,p) { margin:0 0 6px !important; }
+  html[data-crm-ui] .crm-work-header h2 { overflow-wrap:anywhere !important; }
+  html[data-crm-ui] .crm-work-actions { display:flex !important; flex-wrap:wrap !important; gap:8px !important; align-items:center !important; }
+  html[data-crm-ui] .crm-work-button { display:inline-flex!important; align-items:center !important; justify-content:center !important; gap:8px !important; min-height:44px !important; padding:10px 14px!important; cursor:pointer !important; }
+  html[data-crm-ui] .crm-work-button:disabled { opacity:.5 !important; cursor:default !important; }
+  html[data-crm-ui] .crm-work-field { display:grid !important; gap:8px !important; margin:20px 0 !important; }
+  html[data-crm-ui] :is(.crm-drive-page,.crm-drive-picker) :is(input:not([type=checkbox]),select) { min-width:0 !important; width:100% !important; min-height:44px !important; padding:10px 12px !important; }
+  html[data-crm-ui] .crm-muted { color:var(--crm-muted)!important; }
+  html[data-crm-ui] .crm-work-error { color:var(--crm-danger)!important; overflow-wrap:anywhere !important; }
+  html[data-crm-ui] .crm-visually-hidden { position:absolute!important; width:1px!important; height:1px!important; min-width:0!important; min-height:0!important; padding:0!important; overflow:hidden!important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; }
+  html[data-crm-ui] .crm-drive-layout { display:grid !important; gap:16px !important; }
+  html[data-crm-ui] .crm-drive-nav { display:flex !important; flex-wrap:wrap !important; gap:6px !important; align-self:start !important; }
+  html[data-crm-ui] .crm-drive-nav > button { flex:1 0 44% !important; display:flex !important; align-items:center !important; gap:10px !important; min-height:44px !important; border:0 !important; border-radius:10px !important; background:transparent !important; color:var(--crm-muted) !important; padding:10px !important; text-align:left !important; }
+  html[data-crm-ui] .crm-drive-nav > button.active { color:var(--crm-accent-ink) !important; background:var(--crm-tint) !important; }
+  html[data-crm-ui] .crm-drive-storage { display:flex !important; gap:8px !important; align-items:center !important; padding:12px !important; width:100% !important; }
+  html[data-crm-ui] .crm-drive-storage small { flex:none !important; color:var(--crm-muted) !important; }
+  html[data-crm-ui] .crm-drive-storage small:first-child { display:none !important; }
+  html[data-crm-ui] .crm-drive-surface { min-width:0 !important; padding:16px !important; min-height:400px !important; }
+  html[data-crm-ui] .crm-drive-toolbar { display:flex !important; flex-wrap:wrap !important; gap:10px !important; }
+  html[data-crm-ui] .crm-drive-search { width:100% !important; display:flex !important; align-items:center !important; gap:8px !important; }
+  html[data-crm-ui] .crm-drive-toolbar > select { flex:1 !important; width:auto !important; }
+  html[data-crm-ui] .crm-drive-crumbs { display:flex !important; align-items:center !important; gap:4px !important; flex-wrap:wrap !important; margin:16px 0 8px !important; }
+  html[data-crm-ui] .crm-drive-crumbs button { border:0 !important; min-height:44px !important; background:none !important; padding:8px !important; color:var(--crm-accent-ink) !important; max-width:100% !important; overflow-wrap:anywhere !important; text-align:left !important; }
+  html[data-crm-ui] .crm-drive-selection { display:flex !important; flex-wrap:wrap !important; gap:8px !important; align-items:center !important; padding:12px !important; margin:16px 0 !important; background:var(--crm-tint) !important; border-radius:12px !important; }
+  html[data-crm-ui] .crm-drive-items { display:grid !important; gap:12px !important; margin-top:20px !important; }
+  html[data-crm-ui] .crm-drive-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  html[data-crm-ui] .crm-drive-item { position:relative !important; min-width:0 !important; border:1px solid var(--crm-line) !important; border-radius:12px !important; background:#fff !important; cursor:grab !important; }
+  html[data-crm-ui] .crm-drive-item:hover { background:var(--crm-bg) !important; border-color:#c6bdee !important; }
+  html[data-crm-ui] .crm-drive-item.selected { background:var(--crm-tint) !important; border-color:var(--crm-accent) !important; }
+  html[data-crm-ui] .crm-drive-checkbox { position:absolute !important; z-index:1 !important; top:12px !important; left:12px !important; margin:0 !important; cursor:pointer !important; }
+  html[data-crm-ui] .crm-file-open { display:grid !important; width:100% !important; min-height:178px !important; justify-items:start !important; gap:5px !important; padding:40px 12px 14px !important; border:0 !important; background:none !important; color:var(--crm-ink) !important; text-align:left !important; cursor:pointer !important; }
+  html[data-crm-ui] .crm-file-open > svg { color:var(--crm-accent) !important; margin-bottom:8px !important; }
+  html[data-crm-ui] .is-folder .crm-file-open > svg { color:#b57b21 !important; fill:#fff5df !important; }
+  html[data-crm-ui] .crm-file-open strong { overflow-wrap:anywhere !important; width:100% !important; }
+  html[data-crm-ui] .crm-file-open :is(small,time) { color:var(--crm-muted) !important; }
+  html[data-crm-ui] .crm-drive-list .crm-file-open { grid-template-columns:32px minmax(0,1fr) !important; min-height:80px !important; padding:14px 12px 14px 44px !important; column-gap:10px !important; }
+  html[data-crm-ui] .crm-drive-list .crm-file-open > svg { width:28px !important; height:28px !important; grid-row:1/4 !important; align-self:center !important; margin:0 !important; }
+  html[data-crm-ui] .crm-drive-list .crm-file-open :is(strong,small,time) { grid-column:2 !important; }
+  html[data-crm-ui] .crm-drive-list .crm-drive-checkbox { top:30px !important; }
+  html[data-crm-ui] .crm-work-empty { padding:40px 12px !important; display:flex !important; flex-direction:column !important; align-items:center !important; text-align:center !important; gap:12px !important; color:var(--crm-muted) !important; }
+  html[data-crm-ui] .crm-work-empty > svg { color:var(--crm-accent) !important; }
+  html[data-crm-ui] .crm-work-empty :is(h2,h3,p) { margin:0 !important; }
+  html[data-crm-ui] .crm-work-overlay { position:fixed !important; inset:0 !important; z-index:500 !important; background:#24223666 !important; padding:16px !important; display:grid !important; place-items:center !important; }
+  html[data-crm-ui] .crm-drive-picker { width:min(520px,100%)!important; max-height:90dvh !important; padding:20px!important; overflow:auto !important; background:#fff!important; border:1px solid var(--crm-line)!important; border-radius:16px!important; }
+  html[data-crm-ui] .crm-picker-items { display:grid !important; gap:6px !important; margin:16px 0 !important; }
+  html[data-crm-ui] .crm-picker-item { display:flex !important; align-items:center !important; gap:12px !important; width:100% !important; min-height:52px !important; border:0 !important; border-radius:10px !important; padding:10px !important; text-align:left !important; background:var(--crm-bg) !important; color:var(--crm-ink) !important; }
+  html[data-crm-ui] .crm-picker-item > span { flex:1 !important; min-width:0 !important; overflow-wrap:anywhere !important; }
+  html[data-crm-ui] .crm-file-preview { width:min(1100px,100%)!important; height:min(800px,90dvh) !important; display:flex !important; flex-direction:column !important; padding:16px!important; border-radius:16px!important; background:#fff!important; }
+  html[data-crm-ui] .crm-preview-body { flex:1 !important; min-height:0 !important; overflow:auto !important; display:grid !important; place-items:center !important; background:var(--crm-bg) !important; border-radius:12px !important; padding:12px !important; }
+  html[data-crm-ui] .crm-preview-body img { max-width:100% !important; max-height:65dvh !important; object-fit:contain !important; }
+  html[data-crm-ui] .crm-preview-body iframe { width:100% !important; height:100% !important; border:0 !important; }
+  html[data-crm-ui] .crm-preview-body pre { align-self:start !important; justify-self:stretch !important; white-space:pre-wrap !important; overflow-wrap:anywhere !important; margin:0 !important; }
+  html[data-crm-ui] .crm-upload-queue { position:fixed !important; z-index:45 !important; right:16px !important; bottom:calc(90px + env(safe-area-inset-bottom)) !important; width:min(440px,calc(100vw - 32px)) !important; max-height:45dvh !important; overflow:auto !important; background:#fff !important; border:1px solid var(--crm-line) !important; border-radius:16px !important; padding:16px !important; box-shadow:0 12px 36px #27253826 !important; }
+  html[data-crm-ui] .crm-upload-row { display:flex !important; gap:12px !important; align-items:center !important; padding:10px 0 !important; border-top:1px solid var(--crm-line) !important; }
+  html[data-crm-ui] .crm-upload-row > div { flex:1 !important; min-width:0 !important; display:grid !important; gap:6px !important; }
+  html[data-crm-ui] .crm-upload-row strong { overflow-wrap:anywhere !important; }
+  @media (min-width:640px) {
+    html[data-crm-ui] .crm-drive-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)) !important; }
+    html[data-crm-ui] .crm-subtask-create { grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; }
+    html[data-crm-ui] .crm-subtask-create > input { grid-column:1/-1 !important; }
+  }
+  @media (max-width:639px) {
+    html[data-crm-ui] .crm-file-preview > .crm-work-header { display:grid!important; grid-template-columns:minmax(0,1fr) 44px!important; }
+    html[data-crm-ui] .crm-file-preview > .crm-work-header > div:first-child { grid-column:1/-1!important; }
+    html[data-crm-ui] .crm-file-preview > .crm-work-header > .crm-work-button { justify-self:start!important; }
+    html[data-crm-ui] .partner-card-heading { display:grid!important; grid-template-columns:36px minmax(0,1fr)!important; gap:12px!important; align-items:start!important; }
+    html[data-crm-ui] .partner-card-heading > .partner-status { grid-column:2!important; justify-self:start!important; }
+    html[data-crm-ui] .partner-card-heading h2 { word-break:normal!important; overflow-wrap:normal!important; }
+  }
+  @media (min-width:1024px) {
+    html[data-crm-ui] .crm-work-page { padding:24px !important; }
+    html[data-crm-ui] .crm-drive-layout { grid-template-columns:180px minmax(0,1fr) !important; gap:24px !important; }
+    html[data-crm-ui] .crm-drive-nav { display:grid !important; }
+    html[data-crm-ui] .crm-drive-storage { display:grid !important; margin-top:24px !important; }
+    html[data-crm-ui] .crm-drive-storage small:first-child { display:block !important; }
+    html[data-crm-ui] .crm-drive-search { flex:1 !important; width:auto !important; }
+    html[data-crm-ui] .crm-drive-toolbar > select { flex:0 0 165px !important; }
+    html[data-crm-ui] .crm-upload-queue { bottom:24px !important; }
+  }
+}

@@ -9,10 +9,10 @@ const postcss=require('postcss');
 const root=path.resolve(__dirname,'..'),apply=process.argv.includes('--apply');
 const adminFiles=[
  'app.vue','pages/admin.vue','pages/workspace-login.vue','pages/b2b-login.vue','pages/b2b.vue',
- 'pages/crm.vue','pages/crm-customers.vue','pages/crm-organizations.vue','pages/crm-pipeline.vue','pages/crm-tasks.vue','pages/media-library.vue',
+ 'pages/crm/index.vue','pages/crm/customers.vue','pages/crm/organizations.vue','pages/crm/deals.vue','pages/crm/tasks.vue','pages/media-library.vue',
  'components/AdminNewProduct.vue','components/AdminOrderDrawer.vue','components/AdminProductEditor.vue','components/B2BPortalRail.vue',
  'components/BotCommandsSettings.vue','components/CrmPipelineSettings.vue','components/CrmTaskAutomation.vue','components/EcosystemAccounts.vue',
- 'components/EcosystemIntegrations.vue','components/EcosystemTrash.vue','components/IntegrationBrandLogo.vue','components/MarketplaceRail.vue',
+ 'components/EcosystemIntegrations.vue','components/EcosystemTrash.vue','components/IntegrationBrandLogo.vue',
  'components/PlatformChatDrawer.vue','components/TaskReminderCenter.vue','components/UserProfileDrawer.vue','components/WorkspaceContextMenu.vue','components/WorkspaceLoading.vue',
  'components/workspace/ChannelsWorkspacePage.vue','components/workspace/ReportsWorkspacePage.vue','components/workspace/StoreWorkspacePage.vue',
  'components/workspace/SupportWorkspacePage.vue','components/workspace/SystemWorkspacePage.vue',

@@ -25,6 +25,7 @@ export class ShippingController {
 
   @Get('cities')
   cities(@Query() query: ShippingCitiesQueryDto) {
+    if (query.provider === 'YANDEX_DELIVERY') return { provider: 'YANDEX_DELIVERY', available: false, cities: [], message: 'Яндекс Доставка пока не подключена' };
     if (query.provider === 'OZON_DELIVERY') return { provider: 'OZON_DELIVERY', available: false, cities: [], message: 'Автоматический поиск городов Ozon пока не подключён' };
     return this.cdek.cities(query.search);
   }
