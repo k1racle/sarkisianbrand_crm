@@ -7,6 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { UpdateOmsOrderDto } from './dto/oms.dto';
 import { OmsService } from './oms.service';
+import { OmsOrderListDto } from './dto/order-list.dto';
 
 @ApiTags('oms')
 @ApiBearerAuth()
@@ -17,6 +18,7 @@ export class OmsController {
   constructor(private readonly oms: OmsService) {}
   @Get('dashboard') @Permissions('oms.read') dashboard() { return this.oms.dashboard(); }
   @Get('orders') @Permissions('oms.read') orders(@Query('source') source?: OrderSource, @Query('status') status?: OrderStatus, @Query('search') search?: string) { return this.oms.orders(source, status, search); }
+  @Get('orders/list') @Permissions('oms.read') list(@Query() query: OmsOrderListDto) { return this.oms.listOrders(query); }
   @Get('orders/:id') @Permissions('oms.read') order(@Param('id') id: string) { return this.oms.order(id); }
   @Patch('orders/:id') @Permissions('oms.write') update(@Param('id') id: string, @Body() dto: UpdateOmsOrderDto, @Req() request: any) { return this.oms.update(id, dto, request.user.sub); }
 }

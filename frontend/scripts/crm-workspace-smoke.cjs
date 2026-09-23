@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const base = process.env.ADMIN_DESIGN_URL || 'http://127.0.0.1:3001';
 const output = path.resolve(__dirname, '../.screenshots/crm-workspace');
-const permissions = ['admin.read','crm.read','crm.write','content_plan.read','content_plan.write','content_plan.approve','customers.read','customers.write','web_orders.read','loyalty.read','partners.read','partners.write','partners.payouts','helpdesk.read','leadership.read','media.read','system.manage'];
+const permissions = ['admin.read','crm.read','crm.write','content_plan.read','content_plan.write','content_plan.approve','customers.read','customers.write','web_orders.read','loyalty.read','partners.read','partners.write','partners.payouts','helpdesk.read','leadership.read','media.read','system.manage','oms.read','oms.write','marketplace.read','marketplace.configure'];
 const fixtures = new Map([
   ['/auth/access', { permissions }],
   ['/crm/dashboard', { forecast:125000, wonMonth:{amount:74000,count:6}, openLeads:12, customers:43, overdueTasks:0, dueToday:2, funnel:[], recentInteractions:[] }],
@@ -45,7 +45,7 @@ async function assertMenuSurface(page) {
 }
 async function main() {
   fs.mkdirSync(output, {recursive:true});
-  const browser = await chromium.launch({executablePath: process.env.CRM_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless:true});
+  const browser = await chromium.launch(require("./crm-test-browser.cjs"));
   try {
     for (const width of process.argv.includes('--pwa-only') ? [] : [360, 390, 768, 1440]) {
       const f = await isolatedContext(browser, width, false, false, {fixtures});

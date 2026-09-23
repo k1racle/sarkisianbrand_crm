@@ -5,6 +5,8 @@ const router = useRouter();
 const { user, token, logout } = useWorkspaceSession();
 const { items, groups, active, favorites, home, toggleFavorite } = useCrmNavigation();
 const access = useWorkspaceAccess();
+const siteNavigation = useWorkspaceNavigation();
+const siteEntry = computed(() => siteNavigation.leaves.value.find(item => ['catalog', 'site', 'media'].includes(item.groupId)));
 const { unread, toggleChat, isOpen: chatOpen, connectRealtime, refreshUnread, disconnectRealtime } = usePlatformChat();
 const { openProfile } = useUserProfilePanel();
 const { online } = useCrmPwa();
@@ -64,7 +66,7 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll); window.removeEventListene
         <section v-for="group in groups" :key="group.label"><h2>{{ group.label }}</h2><NuxtLink v-for="item in group.items" :key="item.id" :to="item.to" :aria-current="active?.id === item.id ? 'page' : undefined" @click="menuOpen = false"><WorkspaceSectionIcon :name="item.icon" :size="20" /><span>{{ item.label }}</span></NuxtLink></section>
         <p v-if="!items.length" class="crm-menu-empty">Для вашей роли пока нет доступных разделов CRM.</p>
       </nav>
-      <footer class="crm-sidebar-footer"><NuxtLink to="/workspace"><LayoutGrid :size="18" />Управление платформой<ArrowUpRight :size="16" /></NuxtLink><button type="button" @click="openProfile"><UserRound :size="18" /><span>{{ fullName }}</span></button><button type="button" :disabled="signingOut" @click="signOut"><LogOut :size="18" />Выйти из CRM</button></footer>
+      <footer class="crm-sidebar-footer"><NuxtLink v-if="siteEntry" :to="siteEntry.to"><LayoutGrid :size="18" />Админка сайта<ArrowUpRight :size="16" /></NuxtLink><button type="button" @click="openProfile"><UserRound :size="18" /><span>{{ fullName }}</span></button><button type="button" :disabled="signingOut" @click="signOut"><LogOut :size="18" />Выйти из CRM</button></footer>
     </aside>
     <div class="workspace-frame crm-frame" :inert="menuOpen || searchOpen || undefined">
       <header class="crm-topbar">

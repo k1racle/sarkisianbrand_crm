@@ -1,1 +1,0 @@
-import{_ as n}from"./CxQC0d_o.js";import{d as o,b6 as a,A as t,m as r}from"./S8Twd-2B.js";const m=o({__name:"referral-participants",setup(s){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,p)=>{const e=n;return r(),t(e,{kind:"REFERRAL",section:"participants"})}}});export{m as default};

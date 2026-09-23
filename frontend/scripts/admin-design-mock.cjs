@@ -159,7 +159,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
     }
     // Only the actual local page document and compiled static resources pass through.
     const localAsset = url.pathname.startsWith('/_nuxt/') || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/storefront/')
-      || url.pathname.startsWith('/crm/pwa/') || url.pathname.startsWith('/crm/pdf/') || ['/crm/manifest.webmanifest', '/sarkisian-logo.png', '/favicon.ico'].includes(url.pathname);
+      || url.pathname.startsWith('/crm/brands/') || url.pathname.startsWith('/crm/pwa/') || url.pathname.startsWith('/crm/pdf/') || ['/crm/manifest.webmanifest', '/sarkisian-logo.png', '/favicon.ico'].includes(url.pathname);
     const allowedDocument = request.resourceType() === 'document' && (['/', '/catalog', '/products/gift-card', '/b2b', '/workspace-login', '/b2b-login', '/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/leadership', '/helpdesk', '/system-settings', '/crm-marketplaces'].includes(url.pathname) || /^\/(crm|admin-workspace|crm-marketplaces|helpdesk|leadership|system-settings)\//.test(url.pathname));
     if (url.origin === origin && (localAsset || allowedDocument) && !request.headers().authorization) return route.continue();
     traffic.externalRequests.push({ path: url.pathname, type: request.resourceType() });

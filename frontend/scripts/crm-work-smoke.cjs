@@ -11,7 +11,7 @@ const person={id:id(90),firstName:'Анна',lastName:'Соколова',email:'
 const now='2026-09-22T09:00:00.000Z';
 async function main() {
   fs.mkdirSync(output,{recursive:true});
-  const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+  const browser=await chromium.launch(require("./crm-test-browser.cjs"));
   try { for(const width of [360,390,1440]) {
     let nodes=[{id:id(1),name:'Документы',kind:'FOLDER',scope:'PERSONAL',parentId:null,size:0,updatedAt:now}, {id:id(2),name:'План работы.txt',kind:'FILE',scope:'PERSONAL',parentId:null,size:80,mime:'text/plain',updatedAt:now}, {id:id(3),name:'Техническое задание.docx',kind:'FILE',scope:'TEAM',parentId:null,size:120000,mime:'application/octet-stream',updatedAt:now}];
     let tasks=[{id:id(10),title:'Подготовить запуск коллекции',description:'Согласовать материалы с командой',assignedToId:person.id,assignedTo:person,status:'TODO',priority:'HIGH',progress:50,position:0,labels:[],children:[],comments:[],_count:{comments:0},createdAt:now}, {id:id(11),title:'Проверить макеты',assignedToId:person.id,assignedTo:person,status:'TODO',priority:'MEDIUM',progress:0,position:1,labels:[],children:[],comments:[],_count:{comments:0},createdAt:now}];
@@ -123,12 +123,12 @@ async function main() {
         assert.ok(writes.some(x=>x.endpoint===`tasks/${id(10)}/move`),'Touch long-press moves card');
       }
       await card.focus(); await page.keyboard.press('Enter'); await page.getByRole('tab',{name:'Подзадачи',exact:true}).click(); await page.getByLabel('Название подзадачи').fill('Согласовать тексты');
-      await page.getByRole('button',{name:'Подзадача',exact:true}).click(); await page.locator('.crm-subtask-row').waitFor();
+      await page.getByRole('button',{name:'Добавить подзадачу',exact:true}).click(); await page.locator('.crm-detail-subtask').waitFor();
       await page.getByRole('checkbox',{name:'Выполнено: Согласовать тексты'}).check();
       await page.getByRole('tab',{name:'Комментарии',exact:true}).click();
       await page.getByLabel('Текст комментария').fill('Проверила макеты.\nМожно согласовывать.');
       await page.getByRole('button',{name:'Отправить',exact:true}).click();
-      await page.locator('.comment').filter({hasText:'Проверила макеты.'}).waitFor();
+      await page.locator('.crm-detail-comment').filter({hasText:'Проверила макеты.'}).waitFor();
       await page.getByRole('tab',{name:'Вложения',exact:true}).click();
       await page.getByRole('button',{name:'С диска',exact:true}).click();
       await page.locator('.crm-drive-picker').getByRole('button',{name:'Техническое задание.docx'}).click();

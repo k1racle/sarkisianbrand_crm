@@ -10,7 +10,7 @@ async function main(){
  const fixtures=new Map(base);
  for(const kind of ['REFERRAL','BLOGGER'])for(const section of ['overview','participants','registrations','rewards','payouts','settings'])fixtures.set(`/partners/admin/${kind}/${section}`,{settings:{name:'Партнёрская программа',rewardPercent:5,attributionDays:30,holdDays:14,minimumOrderAmount:0,minimumPayout:1000,signupRewardAmount:0,signupHoldDays:14,signupRewardUnit:'RUB',termsText:'Условия участия в программе',isEnabled:true},rows:[],total:0,page:1,pages:1,totals:[],summary:{participants:8,pending:2,uniqueVisitors:120,registrations:6}});
  const output=path.resolve(__dirname,'../.screenshots/crm-surface-'+(process.argv.includes('--after')?'after':'before'));fs.mkdirSync(output,{recursive:true});
- const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});const report=[];
+ const browser=await chromium.launch(require("./crm-test-browser.cjs"));const report=[];
  try{for(const width of [390,1440]){const f=await isolatedContext(browser,width,false,false,{fixtures});try{for(const item of CRM_DESTINATIONS){
  await f.page.goto('http://127.0.0.1:3001'+item.path,{waitUntil:'networkidle'});
  await f.page.screenshot({path:path.join(output,`${item.id}-${width}.png`),fullPage:true});

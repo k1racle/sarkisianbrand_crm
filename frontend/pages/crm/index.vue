@@ -85,7 +85,7 @@ onMounted(load);
               <NuxtLink data-v-ui-9c61dc015e2a to="/crm/tasks">Все задачи <ArrowRight data-v-ui-9c61dc015e2a :size="14" /></NuxtLink>
             </header>
             <div data-v-ui-9c61dc015e2a v-if="urgentTasks.length" class="task-list">
-              <button data-v-ui-9c61dc015e2a v-for="task in urgentTasks" :key="task.id" @click="navigateTo('/crm/tasks')">
+              <button class="crm-interactive" data-v-ui-9c61dc015e2a v-for="task in urgentTasks" :key="task.id" @click="navigateTo('/crm/tasks')">
                 <span data-v-ui-9c61dc015e2a class="task-check" :class="task.status.toLowerCase()"><AlertTriangle v-if="task.status === 'OVERDUE'" :size="18" /><Circle v-else :size="18" /></span>
                 <span data-v-ui-9c61dc015e2a class="task-copy"><b data-v-ui-9c61dc015e2a>{{ task.title }}</b><small data-v-ui-9c61dc015e2a>{{ person(task.assignedTo) }}</small></span>
                 <span data-v-ui-9c61dc015e2a class="task-date" :class="{ late: task.status === 'OVERDUE' }">
@@ -103,7 +103,7 @@ onMounted(load);
               <NuxtLink data-v-ui-9c61dc015e2a to="/crm/deals">Открыть воронку <ArrowRight data-v-ui-9c61dc015e2a :size="14" /></NuxtLink>
             </header>
             <div data-v-ui-9c61dc015e2a v-if="dashboard.funnel?.length" class="funnel">
-              <button data-v-ui-9c61dc015e2a v-for="stage in dashboard.funnel" :key="stage.id" @click="navigateTo('/crm/deals')">
+              <button class="crm-interactive" data-v-ui-9c61dc015e2a v-for="stage in dashboard.funnel" :key="stage.id" @click="navigateTo('/crm/deals')">
                 <span data-v-ui-9c61dc015e2a class="stage-name"><i data-v-ui-9c61dc015e2a :style="{ background: stage.color }"></i>{{ stage.name }}</span>
                 <span data-v-ui-9c61dc015e2a class="stage-value"><b data-v-ui-9c61dc015e2a>{{ stage.count }}</b><small data-v-ui-9c61dc015e2a>{{ money(stage.amount) }}</small></span>
                 <span data-v-ui-9c61dc015e2a class="bar"><i data-v-ui-9c61dc015e2a :style="{ width: `${Math.max(stage.count ? 8 : 0, stage.count / funnelMax * 100)}%`, background: stage.color }"></i></span>
@@ -119,7 +119,7 @@ onMounted(load);
               <div data-v-ui-9c61dc015e2a><p data-v-ui-9c61dc015e2a>ЛЕНТА</p><h2 data-v-ui-9c61dc015e2a>Последние контакты</h2></div>
             </header>
             <div data-v-ui-9c61dc015e2a v-if="dashboard.recentInteractions?.length" class="activity-list">
-              <button data-v-ui-9c61dc015e2a v-for="item in dashboard.recentInteractions" :key="item.id" @click="navigateTo('/crm/deals')">
+              <button class="crm-interactive" data-v-ui-9c61dc015e2a v-for="item in dashboard.recentInteractions" :key="item.id" @click="navigateTo('/crm/deals')">
                 <i data-v-ui-9c61dc015e2a><MessageSquareText data-v-ui-9c61dc015e2a :size="14" /></i>
                 <span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>{{ item.lead?.title || item.lead?.contactName || 'Контакт с клиентом' }}</b><small data-v-ui-9c61dc015e2a>{{ item.content }}</small></span>
                 <time data-v-ui-9c61dc015e2a>{{ person(item.user) }}<small data-v-ui-9c61dc015e2a>{{ new Date(item.createdAt).toLocaleString('ru-RU') }}</small></time>
@@ -131,9 +131,9 @@ onMounted(load);
           <article data-v-ui-9c61dc015e2a class="panel quick-panel">
             <header data-v-ui-9c61dc015e2a><div data-v-ui-9c61dc015e2a><p data-v-ui-9c61dc015e2a>БЫСТРЫЙ ДОСТУП</p><h2 data-v-ui-9c61dc015e2a>Рабочие разделы</h2></div></header>
             <div data-v-ui-9c61dc015e2a class="quick-grid">
-              <NuxtLink data-v-ui-9c61dc015e2a to="/crm/deals"><Kanban data-v-ui-9c61dc015e2a :size="20" /><span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>Воронка продаж</b><small data-v-ui-9c61dc015e2a>Сделки и прогноз</small></span><ArrowRight data-v-ui-9c61dc015e2a :size="15" /></NuxtLink>
-              <NuxtLink data-v-ui-9c61dc015e2a to="/crm/customers"><ContactRound data-v-ui-9c61dc015e2a :size="20" /><span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>Клиенты 360°</b><small data-v-ui-9c61dc015e2a>История и заказы</small></span><ArrowRight data-v-ui-9c61dc015e2a :size="15" /></NuxtLink>
-              <NuxtLink data-v-ui-9c61dc015e2a to="/crm/tasks"><ListTodo data-v-ui-9c61dc015e2a :size="20" /><span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>Задачи</b><small data-v-ui-9c61dc015e2a>Канбан, Гант, календарь</small></span><ArrowRight data-v-ui-9c61dc015e2a :size="15" /></NuxtLink>
+              <NuxtLink class="crm-interactive" data-v-ui-9c61dc015e2a to="/crm/deals"><Kanban data-v-ui-9c61dc015e2a :size="20" /><span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>Воронка продаж</b><small data-v-ui-9c61dc015e2a>Сделки и прогноз</small></span><ArrowRight data-v-ui-9c61dc015e2a :size="15" /></NuxtLink>
+              <NuxtLink class="crm-interactive" data-v-ui-9c61dc015e2a to="/crm/customers"><ContactRound data-v-ui-9c61dc015e2a :size="20" /><span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>Клиенты 360°</b><small data-v-ui-9c61dc015e2a>История и заказы</small></span><ArrowRight data-v-ui-9c61dc015e2a :size="15" /></NuxtLink>
+              <NuxtLink class="crm-interactive" data-v-ui-9c61dc015e2a to="/crm/tasks"><ListTodo data-v-ui-9c61dc015e2a :size="20" /><span data-v-ui-9c61dc015e2a><b data-v-ui-9c61dc015e2a>Задачи</b><small data-v-ui-9c61dc015e2a>Канбан, Гант, календарь</small></span><ArrowRight data-v-ui-9c61dc015e2a :size="15" /></NuxtLink>
             </div>
           </article>
         </section>

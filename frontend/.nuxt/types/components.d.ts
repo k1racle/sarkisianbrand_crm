@@ -27,6 +27,7 @@ interface _GlobalComponents {
   BusinessSettings: typeof import("../../components/BusinessSettings.vue")['default']
   BusinessToolbar: typeof import("../../components/BusinessToolbar.vue")['default']
   ConsoleRail: typeof import("../../components/ConsoleRail.vue")['default']
+  CrmCardComments: typeof import("../../components/CrmCardComments.vue")['default']
   CrmCardTabs: typeof import("../../components/CrmCardTabs.vue")['default']
   CrmChangeHistory: typeof import("../../components/CrmChangeHistory.vue")['default']
   CrmDrivePicker: typeof import("../../components/CrmDrivePicker.vue")['default']
@@ -35,6 +36,7 @@ interface _GlobalComponents {
   CrmLeadTasks: typeof import("../../components/CrmLeadTasks.vue")['default']
   CrmPdfViewer: typeof import("../../components/CrmPdfViewer.vue")['default']
   CrmPipelineSettings: typeof import("../../components/CrmPipelineSettings.vue")['default']
+  CrmSubtasks: typeof import("../../components/CrmSubtasks.vue")['default']
   CrmTaskAutomation: typeof import("../../components/CrmTaskAutomation.vue")['default']
   CrmTaskFiles: typeof import("../../components/CrmTaskFiles.vue")['default']
   EcosystemAccounts: typeof import("../../components/EcosystemAccounts.vue")['default']
@@ -114,6 +116,7 @@ interface _GlobalComponents {
   ContactMessagesWorkspace: typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']
   PartnerWorkspacePage: typeof import("../../components/workspace/PartnerWorkspacePage.vue")['default']
   ReportsWorkspacePage: typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']
+  SalonSubscriptionSettings: typeof import("../../components/workspace/SalonSubscriptionSettings.vue")['default']
   StoreDashboard: typeof import("../../components/workspace/StoreDashboard.vue")['default']
   StoreWorkspacePage: typeof import("../../components/workspace/StoreWorkspacePage.vue")['default']
   SupportWorkspacePage: typeof import("../../components/workspace/SupportWorkspacePage.vue")['default']
@@ -154,6 +157,7 @@ interface _GlobalComponents {
   LazyBusinessSettings: LazyComponent<typeof import("../../components/BusinessSettings.vue")['default']>
   LazyBusinessToolbar: LazyComponent<typeof import("../../components/BusinessToolbar.vue")['default']>
   LazyConsoleRail: LazyComponent<typeof import("../../components/ConsoleRail.vue")['default']>
+  LazyCrmCardComments: LazyComponent<typeof import("../../components/CrmCardComments.vue")['default']>
   LazyCrmCardTabs: LazyComponent<typeof import("../../components/CrmCardTabs.vue")['default']>
   LazyCrmChangeHistory: LazyComponent<typeof import("../../components/CrmChangeHistory.vue")['default']>
   LazyCrmDrivePicker: LazyComponent<typeof import("../../components/CrmDrivePicker.vue")['default']>
@@ -162,6 +166,7 @@ interface _GlobalComponents {
   LazyCrmLeadTasks: LazyComponent<typeof import("../../components/CrmLeadTasks.vue")['default']>
   LazyCrmPdfViewer: LazyComponent<typeof import("../../components/CrmPdfViewer.vue")['default']>
   LazyCrmPipelineSettings: LazyComponent<typeof import("../../components/CrmPipelineSettings.vue")['default']>
+  LazyCrmSubtasks: LazyComponent<typeof import("../../components/CrmSubtasks.vue")['default']>
   LazyCrmTaskAutomation: LazyComponent<typeof import("../../components/CrmTaskAutomation.vue")['default']>
   LazyCrmTaskFiles: LazyComponent<typeof import("../../components/CrmTaskFiles.vue")['default']>
   LazyEcosystemAccounts: LazyComponent<typeof import("../../components/EcosystemAccounts.vue")['default']>
@@ -241,6 +246,7 @@ interface _GlobalComponents {
   LazyContactMessagesWorkspace: LazyComponent<typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']>
   LazyPartnerWorkspacePage: LazyComponent<typeof import("../../components/workspace/PartnerWorkspacePage.vue")['default']>
   LazyReportsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']>
+  LazySalonSubscriptionSettings: LazyComponent<typeof import("../../components/workspace/SalonSubscriptionSettings.vue")['default']>
   LazyStoreDashboard: LazyComponent<typeof import("../../components/workspace/StoreDashboard.vue")['default']>
   LazyStoreWorkspacePage: LazyComponent<typeof import("../../components/workspace/StoreWorkspacePage.vue")['default']>
   LazySupportWorkspacePage: LazyComponent<typeof import("../../components/workspace/SupportWorkspacePage.vue")['default']>

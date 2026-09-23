@@ -1,0 +1,1 @@
+import{_ as a}from"./D3aDeg5x.js";import{u as s}from"./DgW4bafh.js";import{d as o,b8 as n,B as r,p as c}from"./DkOcgTLT.js";const l=o({__name:"settings",setup(i){const{active:e}=s();return n(()=>({title:`${e.value?.label||"Рабочее пространство"} — SARKISIAN CRM`})),(_,m)=>{const t=a;return c(),r(t,{kind:"BLOGGER",section:"settings"})}}});export{l as default};

@@ -1,0 +1,1 @@
+import{_ as o}from"./D3aDeg5x.js";import{d as n,b8 as t,B as s,p as a}from"./DkOcgTLT.js";const i=n({__name:"bloggers-settings",setup(r){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,_)=>{const e=o;return a(),s(e,{kind:"BLOGGER",section:"settings"})}}});export{i as default};

@@ -3,6 +3,7 @@ import { MarketplaceChannel, MarketplaceOrderStatus, OrderSource, OrderStatus, P
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOmsOrderDto } from './dto/oms.dto';
+import { OmsOrderListDto } from './dto/order-list.dto';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
 import { applyStorefrontTransition } from '../common/storefront-order-transition';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -59,6 +60,26 @@ export class OmsService {
     const order = await this.prisma.order.findFirst({ where: { OR: [{ id }, { orderNumber: id }] }, include: this.orderInclude(true) });
     if (!order) throw new NotFoundException('Заказ не найден');
     return order;
+  }
+
+  async listOrders(query: OmsOrderListDto) {
+    const { page = 1, limit = 30, source, status } = query;
+    const search = query.search?.trim();
+    const where: Prisma.OrderWhereInput = {
+      ...(source ? { source } : {}), ...(status ? { status } : {}),
+      ...(search ? { OR: [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { organization: { name: { contains: search, mode: 'insensitive' } } },
+        { organization: { inn: { contains: search } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { buyerName: { contains: search, mode: 'insensitive' } },
+      ] } : {}),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({ where, include: this.orderInclude(), orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }),
+      this.prisma.order.count({ where }),
+    ]);
+    return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)) };
   }
 
   async update(id: string, dto: UpdateOmsOrderDto, changedBy: string) {

@@ -1,4 +1,4 @@
-import { crmDestination } from '~/shared/crm-workspace';
+import { crmDestination, crmLegacyPath, CRM_DESTINATIONS } from '~/shared/crm-workspace';
 /** Navigation is presentation only. Backend permissions remain authoritative. */
 export type WorkspaceLeaf = {
   id: string;
@@ -20,11 +20,8 @@ export type WorkspacePreferences = { favorites: string[]; recent: string[]; star
 
 /** Shared by the workspace selector and the home screen, in business order. */
 export const WORKSPACE_AREAS = [
-  { id: 'crm', label: 'CRM', description: 'Клиенты, сделки и задачи команды', icon: 'Users', groupIds: ['crm'] },
-  { id: 'marketplaces', label: 'Маркетплейсы', description: 'Продажи и подключения торговых площадок', icon: 'Cable', groupIds: ['channels'] },
-  { id: 'site', label: 'Сайт', description: 'Заказы, товары и оформление сайта', icon: 'ShoppingBag', groupIds: ['sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing'] },
-  { id: 'support', label: 'Поддержка', description: 'Заявки, очереди и помощь клиентам', icon: 'Headphones', groupIds: ['support'] },
-  { id: 'management', label: 'Управление', description: 'Отчёты, сотрудники и настройки платформы', icon: 'Settings', groupIds: ['reports', 'media', 'settings'] },
+  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'marketing', 'support', 'channels', 'reports', 'settings'] },
+  { id: 'site', label: 'Админка сайта', description: 'Каталог, страницы, витрина и изображения', icon: 'ShoppingBag', groupIds: ['catalog', 'site', 'media'] },
 ] as const;
 
 const INTERNAL = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'CURATOR', 'WAREHOUSE'];
@@ -50,6 +47,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'web-dashboard', label: 'Обзор магазина', to: '/admin-workspace/dashboard', permission: 'admin.read', roles: CATALOG },
   ] },
   { id: 'sales', label: 'Продажи', description: 'Заказы интернет-магазина.', icon: 'ShoppingBag', items: [
+    { id: 'b2b-orders', label: 'Заказы B2B', to: '/crm/b2b-orders', permission: 'oms.read', roles: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'], keywords: 'опт компании поставки заказы' },
     { id: 'web-orders', label: 'Заказы интернет-магазина', to: '/admin-workspace/orders', permission: 'web_orders.read', roles: WEB, keywords: 'web продажи оплата доставка' },
   ] },
   { id: 'catalog', label: 'Каталог', description: 'Товары, варианты и карточки интернет-магазина.', icon: 'Boxes', items: [
@@ -116,6 +114,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'salon-subscription', label: 'Подписка салонов', to: '/system-settings/salon-subscription', permission: 'system.manage', roles: ADMIN, keywords: 'тариф цена онлайн запись виджет салон подписка' },
     { id: 'accounts', label: 'Учётные записи', to: '/system-settings/accounts', permission: 'system.manage', roles: ADMIN },
     { id: 'trash', label: 'Корзина данных', to: '/system-settings/trash', permission: 'system.manage', roles: ADMIN },
+    { id: 'departments', label: 'Отделы', to: '/crm/settings/departments', permission: 'system.manage', roles: ADMIN, keywords: 'команда структура руководитель подразделения' },
     { id: 'staff', label: 'Сотрудники', to: '/system-settings/staff', permission: 'system.manage', roles: ADMIN },
     { id: 'access', label: 'Роли и права', to: '/system-settings/access', permission: 'system.manage', roles: ADMIN },
     { id: 'integrations', label: 'Интеграции системы', to: '/system-settings/integrations', permission: 'system.manage', roles: ADMIN },
@@ -131,14 +130,14 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
 export function buildWorkspaceNavigation(role?: string | null, can: (permission?: string) => boolean = () => true): WorkspaceGroup[] {
   if (!role || !INTERNAL.includes(role)) return [];
   const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
-  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission)) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission)).map(item => ({ ...item, to: CRM_DESTINATIONS.find(destination => destination.id === item.id)?.path || item.to })) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 export function flattenWorkspaceNavigation(groups: readonly WorkspaceGroup[]): WorkspaceDestination[] {
   return groups.flatMap(group => group.items.map(item => ({ ...item, groupId: group.id, groupLabel: group.label })));
 }
 const DEFAULT_SECTIONS: Record<string, string> = { '/admin-workspace': 'dashboard', '/crm-marketplaces': 'dashboard', '/helpdesk': 'overview', '/leadership': 'overview', '/system-settings': 'overview' };
 export function findWorkspaceLeaf(groups: readonly WorkspaceGroup[], path: string, section?: unknown): WorkspaceDestination | null {
-  const crm = crmDestination(path);
+  const crm = crmDestination(crmLegacyPath(path, section) || path);
   if (crm) return flattenWorkspaceNavigation(groups).find(item => item.id === crm.id) || null;
   if (Array.isArray(section)) return null;
   const current = String(section || DEFAULT_SECTIONS[path] || '');

@@ -336,14 +336,14 @@ watch(section, () => {
 </script>
 
 <template>
-  <main data-v-ui-c4cc81726fbf class="system-console">
-    <header data-v-ui-c4cc81726fbf class="system-header">
+  <main data-v-ui-c4cc81726fbf class="system-console crm-standard">
+    <header data-v-ui-c4cc81726fbf class="system-header crm-page-header">
       <div data-v-ui-c4cc81726fbf>
         <p data-v-ui-c4cc81726fbf class="kicker">{{ title.kicker }}</p>
         <h1 data-v-ui-c4cc81726fbf>{{ title.title }}</h1>
         <span data-v-ui-c4cc81726fbf>{{ title.description }}</span>
       </div>
-      <button data-v-ui-c4cc81726fbf v-if="!['integrations', 'bot-commands'].includes(section)" @click="load">
+      <button class="crm-button crm-button--refresh" data-v-ui-c4cc81726fbf v-if="!['integrations', 'bot-commands'].includes(section)" @click="load">
         <RefreshCw data-v-ui-c4cc81726fbf :size="16" :class="{ spin: busy }" /> Обновить
       </button>
     </header>
@@ -351,11 +351,11 @@ watch(section, () => {
       v-if="busy && !pageLoaded"
       label="Загружаем настройки экосистемы"
     />
-    <div data-v-ui-c4cc81726fbf v-else-if="loadError" class="system-body"><p data-v-ui-c4cc81726fbf class="operation-error" role="alert">{{ loadError }}</p><button data-v-ui-c4cc81726fbf type="button" @click="load">Повторить загрузку</button></div>
-    <div data-v-ui-c4cc81726fbf v-else-if="pageLoaded" class="system-body">
+    <div data-v-ui-c4cc81726fbf v-else-if="loadError" class="system-body crm-page-content"><p data-v-ui-c4cc81726fbf class="operation-error" role="alert">{{ loadError }}</p><button class="crm-button" data-v-ui-c4cc81726fbf type="button" @click="load">Повторить загрузку</button></div>
+    <div data-v-ui-c4cc81726fbf v-else-if="pageLoaded" class="system-body crm-page-content">
       <template v-if="section === 'overview'"
         ><section data-v-ui-c4cc81726fbf class="kpis">
-          <article data-v-ui-c4cc81726fbf>
+          <article class="crm-surface" data-v-ui-c4cc81726fbf>
             <span data-v-ui-c4cc81726fbf>Сотрудники</span
             ><strong data-v-ui-c4cc81726fbf
               >{{ dashboard.activeStaff
@@ -363,23 +363,23 @@ watch(section, () => {
             >
             <p data-v-ui-c4cc81726fbf>активных учётных записей</p>
           </article>
-          <article data-v-ui-c4cc81726fbf>
+          <article class="crm-surface" data-v-ui-c4cc81726fbf>
             <span data-v-ui-c4cc81726fbf>Активные сессии</span
             ><strong data-v-ui-c4cc81726fbf>{{ dashboard.sessions }}</strong>
             <p data-v-ui-c4cc81726fbf>входов в рабочие кабинеты</p>
           </article>
-          <article data-v-ui-c4cc81726fbf>
+          <article class="crm-surface" data-v-ui-c4cc81726fbf>
             <span data-v-ui-c4cc81726fbf>Разрешения</span><strong data-v-ui-c4cc81726fbf>{{ dashboard.permissions }}</strong>
             <p data-v-ui-c4cc81726fbf>операций в матрице доступа</p>
           </article>
-          <article data-v-ui-c4cc81726fbf>
+          <article class="crm-surface" data-v-ui-c4cc81726fbf>
             <span data-v-ui-c4cc81726fbf>Действия сегодня</span
             ><strong data-v-ui-c4cc81726fbf>{{ dashboard.auditToday }}</strong>
             <p data-v-ui-c4cc81726fbf>записей в журнале аудита</p>
           </article>
         </section>
         <section data-v-ui-c4cc81726fbf class="overview-grid">
-          <article data-v-ui-c4cc81726fbf class="panel">
+          <article data-v-ui-c4cc81726fbf class="panel crm-surface">
             <div data-v-ui-c4cc81726fbf class="panel-head">
               <div data-v-ui-c4cc81726fbf>
                 <p data-v-ui-c4cc81726fbf class="kicker">БЕЗОПАСНОСТЬ</p>
@@ -419,7 +419,7 @@ watch(section, () => {
               >
             </div>
           </article>
-          <article data-v-ui-c4cc81726fbf class="panel">
+          <article data-v-ui-c4cc81726fbf class="panel crm-surface">
             <div data-v-ui-c4cc81726fbf class="panel-head">
               <div data-v-ui-c4cc81726fbf>
                 <p data-v-ui-c4cc81726fbf class="kicker">ИНТЕГРАЦИИ</p>
@@ -450,7 +450,7 @@ watch(section, () => {
       >
       <EcosystemAccounts v-else-if="section === 'accounts'" />
       <EcosystemTrash v-else-if="section === 'trash'" />
-      <section data-v-ui-c4cc81726fbf v-else-if="section === 'staff'" class="panel">
+      <section data-v-ui-c4cc81726fbf v-else-if="section === 'staff'" class="panel crm-surface">
         <div data-v-ui-c4cc81726fbf class="panel-head">
           <div data-v-ui-c4cc81726fbf>
             <p data-v-ui-c4cc81726fbf class="kicker">КОМАНДА</p>
@@ -458,24 +458,24 @@ watch(section, () => {
             <span data-v-ui-c4cc81726fbf>{{ filteredStaff.length }} учётных записей</span>
           </div>
           <div data-v-ui-c4cc81726fbf class="actions">
-            <label data-v-ui-c4cc81726fbf class="search"
-              ><Search data-v-ui-c4cc81726fbf :size="16" /><input data-v-ui-c4cc81726fbf
+            <label data-v-ui-c4cc81726fbf class="search crm-input-group"
+              ><Search data-v-ui-c4cc81726fbf :size="16" /><input class="crm-input" data-v-ui-c4cc81726fbf
                 v-model="search"
                 placeholder="Имя, email или роль" /></label
-            ><button data-v-ui-c4cc81726fbf class="primary" @click="showCreate = true">
+            ><button data-v-ui-c4cc81726fbf class="primary crm-button crm-button--primary" @click="showCreate = true">
               <Plus data-v-ui-c4cc81726fbf :size="16" /> Добавить
             </button>
           </div>
         </div>
         <div data-v-ui-c4cc81726fbf class="staff-table">
-          <div data-v-ui-c4cc81726fbf class="staff-row head">
+          <div data-v-ui-c4cc81726fbf class="staff-row head crm-table-head">
             <span data-v-ui-c4cc81726fbf>Сотрудник</span><span data-v-ui-c4cc81726fbf>Роль</span><span data-v-ui-c4cc81726fbf>Сессии</span
             ><span data-v-ui-c4cc81726fbf>Состояние</span><span data-v-ui-c4cc81726fbf>Действия</span>
           </div>
           <div data-v-ui-c4cc81726fbf
             v-for="item in filteredStaff"
             :key="item.id"
-            class="staff-row"
+            class="staff-row crm-data-row crm-table-row"
             @contextmenu.prevent="employeeMenu($event, item)"
           >
             <div data-v-ui-c4cc81726fbf>
@@ -490,7 +490,7 @@ watch(section, () => {
                 ><small data-v-ui-c4cc81726fbf>{{ item.email }}</small></span
               >
             </div>
-            <select data-v-ui-c4cc81726fbf
+            <select class="crm-input" data-v-ui-c4cc81726fbf
               :value="item.role"
               :disabled="item.id === user?.id"
               @change="
@@ -507,9 +507,9 @@ watch(section, () => {
               item.isActive ? "Активен" : "Заблокирован"
             }}</span>
             <div data-v-ui-c4cc81726fbf class="row-actions">
-              <button data-v-ui-c4cc81726fbf title="Отозвать сессии" @click="revokeSessions(item)">
+              <button class="crm-button" data-v-ui-c4cc81726fbf title="Отозвать сессии" @click="revokeSessions(item)">
                 <KeyRound data-v-ui-c4cc81726fbf :size="15" /></button
-              ><button data-v-ui-c4cc81726fbf
+              ><button class="crm-button" data-v-ui-c4cc81726fbf
                 v-if="item.id !== user?.id"
                 :title="item.isActive ? 'Заблокировать' : 'Разблокировать'"
                 @click="changeEmployee(item, { isActive: !item.isActive })"
@@ -524,7 +524,7 @@ watch(section, () => {
         </div>
       </section>
       <section data-v-ui-c4cc81726fbf v-else-if="section === 'access'" class="access-grid">
-        <article data-v-ui-c4cc81726fbf class="panel matrix">
+        <article data-v-ui-c4cc81726fbf class="panel matrix crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">БАЗОВЫЕ ПРАВА</p>
@@ -533,7 +533,7 @@ watch(section, () => {
             </div>
           </div>
           <div data-v-ui-c4cc81726fbf class="matrix-scroll">
-            <div data-v-ui-c4cc81726fbf class="matrix-row head">
+            <div data-v-ui-c4cc81726fbf class="matrix-row head crm-table-head">
               <span data-v-ui-c4cc81726fbf>Разрешение</span
               ><span data-v-ui-c4cc81726fbf
                 v-for="role in access.roles"
@@ -545,7 +545,7 @@ watch(section, () => {
             <div data-v-ui-c4cc81726fbf
               v-for="permission in access.permissions"
               :key="permission.key"
-              class="matrix-row"
+              class="matrix-row crm-table-row"
             >
               <div data-v-ui-c4cc81726fbf>
                 <strong data-v-ui-c4cc81726fbf>{{ permission.description }}</strong
@@ -562,7 +562,7 @@ watch(section, () => {
             </div>
           </div>
         </article>
-        <aside data-v-ui-c4cc81726fbf class="panel overrides">
+        <aside data-v-ui-c4cc81726fbf class="panel overrides crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">ИСКЛЮЧЕНИЯ</p>
@@ -570,7 +570,7 @@ watch(section, () => {
             </div>
           </div>
           <label data-v-ui-c4cc81726fbf
-            >Сотрудник<select data-v-ui-c4cc81726fbf
+            >Сотрудник<select class="crm-input" data-v-ui-c4cc81726fbf
               :value="selectedEmployeeId"
               @change="
                 selectEmployee(($event.target as HTMLSelectElement).value)
@@ -593,7 +593,7 @@ watch(section, () => {
               v-for="permission in access.permissions"
               :key="permission.key"
               ><span data-v-ui-c4cc81726fbf>{{ permission.description }}</span
-              ><select data-v-ui-c4cc81726fbf v-model="overrides[permission.key]">
+              ><select class="crm-input" data-v-ui-c4cc81726fbf v-model="overrides[permission.key]">
                 <option data-v-ui-c4cc81726fbf value="">По роли</option>
                 <option data-v-ui-c4cc81726fbf value="ALLOW">Разрешить</option>
                 <option data-v-ui-c4cc81726fbf value="DENY">Запретить</option>
@@ -601,7 +601,7 @@ watch(section, () => {
             >
           </div>
           <button data-v-ui-c4cc81726fbf
-            class="primary save"
+            class="primary save crm-button crm-button--primary"
             :disabled="!selectedEmployee"
             @click="saveOverrides"
           >
@@ -611,7 +611,7 @@ watch(section, () => {
       </section>
       <EcosystemIntegrations v-else-if="section === 'integrations'" />
       <BotCommandsSettings v-else-if="section === 'bot-commands'" />
-      <section data-v-ui-c4cc81726fbf v-else-if="section === 'audit'" class="panel">
+      <section data-v-ui-c4cc81726fbf v-else-if="section === 'audit'" class="panel crm-surface">
         <div data-v-ui-c4cc81726fbf class="panel-head">
           <div data-v-ui-c4cc81726fbf>
             <p data-v-ui-c4cc81726fbf class="kicker">ЦЕНТРАЛЬНАЯ ИСТОРИЯ</p>
@@ -620,14 +620,14 @@ watch(section, () => {
           </div>
         </div>
         <div data-v-ui-c4cc81726fbf class="audit-table">
-          <div data-v-ui-c4cc81726fbf class="audit-row head">
+          <div data-v-ui-c4cc81726fbf class="audit-row head crm-table-head">
             <span data-v-ui-c4cc81726fbf>Дата</span><span data-v-ui-c4cc81726fbf>Сотрудник</span><span data-v-ui-c4cc81726fbf>Действие</span
             ><span data-v-ui-c4cc81726fbf>Раздел</span><span data-v-ui-c4cc81726fbf>Объект</span><span data-v-ui-c4cc81726fbf>Запрос</span>
           </div>
           <div data-v-ui-c4cc81726fbf
             v-for="entry in audit"
             :key="entry.id"
-            class="audit-row"
+            class="audit-row crm-data-row crm-table-row"
             @contextmenu.prevent="auditMenu($event, entry)"
           >
             <span data-v-ui-c4cc81726fbf>{{ new Date(entry.createdAt).toLocaleString("ru-RU") }}</span>
@@ -650,7 +650,7 @@ watch(section, () => {
         </div>
       </section>
       <section data-v-ui-c4cc81726fbf v-else class="logs-grid">
-        <article data-v-ui-c4cc81726fbf class="panel jobs-panel">
+        <article data-v-ui-c4cc81726fbf class="panel jobs-panel crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">ФОНОВЫЕ ОПЕРАЦИИ</p>
@@ -663,7 +663,7 @@ watch(section, () => {
               <i data-v-ui-c4cc81726fbf></i>{{ !logs.queue?.connected ? "Нет связи" : logs.queue?.workerEnabled === false ? "Автоматика приостановлена" : "Работает" }}
             </span>
           </div>
-          <div data-v-ui-c4cc81726fbf class="job-row head">
+          <div data-v-ui-c4cc81726fbf class="job-row head crm-table-head">
             <span data-v-ui-c4cc81726fbf>Операция</span><span data-v-ui-c4cc81726fbf>Состояние</span><span data-v-ui-c4cc81726fbf>Прогресс</span
             ><span data-v-ui-c4cc81726fbf>Попытки</span><span data-v-ui-c4cc81726fbf>Запущена</span><span data-v-ui-c4cc81726fbf></span>
           </div>
@@ -691,7 +691,7 @@ watch(section, () => {
             </div>
             <span data-v-ui-c4cc81726fbf>{{ entry.attempts }} / {{ entry.maxAttempts }}</span>
             <time data-v-ui-c4cc81726fbf>{{ new Date(entry.createdAt).toLocaleString("ru-RU") }}</time>
-            <button data-v-ui-c4cc81726fbf
+            <button class="crm-button" data-v-ui-c4cc81726fbf
               v-if="['FAILED', 'CANCELLED'].includes(entry.status)"
               title="Повторить"
               @click="retryJob(entry)"
@@ -704,14 +704,14 @@ watch(section, () => {
             Фоновых операций пока не запускалось
           </p>
         </article>
-        <article data-v-ui-c4cc81726fbf class="panel">
+        <article data-v-ui-c4cc81726fbf class="panel crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">ОБМЕН ДАННЫМИ</p>
               <h2 data-v-ui-c4cc81726fbf>Журнал синхронизаций</h2>
             </div>
           </div>
-          <div data-v-ui-c4cc81726fbf v-for="entry in logs.sync" :key="entry.id" class="log-row">
+          <div data-v-ui-c4cc81726fbf v-for="entry in logs.sync" :key="entry.id" class="log-row crm-data-row">
             <div data-v-ui-c4cc81726fbf>
               <strong data-v-ui-c4cc81726fbf>{{ entry.system }}</strong
               ><small data-v-ui-c4cc81726fbf>{{ entry.action }}</small>
@@ -725,7 +725,7 @@ watch(section, () => {
           </div>
           <p data-v-ui-c4cc81726fbf v-if="!logs.sync.length" class="empty">Синхронизаций пока нет</p>
         </article>
-        <article data-v-ui-c4cc81726fbf class="panel">
+        <article data-v-ui-c4cc81726fbf class="panel crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">ВНЕШНИЕ КАНАЛЫ</p>
@@ -756,28 +756,27 @@ watch(section, () => {
       @click.self="showCreate = false"
     >
       <form data-v-ui-c4cc81726fbf class="drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" aria-label="Добавить сотрудника" @submit.prevent="createEmployee">
-        <header data-v-ui-c4cc81726fbf><div data-v-ui-c4cc81726fbf><p data-v-ui-c4cc81726fbf class="kicker">НОВАЯ УЧЁТНАЯ ЗАПИСЬ</p><h2 data-v-ui-c4cc81726fbf>Добавить сотрудника</h2></div><button data-v-ui-c4cc81726fbf type="button" aria-label="Закрыть создание сотрудника" @click="showCreate = false"><X data-v-ui-c4cc81726fbf :size="18" /></button></header>
+        <header data-v-ui-c4cc81726fbf><div data-v-ui-c4cc81726fbf><p data-v-ui-c4cc81726fbf class="kicker">НОВАЯ УЧЁТНАЯ ЗАПИСЬ</p><h2 data-v-ui-c4cc81726fbf>Добавить сотрудника</h2></div><button class="crm-button crm-button--icon" data-v-ui-c4cc81726fbf type="button" aria-label="Закрыть создание сотрудника" @click="showCreate = false"><X data-v-ui-c4cc81726fbf :size="18" /></button></header>
         <div data-v-ui-c4cc81726fbf class="admin-dialog-body fields">
-        <label data-v-ui-c4cc81726fbf>Имя<input data-v-ui-c4cc81726fbf v-model="employee.firstName" required /></label
-        ><label data-v-ui-c4cc81726fbf>Фамилия<input data-v-ui-c4cc81726fbf v-model="employee.lastName" /></label
+        <label data-v-ui-c4cc81726fbf>Имя<input class="crm-input" data-v-ui-c4cc81726fbf v-model="employee.firstName" required /></label
+        ><label data-v-ui-c4cc81726fbf>Фамилия<input class="crm-input" data-v-ui-c4cc81726fbf v-model="employee.lastName" /></label
         ><label data-v-ui-c4cc81726fbf
-          >Email<input data-v-ui-c4cc81726fbf v-model="employee.email" type="email" required /></label
+          >Email<input class="crm-input" data-v-ui-c4cc81726fbf v-model="employee.email" type="email" required /></label
         ><label data-v-ui-c4cc81726fbf
-          >Временный пароль<input data-v-ui-c4cc81726fbf
+          >Временный пароль<input class="crm-input" data-v-ui-c4cc81726fbf
             v-model="employee.password"
             type="password"
             minlength="10"
             required /></label
         ><label data-v-ui-c4cc81726fbf
-          >Роль<select data-v-ui-c4cc81726fbf v-model="employee.role">
+          >Роль<select class="crm-input" data-v-ui-c4cc81726fbf v-model="employee.role">
             <option data-v-ui-c4cc81726fbf v-for="role in access.roles" :key="role" :value="role">
               {{ roleLabels[role] }}
             </option>
           </select></label
-        ></div><footer data-v-ui-c4cc81726fbf><button data-v-ui-c4cc81726fbf type="button" @click="showCreate=false">Отмена</button><button data-v-ui-c4cc81726fbf class="primary" type="submit">Создать сотрудника</button></footer>
+        ></div><footer data-v-ui-c4cc81726fbf><button class="crm-button" data-v-ui-c4cc81726fbf type="button" @click="showCreate=false">Отмена</button><button data-v-ui-c4cc81726fbf class="primary crm-button crm-button--primary" type="submit">Создать сотрудника</button></footer>
       </form>
     </aside>
     <div data-v-ui-c4cc81726fbf v-if="notice" class="toast">{{ notice }}</div>
   </main>
 </template>
-

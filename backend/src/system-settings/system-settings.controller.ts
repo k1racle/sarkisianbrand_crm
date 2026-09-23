@@ -6,6 +6,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AccountListQueryDto, CreateBotCommandDto, CreateEmployeeDto, ReviewProfileChangeDto, SetTemporaryPasswordDto, UpdateAccountDto, UpdateBotCommandDto, UpdateEmployeeDto, UpdateEmployeePermissionsDto, UpdateIntegrationDto, UpsertBotIdentityDto } from './dto/system-settings.dto';
 import { SystemSettingsService } from './system-settings.service';
+import { DepartmentsService } from './departments.service';
+import { DepartmentDto, UpdateDepartmentDto, DepartmentVersionDto } from './dto/department.dto';
 
 @ApiTags('system-settings')
 @ApiBearerAuth()
@@ -14,7 +16,11 @@ import { SystemSettingsService } from './system-settings.service';
 @Roles('ADMIN')
 @Permissions('system.manage')
 export class SystemSettingsController {
-  constructor(private readonly settings: SystemSettingsService) {}
+  constructor(private readonly settings: SystemSettingsService, private readonly departments: DepartmentsService) {}
+  @Get('departments') listDepartments() { return this.departments.list(); }
+  @Post('departments') createDepartment(@Body() dto: DepartmentDto, @Req() request: any) { return this.departments.save(dto, request.user.sub); }
+  @Patch('departments/:id') updateDepartment(@Param('id') id: string, @Body() dto: UpdateDepartmentDto, @Req() request: any) { return this.departments.save(dto, request.user.sub, id); }
+  @Post('departments/:id/archive') archiveDepartment(@Param('id') id: string, @Body() dto: DepartmentVersionDto, @Req() request: any) { return this.departments.archive(id, dto.version, request.user.sub); }
   @Get('dashboard') dashboard() { return this.settings.dashboard(); }
   @Get('staff') staff() { return this.settings.staff(); }
   @Post('staff') createEmployee(@Body() dto: CreateEmployeeDto) { return this.settings.createEmployee(dto); }

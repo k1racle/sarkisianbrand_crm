@@ -1,1 +1,0 @@
-import{_ as o}from"./B-LAiBvW.js";import{d as e,b6 as t,A as n,m as r}from"./S8Twd-2B.js";import"./B2nSseZT.js";import"./CWg6VWpq.js";import"./0mz2YK1a.js";const f=e({__name:"products",setup(a){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(s,m)=>(r(),n(o,{"page-section":"products"}))}});export{f as default};

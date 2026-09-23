@@ -27,6 +27,7 @@ export const BusinessPurchasesDashboard: typeof import("../components/BusinessPu
 export const BusinessSettings: typeof import("../components/BusinessSettings.vue")['default']
 export const BusinessToolbar: typeof import("../components/BusinessToolbar.vue")['default']
 export const ConsoleRail: typeof import("../components/ConsoleRail.vue")['default']
+export const CrmCardComments: typeof import("../components/CrmCardComments.vue")['default']
 export const CrmCardTabs: typeof import("../components/CrmCardTabs.vue")['default']
 export const CrmChangeHistory: typeof import("../components/CrmChangeHistory.vue")['default']
 export const CrmDrivePicker: typeof import("../components/CrmDrivePicker.vue")['default']
@@ -35,6 +36,7 @@ export const CrmFilePreview: typeof import("../components/CrmFilePreview.vue")['
 export const CrmLeadTasks: typeof import("../components/CrmLeadTasks.vue")['default']
 export const CrmPdfViewer: typeof import("../components/CrmPdfViewer.vue")['default']
 export const CrmPipelineSettings: typeof import("../components/CrmPipelineSettings.vue")['default']
+export const CrmSubtasks: typeof import("../components/CrmSubtasks.vue")['default']
 export const CrmTaskAutomation: typeof import("../components/CrmTaskAutomation.vue")['default']
 export const CrmTaskFiles: typeof import("../components/CrmTaskFiles.vue")['default']
 export const EcosystemAccounts: typeof import("../components/EcosystemAccounts.vue")['default']
@@ -114,6 +116,7 @@ export const ChannelsWorkspacePage: typeof import("../components/workspace/Chann
 export const ContactMessagesWorkspace: typeof import("../components/workspace/ContactMessagesWorkspace.vue")['default']
 export const PartnerWorkspacePage: typeof import("../components/workspace/PartnerWorkspacePage.vue")['default']
 export const ReportsWorkspacePage: typeof import("../components/workspace/ReportsWorkspacePage.vue")['default']
+export const SalonSubscriptionSettings: typeof import("../components/workspace/SalonSubscriptionSettings.vue")['default']
 export const StoreDashboard: typeof import("../components/workspace/StoreDashboard.vue")['default']
 export const StoreWorkspacePage: typeof import("../components/workspace/StoreWorkspacePage.vue")['default']
 export const SupportWorkspacePage: typeof import("../components/workspace/SupportWorkspacePage.vue")['default']
@@ -154,6 +157,7 @@ export const LazyBusinessPurchasesDashboard: LazyComponent<typeof import("../com
 export const LazyBusinessSettings: LazyComponent<typeof import("../components/BusinessSettings.vue")['default']>
 export const LazyBusinessToolbar: LazyComponent<typeof import("../components/BusinessToolbar.vue")['default']>
 export const LazyConsoleRail: LazyComponent<typeof import("../components/ConsoleRail.vue")['default']>
+export const LazyCrmCardComments: LazyComponent<typeof import("../components/CrmCardComments.vue")['default']>
 export const LazyCrmCardTabs: LazyComponent<typeof import("../components/CrmCardTabs.vue")['default']>
 export const LazyCrmChangeHistory: LazyComponent<typeof import("../components/CrmChangeHistory.vue")['default']>
 export const LazyCrmDrivePicker: LazyComponent<typeof import("../components/CrmDrivePicker.vue")['default']>
@@ -162,6 +166,7 @@ export const LazyCrmFilePreview: LazyComponent<typeof import("../components/CrmF
 export const LazyCrmLeadTasks: LazyComponent<typeof import("../components/CrmLeadTasks.vue")['default']>
 export const LazyCrmPdfViewer: LazyComponent<typeof import("../components/CrmPdfViewer.vue")['default']>
 export const LazyCrmPipelineSettings: LazyComponent<typeof import("../components/CrmPipelineSettings.vue")['default']>
+export const LazyCrmSubtasks: LazyComponent<typeof import("../components/CrmSubtasks.vue")['default']>
 export const LazyCrmTaskAutomation: LazyComponent<typeof import("../components/CrmTaskAutomation.vue")['default']>
 export const LazyCrmTaskFiles: LazyComponent<typeof import("../components/CrmTaskFiles.vue")['default']>
 export const LazyEcosystemAccounts: LazyComponent<typeof import("../components/EcosystemAccounts.vue")['default']>
@@ -241,6 +246,7 @@ export const LazyChannelsWorkspacePage: LazyComponent<typeof import("../componen
 export const LazyContactMessagesWorkspace: LazyComponent<typeof import("../components/workspace/ContactMessagesWorkspace.vue")['default']>
 export const LazyPartnerWorkspacePage: LazyComponent<typeof import("../components/workspace/PartnerWorkspacePage.vue")['default']>
 export const LazyReportsWorkspacePage: LazyComponent<typeof import("../components/workspace/ReportsWorkspacePage.vue")['default']>
+export const LazySalonSubscriptionSettings: LazyComponent<typeof import("../components/workspace/SalonSubscriptionSettings.vue")['default']>
 export const LazyStoreDashboard: LazyComponent<typeof import("../components/workspace/StoreDashboard.vue")['default']>
 export const LazyStoreWorkspacePage: LazyComponent<typeof import("../components/workspace/StoreWorkspacePage.vue")['default']>
 export const LazySupportWorkspacePage: LazyComponent<typeof import("../components/workspace/SupportWorkspacePage.vue")['default']>

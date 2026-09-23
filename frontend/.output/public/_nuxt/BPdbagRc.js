@@ -1,1 +1,0 @@
-import{ci as r,ao as t}from"./S8Twd-2B.js";const u=r(e=>{if(typeof e.query.search=="string"&&e.query.search.trim().toLowerCase()==="нов"){const{search:o,page:s,...a}=e.query;return t({path:"/catalog",query:{...a,sort:"new"}},{replace:!0})}});export{u as default};

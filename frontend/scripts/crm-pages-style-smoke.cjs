@@ -1,15 +1,15 @@
 const {chromium}=require('playwright-core');
 const {isolatedContext}=require('./admin-design-mock.cjs');
-const {fixtures:baseFixtures,assertTypography,assertWidth}=require('./crm-workspace-smoke.cjs');
+const {assertTypography,assertWidth}=require('./crm-workspace-smoke.cjs');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {stripTypeScriptTypes}=require('node:module');
 async function main(){
  const registry=fs.readFileSync(path.resolve(__dirname,'../shared/crm-workspace.ts'),'utf8');
  const {CRM_DESTINATIONS}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(registry)).toString('base64'));
- const fixtures=new Map(baseFixtures);
+ const fixtures=new Map(require('./crm-rich-fixtures.cjs').fixtures);
  fixtures.set('/crm/drive',{items:[],total:0,crumbs:[],used:0,quota:1024**3});
  for(const kind of ['REFERRAL','BLOGGER'])for(const section of ['overview','participants','registrations','rewards','payouts','settings'])fixtures.set(`/partners/admin/${kind}/${section}`,{settings:{name:'Партнёрская программа',rewardPercent:5,attributionDays:30,holdDays:14,minimumOrderAmount:0,minimumPayout:1000,signupRewardAmount:0,signupHoldDays:14,signupRewardUnit:'RUB',termsText:'Условия',isEnabled:false},rows:[],total:0,page:1,pages:1,totals:[],summary:{participants:0,pending:0,uniqueVisitors:0,registrations:0}});
- const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true}),failures=[];
+ const browser=await chromium.launch(require("./crm-test-browser.cjs")),failures=[];
  const output=path.resolve(__dirname,'../.screenshots/crm-pages');fs.mkdirSync(output,{recursive:true});
  try{for(const width of [390,1440]){
   const f=await isolatedContext(browser,width,false,false,{fixtures});

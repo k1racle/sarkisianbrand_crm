@@ -1,0 +1,1 @@
+import{_ as o}from"./DT2z8aJb.js";import{d as e,b8 as a,B as t,p as n}from"./DkOcgTLT.js";import"./ISM1KokI.js";import"./C4mLhTVx.js";const f=e({__name:"catalog-menu",setup(m){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(r,s)=>(n(),t(o,{"page-section":"catalog-menu"}))}});export{f as default};

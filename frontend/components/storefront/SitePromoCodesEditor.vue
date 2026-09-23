@@ -228,7 +228,7 @@ onBeforeRouteUpdate(() => !dirty.value || window.confirm('Перейти в др
         <label class="sb-promo-field"><span>Лимит на одного клиента</span><input class="crm-input" v-model="draft.perCustomerLimit" inputmode="numeric" placeholder="1" required /><small>Обязательное поле. Например, 1 для однократной скидки.</small></label>
         <label class="sb-promo-field"><span>Начало действия</span><input class="crm-input" v-model="draft.startsAt" type="datetime-local" /><small>Часовой пояс вашего устройства. Пусто — сразу после включения.</small></label>
         <label class="sb-promo-field"><span>Окончание действия</span><input class="crm-input" v-model="draft.endsAt" type="datetime-local" /><small>Пусто — без ограничения по дате.</small></label>
-        <label class="sb-promo-checkbox sb-promo-field--wide"><input class="crm-check" v-model="draft.isActive" type="checkbox" /> Промокод включён</label>
+        <label class="sb-promo-checkbox sb-promo-field--wide crm-toggle-row"><input class="crm-check" v-model="draft.isActive" type="checkbox" /> Промокод включён</label>
       </fieldset>
       <footer class="sb-promo-actions"><button type="submit" class="sb-promo-button crm-button crm-button--primary" :disabled="busy"><Save :size="18" /> {{ busy ? 'Сохраняем…' : 'Сохранить промокод' }}</button><button type="button" class="sb-promo-button sb-promo-button--white crm-button" :disabled="busy" @click="closeEditor"><X :size="18" /> Отмена</button></footer>
     </form>

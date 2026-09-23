@@ -9,6 +9,12 @@ type Brand = {
 
 const props = defineProps<{ provider: string; size?: number }>();
 const failed = ref(false);
+const route = useRoute();
+const localProviders = new Set(['OZON', 'OZON_LOGISTICS', 'WILDBERRIES', 'YANDEX_MARKET', 'YANDEX_DELIVERY', 'CDEK', 'ONE_C', 'YOOKASSA', 'SMS_AERO', 'TELEGRAM', 'MAX', 'VK']);
+// Employee pages must not contact favicon/CDN services while showing private data.
+const imageSrc = computed(() => route.path.startsWith('/crm/')
+  ? localProviders.has(props.provider) ? `/crm/brands/${props.provider.toLowerCase()}.svg` : ''
+  : brand.value?.src);
 
 const brands: Record<string, Brand> = {
   OZON: {
@@ -77,7 +83,7 @@ watch(() => props.provider, () => { failed.value = false; });
     :style="size ? { '--brand-logo-size': `${size}px` } : undefined"
     :title="brand?.label || provider"
   >
-    <img data-v-ui-5a4be72ea064 v-if="brand && !failed" :src="brand.src" :alt="brand.label" referrerpolicy="no-referrer" @error="failed = true" />
+    <img data-v-ui-5a4be72ea064 v-if="brand && imageSrc && !failed" :src="imageSrc" :alt="brand.label" referrerpolicy="no-referrer" @error="failed = true" />
     <strong data-v-ui-5a4be72ea064 v-else-if="brand" class="brand-logo-label">{{ brand.label }}</strong>
     <Bot data-v-ui-5a4be72ea064 v-else />
   </span>

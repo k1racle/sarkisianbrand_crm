@@ -7,7 +7,7 @@
     --crm-ink:#272538; --crm-muted:#696779; --crm-line:#e4e2ee;
     --crm-accent:#6658d9; --crm-accent-hover:#5143bc; --crm-accent-ink:#5143bc; --crm-tint:#f1eeff;
     --crm-bg:#f6f7fb; --crm-success:#237450; --crm-success-bg:#edf8f1;
-    --crm-warning:#875600; --crm-warning-bg:#fff5df; --crm-danger:#ac324e; --crm-danger-bg:#fff0f3;
+    --crm-warning:#365ca0; --crm-warning-bg:#edf2ff; --crm-danger:#ac324e; --crm-danger-bg:#fff0f3;
   }
   html[data-crm-ui] :is(.crm-app,.crm-frame,.crm-app-login,.crm-install-dialog,.crm-search-dialog,.admin-dialog,.workspace-context,.context-notice,.reminder-center) {
     --ws-font:Montserrat,Arial,sans-serif; --ws-type-heading:var(--crm-type-heading)!important;
@@ -76,13 +76,13 @@
   html[data-crm-ui] .crm-navigation h2 { display:flex; align-items:center; gap:8px; margin:0; padding:8px 12px; color:var(--crm-muted); font-size:var(--crm-type-caption)!important; font-weight:600!important; }
   .crm-navigation a { display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px; border-radius:10px; font-size:var(--crm-type-body); line-height:1.5; }
   .crm-navigation svg { flex-shrink:0; color:#7b739b; }
-  .crm-navigation a:hover { background:var(--crm-bg); }
+  .crm-navigation a:hover { background:var(--crm-tint); }
   .crm-navigation a[aria-current="page"] { color:var(--crm-accent-ink); background:var(--crm-tint); box-shadow:inset 3px 0 var(--crm-accent); font-weight:600; }
   .crm-navigation a[aria-current="page"] svg { color:var(--crm-accent-ink); }
   .crm-navigation a[aria-current="page"] > span { font-weight:600!important; }
   .crm-sidebar-footer { border-top:1px solid var(--crm-line); padding:8px 12px; }
   .crm-sidebar-footer :is(a,button) { display:flex; gap:10px; align-items:center; width:100%; min-height:44px; padding:8px 12px; border:0; border-radius:10px; background:none; color:var(--crm-muted); text-align:left; font:inherit; font-size:var(--crm-type-body); }
-  .crm-sidebar-footer :is(a,button):hover { background:#f2f4f8; color:var(--crm-ink); }
+  .crm-sidebar-footer :is(a,button):hover { background:var(--crm-tint); color:var(--crm-ink); }
   .crm-sidebar-footer span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .crm-sidebar-footer svg { flex-shrink:0; }
   .crm-offline-notice, .crm-access-notice { display:flex; align-items:center; gap:10px; margin:0; padding:12px 16px; background:var(--crm-warning-bg); color:var(--crm-warning); font-size:var(--crm-type-body)!important; }
@@ -155,7 +155,6 @@
   .crm-app .crm-main .panel header > a { min-height:44px; color:var(--crm-accent-ink)!important; }
   .crm-app .crm-main .panel header > a svg { color:inherit!important; }
   .crm-app .crm-main .tasks-panel { border-top:3px solid var(--crm-accent)!important; }
-  .crm-app .crm-main .task-list > button:hover { background:var(--crm-bg)!important; }
   .crm-app .crm-main .task-check { border-radius:10px; color:var(--crm-accent-ink)!important; background:var(--crm-tint)!important; }
   .crm-app .crm-main .task-check.overdue { background:var(--crm-danger-bg)!important; color:var(--crm-danger)!important; }
   .crm-app .crm-main .task-date { font-size:var(--crm-type-caption)!important; }

@@ -26,7 +26,7 @@ const context = { exports: {}, URLSearchParams, computed: vue.computed, watch: v
 };
 const crmSource = stripTypeScriptTypes(fs.readFileSync(path.join(root, 'shared/crm-workspace.ts'), 'utf8')).replace(/^export /gm, '');
 const compiled = crmSource + '\n' + stripTypeScriptTypes(source.replaceAll('import.meta.client', 'true')).replace(/^import .*;\s*$/gm, '').replace(/^export /gm, '')
-  + '\nexports = { WORKSPACE_NAVIGATION, WORKSPACE_AREAS, buildWorkspaceNavigation, flattenWorkspaceNavigation, findWorkspaceLeaf, searchWorkspaceLeaves, sanitizeWorkspacePreferences, useWorkspaceNavigation };';
+  + '\nexports = { crmLegacyPath, CRM_DESTINATIONS, WORKSPACE_NAVIGATION, WORKSPACE_AREAS, buildWorkspaceNavigation, flattenWorkspaceNavigation, findWorkspaceLeaf, searchWorkspaceLeaves, sanitizeWorkspacePreferences, useWorkspaceNavigation };';
 vm.runInNewContext(compiled, context, { filename: 'workspace-navigation-isolated.js' });
 const h = context.exports;
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -45,16 +45,16 @@ check('only-real-page-routes-and-coordinated-site-content', () => {
   }
   assert.equal(leaves.filter(x => x.id === 'site-content').length, 1);
 });
-check('settings-include-salon-subscription', () => { const items=all.find(x => x.id === 'settings').items;assert.equal(items.length,10);assert.ok(items.some(item=>item.id==='salon-subscription'&&item.permission==='system.manage')); });
+check('settings-include-salon-subscription', () => { const items=all.find(x => x.id === 'settings').items;assert.equal(items.length,11);assert.ok(items.some(item=>item.id==='salon-subscription'&&item.permission==='system.manage')); });
 check('human-group-order-and-no-duplicate-channel-settings', () => {
   assert.deepEqual(plain(all.map(group => group.id)), ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings']);
   assert.deepEqual(plain(all.find(group => group.id === 'loyalty').items.map(item => item.id)), ['loyalty-settings', 'loyalty-members']);
   assert.ok(!all.find(group => group.id === 'marketing').items.some(item => item.id.startsWith('loyalty')));
   assert.ok(!leaves.some(item => item.id === 'channel-settings'));
 });
-check('five-business-spaces-and-independent-marketplace-sales', () => {
-  assert.deepEqual(plain(h.WORKSPACE_AREAS.map(area => area.label)), ['CRM','Маркетплейсы','Сайт','Поддержка','Управление']);
-  assert.deepEqual(plain(h.WORKSPACE_AREAS.find(area => area.id === 'marketplaces').groupIds), ['channels']);
+check('two-spaces-and-consolidated-marketplace-sales', () => {
+  assert.deepEqual(plain(h.WORKSPACE_AREAS.map(area => area.label)), ['CRM','Админка сайта']);
+  assert.ok(h.WORKSPACE_AREAS.find(area => area.id === 'crm').groupIds.includes('channels'));
   assert.deepEqual(plain(all.find(group => group.id === 'channels').items.map(item => item.id)), ['channel-dashboard','channel-orders','channel-integrations']);
   assert.ok(!all.find(group => group.id === 'sales').items.some(item => item.id === 'channel-orders'));
   assert.ok(!leaves.some(item => item.id === 'crm-chat'));
@@ -73,7 +73,8 @@ check('content-manager-no-crm-sales-marketing', () => {
   const groups = h.buildWorkspaceNavigation('CONTENT_MANAGER');
   assert.ok(groups.some(x => x.id === 'site'));
   assert.ok(groups.some(x => x.id === 'catalog'));
-  assert.ok(!groups.some(x => ['crm', 'sales', 'marketing', 'settings'].includes(x.id)));
+  assert.ok(!groups.some(x => ['sales', 'marketing', 'settings'].includes(x.id)));
+  assert.deepEqual(plain(groups.find(x => x.id === 'crm').items.map(x => x.id)), ['content-plan']);
 });
 check('warehouse-no-site-or-marketing', () => {
   const groups = h.buildWorkspaceNavigation('WAREHOUSE');
@@ -85,7 +86,7 @@ check('supervisor-admin-backend-intended-navigation', () => {
   const visible = h.flattenWorkspaceNavigation(h.buildWorkspaceNavigation('SUPERVISOR'));
   assert.ok(visible.some(x => x.id === 'web-orders'));
   assert.ok(visible.some(x => x.id === 'products'));
-  assert.ok(!visible.some(x => x.to.startsWith('/system-settings')));
+  assert.ok(!visible.some(x => x.to.startsWith('/crm/settings')));
 });
 check('effective-deny-hides-leaf-from-all-consumers', () => {
   const groups = h.buildWorkspaceNavigation('ADMIN', permission => permission !== 'web_orders.read');

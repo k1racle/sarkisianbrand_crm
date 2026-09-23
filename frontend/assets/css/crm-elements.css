@@ -3,7 +3,7 @@
  * outside CRM; this first layer deliberately wins !important during migration.
  * Screen CSS may arrange elements, but must not redeclare their visual styles. */
 @layer crm-elements {
- html[data-crm-ui] { --crm-control-weight:400; --crm-radius-card:16px; --crm-radius-control:10px; --crm-space:16px; --crm-surface:#fff; }
+ html[data-crm-ui] { --crm-control-weight:400; --crm-radius-card:16px; --crm-radius-control:10px; --crm-space:16px; --crm-surface:#fff; --crm-hover-bg:var(--crm-tint); --crm-hover-border:#c6bdee; }
  /* Typography: exactly the same text roles as My Day. */
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) { color:var(--crm-ink)!important; font-family:Montserrat,Arial,sans-serif!important; font-size:var(--crm-type-body)!important; font-weight:400!important; line-height:1.5!important; }
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) :where(*) { font-family:inherit!important; font-size:var(--crm-type-body)!important; font-weight:400!important; line-height:1.5!important; letter-spacing:0!important; font-style:normal!important; }
@@ -24,11 +24,14 @@
  html[data-crm-ui] .crm-surface--tint > strong {color:var(--crm-accent-ink)!important;}
  html[data-crm-ui] .crm-surface > :is(span,small) {color:var(--crm-muted)!important;}
  html[data-crm-ui] .crm-item-card {background:var(--crm-surface)!important;border:1px solid var(--crm-line)!important;border-radius:12px!important;color:var(--crm-ink)!important;box-shadow:none!important;}
- html[data-crm-ui] .crm-item-card:hover {border-color:var(--crm-accent)!important;}
+ html[data-crm-ui] :is(.crm-item-card,.crm-interactive):hover {background:var(--crm-hover-bg)!important;border-color:var(--crm-hover-border)!important;}
+ html[data-crm-ui] .crm-interactive {background:var(--crm-surface)!important;border-color:var(--crm-line)!important;}
+ html[data-crm-ui] .crm-interactive:focus-visible {outline:2px solid var(--crm-accent)!important;outline-offset:2px!important;}
+ html[data-crm-ui] :is(.crm-standard tbody tr,.crm-data-row):hover {background:var(--crm-hover-bg)!important;}
  /* Buttons: regular 400 matches My Day's New task/New deal; refresh is 600. */
  html[data-crm-ui] .crm-button:not(.crm-card-action) {display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;min-height:44px!important;height:auto!important;padding:10px 14px!important;border:1px solid var(--crm-line)!important;border-radius:var(--crm-radius-control)!important;background:var(--crm-surface)!important;color:var(--crm-ink)!important;font-size:var(--crm-type-body)!important;font-weight:var(--crm-control-weight)!important;box-shadow:none!important;cursor:pointer!important;line-height:1.5!important;}
  html[data-crm-ui] .crm-button:not(.crm-card-action) :where(*) {font-size:inherit!important;font-weight:inherit!important;color:inherit!important;}
- html[data-crm-ui] .crm-button:not(.crm-card-action):hover:not(:disabled) {background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;border-color:#c6bdee!important;}
+ html[data-crm-ui] .crm-button:not(.crm-card-action):hover:not(:disabled) {background:var(--crm-hover-bg)!important;color:var(--crm-accent-ink)!important;border-color:var(--crm-hover-border)!important;}
  html[data-crm-ui] .crm-button.crm-button--primary {background:var(--crm-accent)!important;color:#fff!important;border-color:var(--crm-accent)!important;}
  html[data-crm-ui] .crm-button.crm-button--primary:hover:not(:disabled) {background:var(--crm-accent-hover)!important;color:#fff!important;border-color:var(--crm-accent-hover)!important;}
  html[data-crm-ui] .crm-button.crm-button--refresh {font-weight:600!important;}
@@ -43,7 +46,24 @@
  /* Form controls; icon/search groups have ONE border, never a field inside a field. */
  html[data-crm-ui] .crm-input {box-sizing:border-box!important;min-width:0!important;min-height:44px!important;border:1px solid var(--crm-line)!important;border-radius:var(--crm-radius-control)!important;background:var(--crm-surface)!important;color:var(--crm-ink)!important;padding:10px 12px!important;font-size:var(--crm-type-input)!important;font-weight:400!important;box-shadow:none!important;}
  html[data-crm-ui] .crm-input::placeholder {color:var(--crm-muted)!important;opacity:.85!important;}
- html[data-crm-ui] .crm-check {accent-color:var(--crm-accent)!important;width:20px!important;height:20px!important;min-height:20px!important;min-width:20px!important;flex:0 0 20px!important;}
+ html[data-crm-ui] .crm-check[type=radio] {accent-color:var(--crm-accent)!important;width:20px!important;height:20px!important;min-height:20px!important;min-width:20px!important;flex:0 0 20px!important;}
+ /* Native checkboxes keep v-model, labels, keyboard and form semantics. A 44px
+    hit area contains the shared 44x26 track; no second decorative toggle skin. */
+ html[data-crm-ui] input[type=checkbox] {appearance:none!important;-webkit-appearance:none!important;display:inline-block!important;position:relative!important;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;max-width:44px!important;max-height:44px!important;flex:0 0 44px!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;opacity:1!important;transform:none!important;clip:auto!important;clip-path:none!important;overflow:visible!important;vertical-align:middle;cursor:pointer;}
+ html[data-crm-ui] input[type=checkbox]::before {content:""!important;position:absolute!important;inset:9px 0!important;width:44px!important;height:26px!important;border-radius:999px!important;background:#d7d7e2!important;transition:background-color .16s ease!important;}
+ html[data-crm-ui] input[type=checkbox]::after {content:""!important;position:absolute!important;left:3px!important;top:12px!important;width:20px!important;height:20px!important;border:0!important;border-radius:50%!important;background:#fff!important;box-shadow:0 1px 3px #27253826!important;transform:translateX(0)!important;transition:transform .16s ease!important;}
+ html[data-crm-ui] input[type=checkbox]:checked::before {background:var(--crm-accent)!important;}
+ html[data-crm-ui] input[type=checkbox]:checked::after {transform:translateX(18px)!important;}
+ html[data-crm-ui] input[type=checkbox]:indeterminate::before {background:var(--crm-accent)!important;}
+ html[data-crm-ui] input[type=checkbox]:indeterminate::after {transform:translateX(9px)!important;}
+ html[data-crm-ui] input[type=checkbox]:disabled {opacity:.5!important;cursor:not-allowed!important;}
+ html[data-crm-ui] input[type=checkbox]:focus-visible {outline:2px solid var(--crm-accent)!important;outline-offset:3px!important;border-radius:8px!important;}
+ html[data-crm-ui] .crm-toggle-row {display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-height:64px!important;padding:12px 16px!important;margin:0!important;border:0!important;border-radius:10px!important;background:var(--crm-bg)!important;color:var(--crm-ink)!important;cursor:pointer!important;}
+ html[data-crm-ui] .crm-toggle-row > input[type=checkbox] {order:2!important;margin-left:auto!important;}
+ html[data-crm-ui] .crm-toggle-row > :not(input) {min-width:0;}
+ html[data-crm-ui] .crm-toggle-control {display:inline-flex!important;position:relative!important;align-items:center!important;width:44px!important;height:44px!important;padding:0!important;margin:0!important;border:0!important;background:none!important;}
+ html[data-crm-ui] .crm-toggle-control > span[aria-hidden=true] {display:none!important;}
+ html[data-crm-ui] input.crm-switch-overlay[type=checkbox] {position:absolute!important;}
  html[data-crm-ui] .crm-input-group {display:flex!important;align-items:center!important;gap:10px!important;min-height:44px!important;height:auto!important;border:1px solid var(--crm-line)!important;border-radius:var(--crm-radius-control)!important;background:var(--crm-surface)!important;padding:0 12px!important;min-width:0!important;}
  html[data-crm-ui] .crm-input-group > svg {position:static!important;transform:none!important;flex-shrink:0!important;color:var(--crm-muted)!important;}
  html[data-crm-ui] .crm-input-group .crm-input {border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;padding:10px 0!important;flex:1!important;width:100%!important;}
@@ -71,10 +91,63 @@
  html[data-crm-ui] .crm-lead-task > div {display:grid;gap:8px;flex:1;min-width:0;overflow-wrap:anywhere;}
  html[data-crm-ui] .admin-dialog {background:var(--crm-surface)!important;background-image:none!important;border-color:var(--crm-line)!important;box-shadow:0 12px 48px #27253826!important;}
  html[data-crm-ui] .admin-dialog :is(header,footer) {border-color:var(--crm-line)!important;}
+ /* One detail-card layout for tasks, deals and publications. The scrolling body never
+    distributes spare height between form fields or action buttons. */
+ html[data-crm-ui] .crm-detail-card {--crm-detail-gutter:16px;width:min(720px,100vw)!important;display:flex!important;flex-direction:column!important;}
+ html[data-crm-ui] .crm-detail-backdrop {position:fixed!important;inset:0!important;z-index:500!important;display:flex!important;align-items:stretch!important;justify-content:flex-end!important;padding:0!important;}
+ html[data-crm-ui] .crm-detail-card > header {padding:20px var(--crm-detail-gutter)!important;}
+ html[data-crm-ui] .crm-detail-card > .crm-card-tabs {margin:16px var(--crm-detail-gutter) 0!important;}
+ html[data-crm-ui] .crm-detail-body {display:block!important;flex:1 1 0!important;min-height:0!important;min-width:0!important;padding:24px var(--crm-detail-gutter)!important;margin:0!important;border:0!important;overflow:auto!important;}
+ html[data-crm-ui] .crm-detail-body.crm-stack {display:grid!important;align-content:start!important;gap:16px!important;}
+ html[data-crm-ui] .crm-detail-body > :is(label,.two) {margin-bottom:16px;}
+ html[data-crm-ui] .crm-detail-general {display:grid;gap:16px;}
+ html[data-crm-ui] .crm-detail-body :is(.fields,.two,.crm-detail-subtask-create) {display:grid;grid-template-columns:minmax(0,1fr);align-content:start;align-items:end;gap:16px;}
+ html[data-crm-ui] .crm-detail-body label:not(.crm-toggle-row) {display:grid;gap:8px;min-width:0;color:var(--crm-muted)!important;}
+ html[data-crm-ui] .crm-detail-body :is(.crm-detail-section,.crm-task-files,.crm-change-history) {margin:0!important;padding:0!important;border:0!important;}
+ html[data-crm-ui] .crm-detail-section {display:grid;gap:16px;align-content:start;}
+ html[data-crm-ui] .crm-detail-section :is(h3,p) {margin:0!important;}
+ html[data-crm-ui] .crm-detail-section h3 {display:flex;align-items:center;gap:8px;}
+ html[data-crm-ui] .crm-icon-heading {display:flex!important;align-items:center!important;gap:8px!important;margin:0!important;min-width:0!important;}
+ html[data-crm-ui] .crm-icon-heading > svg {display:block!important;flex:none!important;width:18px!important;height:18px!important;}
+ html[data-crm-ui] .crm-icon-heading > span {font-size:inherit!important;font-weight:inherit!important;color:inherit!important;line-height:inherit!important;}
+ html[data-crm-ui] .crm-detail-subtask {display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-detail-subtask > div {display:grid;gap:6px;flex:1;min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-detail-subtask progress {width:100%;height:4px;accent-color:var(--crm-accent);}
+ html[data-crm-ui] .crm-detail-wide {grid-column:1/-1;}
+ html[data-crm-ui] .crm-detail-compose {display:grid;gap:12px;}
+ html[data-crm-ui] .crm-detail-compose > button {justify-self:end;}
+ html[data-crm-ui] .crm-detail-comment {display:flex;align-items:flex-start;gap:12px;padding:16px 0;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-detail-comment > .crm-avatar {display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:50%;}
+ html[data-crm-ui] .crm-detail-comment > div {display:grid;gap:6px;min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-detail-comment p {white-space:pre-wrap;}
+ html[data-crm-ui] .crm-detail-footer {display:flex!important;flex:none!important;flex-wrap:wrap!important;align-items:center!important;justify-content:flex-end!important;gap:8px!important;padding:16px var(--crm-detail-gutter) max(16px,env(safe-area-inset-bottom))!important;margin:0!important;border-top:1px solid var(--crm-line)!important;background:var(--crm-surface)!important;}
+ html[data-crm-ui] .crm-detail-footer > .crm-button {flex:0 0 auto!important;align-self:center!important;height:44px!important;min-height:44px!important;padding:8px 12px!important;margin:0!important;}
+ html[data-crm-ui] .crm-detail-footer > .crm-button--danger {margin-right:auto!important;}
+ html[data-crm-ui] .crm-filter-toolbar {display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;}
+ html[data-crm-ui] .crm-filter-toolbar > :is(select,label) {grid-column:1/-1!important;width:100%!important;min-width:0!important;margin:0!important;}
+ html[data-crm-ui] .crm-filter-toolbar > :is(span,b) {white-space:nowrap;}
+ html[data-crm-ui] .crm-filter-toolbar > b {text-align:right;}
+ @media(min-width:640px){
+  html[data-crm-ui] .crm-detail-card {--crm-detail-gutter:24px;}
+  html[data-crm-ui] .crm-detail-body :is(.two,.crm-detail-subtask-create) {grid-template-columns:repeat(2,minmax(0,1fr));}
+ }
+ @media(min-width:1200px){
+  html[data-crm-ui] .crm-filter-toolbar {grid-template-columns:minmax(210px,1fr) minmax(250px,2fr) auto auto!important;}
+  html[data-crm-ui] .crm-filter-toolbar > :is(select,label) {grid-column:auto!important;}
+ }
+ @media(max-width:639px){html[data-crm-ui] .crm-detail-footer > .crm-button--primary {flex-basis:100%!important;}}
+ @media(prefers-reduced-motion:reduce){html[data-crm-ui] input[type=checkbox]::before,html[data-crm-ui] input[type=checkbox]::after {transition:none!important;}}
  /* Semantic states are explicit exceptions, not arbitrary page palettes. */
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is(.error,.operation-error,.load-error,.crm-work-error,.negative,.crm-content-late,time.late) {color:var(--crm-danger)!important;}
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is(.positive,.success,.partner-status:not(.is-off),.crm-content-notice) {color:var(--crm-success)!important;}
- html[data-crm-ui] .crm-standard thead {background:var(--crm-bg)!important;color:var(--crm-muted)!important;}
+ html[data-crm-ui] :is(.crm-standard thead,.crm-standard thead th,.crm-table-head) {background:var(--crm-bg)!important;color:var(--crm-muted)!important;background-image:none!important;border-color:var(--crm-line)!important;}
+ html[data-crm-ui] .crm-table-row {display:grid!important;gap:16px!important;align-items:center!important;justify-content:normal!important;text-align:left!important;padding:16px!important;width:100%!important;min-width:0!important;border:0!important;border-bottom:1px solid var(--crm-line)!important;border-radius:0!important;background:var(--crm-surface)!important;color:var(--crm-ink)!important;box-shadow:none!important;}
+ html[data-crm-ui] .crm-table-head {padding:16px!important;gap:16px!important;border-radius:0!important;}
+ html[data-crm-ui] .crm-table-row > * {min-width:0!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-table-row:hover {background:var(--crm-hover-bg)!important;}
+ html[data-crm-ui] .crm-table-row:focus-visible {outline:2px solid var(--crm-accent)!important;outline-offset:-2px!important;}
+ html[data-crm-ui] .crm-standard tbody td {background:transparent!important;}
+ html[data-crm-ui] .crm-standard tbody tr:hover td {background:var(--crm-hover-bg)!important;}
  html[data-crm-ui] .crm-standard :is(td,th) {border-color:var(--crm-line)!important;}
  html[data-crm-ui] .crm-standard table {width:100%!important;border-collapse:collapse!important;}
  html[data-crm-ui] .crm-standard :is(td,th) {padding:12px 16px!important;text-align:left!important;}
@@ -83,9 +156,21 @@
  html[data-crm-ui] .crm-badge:is([data-stage=PUBLISHED],[data-status=ACTIVE],[data-status=PAID]) {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;}
  html[data-crm-ui] .crm-badge:is([data-stage=REVIEW],[data-status=PENDING],[data-status=REQUESTED]) {background:var(--crm-warning-bg)!important;color:var(--crm-warning)!important;}
  html[data-crm-ui] .crm-badge:is([data-status=SUSPENDED],[data-status=REJECTED],[data-status=CANCELLED]) {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
+ html[data-crm-ui] .crm-badge--danger {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is([role=alert],.partner-alert) {color:var(--crm-danger)!important;background:var(--crm-danger-bg)!important;border:1px solid var(--crm-danger)!important;border-radius:10px!important;padding:12px 16px!important;}
  html[data-crm-ui] .crm-action-bar {display:flex!important;justify-content:flex-end!important;gap:12px!important;background:none!important;border:0!important;padding:0!important;box-shadow:none!important;}
+ html[data-crm-ui] :is(.crm-stack,.crm-field) {display:grid;gap:12px;min-width:0;}
+ html[data-crm-ui] .crm-register {padding:16px;}
+ html[data-crm-ui] .crm-record-list {display:grid;gap:12px;}
+ html[data-crm-ui] .crm-record {display:flex;align-items:center;flex-wrap:wrap;gap:16px;padding:16px;text-align:left;width:100%;min-width:0;}
+ html[data-crm-ui] .crm-record > span {display:grid;gap:6px;flex:1;min-width:140px;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-record > svg {flex:none;}
+ html[data-crm-ui] .crm-pagination {display:flex;align-items:center;justify-content:center;gap:16px;padding:20px 0 0;}
+ html[data-crm-ui] .crm-empty {padding:32px 16px;text-align:center;}
  html[data-crm-ui] .crm-standard :is(.partner-card-icon,.contact-inbox__symbol) {background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;border-radius:10px!important;}
+ html[data-crm-ui] .crm-icon-tile {background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;border-radius:10px!important;}
+ html[data-crm-ui] .crm-icon-tile--danger {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
+ html[data-crm-ui] .crm-avatar {background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;}
  @media(min-width:1024px){html[data-crm-ui] .crm-standard {padding:24px!important;}}
  @media(max-width:639px){html[data-crm-ui] .crm-page-header {margin-bottom:24px!important;}html[data-crm-ui] .crm-card-tabs {gap:0;margin-bottom:16px;}html[data-crm-ui] .crm-card-tabs button {padding:10px;}}
 }

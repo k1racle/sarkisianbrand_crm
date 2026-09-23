@@ -9,6 +9,7 @@ import {
   GanttChartSquare,
   LayoutGrid,
   List,
+  ListChecks,
   MessageSquare,
   Plus,
   RefreshCw,
@@ -16,7 +17,6 @@ import {
   Sparkles,
   Trash2,
   X,
-  ListChecks,
   CornerDownRight,
 } from "@lucide/vue";
 const config = useRuntimeConfig(),
@@ -610,7 +610,7 @@ onMounted(async () => {
         </div>
       </section>
       <section data-v-ui-acc13851dfa0 v-else class="list panel crm-surface">
-        <div data-v-ui-acc13851dfa0 class="list-row head">
+        <div data-v-ui-acc13851dfa0 class="list-row head crm-table-head">
           <span data-v-ui-acc13851dfa0>Задача</span><span data-v-ui-acc13851dfa0>Ответственный</span><span data-v-ui-acc13851dfa0>Статус</span
           ><span data-v-ui-acc13851dfa0>Приоритет</span><span data-v-ui-acc13851dfa0>Срок</span><span data-v-ui-acc13851dfa0>Прогресс</span>
         </div>
@@ -631,8 +631,8 @@ onMounted(async () => {
         </div>
       </section></template
     >
-    <aside data-v-ui-acc13851dfa0 v-if="selected" class="backdrop admin-dialog-backdrop" @click.self="closeTask">
-      <div data-v-ui-acc13851dfa0 ref="taskPanel" @keydown="taskKeys" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка задачи" class="drawer admin-dialog admin-dialog--drawer">
+    <aside data-v-ui-acc13851dfa0 v-if="selected" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="closeTask">
+      <div data-v-ui-acc13851dfa0 ref="taskPanel" @keydown="taskKeys" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка задачи" class="drawer admin-dialog admin-dialog--drawer crm-detail-card">
         <header data-v-ui-acc13851dfa0>
           <div data-v-ui-acc13851dfa0>
             <p data-v-ui-acc13851dfa0>КАРТОЧКА ЗАДАЧИ</p>
@@ -641,10 +641,10 @@ onMounted(async () => {
           <button class="crm-button crm-button--icon" data-v-ui-acc13851dfa0 :disabled="saving" aria-label="Закрыть задачу" @click="closeTask"><X data-v-ui-acc13851dfa0 :size="18" /></button>
         </header>
         <CrmCardTabs v-model="cardTab" prefix="task" />
-        <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-1 class="body fields admin-dialog-body" :disabled="saving" >
+        <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-1 class="body fields admin-dialog-body crm-detail-body" :disabled="saving" >
           <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
           <p data-v-ui-acc13851dfa0 v-if="dirty" role="status">Есть несохранённые изменения</p>
-          <section v-show="cardTab==='general'" id="task-general-panel" role="tabpanel" aria-labelledby="task-general-tab" class="crm-card-general">
+          <section v-show="cardTab==='general'" id="task-general-panel" role="tabpanel" aria-labelledby="task-general-tab" class="crm-card-general crm-detail-general">
           <label data-v-ui-acc13851dfa0>Название<input class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.title" /></label
           ><label data-v-ui-acc13851dfa0
             >Описание<textarea class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.description" rows="4" />
@@ -682,49 +682,26 @@ onMounted(async () => {
               type="range"
               min="0"
               max="100" /></label
-          ><button data-v-ui-acc13851dfa0 class="save crm-button crm-button--primary" :disabled="saving" @click="saveSelected">
-            {{ saving ? "Сохраняем…" : "Сохранить изменения" }}
-          </button>
+          >
           </section>
-          <section v-show="cardTab==='subtasks'" id="task-subtasks-panel" role="tabpanel" aria-labelledby="task-subtasks-tab"><div class="crm-subtasks"><h3><ListChecks :size="18" />Подзадачи · {{ taskChildren.filter((t: any) => t.status === 'DONE').length }}/{{ taskChildren.length }}</h3><p v-if="taskChildren.length" class="crm-muted">Общий прогресс — среднее выполнение подзадач. Завершить задачу можно после всех подзадач.</p><p v-else class="crm-muted">Подзадач пока нет. Разбейте работу на небольшие шаги.</p><div v-for="child in taskChildren" :key="child.id" class="crm-subtask-row"><input class="crm-check" type="checkbox" :checked="child.status === 'DONE'" :disabled="saving || !writable" :aria-label="`Выполнено: ${child.title}`" @change="toggleSubtask(child)" /><button class="crm-subtask-open crm-button crm-button--row" @click="openTask(child)"><strong>{{ child.title }}</strong><small>{{ person(child.assignedTo) }} · {{ child.progress }}%</small></button></div><div v-if="writable" class="crm-subtask-create"><input class="crm-input" v-model="subtaskTitle" maxlength="200" aria-label="Название подзадачи" placeholder="Что нужно сделать?" @keydown.enter.prevent="addSubtask" /><select class="crm-input" v-model="subtaskAssignee" aria-label="Ответственный за подзадачу"><option v-for="u in team" :key="u.id" :value="u.id">{{ person(u) }}</option></select><button class="crm-work-button crm-button" :disabled="saving || !subtaskTitle.trim()" @click="addSubtask"><Plus :size="16" />Подзадача</button></div></div></section>
+          <section v-show="cardTab==='subtasks'" id="task-subtasks-panel" role="tabpanel" aria-labelledby="task-subtasks-tab"><CrmSubtasks v-model:title="subtaskTitle" v-model:assignee="subtaskAssignee" :rows="taskChildren" :team="team" :busy="saving" :writable="writable" description="Общий прогресс рассчитывается по подзадачам. Завершите их перед закрытием задачи." @create="addSubtask" @toggle="toggleSubtask" @open="openTask" /></section>
           <section v-show="cardTab==='files'" id="task-files-panel" role="tabpanel" aria-labelledby="task-files-tab"><CrmTaskFiles :key="selected.id" :task-id="selected.id" @busy="attachmentBusy = $event" /></section>
-          <section v-show="cardTab==='comments'" id="task-comments-panel" role="tabpanel" aria-labelledby="task-comments-tab" data-v-ui-acc13851dfa0 class="comments">
-            <h3 data-v-ui-acc13851dfa0>
-              <MessageSquare data-v-ui-acc13851dfa0 :size="15" />Комментарии ·
-              {{ selected._count?.comments || 0 }}
-            </h3>
-            <div data-v-ui-acc13851dfa0 class="comment-box">
-              <textarea class="crm-input" data-v-ui-acc13851dfa0
-                v-model="comment"
-                rows="3"
-                maxlength="10000"
-                aria-label="Текст комментария"
-                placeholder="Написать комментарий"
-                @keydown.ctrl.enter.prevent="addComment"
-              /><button class="crm-button" data-v-ui-acc13851dfa0 :disabled="saving || !comment.trim()" @click="addComment">{{ saving ? 'Отправляем…' : 'Отправить' }}</button>
-            </div>
-            <div data-v-ui-acc13851dfa0 v-for="c in selected.comments" class="comment">
-              <span data-v-ui-acc13851dfa0>{{ person(c.author).slice(0, 1) }}</span>
-              <div data-v-ui-acc13851dfa0>
-                <b data-v-ui-acc13851dfa0>{{ person(c.author) }}</b>
-                <p data-v-ui-acc13851dfa0>{{ c.body }}</p>
-                <small data-v-ui-acc13851dfa0>{{
-                  new Date(c.createdAt).toLocaleString("ru-RU")
-                }}</small>
-              </div>
-            </div>
-            <button v-if="(selected.comments?.length || 0) < (selected._count?.comments || 0)" class="crm-work-button crm-button" :disabled="commentLoading" @click="moreComments">{{ commentLoading ? 'Загружаем…' : 'Ранее написанные комментарии' }}</button>
+          <section v-show="cardTab==='comments'" id="task-comments-panel" role="tabpanel" aria-labelledby="task-comments-tab">
+            <CrmCardComments v-model="comment" :entries="selected.comments || []" :total="selected._count?.comments || 0" :busy="saving" :writable="writable" @send="addComment">
+              <button v-if="(selected.comments?.length || 0) < (selected._count?.comments || 0)" class="crm-button" :disabled="commentLoading" @click="moreComments">{{ commentLoading ? 'Загружаем…' : 'Ранее написанные комментарии' }}</button>
+            </CrmCardComments>
           </section>
           <section v-if="cardTab==='history'" id="task-history-panel" role="tabpanel" aria-labelledby="task-history-tab"><CrmChangeHistory kind="tasks" :entity-id="selected.id" :team="team" /></section>
-          <button data-v-ui-acc13851dfa0 type="button" class="light crm-button" :disabled="saving" @click="closeTask">Отмена</button>
-          <button data-v-ui-acc13851dfa0 class="archive crm-button crm-button--danger" :disabled="saving" @click="requestArchiveTask(selected)">
-            <Trash2 data-v-ui-acc13851dfa0 :size="14" />Перенести в архив
-          </button>
         </fieldset>
+        <footer class="crm-detail-footer">
+          <button v-if="writable" type="button" class="crm-button crm-button--danger" :disabled="saving || attachmentBusy" @click="requestArchiveTask(selected)"><Trash2 :size="18" />В архив</button>
+          <button type="button" class="crm-button" :disabled="saving || attachmentBusy" @click="closeTask">Отмена</button>
+          <button v-if="writable" type="button" class="crm-button crm-button--primary" :disabled="saving || attachmentBusy || !dirty" @click="saveSelected">{{ saving ? 'Сохраняем…' : 'Сохранить изменения' }}</button>
+        </footer>
       </div>
     </aside>
-    <div data-v-ui-acc13851dfa0 v-if="dialog" class="backdrop admin-dialog-backdrop" @click.self="closeCreate">
-      <form data-v-ui-acc13851dfa0 class="drawer create admin-dialog admin-dialog--drawer" @submit.prevent="createTask">
+    <div data-v-ui-acc13851dfa0 v-if="dialog" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="closeCreate">
+      <form data-v-ui-acc13851dfa0 class="drawer create admin-dialog admin-dialog--drawer crm-detail-card" @submit.prevent="createTask">
         <header data-v-ui-acc13851dfa0>
           <div data-v-ui-acc13851dfa0>
             <p data-v-ui-acc13851dfa0>НОВАЯ РАБОТА</p>
@@ -734,7 +711,7 @@ onMounted(async () => {
             <X data-v-ui-acc13851dfa0 :size="18" />
           </button>
         </header>
-        <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-2 class="body fields admin-dialog-body" :disabled="saving" >
+        <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-2 class="body fields admin-dialog-body crm-detail-body" :disabled="saving" >
           <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
           <label data-v-ui-acc13851dfa0>Название<input class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.title" required /></label
           ><label data-v-ui-acc13851dfa0
@@ -785,7 +762,7 @@ onMounted(async () => {
             </select></label
           >
         </fieldset>
-        <footer data-v-ui-acc13851dfa0>
+        <footer data-v-ui-acc13851dfa0 class="crm-detail-footer">
           <button data-v-ui-acc13851dfa0 type="button" class="light crm-button" :disabled="saving" @click="closeCreate">
             Отмена</button
           ><button class="crm-button" data-v-ui-acc13851dfa0 :disabled="saving">{{ saving ? "Создаём…" : "Создать задачу" }}</button>

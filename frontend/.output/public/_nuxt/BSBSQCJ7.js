@@ -1,0 +1,1 @@
+import{_ as o}from"./CNLY2yXj.js";import{d as e,b8 as t,B as s,p as n}from"./DkOcgTLT.js";import"./CgQ7BQiZ.js";import"./9VGtKIZ-.js";const f=e({__name:"customers",setup(a){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(r,m)=>(n(),s(o,{"page-section":"customers"}))}});export{f as default};

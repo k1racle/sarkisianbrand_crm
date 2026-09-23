@@ -3,7 +3,6 @@ useHead({ title: 'Сделки — SARKISIAN CRM' });
 import {
   CalendarClock,
   CircleDollarSign,
-  MessageSquareText,
   MoreHorizontal,
   Phone,
   Plus,
@@ -33,6 +32,7 @@ const pipeline = ref<any>({ stages: [] }),
   dragged = ref(""),
   activityText = ref("");
 const cardTab=ref('general'),relatedBusy=ref(false),selectedBaseline=ref(''),createBaseline=ref('');
+const commentEntries=computed(()=>(selected.value?.interactions||[]).filter((entry:any)=>!['CREATED','STAGE_CHANGED'].includes(entry.type)).map((entry:any)=>({...entry,author:entry.user,body:entry.content})));
 const selectedDirty=computed(()=>!!selected.value&&JSON.stringify(selected.value)!==selectedBaseline.value);
 function canLeave(){return !saving.value&&!relatedBusy.value&&(!(selectedDirty.value||activityText.value.trim()||(createOpen.value&&JSON.stringify(draft)!==createBaseline.value))||window.confirm('Есть несохранённые изменения. Закрыть без сохранения?'));}
 function closeLead(){if(canLeave()){selected.value=null;activityText.value='';}}
@@ -285,8 +285,8 @@ onMounted(async () => {
         </div>
       </header>
       <p data-v-ui-c1ada31b5812 v-if="error" class="operation-error" role="alert">{{ error }}</p>
-      <section data-v-ui-c1ada31b5812 class="toolbar crm-toolbar">
-        <select class="crm-input" data-v-ui-c1ada31b5812 v-model="activePipelineId" @change="switchPipeline">
+      <section data-v-ui-c1ada31b5812 class="toolbar crm-toolbar crm-filter-toolbar">
+        <select class="crm-input" data-v-ui-c1ada31b5812 v-model="activePipelineId" aria-label="Воронка продаж" @change="switchPipeline">
           <option data-v-ui-c1ada31b5812 v-for="item in pipelines" :key="item.id" :value="item.id">
             {{ item.name }}
           </option>
@@ -342,7 +342,6 @@ onMounted(async () => {
                 }}</small
               >
             </div>
-            <button class="crm-button crm-button--icon" data-v-ui-c1ada31b5812 aria-label="Добавить сделку в этап" @click="openCreate(stage)"><Plus data-v-ui-c1ada31b5812 :size="15" /></button>
           </header>
           <div data-v-ui-c1ada31b5812 class="cards">
             <div data-v-ui-c1ada31b5812
@@ -391,8 +390,8 @@ onMounted(async () => {
         </article>
       </section></template
     >
-    <aside data-v-ui-c1ada31b5812 v-if="selected" class="backdrop admin-dialog-backdrop" @click.self="closeLead">
-      <div data-v-ui-c1ada31b5812 ref="leadPanel" @keydown="leadKeys" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка сделки" class="drawer admin-dialog admin-dialog--drawer">
+    <aside data-v-ui-c1ada31b5812 v-if="selected" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="closeLead">
+      <div data-v-ui-c1ada31b5812 ref="leadPanel" @keydown="leadKeys" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка сделки" class="drawer admin-dialog admin-dialog--drawer crm-detail-card">
         <header data-v-ui-c1ada31b5812>
           <div data-v-ui-c1ada31b5812>
             <p data-v-ui-c1ada31b5812>КАРТОЧКА СДЕЛКИ</p>
@@ -401,9 +400,9 @@ onMounted(async () => {
           <button class="crm-button crm-button--icon" data-v-ui-c1ada31b5812 aria-label="Закрыть сделку" @click="closeLead"><X data-v-ui-c1ada31b5812 :size="18" /></button>
         </header>
         <CrmCardTabs v-model="cardTab" prefix="lead" />
-        <div data-v-ui-c1ada31b5812 class="drawer-body admin-dialog-body">
+        <div data-v-ui-c1ada31b5812 class="drawer-body admin-dialog-body crm-detail-body">
           <p v-if="error" class="crm-work-error" role="alert">{{error}}</p><p v-if="selectedDirty" class="crm-muted">Есть несохранённые изменения</p>
-          <section v-show="cardTab==='general'" id="lead-general-panel" role="tabpanel" aria-labelledby="lead-general-tab">
+          <section v-show="cardTab==='general'" id="lead-general-panel" role="tabpanel" aria-labelledby="lead-general-tab" class="crm-detail-general">
           <div data-v-ui-c1ada31b5812 class="fields two">
             <label data-v-ui-c1ada31b5812>Название<input class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.title" /></label
             ><label data-v-ui-c1ada31b5812
@@ -458,49 +457,20 @@ onMounted(async () => {
               ><input class="crm-input" data-v-ui-c1ada31b5812 v-else v-model="selected.lostReason"
             /></label>
           </div>
-          <button data-v-ui-c1ada31b5812 class="save crm-button crm-button--primary" @click="saveSelected" :disabled="saving">
-            {{ saving ? "Сохраняем…" : "Сохранить сделку" }}
-          </button>
           </section>
           <section v-show="cardTab==='subtasks'" id="lead-subtasks-panel" role="tabpanel" aria-labelledby="lead-subtasks-tab"><CrmLeadTasks :key="selected.id" :lead-id="selected.id" :manager-id="selected.managerId" :team="team" @busy="relatedBusy=$event" /></section>
           <section v-show="cardTab==='files'" id="lead-files-panel" role="tabpanel" aria-labelledby="lead-files-tab"><CrmTaskFiles :key="selected.id" :lead-id="selected.id" @busy="relatedBusy=$event" /></section>
-          <section v-show="cardTab==='comments'" id="lead-comments-panel" role="tabpanel" aria-labelledby="lead-comments-tab" data-v-ui-c1ada31b5812 class="activity">
-            <h3 data-v-ui-c1ada31b5812><MessageSquareText data-v-ui-c1ada31b5812 :size="16" />Комментарии и заметки</h3>
-            <div data-v-ui-c1ada31b5812 class="compose">
-              <textarea class="crm-input" data-v-ui-c1ada31b5812
-                v-model="activityText"
-                placeholder="Итог звонка, встречи или заметка"
-              ></textarea
-              ><button class="crm-button crm-button--primary" data-v-ui-c1ada31b5812 @click="addActivity('NOTE')">Добавить</button>
-            </div>
-            <div data-v-ui-c1ada31b5812
-              v-for="item in (selected.interactions||[]).filter((entry:any)=>!['CREATED','STAGE_CHANGED'].includes(entry.type))"
-              :key="item.id"
-              class="activity-row"
-            >
-              <i data-v-ui-c1ada31b5812></i
-              ><span data-v-ui-c1ada31b5812
-                ><b data-v-ui-c1ada31b5812>{{ item.content }}</b
-                ><small data-v-ui-c1ada31b5812
-                  >{{
-                    [item.user?.firstName, item.user?.lastName]
-                      .filter(Boolean)
-                      .join(" ") ||
-                    item.user?.email ||
-                    "Система"
-                  }}
-                  ·
-                  {{ new Date(item.createdAt).toLocaleString("ru-RU") }}</small
-                ></span
-              >
-            </div>
-          </section>
+          <section v-show="cardTab==='comments'" id="lead-comments-panel" role="tabpanel" aria-labelledby="lead-comments-tab"><CrmCardComments v-model="activityText" :entries="commentEntries" :total="commentEntries.length" :busy="saving" :writable="can('crm.write')" @send="addActivity('NOTE')" /></section>
           <section v-if="cardTab==='history'" id="lead-history-panel" role="tabpanel" aria-labelledby="lead-history-tab"><CrmChangeHistory kind="leads" :entity-id="selected.id" :team="team" :stages="pipeline.stages" /></section>
         </div>
+        <footer class="crm-detail-footer">
+          <button type="button" class="crm-button" :disabled="saving || relatedBusy" @click="closeLead">Отмена</button>
+          <button v-if="can('crm.write')" type="button" class="crm-button crm-button--primary" :disabled="saving || relatedBusy || !selectedDirty" @click="saveSelected">{{ saving ? 'Сохраняем…' : 'Сохранить изменения' }}</button>
+        </footer>
       </div>
     </aside>
-    <div data-v-ui-c1ada31b5812 v-if="createOpen" class="backdrop admin-dialog-backdrop" @click.self="createOpen = false">
-      <form data-v-ui-c1ada31b5812 class="drawer create admin-dialog admin-dialog--drawer" @submit.prevent="createLead">
+    <div data-v-ui-c1ada31b5812 v-if="createOpen" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="createOpen = false">
+      <form data-v-ui-c1ada31b5812 class="drawer create admin-dialog admin-dialog--drawer crm-detail-card" @submit.prevent="createLead">
         <header data-v-ui-c1ada31b5812>
           <div data-v-ui-c1ada31b5812>
             <p data-v-ui-c1ada31b5812>НОВАЯ ВОЗМОЖНОСТЬ</p>
@@ -510,7 +480,7 @@ onMounted(async () => {
             <X data-v-ui-c1ada31b5812 :size="18" />
           </button>
         </header>
-        <div data-v-ui-c1ada31b5812 class="drawer-body fields admin-dialog-body">
+        <div data-v-ui-c1ada31b5812 class="drawer-body fields admin-dialog-body crm-detail-body">
           <label data-v-ui-c1ada31b5812
             >Название сделки<input class="crm-input" data-v-ui-c1ada31b5812
               v-model="draft.title"
@@ -558,7 +528,7 @@ onMounted(async () => {
           /></label>
           <p data-v-ui-c1ada31b5812 v-if="error" class="error">{{ error }}</p>
         </div>
-        <footer data-v-ui-c1ada31b5812>
+        <footer data-v-ui-c1ada31b5812 class="crm-detail-footer">
           <button data-v-ui-c1ada31b5812 type="button" class="light crm-button" @click="createOpen = false">
             Отмена</button
           ><button class="crm-button" data-v-ui-c1ada31b5812 :disabled="saving">

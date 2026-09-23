@@ -1,1 +1,0 @@
-import{_ as o}from"./CxQC0d_o.js";import{u as r}from"./9HV-2CAp.js";import{d as t,b6 as s,A as n,m as c}from"./S8Twd-2B.js";const f=t({__name:"rewards",setup(m){const{active:e}=r();return s(()=>({title:`${e.value?.label||"Рабочее пространство"} — SARKISIAN CRM`})),(_,i)=>{const a=o;return c(),n(a,{kind:"REFERRAL",section:"rewards"})}}});export{f as default};

@@ -529,7 +529,7 @@ onBeforeUnmount(() => {
                   placeholder="Найти канал"
               /></label>
               <nav data-v-ui-6f58f7dddb37>
-                <button class="crm-button" data-v-ui-6f58f7dddb37
+                <button class="crm-button crm-card-action crm-interactive" data-v-ui-6f58f7dddb37
                   v-for="channel in visibleChannels"
                   :key="channel.id"
                   :class="{ active: active?.id === channel.id }"
@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
                       >
                         <button data-v-ui-6f58f7dddb37
                           v-if="item.kind === 'ENTITY'"
-                          class="entity-card crm-button"
+                          class="entity-card crm-button crm-card-action crm-interactive"
                           @click="openEntityCard(item)"
                         >
                           <i data-v-ui-6f58f7dddb37
@@ -612,7 +612,7 @@ onBeforeUnmount(() => {
                         </button>
                         <button data-v-ui-6f58f7dddb37
                           v-else-if="item.kind === 'IMAGE'"
-                          class="image-card crm-button"
+                          class="image-card crm-button crm-card-action crm-interactive"
                           @click="downloadAttachment(item)"
                         >
                           <img data-v-ui-6f58f7dddb37
@@ -638,7 +638,7 @@ onBeforeUnmount(() => {
                         ></audio>
                         <button data-v-ui-6f58f7dddb37
                           v-else
-                          class="file-card crm-button"
+                          class="file-card crm-button crm-card-action crm-interactive"
                           @click="downloadAttachment(item)"
                         >
                           <i data-v-ui-6f58f7dddb37><FileText data-v-ui-6f58f7dddb37 :size="18" /></i

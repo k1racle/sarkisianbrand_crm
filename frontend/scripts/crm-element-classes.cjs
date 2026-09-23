@@ -4,13 +4,13 @@ const file=process.argv[2],source=fs.readFileSync(file,'utf8'),sfc=parse(source)
 if(!sfc.template)process.exit(0);
 const template=sfc.template.content,ast=baseParse(template),edits=[];
 const has=(node,tag)=>(node.children||[]).some(n=>n.tag===tag||has(n,tag));
-const surface=['panel','partner-panel','queue-card','knowledge-card','contact-inbox__settings','contact-inbox__panel','sb-promo-panel','sb-gift-panel','loyalty-settings-panel','crm-drive-surface','crm-content-toolbar','crm-content-empty'];
+const surface=['system-card','integration-card','permission-panel','access-panel','accounts-panel','trash-panel','salon-settings-panel','partner-panel','panel','queue-card','knowledge-card','contact-inbox__settings','contact-inbox__panel','sb-promo-panel','sb-gift-panel','loyalty-settings-panel','crm-drive-surface','crm-content-toolbar','crm-content-empty'];
 function walk(n,parent){if(n.type===1){const cls=n.props.find(p=>p.type===6&&p.name==='class'),tokens=(cls?.value?.content||'').split(/\s+/),add=[];const plain=(name)=>n.props.find(p=>p.type===6&&p.name===name)?.value?.content;const directives=n.props.filter(p=>p.type===7).map(p=>p.exp?.content||'').join(' ');
  if(n.tag==='main')add.push('crm-standard');
  if(n.tag==='button'||['NuxtLink','a'].includes(n.tag)&&tokens.some(t=>/button|primary|light/.test(t))){
   add.push('crm-button');
   if(tokens.some(x=>['crm-publication','crm-file-open','task-card','deal'].includes(x)))add.push('crm-card-action');
-  else if(tokens.some(x=>['primary','save','send','submit','partner-primary','loyalty-save','crm-primary-button','studio-primary','contact-inbox__button--dark'].includes(x))||tokens.some(x=>['sb-promo-button','sb-gift-button'].includes(x))&&!tokens.some(x=>x.endsWith('--white'))||/^(openCreate\(|createOpen\s*=|saveSelected|saveOrganization|saveCustomer|createTask|createLead|addComment|addActivity)/.test(directives))add.push('crm-button--primary');
+  else if(tokens.some(x=>['primary','save','send','submit','partner-primary','loyalty-save','crm-primary-button','studio-primary','contact-inbox__button--dark'].includes(x))||tokens.some(x=>['sb-promo-button','sb-gift-button'].includes(x))&&!tokens.some(x=>x.endsWith('--white'))||/^(openCreate\(\)|createOpen\s*=\s*true|saveSelected|saveOrganization|saveCustomer|createTask|createLead|addComment|addActivity)/.test(directives))add.push('crm-button--primary');
   if(has(n,'RefreshCw'))add.push('crm-button--refresh');
   if(tokens.some(x=>['danger','archive','delete'].includes(x)))add.push('crm-button--danger');
   if(tokens.includes('crm-icon-button')||plain('aria-label')&&!(n.children||[]).some(c=>c.type===2&&c.content.trim()))add.push('crm-button--icon');
@@ -24,11 +24,11 @@ function walk(n,parent){if(n.type===1){const cls=n.props.find(p=>p.type===6&&p.n
  if(tokens.some(t=>['kanban','board','crm-content-board'].includes(t)))add.push('crm-board');
  if(parent&&(parent.props||[]).some(p=>p.type===6&&p.name==='class'&&/^(kanban|board|crm-content-board)( |$)/.test(p.value?.content||''))&&['article','section'].includes(n.tag))add.push('crm-board-column','crm-surface');
  if(parent&&(parent.props||[]).some(p=>p.type===6&&p.name==='class'&&p.value?.content==='knowledge')&&n.tag==='div'&&!tokens.includes('knowledge-grid'))add.push('crm-surface','crm-surface--tint');
- if(tokens.some(t=>['task-card','deal'].includes(t)))add.push('crm-item-card');
+ if(tokens.some(t=>['task-card','deal','integration-card','access-card'].includes(t)))add.push('crm-item-card');
  if(tokens.some(t=>['crm-publication','crm-content-day','crm-drive-item'].includes(t)))add.push('crm-item-card');
  if(tokens.some(t=>['partner-status','sb-promo-badge','badge','crm-content-status'].includes(t)))add.push('crm-badge');
  if(tokens.some(t=>['toolbar','filters'].includes(t)))add.push('crm-toolbar');
- if(tokens.some(t=>['admin-body','hd-body','leader-body'].includes(t)))add.push('crm-page-content');
+ if(tokens.some(t=>['admin-body','hd-body','leader-body','system-body','mp-body'].includes(t)))add.push('crm-page-content');
  if((n.tag==='label'&&has(n,'input')&&(n.children||[]).some(c=>/^(Search|Mail|Phone|Filter)$/.test(c.tag||'')))||tokens.some(t=>['sb-promo-search','sb-gift-search','crm-drive-search','crm-content-search'].includes(t)))add.push('crm-input-group');
  if(n.tag==='article'&&parent&&(parent.props||[]).some(p=>p.type===6&&p.name==='class'&&/kpis|kpi-grid|knowledge-grid/.test(p.value?.content||'')))add.push('crm-surface');
  const fresh=add.filter(x=>!tokens.includes(x));if(fresh.length){if(cls?.value){const pos=cls.value.loc.end.offset-1;edits.push({pos,text:' '+fresh.join(' ')});}else{edits.push({pos:n.loc.start.offset+1+n.tag.length,text:' class="'+fresh.join(' ')+'"'});}}
