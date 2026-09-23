@@ -1,0 +1,1 @@
+import{_ as o}from"./Crcrf97Z.js";import{d as t,b8 as r,B as p,p as a}from"./DIHEU-K-.js";import"./Bog8f4TM.js";import"./B8JeN7CV.js";import"./DP6Dr30S.js";import"./DYHmbKX3.js";const l=t({__name:"overview",setup(s){return r({title:"Поддержка — SARKISIAN CRM"}),(n,c)=>{const e=o;return a(),p(e,{"page-section":"overview"})}}});export{l as default};

@@ -8,12 +8,10 @@ import { BackgroundJobsService } from '../background-jobs/background-jobs.servic
 import { AccountListQueryDto, CreateBotCommandDto, CreateEmployeeDto, ReviewProfileChangeDto, SetTemporaryPasswordDto, UpdateAccountDto, UpdateBotCommandDto, UpdateEmployeeDto, UpdateEmployeePermissionsDto, UpdateIntegrationDto, UpsertBotIdentityDto } from './dto/system-settings.dto';
 import { defaultBotCommands, integrationDefinitionMap, integrationDefinitions } from './integration-catalog';
 import { IntegrationSecretsService } from './integration-secrets.service';
+import { effectivePermissions } from '../auth/effective-permissions';
+import { internalWorkspaceRoles, workspaceRoleCatalog, workspaceRoleDetails } from '../auth/workspace-role-catalog';
 
-const internalRoles: UserRole[] = [
-  UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.MANAGER_B2B, UserRole.MANAGER_SALES,
-  UserRole.MARKETPLACE_MANAGER, UserRole.SUPERVISOR, UserRole.EXECUTIVE, UserRole.IT_SUPPORT,
-  UserRole.CURATOR, UserRole.WAREHOUSE,
-];
+const internalRoles = internalWorkspaceRoles;
 
 @Injectable()
 export class SystemSettingsService {
@@ -43,7 +41,7 @@ export class SystemSettingsService {
     const trashed = await this.prisma.dataTrashEntry.findMany({ where: { entityType: 'USER', status: 'TRASHED' }, select: { entityId: true } });
     return this.prisma.user.findMany({
       where: { role: { in: internalRoles }, id: { notIn: trashed.map((item) => item.entityId) } },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true, updatedAt: true, _count: { select: { sessions: true } }, permissionOverrides: { include: { permission: true } } },
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, departmentId: true, department: { select: { id: true, name: true } }, createdAt: true, updatedAt: true, _count: { select: { sessions: true } }, permissionOverrides: { include: { permission: true } } },
       orderBy: [{ isActive: 'desc' }, { firstName: 'asc' }],
     });
   }
@@ -55,6 +53,7 @@ export class SystemSettingsService {
 
   async updateEmployee(id: string, dto: UpdateEmployeeDto, actorId: string) {
     if (id === actorId && dto.isActive === false) throw new ConflictException('Нельзя заблокировать собственную учётную запись');
+    if (id === actorId && dto.role && dto.role !== UserRole.ADMIN) throw new ConflictException('Нельзя понизить собственную роль администратора');
     const employee = await this.prisma.user.findUnique({ where: { id } });
     if (!employee || !internalRoles.includes(employee.role)) throw new NotFoundException('Сотрудник не найден');
     return this.prisma.$transaction(async tx => {
@@ -225,21 +224,54 @@ export class SystemSettingsService {
 
   async accessMatrix() {
     const permissions = await this.prisma.permission.findMany({ include: { roles: true }, orderBy: [{ resource: 'asc' }, { action: 'asc' }] });
-    return { roles: internalRoles, permissions: permissions.map(permission => ({ ...permission, roles: permission.roles.map(item => item.role) })) };
+    return { roles: internalRoles, roleDetails: workspaceRoleCatalog, permissions: permissions.map(permission => ({ ...permission, roles: permission.roles.map(item => item.role) })) };
   }
 
-  async updatePermissions(id: string, dto: UpdateEmployeePermissionsDto) {
+  async accessReview(id: string) {
+    return this.prisma.$transaction(async tx => {
+      const employee = await tx.user.findUnique({ where: { id }, select: {
+        id: true, firstName: true, lastName: true, email: true, role: true, isActive: true,
+        department: { select: { id: true, name: true, archivedAt: true } },
+      } });
+      if (!employee || !internalRoles.includes(employee.role)) throw new NotFoundException('Сотрудник не найден');
+      const catalog = await tx.permission.findMany({
+        include: { roles: { where: { role: employee.role } }, users: { where: { userId: id }, select: { effect: true, scope: true } } },
+        orderBy: [{ resource: 'asc' }, { action: 'asc' }],
+      });
+      const roleGrants = catalog.filter(item => item.roles.length).map(item => ({ permission: { key: item.key } }));
+      const overrides = catalog.flatMap(item => item.users.map(override => ({ ...override, permission: { key: item.key } })));
+      const effective = effectivePermissions(roleGrants, overrides);
+      return {
+        employee, role: workspaceRoleDetails(employee.role),
+        permissions: catalog.map(item => ({
+          key: item.key, description: item.description || item.key, resource: item.resource, action: item.action,
+          allowed: employee.isActive && effective.permissions.includes(item.key),
+          source: !employee.isActive ? 'BLOCKED_ACCOUNT' : effective.denied.includes(item.key) ? 'DENY'
+            : item.users.some(override => override.effect === 'ALLOW') ? 'ALLOW' : item.roles.length ? 'ROLE' : 'NOT_GRANTED',
+        })),
+        dataVisibility: { departmentEnforced: false, message: 'Отдел пока не ограничивает видимость записей. Эта проверка показывает разрешения на операции; серверные списки ролей и правила конкретной записи также могут ограничивать действие.' },
+      };
+    }, { isolationLevel: 'RepeatableRead' });
+  }
+
+  async updatePermissions(id: string, dto: UpdateEmployeePermissionsDto, actorId?: string) {
+    const allow = [...new Set(dto.allow)];
+    const deny = [...new Set(dto.deny)];
+    if (allow.some(key => deny.includes(key))) {
+      throw new BadRequestException('Одно разрешение нельзя одновременно разрешить и запретить');
+    }
+    if (id === actorId && deny.includes('system.manage')) throw new ConflictException('Нельзя запретить себе управление доступом');
     const employee = await this.prisma.user.findUnique({ where: { id } });
-    if (!employee) throw new NotFoundException('Сотрудник не найден');
-    const uniqueKeys = [...new Set([...dto.allow, ...dto.deny])];
+    if (!employee || !internalRoles.includes(employee.role)) throw new NotFoundException('Сотрудник не найден');
+    const uniqueKeys = [...allow, ...deny];
     const permissions = await this.prisma.permission.findMany({ where: { key: { in: uniqueKeys } } });
     if (permissions.length !== uniqueKeys.length) throw new NotFoundException('Одно из разрешений не найдено');
     const keyMap = new Map(permissions.map(item => [item.key, item.id]));
     await this.prisma.$transaction(async tx => {
       await tx.userPermission.deleteMany({ where: { userId: id } });
       const rows = [
-        ...dto.allow.map(key => ({ userId: id, permissionId: keyMap.get(key)!, effect: PermissionEffect.ALLOW })),
-        ...dto.deny.filter(key => !dto.allow.includes(key)).map(key => ({ userId: id, permissionId: keyMap.get(key)!, effect: PermissionEffect.DENY })),
+        ...allow.map(key => ({ userId: id, permissionId: keyMap.get(key)!, effect: PermissionEffect.ALLOW })),
+        ...deny.map(key => ({ userId: id, permissionId: keyMap.get(key)!, effect: PermissionEffect.DENY })),
       ];
       if (rows.length) await tx.userPermission.createMany({ data: rows });
       await tx.session.deleteMany({ where: { userId: id } });

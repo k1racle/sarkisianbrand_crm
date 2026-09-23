@@ -1,0 +1,1 @@
+import{_ as s}from"./Dd0zUmTQ.js";import{u as o}from"./BvPLdizH.js";import{d as t,b8 as n,B as r,p as c}from"./DIHEU-K-.js";import"./h6vBj-Hz.js";const d=t({__name:"messages",setup(m){const{active:e}=o();return n(()=>({title:`${e.value?.label||"Рабочее пространство"} — SARKISIAN CRM`})),(p,_)=>{const a=s;return c(),r(a)}}});export{d as default};

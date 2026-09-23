@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import { effectivePermissions } from '../../auth/effective-permissions';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -20,10 +21,8 @@ export class RolesGuard implements CanActivate {
       this.prisma.rolePermission.findMany({ where: { role: user.role, permission: { key: { in: permissions } } }, select: { permission: { select: { key: true } } } }),
       this.prisma.userPermission.findMany({ where: { userId: user.sub, permission: { key: { in: permissions } } }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    const allowed = new Set(rolePermissions.map(item => item.permission.key));
-    const denied = new Set(userPermissions.filter(item => item.effect === 'DENY').map(item => item.permission.key));
-    userPermissions.filter(item => item.effect === 'ALLOW').forEach(item => allowed.add(item.permission.key));
-    if (!permissions.every(permission => allowed.has(permission) && !denied.has(permission))) throw new ForbiddenException('Для этой операции нет разрешения');
+    const allowed = new Set(effectivePermissions(rolePermissions, userPermissions).permissions);
+    if (!permissions.every(permission => allowed.has(permission))) throw new ForbiddenException('Для этой операции нет разрешения');
     return true;
   }
 }

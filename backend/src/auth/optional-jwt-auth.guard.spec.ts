@@ -8,15 +8,15 @@ describe('Необязательный JWT: гость разрешён, пло�
   let request: any;
   const context = () => ({ switchToHttp: () => ({ getRequest: () => request }) } as any);
   beforeEach(() => {
-    jwt = { verifyAsync: jest.fn(async () => ({ sub: 'customer-1', role: 'ADMIN', sid: 'session-1' })) };
-    prisma = { user: { findUnique: jest.fn(async () => ({ isActive: true, role: 'CUSTOMER_B2C' })) }, session: { findFirst: jest.fn(async () => ({ id: 'session-1' })) } };
+    jwt = { verifyAsync: jest.fn(async () => ({ sub: 'customer-1', role: 'ADMIN', sid: 'session-1', exp: Math.floor(Date.now() / 1000) + 600 })) };
+    prisma = { session: { findFirst: jest.fn(async () => ({ user: { id: 'customer-1', isActive: true, role: 'CUSTOMER_B2C' } })) } };
     guard = new OptionalJwtAuthGuard(jwt, { get: () => 'test', getOrThrow: () => 'mock-only-secret-not-for-production' } as any, prisma);
     request = { headers: {} };
   });
   it('без Authorization пропускает гостя без JWT/БД', async () => {
     expect(await guard.canActivate(context())).toBe(true);
     expect(request.user).toBeUndefined();
-    expect(jwt.verifyAsync).not.toHaveBeenCalled(); expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(jwt.verifyAsync).not.toHaveBeenCalled(); expect(prisma.session.findFirst).not.toHaveBeenCalled();
   });
   it('валидный JWT использует текущую роль из БД, не повышенную роль из токена', async () => {
     request.headers.authorization = 'Bearer mock-token';
@@ -32,19 +32,19 @@ describe('Необязательный JWT: гость разрешён, пло�
   it('истёкший/поддельный JWT не переводит запрос в гостевой режим', async () => {
     request.headers.authorization = 'Bearer expired'; jwt.verifyAsync.mockRejectedValue(new Error('invalid signature'));
     await expect(guard.canActivate(context())).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.session.findFirst).not.toHaveBeenCalled();
   });
   it.each([null, { isActive: false, role: 'CUSTOMER_B2C' }])('удалённый/заблокированный аккаунт не допускается', async account => {
-    request.headers.authorization = 'Bearer mock'; prisma.user.findUnique.mockResolvedValue(account);
+    request.headers.authorization = 'Bearer mock'; prisma.session.findFirst.mockResolvedValue(account ? { user: { id: 'customer-1', ...account } } : null);
     await expect(guard.canActivate(context())).rejects.toBeInstanceOf(UnauthorizedException);
   });
   it('отозванная серверная сессия не допускается', async () => {
     request.headers.authorization = 'Bearer mock'; prisma.session.findFirst.mockResolvedValue(null);
     await expect(guard.canActivate(context())).rejects.toBeInstanceOf(UnauthorizedException);
   });
-  it('production не принимает устаревший JWT без server-side sid', async () => {
+  it.each(['production', 'development'])('%s не принимает устаревший JWT без server-side sid', async environment => {
     request.headers.authorization = 'Bearer legacy'; jwt.verifyAsync.mockResolvedValue({ sub: 'customer-1', role: 'CUSTOMER_B2C' });
-    const production = new OptionalJwtAuthGuard(jwt, { get: () => 'production', getOrThrow: () => 'mock-only-secret-not-for-production' } as any, prisma);
+    const production = new OptionalJwtAuthGuard(jwt, { get: () => environment, getOrThrow: () => 'mock-only-secret-not-for-production' } as any, prisma);
     await expect(production.canActivate(context())).rejects.toBeInstanceOf(UnauthorizedException);
     expect(prisma.session.findFirst).not.toHaveBeenCalled();
   });

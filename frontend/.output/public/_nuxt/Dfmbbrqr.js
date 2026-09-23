@@ -1,0 +1,1 @@
+import{_ as a}from"./DIFaTHlF.js";import{u as t}from"./BvPLdizH.js";import{d as r,b8 as n,B as s,p as c}from"./DIHEU-K-.js";const l=r({__name:"overview",setup(i){const{active:e}=t();return n(()=>({title:`${e.value?.label||"Рабочее пространство"} — SARKISIAN CRM`})),(_,m)=>{const o=a;return c(),s(o,{kind:"BLOGGER",section:"overview"})}}});export{l as default};

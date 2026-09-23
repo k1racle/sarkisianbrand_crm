@@ -19,7 +19,7 @@ export class MarketplacesController {
   @Get('orders') @Permissions('marketplace.read') orders(@Query('channel') channel?: string) { return this.marketplaces.orders(channel); }
   @Post('orders') @Permissions('marketplace.write') upsert(@Body() dto: UpsertMarketplaceOrderDto) { return this.marketplaces.upsert(dto); }
   @Post('orders/import') @Permissions('marketplace.write') importMany(@Body() dto: MarketplaceImportDto, @Req() request: any) { return this.marketplaces.importMany(dto, request.user.sub); }
-  @Patch('orders/:id') @Permissions('marketplace.write') update(@Param('id') id: string, @Body() dto: UpdateMarketplaceOrderDto) { return this.marketplaces.update(id, dto); }
+  @Patch('orders/:id') @Permissions('marketplace.write') update(@Param('id') id: string, @Body() dto: UpdateMarketplaceOrderDto, @Req() request: any) { return this.marketplaces.update(id, dto, request.user.sub); }
   @Get('integrations') @Permissions('marketplace.read') integrations() { return this.marketplaces.integrations(); }
   @Post('integrations') @Permissions('marketplace.configure') saveIntegration(@Body() dto: SaveMarketplaceIntegrationDto) { return this.marketplaces.saveIntegration(dto); }
   @Post('integrations/:channel/test') @Permissions('marketplace.configure') testIntegration(@Param('channel') channel: string) { return this.marketplaces.testIntegration(channel); }

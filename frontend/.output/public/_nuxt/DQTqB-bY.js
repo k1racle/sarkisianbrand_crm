@@ -1,0 +1,1 @@
+import{_ as o}from"./O_IGTJCi.js";import{d as e,b8 as t,B as a,p as n}from"./DIHEU-K-.js";import"./Bog8f4TM.js";import"./Do4yF1uw.js";const i=e({__name:"product-badges",setup(r){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(s,p)=>(n(),a(o,{"page-section":"product-badges"}))}});export{i as default};

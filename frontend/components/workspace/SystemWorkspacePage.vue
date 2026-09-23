@@ -37,7 +37,7 @@ const notice = ref("");
 const search = ref("");
 const showCreate = ref(false);
 const selectedEmployeeId = ref("");
-const overrides = ref<Record<string, string>>({});
+const showAccessReview = ref(false);
 const employee = reactive({
   firstName: "",
   lastName: "",
@@ -50,25 +50,14 @@ const menu: Record<string, { title: string; kicker: string; description: string 
   staff: { title: "Сотрудники", kicker: "УЧЁТНЫЕ ЗАПИСИ", description: "Команда, роли, блокировки и активные сессии" },
   accounts: { title: "Учётные записи", kicker: "ЕДИНЫЙ РЕЕСТР", description: "Сотрудники, клиенты B2C, партнёры B2B и восстановление доступа" },
   trash: { title: "Корзина данных", kicker: "ЖИЗНЕННЫЙ ЦИКЛ", description: "Восстановление и контролируемое окончательное удаление данных" },
-  access: { title: "Роли и права", kicker: "БЕЗОПАСНОСТЬ ДОСТУПА", description: "Серверная матрица разрешений и индивидуальные исключения" },
+  access: { title: "Роли и права", kicker: "БЕЗОПАСНОСТЬ ДОСТУПА", description: "Роли команды и разрешения на рабочие операции" },
   integrations: { title: "Интеграции", kicker: "ЦЕНТР ПОДКЛЮЧЕНИЙ", description: "Маркетплейсы, доставка, 1С, платежи, касса, сообщения и боты" },
   "bot-commands": { title: "Команды ботов", kicker: "СЦЕНАРИИ КОММУНИКАЦИЙ", description: "Команды Telegram, MAX и VK для сотрудников, B2C и B2B" },
   audit: { title: "Журнал действий", kicker: "АУДИТ ИЗМЕНЕНИЙ", description: "Единая история критических действий во всех рабочих пространствах" },
   logs: { title: "Технические журналы", kicker: "СОСТОЯНИЕ ИНТЕГРАЦИЙ", description: "Фоновые операции, синхронизации, ошибки и повторы" },
 };
 const title = computed(() => menu[section.value] || menu.overview);
-const roleLabels: Record<string, string> = {
-  ADMIN: "Администратор платформы",
-  CONTENT_MANAGER: "Контент-менеджер",
-  MANAGER_B2B: "Менеджер B2B",
-  MANAGER_SALES: "Менеджер продаж",
-  MARKETPLACE_MANAGER: "Менеджер маркетплейсов",
-  SUPERVISOR: "Руководитель направления",
-  EXECUTIVE: "Руководитель компании",
-  IT_SUPPORT: "IT-поддержка",
-  CURATOR: "Куратор",
-  WAREHOUSE: "Сотрудник склада",
-};
+const roleLabels = computed<Record<string, string>>(() => Object.fromEntries(access.value.roles.map((role: string) => [role, access.value.roleDetails?.find((item: any) => item.id === role)?.label || role])));
 const actionLabels: Record<string, string> = {
   LOGIN: "Вход",
   CREATE: "Создание",
@@ -105,13 +94,10 @@ const filteredStaff = computed(() =>
   staff.value.filter(
     (item) =>
       !search.value ||
-      `${item.firstName || ""} ${item.lastName || ""} ${item.email} ${roleLabels[item.role] || ""}`
+      `${item.firstName || ""} ${item.lastName || ""} ${item.email} ${roleLabels.value[item.role] || ""}`
         .toLowerCase()
         .includes(search.value.toLowerCase()),
   ),
-);
-const selectedEmployee = computed(() =>
-  staff.value.find((item) => item.id === selectedEmployeeId.value),
 );
 const headers = computed(() => ({ Authorization: `Bearer ${token.value}` }));
 async function load() {
@@ -125,7 +111,7 @@ async function load() {
     const request = (sections: string[], endpoint: string) => sections.includes(section.value) ? $fetch<any>(endpoint, options) : Promise.resolve(null);
     const [nextDashboard, nextStaff, nextAccess, nextAudit, nextLogs] = await Promise.all([
       request(['overview'], '/system-settings/dashboard'),
-      request(['staff', 'access'], '/system-settings/staff'),
+      request(['staff'], '/system-settings/staff'),
       request(['staff', 'access'], '/system-settings/access'),
       request(['audit'], '/audit'),
       request(['overview', 'logs'], '/system-settings/logs'),
@@ -137,20 +123,15 @@ async function load() {
     if (nextAudit) audit.value = nextAudit;
     if (nextLogs) logs.value = nextLogs;
     pageLoaded.value = true;
-    if (!selectedEmployeeId.value && staff.value.length)
-      selectEmployee(staff.value[0].id);
   } catch (error: any) {
     if (version === loadVersion && token.value === identity && !controller.signal.aborted) loadError.value = typeof error?.data?.message === 'string' ? error.data.message : 'Не удалось загрузить настройки. Повторите попытку.';
   } finally {
     if (version === loadVersion) busy.value = false;
   }
 }
-function selectEmployee(id: string) {
-  selectedEmployeeId.value = id;
-  const current = staff.value.find((item) => item.id === id);
-  overrides.value = {};
-  for (const item of current?.permissionOverrides || [])
-    overrides.value[item.permission.key] = item.effect;
+function reviewEmployee(item: any) {
+  selectedEmployeeId.value = item.id;
+  showAccessReview.value = true;
 }
 async function createEmployee() {
   await $fetch("/system-settings/staff", {
@@ -196,25 +177,6 @@ async function revokeSessions(item: any) {
   await load();
   showNotice(`Отозвано сессий: ${result.revoked}`);
 }
-async function saveOverrides() {
-  const allow = Object.entries(overrides.value)
-    .filter(([, value]) => value === "ALLOW")
-    .map(([key]) => key);
-  const deny = Object.entries(overrides.value)
-    .filter(([, value]) => value === "DENY")
-    .map(([key]) => key);
-  await $fetch(
-    `/system-settings/staff/${selectedEmployeeId.value}/permissions`,
-    {
-      baseURL: config.public.apiBase,
-      method: "PUT",
-      headers: headers.value,
-      body: { allow, deny },
-    },
-  );
-  await load();
-  showNotice("Индивидуальные права сохранены, активные сессии отозваны");
-}
 async function retryJob(entry: any) {
   await $fetch(`/system-settings/jobs/${entry.id}/retry`, {
     baseURL: config.public.apiBase,
@@ -241,12 +203,9 @@ function employeeMenu(event: MouseEvent, item: any) {
     name,
     [
       {
-        label: "Настроить индивидуальные права",
-        icon: "edit",
-        action: () => {
-          selectEmployee(item.id);
-          navigateTo("/system-settings?section=access");
-        },
+        label: "Проверить права сотрудника",
+        icon: "open",
+        action: () => reviewEmployee(item),
       },
       {
         label: "Копировать email",
@@ -274,7 +233,7 @@ function employeeMenu(event: MouseEvent, item: any) {
           ]
         : []),
     ],
-    roleLabels[item.role],
+    roleLabels.value[item.role],
   );
 }
 function auditMenu(event: MouseEvent, entry: any) {
@@ -507,6 +466,9 @@ watch(section, () => {
               item.isActive ? "Активен" : "Заблокирован"
             }}</span>
             <div data-v-ui-c4cc81726fbf class="row-actions">
+              <button type="button" class="crm-button" title="Проверить права сотрудника" aria-label="Проверить права сотрудника" @click="reviewEmployee(item)">
+                <ShieldCheck :size="18" />
+              </button>
               <button class="crm-button" data-v-ui-c4cc81726fbf title="Отозвать сессии" @click="revokeSessions(item)">
                 <KeyRound data-v-ui-c4cc81726fbf :size="15" /></button
               ><button class="crm-button" data-v-ui-c4cc81726fbf
@@ -523,91 +485,41 @@ watch(section, () => {
           </div>
         </div>
       </section>
-      <section data-v-ui-c4cc81726fbf v-else-if="section === 'access'" class="access-grid">
-        <article data-v-ui-c4cc81726fbf class="panel matrix crm-surface">
+      <section v-else-if="section === 'access'" class="crm-stack">
+        <article data-v-ui-c4cc81726fbf class="panel crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">БАЗОВЫЕ ПРАВА</p>
               <h2 data-v-ui-c4cc81726fbf>Матрица ролей</h2>
-              <span data-v-ui-c4cc81726fbf>Права задаются на сервере для каждой операции</span>
+              <span data-v-ui-c4cc81726fbf>Разрешения каждой роли. Фактические права конкретного человека можно проверить в разделе «Сотрудники».</span>
             </div>
+            <NuxtLink to="/crm/settings/staff" class="crm-button">Сотрудники</NuxtLink>
           </div>
-          <div data-v-ui-c4cc81726fbf class="matrix-scroll">
-            <div data-v-ui-c4cc81726fbf class="matrix-row head crm-table-head">
-              <span data-v-ui-c4cc81726fbf>Разрешение</span
-              ><span data-v-ui-c4cc81726fbf
-                v-for="role in access.roles"
-                :key="role"
-                :title="roleLabels[role]"
-                >{{ roleLabels[role]?.split(" ")[0] }}</span
-              >
-            </div>
-            <div data-v-ui-c4cc81726fbf
-              v-for="permission in access.permissions"
-              :key="permission.key"
-              class="matrix-row crm-table-row"
-            >
-              <div data-v-ui-c4cc81726fbf>
-                <strong data-v-ui-c4cc81726fbf>{{ permission.description }}</strong
-                ><small data-v-ui-c4cc81726fbf
-                  >{{ permission.resource }} · {{ permission.action }}</small
-                >
-              </div>
-              <span data-v-ui-c4cc81726fbf
-                v-for="role in access.roles"
-                :key="role"
-                :class="{ yes: permission.roles.includes(role) }"
-                >{{ permission.roles.includes(role) ? "●" : "—" }}</span
-              >
-            </div>
+          <div class="crm-matrix-scroll" role="region" aria-label="Матрица разрешений ролей — горизонтальная прокрутка" tabindex="0">
+            <table class="crm-matrix-table" :style="{ '--crm-matrix-role-count': access.roles.length }" aria-label="Матрица ролей">
+              <thead>
+                <tr>
+                  <th scope="col">Разрешение</th>
+                  <th v-for="role in access.roles" :key="role" scope="col">{{ roleLabels[role] }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="permission in access.permissions" :key="permission.key">
+                  <th scope="row">
+                    <strong>{{ permission.description }}</strong>
+                    <small>{{ permission.resource }} · {{ permission.action }}</small>
+                  </th>
+                  <td v-for="role in access.roles" :key="role">
+                    <span class="crm-matrix-grant" :data-granted="permission.roles.includes(role)" role="img" :aria-label="permission.roles.includes(role) ? 'Разрешено' : 'Не выдано'">
+                      {{ permission.roles.includes(role) ? '●' : '—' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+          <p class="crm-matrix-note">Ранее назначенные личные разрешения и запреты сохранены. Матрица показывает базовые права роли, без этих исключений.</p>
         </article>
-        <aside data-v-ui-c4cc81726fbf class="panel overrides crm-surface">
-          <div data-v-ui-c4cc81726fbf class="panel-head">
-            <div data-v-ui-c4cc81726fbf>
-              <p data-v-ui-c4cc81726fbf class="kicker">ИСКЛЮЧЕНИЯ</p>
-              <h2 data-v-ui-c4cc81726fbf>Индивидуальные права</h2>
-            </div>
-          </div>
-          <label data-v-ui-c4cc81726fbf
-            >Сотрудник<select class="crm-input" data-v-ui-c4cc81726fbf
-              :value="selectedEmployeeId"
-              @change="
-                selectEmployee(($event.target as HTMLSelectElement).value)
-              "
-            >
-              <option data-v-ui-c4cc81726fbf v-for="item in staff" :key="item.id" :value="item.id">
-                {{
-                  [item.firstName, item.lastName].filter(Boolean).join(" ") ||
-                  item.email
-                }}
-              </option>
-            </select></label
-          >
-          <p data-v-ui-c4cc81726fbf class="hint">
-            Базовые права определяет роль. Здесь можно точечно разрешить или
-            запретить операцию конкретному сотруднику.
-          </p>
-          <div data-v-ui-c4cc81726fbf class="permission-list">
-            <label data-v-ui-c4cc81726fbf
-              v-for="permission in access.permissions"
-              :key="permission.key"
-              ><span data-v-ui-c4cc81726fbf>{{ permission.description }}</span
-              ><select class="crm-input" data-v-ui-c4cc81726fbf v-model="overrides[permission.key]">
-                <option data-v-ui-c4cc81726fbf value="">По роли</option>
-                <option data-v-ui-c4cc81726fbf value="ALLOW">Разрешить</option>
-                <option data-v-ui-c4cc81726fbf value="DENY">Запретить</option>
-              </select></label
-            >
-          </div>
-          <button data-v-ui-c4cc81726fbf
-            class="primary save crm-button crm-button--primary"
-            :disabled="!selectedEmployee"
-            @click="saveOverrides"
-          >
-            Сохранить права
-          </button>
-        </aside>
       </section>
       <EcosystemIntegrations v-else-if="section === 'integrations'" />
       <BotCommandsSettings v-else-if="section === 'bot-commands'" />
@@ -778,5 +690,6 @@ watch(section, () => {
       </form>
     </aside>
     <div data-v-ui-c4cc81726fbf v-if="notice" class="toast">{{ notice }}</div>
+    <CrmEmployeeAccessReview v-if="showAccessReview && selectedEmployeeId" :employee-id="selectedEmployeeId" @close="showAccessReview = false" />
   </main>
 </template>

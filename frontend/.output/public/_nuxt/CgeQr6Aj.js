@@ -1,1 +1,0 @@
-import{_ as t}from"./Cy_JJf-_.js";import{d as a,B as e,p as r}from"./DkOcgTLT.js";import"./Cbmu_ape.js";import"./B8Y928Lg.js";import"./CVF98eo1.js";const l=a({__name:"catalog",setup(n){return(p,_)=>{const o=t;return r(),e(o)}}});export{l as default};

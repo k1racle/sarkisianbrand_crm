@@ -4,6 +4,7 @@ useHead({ title: 'Отделы — SARKISIAN CRM' });
 const session = useWorkspaceSession(), config = useRuntimeConfig();
 const departments = ref<any[]>([]), staff = ref<any[]>([]), loading = ref(false), saving = ref(false), error = ref(''), formError = ref('');
 const opened = ref(false), selected = ref<any>(null), baseline = ref('');
+const showArchived = ref(false);
 const draft = reactive({ name: '', parentId: '', leaderId: '', memberIds: [] as string[] });
 const dirty = computed(() => opened.value && baseline.value !== JSON.stringify(draft));
 const request = (path: string, options: any = {}) => $fetch<any>('/system-settings' + path, { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${session.token.value}` }, ...options });
@@ -14,7 +15,7 @@ function descendants(id: string): string[] { return departments.value.filter(dep
 const parents = computed(() => departments.value.filter(department => department.id !== selected.value?.id && !descendants(selected.value?.id || '').includes(department.id)));
 async function load() {
   loading.value = true; error.value = '';
-  try { const [list, team] = await Promise.all([request('/departments'), request('/staff')]); departments.value = list; staff.value = team; }
+  try { const [list, team] = await Promise.all([request('/departments', { query: { status: showArchived.value ? 'archived' : 'active' } }), request('/staff')]); departments.value = list; staff.value = team; }
   catch (e: any) { error.value = e?.data?.message || 'Не удалось загрузить отделы'; }
   finally { loading.value = false; }
 }
@@ -43,6 +44,14 @@ async function archive(department: any) {
   catch (e: any) { error.value = e?.data?.message || 'Не удалось архивировать отдел'; }
   finally { saving.value = false; }
 }
+async function restore(department: any) {
+  if (saving.value || !window.confirm(`Восстановить отдел «${department.name}»? Состав сотрудников автоматически не восстанавливается.`)) return;
+  saving.value = true; error.value = '';
+  try { await request(`/departments/${department.id}/restore`, { method: 'POST', body: { version: department.version } }); await load(); }
+  catch (e: any) { error.value = e?.data?.message || 'Не удалось восстановить отдел'; }
+  finally { saving.value = false; }
+}
+watch(showArchived, load);
 function unload(event: BeforeUnloadEvent) { if (dirty.value || saving.value) { event.preventDefault(); event.returnValue = ''; } }
 onMounted(() => { load(); window.addEventListener('beforeunload', unload); });
 onBeforeUnmount(() => window.removeEventListener('beforeunload', unload));
@@ -51,11 +60,12 @@ onBeforeRouteLeave(leave);
 
 <template>
   <main class="crm-standard">
-    <header class="crm-page-header"><div><h1>Отделы</h1><p>Структура команды, руководители и состав подразделений.</p></div><div class="crm-action-bar"><button class="crm-button crm-button--refresh" :disabled="loading || saving" @click="load"><RefreshCw :size="18" />Обновить</button><button class="crm-button crm-button--primary" :disabled="loading || saving" @click="open()"><Plus :size="18" />Новый отдел</button></div></header>
+    <header class="crm-page-header"><div><h1>Отделы</h1><p>Структура команды, руководители и состав подразделений.</p></div><div class="crm-action-bar"><button class="crm-button crm-button--refresh" :disabled="loading || saving" @click="load"><RefreshCw :size="18" />Обновить</button><button class="crm-button crm-button--primary" :disabled="loading || saving || showArchived" @click="open()"><Plus :size="18" />Новый отдел</button></div></header>
     <p v-if="error" role="alert">{{ error }}</p><p v-if="loading" role="status">Загружаем структуру…</p>
-    <section class="crm-surface crm-register crm-stack"><p>Сотрудник входит в один отдел. Для перевода сначала исключите его из прежнего отдела. Состав отдела не меняет права доступа — они настраиваются в разделе «Роли и права».</p>
-      <article v-for="department in departments" :key="department.id" class="crm-item-card crm-record"><span><strong>{{ department.name }}</strong><small>{{ department.parentId ? departments.find(item => item.id === department.parentId)?.name : 'Самостоятельный отдел' }}</small></span><span><strong>{{ department.leader ? label(department.leader) : 'Руководитель не назначен' }}</strong><small>Сотрудников: {{ department.members.length }}</small></span><button class="crm-button" :disabled="saving" @click="open(department)">Изменить</button><button class="crm-button crm-button--danger" :disabled="saving" @click="archive(department)">В архив</button></article>
-      <div v-if="!loading && !departments.length" class="crm-empty"><Users :size="28" /><h2>Создайте первый отдел</h2><p>Например, «Продажи», «Маркетинг» или «Поддержка».</p></div>
+    <section class="crm-surface crm-register crm-stack"><p>Сотрудник входит в один отдел. Для перевода сначала исключите его из прежнего отдела. Отдел пока не ограничивает видимость данных. При смене состава или подчинённости сессии затронутых сотрудников завершаются — им потребуется войти снова.</p>
+      <label class="crm-toggle-row"><span>Архив отделов</span><input v-model="showArchived" type="checkbox" class="crm-check" :disabled="loading || saving" /></label>
+      <article v-for="department in departments" :key="department.id" class="crm-item-card crm-record"><span><strong>{{ department.name }}</strong><small>{{ department.parentId ? departments.find(item => item.id === department.parentId)?.name || 'Дочерний отдел' : 'Самостоятельный отдел' }}</small></span><span><strong>{{ department.leader ? label(department.leader) : 'Руководитель не назначен' }}</strong><small>Сотрудников: {{ department.members.length }}</small></span><template v-if="!showArchived"><button class="crm-button" :disabled="saving" @click="open(department)">Изменить</button><button class="crm-button crm-button--danger" :disabled="saving" @click="archive(department)">В архив</button></template><button v-else class="crm-button" :disabled="saving" @click="restore(department)">Восстановить</button></article>
+      <div v-if="!loading && !departments.length" class="crm-empty"><Users :size="28" /><h2>{{ showArchived ? 'В архиве нет отделов' : 'Создайте первый отдел' }}</h2><p>{{ showArchived ? 'Архивные отделы можно восстановить с сохранением истории.' : 'Например, «Продажи», «Маркетинг» или «Поддержка».' }}</p></div>
     </section>
     <Teleport to="body"><div v-if="opened" class="admin-dialog-backdrop crm-detail-backdrop" @click.self="close"><form ref="panel" class="admin-dialog admin-dialog--drawer crm-detail-card" role="dialog" aria-modal="true" aria-labelledby="department-title" tabindex="-1" @keydown="keyboard" @submit.prevent="save">
       <header><h2 id="department-title">{{ selected ? 'Редактировать отдел' : 'Новый отдел' }}</h2><button class="crm-button crm-button--icon" aria-label="Закрыть отдел" type="button" :disabled="saving" @click="close"><X :size="18" /></button></header>

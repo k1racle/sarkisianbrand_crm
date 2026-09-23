@@ -1,0 +1,1 @@
+import{cp as r,ap as t}from"./DIHEU-K-.js";const u=r(e=>{if(typeof e.query.search=="string"&&e.query.search.trim().toLowerCase()==="нов"){const{search:s,page:o,...a}=e.query;return t({path:"/catalog",query:{...a,sort:"new"}},{replace:!0})}});export{u as default};

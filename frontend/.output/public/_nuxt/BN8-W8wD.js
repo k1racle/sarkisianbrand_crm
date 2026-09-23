@@ -1,0 +1,1 @@
+import{_ as e}from"./Dd0zUmTQ.js";import{d as t,b8 as n,B as s,p as a}from"./DIHEU-K-.js";import"./h6vBj-Hz.js";const i=t({__name:"contact-messages",setup(c){return n({meta:[{name:"robots",content:"noindex, nofollow"}]}),(r,m)=>{const o=e;return a(),s(o)}}});export{i as default};

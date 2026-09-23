@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ClipboardList, Link2, RefreshCw, Search, Wifi, X } from '@lucide/vue';
+import { marketplaceWorkspaceSection } from '~/shared/marketplace-workspace';
 const config = useRuntimeConfig(); const route = useRoute();
 const props = defineProps<{ pageSection?: string }>();
 const { token, user } = useWorkspaceSession(); const busy = ref(false); const notice = ref('');
@@ -10,7 +11,7 @@ const channels = [{ id: 'WILDBERRIES', name: 'Wildberries', color: '#cb11ab' }, 
 const integrationDrafts = reactive<Record<string,any>>(Object.fromEntries(channels.map(item => [item.id, {channel:item.id,shopName:''}])));
 const integrationBaselines = reactive<Record<string,string>>({});
 const statuses = [{ id: 'NEW', label: 'Новые' }, { id: 'CONFIRMED', label: 'Подтверждены' }, { id: 'ASSEMBLING', label: 'Сборка' }, { id: 'SHIPPED', label: 'Отправлены' }, { id: 'DELIVERED', label: 'Доставлены' }, { id: 'CANCELLED', label: 'Отменены' }, { id: 'RETURNED', label: 'Возвраты' }];
-const section = computed(() => props.pageSection || (String(route.query.section || 'dashboard') === 'settings' ? 'integrations' : String(route.query.section || 'dashboard')));
+const section = computed(() => marketplaceWorkspaceSection(props.pageSection || route.query.section));
 const pageTitle = computed(() => section.value === 'orders' ? 'Заказы маркетплейсов' : section.value === 'integrations' ? 'Подключения каналов' : 'Обзор маркетплейсов');
 const pageDescription = computed(() => section.value === 'orders' ? 'Заказы площадок, покупатели и этапы обработки.' : section.value === 'integrations' ? 'Кабинеты маркетплейсов и состояние настроек подключения.' : 'Заказы и состояние каналов продаж.');
 const loaded = ref(false);

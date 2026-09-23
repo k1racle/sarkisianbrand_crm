@@ -65,7 +65,7 @@ export class PlatformChatService {
       },
       include: { members: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } } },
     });
-    this.realtime.publishChannel(channel);
+    await this.realtime.publishChannel(channel);
     return channel;
   }
 
@@ -95,7 +95,7 @@ export class PlatformChatService {
       data: { channelId, authorId: userId, body, replyToId: dto.replyToId, attachments: { create: attachments } },
       include: { attachments: true, author: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
-    this.realtime.publishMessage(message);
+    await this.realtime.publishMessage(message);
     return message;
   }
 
@@ -126,7 +126,7 @@ export class PlatformChatService {
         data: { channelId, authorId: userId, body: body?.trim() || '', replyToId, attachments: { create: [...stored.map(item => item.attachment), ...entityAttachments] } },
         include: { attachments: true, author: { select: { id: true, firstName: true, lastName: true, email: true } } },
       });
-      this.realtime.publishMessage(message);
+      await this.realtime.publishMessage(message);
       return message;
     } catch (error) {
       await Promise.all(stored.map(item => unlink(item.path).catch(() => undefined)));

@@ -1,1 +1,0 @@
-import{_ as t}from"./CuqXWK-Z.js";import{d as n,b8 as o,B as a,p as s}from"./DkOcgTLT.js";import"./T3CLYGMv.js";const f=n({__name:"integrations",setup(r){return o({title:"Маркетплейсы — SARKISIAN CRM"}),(c,p)=>{const e=t;return s(),a(e,{"page-section":"integrations"})}}});export{f as default};

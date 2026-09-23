@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check:crm-launch-actions": "node scripts/crm-launch-actions-check.cjs",
+    "smoke:crm-launch-actions": "node scripts/crm-launch-actions-mock.cjs",
     "smoke:crm-workspace": "node scripts/crm-workspace-smoke.cjs",
     "check:ui-css": "node scripts/ui-css-ownership-check.cjs",
     "check:workspace-operations": "node scripts/workspace-operations-check.cjs",

@@ -7,7 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { AccountListQueryDto, CreateBotCommandDto, CreateEmployeeDto, ReviewProfileChangeDto, SetTemporaryPasswordDto, UpdateAccountDto, UpdateBotCommandDto, UpdateEmployeeDto, UpdateEmployeePermissionsDto, UpdateIntegrationDto, UpsertBotIdentityDto } from './dto/system-settings.dto';
 import { SystemSettingsService } from './system-settings.service';
 import { DepartmentsService } from './departments.service';
-import { DepartmentDto, UpdateDepartmentDto, DepartmentVersionDto } from './dto/department.dto';
+import { DepartmentDto, UpdateDepartmentDto, DepartmentVersionDto, DepartmentListDto } from './dto/department.dto';
 
 @ApiTags('system-settings')
 @ApiBearerAuth()
@@ -17,10 +17,11 @@ import { DepartmentDto, UpdateDepartmentDto, DepartmentVersionDto } from './dto/
 @Permissions('system.manage')
 export class SystemSettingsController {
   constructor(private readonly settings: SystemSettingsService, private readonly departments: DepartmentsService) {}
-  @Get('departments') listDepartments() { return this.departments.list(); }
+  @Get('departments') listDepartments(@Query() query: DepartmentListDto) { return this.departments.list(query.status === 'archived'); }
   @Post('departments') createDepartment(@Body() dto: DepartmentDto, @Req() request: any) { return this.departments.save(dto, request.user.sub); }
   @Patch('departments/:id') updateDepartment(@Param('id') id: string, @Body() dto: UpdateDepartmentDto, @Req() request: any) { return this.departments.save(dto, request.user.sub, id); }
   @Post('departments/:id/archive') archiveDepartment(@Param('id') id: string, @Body() dto: DepartmentVersionDto, @Req() request: any) { return this.departments.archive(id, dto.version, request.user.sub); }
+  @Post('departments/:id/restore') restoreDepartment(@Param('id') id: string, @Body() dto: DepartmentVersionDto, @Req() request: any) { return this.departments.restore(id, dto.version, request.user.sub); }
   @Get('dashboard') dashboard() { return this.settings.dashboard(); }
   @Get('staff') staff() { return this.settings.staff(); }
   @Post('staff') createEmployee(@Body() dto: CreateEmployeeDto) { return this.settings.createEmployee(dto); }
@@ -33,7 +34,8 @@ export class SystemSettingsController {
   @Get('profile-change-requests') profileChangeRequests() { return this.settings.profileChangeRequests(); }
   @Post('profile-change-requests/:id/review') reviewProfileChange(@Param('id') id: string, @Body() dto: ReviewProfileChangeDto, @Req() request: any) { return this.settings.reviewProfileChange(id, request.user.sub, dto); }
   @Get('access') access() { return this.settings.accessMatrix(); }
-  @Put('staff/:id/permissions') permissions(@Param('id') id: string, @Body() dto: UpdateEmployeePermissionsDto) { return this.settings.updatePermissions(id, dto); }
+  @Get('staff/:id/access-review') accessReview(@Param('id') id: string) { return this.settings.accessReview(id); }
+  @Put('staff/:id/permissions') permissions(@Param('id') id: string, @Body() dto: UpdateEmployeePermissionsDto, @Req() request: any) { return this.settings.updatePermissions(id, dto, request.user.sub); }
   @Get('logs') logs() { return this.settings.technicalLogs(); }
   @Post('jobs/:id/retry') retryJob(@Param('id') id: string, @Req() request: any) { return this.settings.retryJob(id, request.user.sub); }
   @Get('integrations') integrations() { return this.settings.integrations(); }

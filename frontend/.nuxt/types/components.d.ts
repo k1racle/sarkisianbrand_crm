@@ -62,6 +62,7 @@ interface _GlobalComponents {
   WorkspaceOverview: typeof import("../../components/WorkspaceOverview.vue")['default']
   WorkspaceSectionIcon: typeof import("../../components/WorkspaceSectionIcon.vue")['default']
   WorkspaceToolbar: typeof import("../../components/WorkspaceToolbar.vue")['default']
+  CrmEmployeeAccessReview: typeof import("../../components/crm/CrmEmployeeAccessReview.vue")['default']
   CrmInstallButton: typeof import("../../components/crm/CrmInstallButton.vue")['default']
   CrmShell: typeof import("../../components/crm/CrmShell.vue")['default']
   ProductCard: typeof import("../../components/storefront/ProductCard.vue")['default']
@@ -192,6 +193,7 @@ interface _GlobalComponents {
   LazyWorkspaceOverview: LazyComponent<typeof import("../../components/WorkspaceOverview.vue")['default']>
   LazyWorkspaceSectionIcon: LazyComponent<typeof import("../../components/WorkspaceSectionIcon.vue")['default']>
   LazyWorkspaceToolbar: LazyComponent<typeof import("../../components/WorkspaceToolbar.vue")['default']>
+  LazyCrmEmployeeAccessReview: LazyComponent<typeof import("../../components/crm/CrmEmployeeAccessReview.vue")['default']>
   LazyCrmInstallButton: LazyComponent<typeof import("../../components/crm/CrmInstallButton.vue")['default']>
   LazyCrmShell: LazyComponent<typeof import("../../components/crm/CrmShell.vue")['default']>
   LazyProductCard: LazyComponent<typeof import("../../components/storefront/ProductCard.vue")['default']>

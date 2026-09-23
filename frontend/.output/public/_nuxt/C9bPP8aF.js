@@ -1,0 +1,1 @@
+import{_ as t}from"./iFWzVT3e.js";import{d as e,b8 as n,B as s,p as a}from"./DIHEU-K-.js";const m=e({__name:"salon-subscription",setup(c){return n({title:"Подписка салонов — SARKISIAN CRM"}),(r,_)=>{const o=t;return a(),s(o)}}});export{m as default};

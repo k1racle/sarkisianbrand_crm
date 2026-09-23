@@ -8,6 +8,7 @@ import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { extname, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto, CompletePasswordResetDto, LoginDto, RefreshTokenDto, RegisterDto, RequestProfileChangeDto, UpdateOwnProfileDto } from './dto/auth.dto';
+import { effectivePermissions } from './effective-permissions';
 
 type SessionContext = { userAgent?: string; ipAddress?: string };
 type SocialProfile = { provider: string; externalId: string; email?: string | null; firstName?: string | null; lastName?: string | null; phone?: string | null; avatarUrl?: string | null; metadata?: Record<string, unknown> };
@@ -27,10 +28,7 @@ export class AuthService {
       this.prisma.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
       this.prisma.userPermission.findMany({ where: { userId }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    const allowed = new Set(rolePermissions.map(item => item.permission.key));
-    const denied = new Set(overrides.filter(item => item.effect === 'DENY').map(item => item.permission.key));
-    overrides.filter(item => item.effect === 'ALLOW').forEach(item => allowed.add(item.permission.key));
-    return { role: user.role, permissions: [...allowed].filter(key => !denied.has(key)).sort(), denied: [...denied].sort() };
+    return { role: user.role, ...effectivePermissions(rolePermissions, overrides) };
   }
 
   async register(dto: RegisterDto, context: SessionContext = {}) {

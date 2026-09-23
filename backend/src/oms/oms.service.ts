@@ -148,15 +148,26 @@ export class OmsService {
   }
 
   async updateMarketplace(id: string, status: MarketplaceOrderStatus, trackingNumber?: string, internalNote?: string, changedBy?: string) {
-    const canonical = await this.prisma.order.findFirst({ where: { OR: [{ id }, { marketplaceStaging: { id } }] }, include: { marketplaceStaging: true } });
-    if (!canonical) throw new NotFoundException('Заказ маркетплейса не найден');
     const next = this.toOrderStatus(status);
     const result = await this.prisma.$transaction(async (tx) => {
+      const candidate = await tx.order.findFirst({
+        where: { source: { in: this.marketplaceSources }, OR: [{ id }, { marketplaceStaging: { id } }] },
+        select: { id: true },
+      });
+      if (!candidate) throw new NotFoundException('Заказ маркетплейса не найден');
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${candidate.id} FOR UPDATE`;
+      // Re-read after acquiring the lock: another operator may have changed the status.
+      const canonical = await tx.order.findFirst({
+        where: { id: candidate.id, source: { in: this.marketplaceSources } },
+        include: { marketplaceStaging: true },
+      });
+      if (!canonical || !this.marketplaceSources.includes(canonical.source)) throw new NotFoundException('Заказ маркетплейса не найден');
+      this.assertTransition(canonical.status, next);
       const updated = await tx.order.update({ where: { id: canonical.id }, data: { status: next, trackingNumber, internalNotes: internalNote, isSynced1C: false }, include: { customer: true, items: true, marketplaceStaging: true } });
       if (canonical.status !== next) await tx.orderStatusHistory.create({ data: { orderId: canonical.id, fromStatus: canonical.status, toStatus: next, changedBy, comment: 'Статус изменён оператором маркетплейсов' } });
       if (canonical.marketplaceStaging) await tx.marketplaceOrder.update({ where: { id: canonical.marketplaceStaging.id }, data: { status, trackingNumber, internalNote } });
       return this.marketplaceView(updated);
-    });
+    }, { timeout: 30_000 });
     await this.oneC.enqueueOrder(result.id, changedBy);
     return result;
   }

@@ -322,7 +322,7 @@ export class AdminService {
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE "orderNumber" = ${orderNumber} FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { orderNumber }, include: { items: true, payments: true } });
-      if (!order) throw new NotFoundException('Заказ не найден');
+      if (!order || order.source !== 'WEB') throw new NotFoundException('Заказ магазина не найден');
       const lifecycle = await applyStorefrontTransition(tx, order, dto.status, this.notifications);
       const result = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, isSynced1C: false, ...lifecycle } });
       if (order.status !== dto.status) await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: dto.status, comment: dto.comment, changedBy } });

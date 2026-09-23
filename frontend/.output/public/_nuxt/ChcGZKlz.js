@@ -1,1 +1,0 @@
-import{Z as u}from"./DkOcgTLT.js";function o(t){const e=u(!1);async function r(n){if(e.value)return!1;e.value=!0,t.value="";try{return await n(),!0}catch(s){const a=s?.data?.message;return t.value=Array.isArray(a)?a.join(", "):typeof a=="string"?a:"Действие не выполнено. Повторите попытку.",!1}finally{e.value=!1}}return{actionBusy:e,runOperation:r}}export{o as u};

@@ -31,7 +31,7 @@ export class CrmReminderScheduler implements OnApplicationBootstrap, OnModuleDes
       });
       for (const reminder of reminders) {
         const claimed = await this.prisma.crmTaskReminder.updateMany({ where: { id: reminder.id, deliveredAt: null }, data: { deliveredAt: new Date() } });
-        if (claimed.count) this.realtime.publishReminder(reminder.recipientId, reminder);
+        if (claimed.count) await this.realtime.publishReminder(reminder.recipientId, reminder);
       }
     } catch (error) {
       this.logger.error(`Не удалось доставить напоминания: ${error instanceof Error ? error.message : String(error)}`);

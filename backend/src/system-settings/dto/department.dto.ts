@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayUnique, IsArray, IsInt, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class DepartmentDto {
@@ -12,3 +12,4 @@ export class UpdateDepartmentDto extends DepartmentDto {
   @IsInt() @Min(1) version!: number;
 }
 export class DepartmentVersionDto { @IsInt() @Min(1) version!: number; }
+export class DepartmentListDto { @IsOptional() @IsIn(['active', 'archived']) status?: 'active' | 'archived'; }

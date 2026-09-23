@@ -1,1 +1,0 @@
-import{_ as o}from"./D3aDeg5x.js";import{d as n,b8 as r,B as a,p as t}from"./DkOcgTLT.js";const d=n({__name:"referral-rewards",setup(s){return r({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,_)=>{const e=o;return t(),a(e,{kind:"REFERRAL",section:"rewards"})}}});export{d as default};

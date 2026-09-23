@@ -1,1 +1,0 @@
-import{_ as e}from"./CuqXWK-Z.js";import{d as o,b8 as a,B as n,p as t}from"./DkOcgTLT.js";import"./T3CLYGMv.js";const i=o({__name:"overview",setup(r){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(s,c)=>(t(),n(e,{"page-section":"dashboard"}))}});export{i as default};

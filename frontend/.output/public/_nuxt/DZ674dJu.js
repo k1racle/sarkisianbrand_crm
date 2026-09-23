@@ -1,1 +1,0 @@
-import{d as t,g as n,o as s,ap as c,B as r,p,b5 as m}from"./DkOcgTLT.js";import{u as _}from"./DgW4bafh.js";const h=t({__name:"chat",setup(i){const{openChat:a}=n(),{home:o}=_();return s(async()=>{await c(o.value,{replace:!0}),a()}),(u,l)=>{const e=m;return p(),r(e,{label:"Открываем чат платформы"})}}});export{h as default};

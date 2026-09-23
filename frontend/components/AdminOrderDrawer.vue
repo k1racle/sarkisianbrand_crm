@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Check, Copy, MapPin, Package, Phone, X } from '@lucide/vue';
+import { WEB_ORDER_OPERATOR_ROLES, webOrderNextStatuses } from '~/shared/web-order-actions';
 const selected = useState<any | null>('admin-order-selected', () => null); const copied = ref(false);
 const config = useRuntimeConfig();
 const session = useWorkspaceSession();
@@ -8,14 +9,8 @@ const savedOrder = useState<any>('admin-order-saved', () => null);
 const statusDraft = ref('');
 const saving = ref(false);
 const actionError = ref('');
-const canManage = computed(() => ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'].includes(session.user.value?.role || '') && access.can('web_orders.manage'));
-const nextStatuses = computed(() => {
-  const order = selected.value;
-  if (!order || !canManage.value || ['CANCELLED', 'REFUNDED', 'DELIVERED'].includes(order.status)) return [];
-  const digital = order.reservationState === 'DIGITAL' || order.priceSnapshot?.digitalDelivery === true;
-  const paid = ['PAID', 'SUCCEEDED'].includes(order.paymentStatus);
-  return [...(order.status === 'NEW' ? ['CONFIRMED'] : []), ...(paid ? digital ? ['DELIVERED'] : ({ CONFIRMED: ['ASSEMBLING'], PAYMENT_WAITING: ['ASSEMBLING'], PAID: ['ASSEMBLING'], ASSEMBLING: ['SHIPPED'], SHIPPED: ['DELIVERED'] } as Record<string, string[]>)[order.status] || [] : []), ...(!paid && ['NEW', 'CONFIRMED', 'PAYMENT_WAITING'].includes(order.status) ? ['CANCELLED'] : [])];
-});
+const canManage = computed(() => access.ready.value && WEB_ORDER_OPERATOR_ROLES.includes(session.user.value?.role || '') && access.can('web_orders.write'));
+const nextStatuses = computed(() => canManage.value ? webOrderNextStatuses(selected.value) : []);
 watch(() => `${selected.value?.id || ''}:${session.token.value}`, () => { statusDraft.value = ''; actionError.value = ''; });
 async function saveStatus() {
   if (saving.value || !selected.value || !nextStatuses.value.includes(statusDraft.value) || !session.token.value) return;

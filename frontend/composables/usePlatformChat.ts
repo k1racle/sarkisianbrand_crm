@@ -5,7 +5,8 @@ let realtimeToken = '';
 
 export function usePlatformChat() {
   const config = useRuntimeConfig();
-  const { token } = useWorkspaceSession();
+  const session = useWorkspaceSession();
+  const { token } = session;
   const isOpen = useState<boolean>('platform-chat-open', () => false);
   const unread = useState<number>('platform-chat-unread', () => 0);
   const connected = useState<boolean>('platform-chat-connected', () => false);
@@ -38,6 +39,16 @@ export function usePlatformChat() {
     realtime = io(`${origin}/platform-chat`, { auth: { token: token.value }, transports: ['websocket', 'polling'], reconnection: true });
     realtime.on('connect', () => connected.value = true);
     realtime.on('disconnect', () => connected.value = false);
+    const connection = realtime, connectionToken = realtimeToken;
+    realtime.on('platform-chat:error', () => {
+      if (connection !== realtime) return;
+      const reopen = isOpen.value;
+      disconnectRealtime();
+      // Expired access tokens may refresh; revoked database sessions cannot be revived.
+      void session.restoreUser().then(account => {
+        if (account && token.value && token.value !== connectionToken) { connectRealtime(); isOpen.value = reopen; }
+      }).catch(() => { /* Stay disconnected when authorization cannot be confirmed. */ });
+    });
     realtime.on('platform-chat:message', message => { lastMessage.value = { ...message, receivedAt: Date.now() }; void refreshUnread(); });
     realtime.on('platform-chat:channel', channel => { lastChannel.value = { ...channel, receivedAt: Date.now() }; });
     realtime.on('crm:reminder', reminder => { lastReminder.value = { ...reminder, receivedAt: Date.now() }; });

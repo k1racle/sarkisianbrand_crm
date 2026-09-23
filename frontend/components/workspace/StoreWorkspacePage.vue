@@ -3,6 +3,7 @@ import { Award, Check, Coins, Eye, Gift, GripVertical, ImagePlus, Pencil, Plus, 
 import { inlineProductPrices } from '~/shared/inline-product-prices';
 import { storefrontVariantPrice } from '~/shared/product-merchandising';
 import { storefrontProductImage } from '~/composables/useStorefrontCatalog';
+import { WEB_ORDER_OPERATOR_ROLES, webOrderNextStatuses } from '~/shared/web-order-actions';
 const config = useRuntimeConfig();
 const route = useRoute();
 const props = defineProps<{ pageSection?: string }>();
@@ -17,6 +18,8 @@ const dashboardDays = ref(30);
 function refreshSection() { return ['categories','product-badges','gift-cards'].includes(active.value) ? catalogSettingsEditor.value?.load() : load(); }
 const productCategory=ref(''),productVisibility=ref(''),productAvailability=ref(''),productSort=ref('updated'),selectedProductIds=ref<string[]>([]),bulkSaving=ref(false);
 const productAccess=useWorkspaceAccess();
+const canManageWebOrders = computed(() => productAccess.ready.value && WEB_ORDER_OPERATOR_ROLES.includes(user.value?.role || '') && productAccess.can('web_orders.write'));
+const savingOrder = ref(false);
 const canEditCatalog=computed(()=>['ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR'].includes(user.value?.role||'')&&productAccess.can('catalog.write'));
 const allProductsSelected=computed(()=>filteredProducts.value.length>0&&filteredProducts.value.every(p=>selectedProductIds.value.includes(p.id)));
 const { openContextMenu, copyText } = useContextMenu();
@@ -581,17 +584,24 @@ function addImage() {
     productEditor.value.images.push({ url: "", alt: "" });
 }
 async function updateOrder(order: any, status: string) {
-  await $fetch(`/admin/orders/${order.orderNumber}/status`, {
-    baseURL: config.public.apiBase,
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${token.value}` },
-    body: { status },
-  });
-  order.status = status;
-  order.isSynced1C = false;
-  order.oneCSyncError = null;
-  notice.value = "Статус обновлён и передаётся в 1С";
-  setTimeout(() => (notice.value = ""), 2200);
+  if (savingOrder.value || !token.value || !canManageWebOrders.value || !webOrderNextStatuses(order).includes(status)) return;
+  const actorToken = token.value;
+  savingOrder.value = true;
+  try {
+    const result = await $fetch<any>(`/admin/orders/${encodeURIComponent(order.orderNumber)}/status`, {
+      baseURL: config.public.apiBase, method: 'PATCH',
+      headers: { Authorization: `Bearer ${actorToken}` }, body: { status }, timeout: 35000,
+    });
+    if (token.value !== actorToken) return;
+    if (!result || result.id !== order.id || result.status !== status) throw new Error('Invalid response');
+    Object.assign(order, result);
+    orderSaved.value = { id: order.id, order: result };
+    notice.value = 'Статус обновлён и передаётся в 1С';
+  } catch (error: any) {
+    if (token.value !== actorToken) return;
+    const message = error?.data?.message;
+    notice.value = Array.isArray(message) ? message.join(' · ') : typeof message === 'string' ? message : 'Не удалось подтвердить изменение. Обновите заказ перед повторной попыткой: сервер уже мог принять запрос.';
+  } finally { savingOrder.value = false; }
 }
 function go(section: string) {
   navigateTo(`/admin-workspace/${section}`);
@@ -645,8 +655,7 @@ function productMenu(event: MouseEvent, product: any) {
   );
 }
 function orderMenu(event: MouseEvent, order: any) {
-  const index = orderStatuses.findIndex((item) => item.id === order.status);
-  const next = orderStatuses[index + 1];
+  const actions = canManageWebOrders.value && !savingOrder.value ? webOrderNextStatuses(order) : [];
   openContextMenu(
     event,
     order.orderNumber,
@@ -661,16 +670,14 @@ function orderMenu(event: MouseEvent, order: any) {
         icon: "copy",
         action: () => copyText(order.orderNumber, "Номер заказа скопирован"),
       },
-      ...(next
-        ? [
-            {
-              label: `Статус: ${next.label}`,
-              icon: "status" as const,
-              separator: true,
-              action: () => updateOrder(order, next.id),
-            },
-          ]
-        : []),
+      ...actions.map((status, index) => ({
+        label: `Статус: ${orderStatuses.find(item => item.id === status)?.label || status}`,
+        icon: 'status' as const,
+        separator: index === 0,
+        danger: status === 'CANCELLED',
+        confirm: status === 'CANCELLED' ? 'Отменить неоплаченный заказ? Доступность отмены и снятие резервов проверит сервер.' : undefined,
+        action: () => updateOrder(order, status),
+      })),
     ],
     order.user?.email || "Гость",
   );

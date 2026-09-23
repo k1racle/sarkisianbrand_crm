@@ -34,8 +34,8 @@ export class MarketplacesService implements OnModuleInit {
     return { success: true, processed, message: `Обработано заказов: ${processed}` };
   }
 
-  async update(id: string, dto: UpdateMarketplaceOrderDto) {
-    return this.oms.updateMarketplace(id, dto.status, dto.trackingNumber, dto.internalNote);
+  async update(id: string, dto: UpdateMarketplaceOrderDto, changedBy: string) {
+    return this.oms.updateMarketplace(id, dto.status, dto.trackingNumber, dto.internalNote, changedBy);
   }
 
   integrations() { return this.prisma.marketplaceIntegration.findMany({ orderBy: { channel: 'asc' }, select: { id: true, channel: true, shopName: true, isActive: true, lastSyncAt: true, createdAt: true, updatedAt: true } }); }

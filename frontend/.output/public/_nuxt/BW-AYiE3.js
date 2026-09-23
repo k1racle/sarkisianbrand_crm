@@ -1,0 +1,1 @@
+import{_ as t}from"./DIFaTHlF.js";import{u as o}from"./BvPLdizH.js";import{d as n,b8 as s,B as r,p as c}from"./DIHEU-K-.js";const l=n({__name:"participants",setup(i){const{active:a}=o();return s(()=>({title:`${a.value?.label||"Рабочее пространство"} — SARKISIAN CRM`})),(p,_)=>{const e=t;return c(),r(e,{kind:"REFERRAL",section:"participants"})}}});export{l as default};

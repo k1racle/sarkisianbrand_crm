@@ -1,1 +1,0 @@
-import{_ as n}from"./D3aDeg5x.js";import{d as o,b8 as t,B as s,p as a}from"./DkOcgTLT.js";const i=o({__name:"referral-settings",setup(r){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,_)=>{const e=n;return a(),s(e,{kind:"REFERRAL",section:"settings"})}}});export{i as default};

@@ -25,6 +25,7 @@ export function useWorkspaceSession() {
   const refreshToken = useState<string>('workspace-refresh-token', () => '');
   const user = useState<WorkspaceUser | null>('workspace-user', () => null);
   const hydrated = useState<boolean>('workspace-hydrated', () => false);
+  const logoutWarning = useState<string>('workspace-logout-warning', () => '');
 
   function hydrate() {
     if (!import.meta.client || hydrated.value) return;
@@ -55,26 +56,37 @@ export function useWorkspaceSession() {
     token.value = result.accessToken;
     refreshToken.value = result.refreshToken;
     user.value = result.user;
+    logoutWarning.value = '';
     persist();
     return result.user;
   }
 
   async function restoreUser() {
     if (!token.value) return null;
+    const initialToken = token.value, initialRefresh = refreshToken.value;
+    let issuedToken = '';
     try {
-      user.value = await $fetch<WorkspaceUser>('/auth/me', { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${token.value}` } });
+      const account = await $fetch<WorkspaceUser>('/auth/me', { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${initialToken}` }, timeout: 10000 });
+      if (token.value !== initialToken || refreshToken.value !== initialRefresh) return user.value;
+      user.value = account;
       persist();
       return user.value;
     } catch {
-      if (!refreshToken.value) { logout(); return null; }
+      if (token.value !== initialToken || refreshToken.value !== initialRefresh) return user.value;
+      if (!initialRefresh) { logout(); return null; }
       try {
-        const refreshed = await $fetch<{ accessToken: string; refreshToken: string }>('/auth/refresh', { baseURL: config.public.apiBase, method: 'POST', body: { refreshToken: refreshToken.value } });
+        const refreshed = await $fetch<{ accessToken: string; refreshToken: string }>('/auth/refresh', { baseURL: config.public.apiBase, method: 'POST', body: { refreshToken: initialRefresh }, timeout: 10000, retry: 0 });
+        if (token.value !== initialToken || refreshToken.value !== initialRefresh) return user.value;
+        if (!refreshed?.accessToken || !refreshed?.refreshToken) throw new Error('Invalid session response');
+        issuedToken = refreshed.accessToken;
         token.value = refreshed.accessToken;
         refreshToken.value = refreshed.refreshToken;
-        user.value = await $fetch<WorkspaceUser>('/auth/me', { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${token.value}` } });
+        const account = await $fetch<WorkspaceUser>('/auth/me', { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${issuedToken}` }, timeout: 10000 });
+        if (token.value !== issuedToken) return user.value;
+        user.value = account;
         persist();
         return user.value;
-      } catch { logout(); return null; }
+      } catch { if (token.value === initialToken || (issuedToken && token.value === issuedToken)) logout(); return user.value; }
     }
   }
 
@@ -85,5 +97,26 @@ export function useWorkspaceSession() {
     persist();
   }
 
-  return { token, refreshToken, user, hydrated, hydrate, persist, login, restoreUser, logout };
+  async function endSession() {
+    const actorToken = token.value;
+    let revoked = !actorToken;
+    try {
+      if (actorToken) {
+        const response = await $fetch<{ loggedOut: boolean }>('/auth/logout', {
+          baseURL: config.public.apiBase, method: 'POST', timeout: 10000, retry: 0,
+          headers: { Authorization: `Bearer ${actorToken}` },
+        });
+        revoked = response?.loggedOut === true;
+      }
+    } catch { /* Local sign-out still works offline, but is not reported as server revocation. */ }
+    finally {
+      if (token.value === actorToken) {
+        logout();
+        logoutWarning.value = revoked ? '' : 'Вы вышли на этом устройстве. Сервер не подтвердил отзыв сессии. Когда связь восстановится, войдите и завершите прежнюю сессию в своём профиле.';
+      }
+    }
+    return { revoked };
+  }
+
+  return { token, refreshToken, user, hydrated, logoutWarning, hydrate, persist, login, restoreUser, logout, endSession };
 }

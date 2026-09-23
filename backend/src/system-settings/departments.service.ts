@@ -1,9 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
-import { UserRole } from '@prisma/client';
+import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 
-const internal: UserRole[] = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'CURATOR', 'WAREHOUSE'];
+const internal = internalWorkspaceRoles;
 const person = { id: true, firstName: true, lastName: true, email: true, isActive: true, departmentId: true } as const;
 const include = { leader: { select: person }, members: { select: person, orderBy: { firstName: 'asc' as const } } };
 
@@ -11,7 +11,7 @@ const include = { leader: { select: person }, members: { select: person, orderBy
 @Injectable()
 export class DepartmentsService {
   constructor(private readonly prisma: PrismaService) {}
-  list() { return this.prisma.crmDepartment.findMany({ where: { archivedAt: null }, include, orderBy: [{ name: 'asc' }, { id: 'asc' }] }); }
+  list(archived = false) { return this.prisma.crmDepartment.findMany({ where: { archivedAt: archived ? { not: null } : null }, include, orderBy: [{ name: 'asc' }, { id: 'asc' }] }); }
 
   async save(dto: DepartmentDto | UpdateDepartmentDto, actorId: string, id?: string) {
     return this.prisma.$transaction(async tx => {
@@ -44,7 +44,18 @@ export class DepartmentsService {
         : await tx.crmDepartment.create({ data });
       await tx.user.updateMany({ where: { departmentId: department.id, id: { notIn: dto.memberIds } }, data: { departmentId: null } });
       await tx.user.updateMany({ where: { id: { in: dto.memberIds } }, data: { departmentId: department.id } });
-      await tx.auditLog.create({ data: { actorId, resource: 'crm.department', resourceId: department.id, action: id ? 'UPDATE' : 'CREATE', payload: { name: data.name, parentId: data.parentId, leaderId: data.leaderId, memberIds: dto.memberIds, previousMemberIds: previous?.members.map(member => member.id) || [] } } });
+      const affected = new Set([...former].filter(memberId => !dto.memberIds.includes(memberId)));
+      dto.memberIds.filter(memberId => !former.has(memberId)).forEach(memberId => affected.add(memberId));
+      if (previous && previous.parentId !== data.parentId) {
+        const tree = await tx.crmDepartment.findMany({ where: { archivedAt: null }, select: { id: true, parentId: true } });
+        const branch = new Set([department.id]);
+        let changed = true;
+        while (changed) { changed = false; for (const node of tree) if (node.parentId && branch.has(node.parentId) && !branch.has(node.id)) { branch.add(node.id); changed = true; } }
+        const branchMembers = await tx.user.findMany({ where: { departmentId: { in: [...branch] } }, select: { id: true } });
+        branchMembers.forEach(member => affected.add(member.id));
+      }
+      if (affected.size) await tx.session.deleteMany({ where: { userId: { in: [...affected] } } });
+      await tx.auditLog.create({ data: { actorId, resource: 'crm.department', resourceId: department.id, action: id ? 'UPDATE' : 'CREATE', payload: { name: data.name, parentId: data.parentId, leaderId: data.leaderId, memberIds: dto.memberIds, previousMemberIds: previous?.members.map(member => member.id) || [], sessionsRevokedFor: [...affected] } } });
       return tx.crmDepartment.findUniqueOrThrow({ where: { id: department.id }, include });
     });
   }
@@ -58,6 +69,21 @@ export class DepartmentsService {
       if (department._count.members || department._count.children) throw new ConflictException('Сначала перенесите сотрудников и дочерние отделы');
       await tx.auditLog.create({ data: { actorId, resource: 'crm.department', resourceId: id, action: 'ARCHIVE', payload: { name: department.name } } });
       return tx.crmDepartment.update({ where: { id }, data: { archivedAt: new Date(), version: { increment: 1 }, leaderId: null } });
+    });
+  }
+
+  async restore(id: string, version: number, actorId: string) {
+    return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73422112)`;
+      const department = await tx.crmDepartment.findUnique({ where: { id } });
+      if (!department?.archivedAt) throw new NotFoundException('Архивный отдел не найден');
+      if (department.version !== version) throw new ConflictException('Отдел уже изменён. Обновите данные.');
+      if (department.parentId && !await tx.crmDepartment.findFirst({ where: { id: department.parentId, archivedAt: null }, select: { id: true } })) {
+        throw new ConflictException('Сначала восстановите родительский отдел');
+      }
+      const restored = await tx.crmDepartment.update({ where: { id }, data: { archivedAt: null, version: { increment: 1 } }, include });
+      await tx.auditLog.create({ data: { actorId, resource: 'crm.department', resourceId: id, action: 'RESTORE', payload: { name: department.name } } });
+      return restored;
     });
   }
 }

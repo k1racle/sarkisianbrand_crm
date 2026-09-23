@@ -2,7 +2,7 @@
 import { ArrowUpRight, ChevronRight, LayoutGrid, LogOut, Menu, MessageCircle, Search, Star, UserRound, WifiOff, X } from '@lucide/vue';
 const route = useRoute();
 const router = useRouter();
-const { user, token, logout } = useWorkspaceSession();
+const { user, token, endSession } = useWorkspaceSession();
 const { items, groups, active, favorites, home, toggleFavorite } = useCrmNavigation();
 const access = useWorkspaceAccess();
 const siteNavigation = useWorkspaceNavigation();
@@ -34,7 +34,7 @@ async function signOut() {
   signingOut.value = true;
   try {
     const failure = await router.push('/crm/login');
-    if (!failure) { disconnectRealtime(); logout(); }
+    if (!failure) { disconnectRealtime(); await endSession(); }
   } finally { signingOut.value = false; }
 }
 function shortcuts(event: KeyboardEvent) {
@@ -44,7 +44,7 @@ function resize() { if (window.innerWidth >= 1024) menuOpen.value = false; }
 watch(() => route.fullPath, () => { menuOpen.value = false; searchOpen.value = false; });
 watch(searchOpen, async open => { if (open) { await nextTick(); searchInput.value?.focus(); } });
 watch(() => user.value?.forcePasswordChange, required => { if (required) openProfile(); });
-watch(() => `${user.value?.id || ''}:${token.value}`, () => { void access.refresh(); });
+watch(() => `${user.value?.id || ''}:${token.value}`, () => { void access.refresh(); if (token.value) connectRealtime(); else disconnectRealtime(); });
 let poll: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
   void access.refresh(); connectRealtime(); void refreshUnread();
