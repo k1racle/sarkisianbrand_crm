@@ -6,7 +6,7 @@ const rows = ref<any[]>([]), total = ref(0), pages = ref(1), page = ref(1), sear
 const loading = ref(false), saving = ref(false), error = ref(''), detailError = ref(''), selected = ref<any>(null);
 const draft = reactive({ status: '', trackingNumber: '', internalNotes: '', comment: '' });
 const baseline = ref(''), dirty = computed(() => !!selected.value && JSON.stringify(draft) !== baseline.value);
-const canWrite = computed(() => access.can('oms.write'));
+const canWrite = computed(() => access.can('oms.write') && selected.value?.canWrite === true && !detailError.value);
 const names: Record<string, string> = { NEW: 'Новый', CONFIRMED: 'Подтверждён', PAYMENT_WAITING: 'Ожидает оплаты', PAID: 'Оплачен', ASSEMBLING: 'В сборке', SHIPPED: 'Отправлен', DELIVERED: 'Доставлен', CANCELLED: 'Отменён', REFUNDED: 'Возврат' };
 const transitions: Record<string, string[]> = { NEW: ['CONFIRMED', 'PAYMENT_WAITING', 'PAID', 'CANCELLED'], CONFIRMED: ['PAYMENT_WAITING', 'PAID', 'ASSEMBLING', 'CANCELLED'], PAYMENT_WAITING: ['PAID', 'CANCELLED'], PAID: ['ASSEMBLING', 'REFUNDED'], ASSEMBLING: ['SHIPPED', 'CANCELLED'], SHIPPED: ['DELIVERED', 'REFUNDED'], DELIVERED: ['REFUNDED'] };
 const amount = (value: any) => Number(value || 0).toLocaleString('ru-RU') + ' ₽';

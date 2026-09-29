@@ -4,6 +4,7 @@ useHead({ title: 'Мой день — SARKISIAN CRM' });
 
 const config = useRuntimeConfig();
 const { token } = useWorkspaceSession();
+const { can } = useWorkspaceAccess();
 const dashboard = ref<any>(null);
 const tasks = ref<any[]>([]);
 const loading = ref(true);
@@ -52,11 +53,12 @@ onMounted(load);
         </div>
         <div data-v-ui-9c61dc015e2a class="head-actions">
           <button data-v-ui-9c61dc015e2a class="light" @click="load"><RefreshCw data-v-ui-9c61dc015e2a :size="16" />Обновить</button>
-          <NuxtLink data-v-ui-9c61dc015e2a to="/crm/tasks?create=1" class="light"><ListTodo data-v-ui-9c61dc015e2a :size="20" />Новая задача</NuxtLink>
-          <NuxtLink data-v-ui-9c61dc015e2a to="/crm/deals?create=1" class="primary"><Plus data-v-ui-9c61dc015e2a :size="20" />Новая сделка</NuxtLink>
+          <NuxtLink v-if="can('crm.write')" data-v-ui-9c61dc015e2a to="/crm/tasks?create=1" class="light"><ListTodo data-v-ui-9c61dc015e2a :size="20" />Новая задача</NuxtLink>
+          <NuxtLink v-if="can('crm.write')" data-v-ui-9c61dc015e2a to="/crm/deals?create=1" class="primary"><Plus data-v-ui-9c61dc015e2a :size="20" />Новая сделка</NuxtLink>
         </div>
       </header>
 
+      <div v-if="can('work_time.read')" class="crm-section-inset"><CrmWorkClock compact /></div>
       <section data-v-ui-9c61dc015e2a v-if="error" class="error-state"><AlertTriangle data-v-ui-9c61dc015e2a :size="18" />{{ error }} <button data-v-ui-9c61dc015e2a @click="load">Повторить</button></section>
       <template v-else-if="dashboard">
         <section data-v-ui-9c61dc015e2a class="kpis">
@@ -70,7 +72,7 @@ onMounted(load);
           </article>
           <article data-v-ui-9c61dc015e2a>
             <i data-v-ui-9c61dc015e2a><Kanban data-v-ui-9c61dc015e2a :size="18" /></i><span data-v-ui-9c61dc015e2a>Открытые сделки</span>
-            <strong data-v-ui-9c61dc015e2a>{{ dashboard.openLeads }}</strong><small data-v-ui-9c61dc015e2a>{{ dashboard.customers }} клиентов в единой базе</small>
+            <strong data-v-ui-9c61dc015e2a>{{ dashboard.openLeads }}</strong><small data-v-ui-9c61dc015e2a>{{ dashboard.customersAvailable === false ? 'База клиентов недоступна по вашим правам' : `${dashboard.customers} клиентов в единой базе` }}</small>
           </article>
           <article data-v-ui-9c61dc015e2a :class="{ danger: dashboard.overdueTasks, 'crm-kpi-attention': !dashboard.overdueTasks && dashboard.dueToday }">
             <i data-v-ui-9c61dc015e2a><CalendarClock data-v-ui-9c61dc015e2a :size="18" /></i><span data-v-ui-9c61dc015e2a>Контроль задач</span>

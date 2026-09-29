@@ -49,7 +49,7 @@ async function main() {
         await p.goto('http://127.0.0.1:3001/crm/settings/departments', { waitUntil: 'networkidle' });
         await p.getByRole('button', { name: 'Новый отдел', exact: true }).click();
         await p.getByLabel('Название', { exact: true }).fill('  Маркетинг  ');
-        await p.getByRole('checkbox').first().check();
+        await p.getByRole('dialog').getByRole('checkbox').first().check();
         await p.getByRole('dialog').getByLabel(/^Руководитель/).selectOption('mock-admin');
         await p.getByRole('button', { name: 'Сохранить отдел', exact: true }).click();
         await p.locator('.crm-register').getByText('Маркетинг', { exact: true }).waitFor();

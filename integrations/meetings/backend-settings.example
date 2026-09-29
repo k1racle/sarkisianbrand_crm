@@ -1,0 +1,9 @@
+# Copy values into private backend environment only after staging acceptance.
+# Keep disabled while no browser client / signalling gateway / TURN is accepted.
+CRM_MEDIA_ENABLED=false
+CRM_MEDIA_GATEWAY_ENFORCED=false
+CRM_MEDIA_PUBLIC_URL=wss://meet.sarkisianbrand.ru
+CRM_MEDIA_API_URL=http://127.0.0.1:7880
+CRM_MEDIA_API_KEY=
+CRM_MEDIA_API_SECRET=
+CRM_MEDIA_GATEWAY_KEY=

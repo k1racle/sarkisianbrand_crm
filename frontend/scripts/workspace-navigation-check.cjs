@@ -17,7 +17,7 @@ const states = new Map();
 const mounted = [];
 const identity = vue.ref({ id: 'fixture-a', role: 'ADMIN' });
 const route = vue.reactive({ path: '/workspace', query: {}, fullPath: '/workspace' });
-const access = { can: () => true };
+const access = { can: () => true, ready: vue.ref(true) };
 const context = { exports: {}, URLSearchParams, computed: vue.computed, watch: vue.watch,
   useRoute: () => route, useWorkspaceSession: () => ({ user: identity }), useWorkspaceAccess: () => access,
   useState: (key, init) => { if (!states.has(key)) states.set(key, vue.ref(init())); return states.get(key); },
@@ -57,7 +57,7 @@ check('two-spaces-and-consolidated-marketplace-sales', () => {
   assert.ok(h.WORKSPACE_AREAS.find(area => area.id === 'crm').groupIds.includes('channels'));
   assert.deepEqual(plain(all.find(group => group.id === 'channels').items.map(item => item.id)), ['channel-dashboard','channel-orders','channel-integrations']);
   assert.ok(!all.find(group => group.id === 'sales').items.some(item => item.id === 'channel-orders'));
-  assert.ok(!leaves.some(item => item.id === 'crm-chat'));
+  assert.equal(leaves.filter(item => item.id === 'crm-chat' && item.to === '/crm/chat').length, 1);
   const rail = fs.readFileSync(path.join(root,'components/ConsoleRail.vue'),'utf8');
   const toolbar = fs.readFileSync(path.join(root,'components/WorkspaceToolbar.vue'),'utf8');
   assert.ok(rail.includes('useWorkspaceAreaSelection') && !rail.includes('platform-chat-button'));
@@ -70,11 +70,11 @@ check('unknown-and-client-roles-fail-closed', () => {
   for (const role of [null, undefined, '', 'B2C', 'B2B', 'UNKNOWN']) assert.equal(h.buildWorkspaceNavigation(role).length, 0);
 });
 check('content-manager-no-crm-sales-marketing', () => {
-  const groups = h.buildWorkspaceNavigation('CONTENT_MANAGER');
+  const groups = h.buildWorkspaceNavigation('CONTENT_MANAGER', permission => permission !== 'payment_calendar.read');
   assert.ok(groups.some(x => x.id === 'site'));
   assert.ok(groups.some(x => x.id === 'catalog'));
   assert.ok(!groups.some(x => ['sales', 'marketing', 'settings'].includes(x.id)));
-  assert.deepEqual(plain(groups.find(x => x.id === 'crm').items.map(x => x.id)), ['content-plan']);
+  assert.deepEqual(plain(groups.find(x => x.id === 'crm').items.map(x => x.id)), ['work-schedule', 'work-time', 'crm-chat', 'crm-meetings', 'content-plan']);
 });
 check('warehouse-no-site-or-marketing', () => {
   const groups = h.buildWorkspaceNavigation('WAREHOUSE');
@@ -179,4 +179,4 @@ async function main() {
   });
   console.log(JSON.stringify({ isolatedOnly: true, browser: false, networkCalls: 0, apiWrites: 0, checks: findings.length, findings }, null, 2));
 }
-main().catch(() => { console.error(JSON.stringify({ isolatedOnly: true, passed: false, message: 'Workspace navigation isolated check failed; no external calls made.' })); process.exitCode = 1; });
+main().catch(error => { console.error(error); console.error(JSON.stringify({ isolatedOnly: true, passed: false, message: 'Workspace navigation isolated check failed; no external calls made.' })); process.exitCode = 1; });

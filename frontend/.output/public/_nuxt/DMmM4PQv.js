@@ -1,0 +1,1 @@
+import{_ as e}from"./BaH0ewqi.js";import{d as o,ba as t,j as a,a as n}from"./DjOuNq5F.js";import"./DFgD_t6F.js";import"./BkrFL20H.js";import"./CYNWIldc.js";const d=o({__name:"tickets",setup(s){return t({meta:[{name:"robots",content:"noindex, nofollow"}]}),(r,c)=>(n(),a(e,{"page-section":"tickets"}))}});export{d as default};

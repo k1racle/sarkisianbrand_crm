@@ -55,7 +55,7 @@
 .sb-storefront .sb-delivery-provider__mark.is-CDEK { background: #e8f2e8; color: #278242; }
 .sb-storefront .sb-delivery-provider__mark.is-OZON_DELIVERY { background: #e8f0ff; color: #1769d2; }
 .sb-storefront .sb-delivery-provider__mark.is-YANDEX_DELIVERY { background: #fff3c4; color: #111; }
-.sb-storefront .sb-delivery-provider__logo { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; background: #ffcc00; color: #111; font-size: 16px; font-weight: 800; line-height: 1; }
+.sb-storefront .sb-delivery-provider__logo { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; background: #ffcc00; color: #111; font-size: var(--sb-type-body); font-weight: 800; line-height: 1; }
 .sb-storefront .sb-delivery-providers strong { font-size: var(--sb-type-small); font-weight: var(--sb-weight-semibold); }
 .sb-storefront .sb-delivery-providers button > span:last-child { color: var(--sf-muted); font-size: var(--sb-type-caption); line-height: 1.45; }
 .sb-storefront .sb-checkout-label { margin: 22px 0 0; color: var(--sf-muted); font-size: var(--sb-type-small); font-weight: var(--sb-weight-semibold); }

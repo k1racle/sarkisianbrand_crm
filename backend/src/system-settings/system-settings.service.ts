@@ -279,15 +279,15 @@ export class SystemSettingsService {
     return { id, overrides: uniqueKeys.length };
   }
 
-  async technicalLogs() {
+  async technicalLogs(actorId: string) {
     const [sync, integrations, recentAudit, jobs, queue] = await Promise.all([
-      this.prisma.syncLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.prisma.syncLog.findMany({ select: { id: true, system: true, action: true, status: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.prisma.marketplaceIntegration.findMany({ select: { id: true, channel: true, shopName: true, isActive: true, lastSyncAt: true, updatedAt: true }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.auditLog.findMany({ select: { id: true, action: true, resource: true, route: true, correlationId: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 50 }),
-      this.prisma.jobRun.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.jobs.list(actorId),
       this.jobs.health(),
     ]);
-    return { sync, integrations, recentAudit, jobs, queue };
+    return { sync, integrations, recentAudit: recentAudit.map(row => ({ ...row, route: row.route?.split('?')[0] })), jobs, queue: { connected: queue.connected, queue: queue.queue, counts: queue.counts, workerEnabled: queue.workerEnabled }, detailsRestricted: true };
   }
 
   retryJob(id: string, actorId: string) { return this.jobs.retry(id, actorId); }

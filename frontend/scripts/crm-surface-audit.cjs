@@ -8,6 +8,7 @@ async function main(){
  const source=fs.readFileSync(path.resolve(__dirname,'../shared/crm-workspace.ts'),'utf8');
  const {CRM_DESTINATIONS}=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));
  const fixtures=new Map(base);
+ fixtures.set('/platform-chat/channels',[]);
  for(const kind of ['REFERRAL','BLOGGER'])for(const section of ['overview','participants','registrations','rewards','payouts','settings'])fixtures.set(`/partners/admin/${kind}/${section}`,{settings:{name:'Партнёрская программа',rewardPercent:5,attributionDays:30,holdDays:14,minimumOrderAmount:0,minimumPayout:1000,signupRewardAmount:0,signupHoldDays:14,signupRewardUnit:'RUB',termsText:'Условия участия в программе',isEnabled:true},rows:[],total:0,page:1,pages:1,totals:[],summary:{participants:8,pending:2,uniqueVisitors:120,registrations:6}});
  const output=path.resolve(__dirname,'../.screenshots/crm-surface-'+(process.argv.includes('--after')?'after':'before'));fs.mkdirSync(output,{recursive:true});
  const browser=await chromium.launch(require("./crm-test-browser.cjs"));const report=[];

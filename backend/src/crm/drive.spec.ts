@@ -1,5 +1,6 @@
 import { CrmDriveService, driveMime, driveName } from './drive.service';
 import { CrmDriveController } from './drive.controller';
+import { CrmReadAccess } from './read-access';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 jest.mock('fs/promises', () => ({ mkdir: jest.fn(), readFile: jest.fn(), unlink: jest.fn().mockResolvedValue(undefined), writeFile: jest.fn() }));
 
@@ -10,7 +11,10 @@ describe('Private CRM drive', () => {
     db = { $executeRaw: jest.fn(), crmDriveNode: { findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0), aggregate: jest.fn().mockResolvedValue({ _sum: { size: 0 } }), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() }, task: { findFirst: jest.fn().mockResolvedValue({ id: 'task' }) }, crmTaskFile: { upsert: jest.fn(), findMany: jest.fn(), deleteMany: jest.fn() } };
     db.auditLog={create:jest.fn()};db.crmPublication={updateMany:jest.fn()};db.crmTaskFile.findUnique=jest.fn();
     db.$transaction = (fn: any) => fn(db);
-    service = new CrmDriveService(db, { get: () => undefined } as any);
+    db.user = { findUnique: jest.fn().mockImplementation(({ where }) => Promise.resolve({ id: where.id, role: 'MANAGER_SALES', isActive: true, departmentId: null })) };
+    db.rolePermission = { findMany: jest.fn().mockResolvedValue(['crm.read', 'crm.write'].map(key => ({ permission: { key } }))) };
+    db.userPermission = { findMany: jest.fn().mockResolvedValue([]) };
+    service = new CrmDriveService(db, { get: () => undefined } as any, new CrmReadAccess());
   });
   it('validates names and prevents paths/control characters', () => {
     for (const name of ['', '..', '../secrets', 'a\\b', 'bad\nname']) expect(() => driveName(name)).toThrow();
@@ -23,13 +27,13 @@ describe('Private CRM drive', () => {
   });
   it('filters personal listing by the authenticated actor, with bounded pagination', async () => {
     await service.list({ scope: 'PERSONAL' }, 'alice');
-    expect(db.crmDriveNode.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ ownerId: 'alice', deletedAt: null }), take: 100 }));
+    expect(db.crmDriveNode.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ AND: [{scope:'PERSONAL',ownerId:'alice'}], deletedAt: null }), take: 100 }));
     expect(db.crmDriveNode.findMany.mock.calls[0][0].select.storageKey).toBeUndefined();
   });
   it('denies unauthorized content without reading disk', async () => {
     db.crmDriveNode.findFirst.mockResolvedValue(null);
     await expect(service.content('private', 'bob')).rejects.toThrow('недоступны');
-    expect(db.crmDriveNode.findFirst.mock.calls[0][0].where.OR).toContainEqual({ scope: 'PERSONAL', ownerId: 'bob' });
+    expect(db.crmDriveNode.findFirst.mock.calls[0][0].where.AND[0].OR).toContainEqual({ scope: 'PERSONAL', ownerId: 'bob' });
     expect(readFile).not.toHaveBeenCalled();
   });
   it('does not allow storage traversal even with corrupted metadata', async () => {

@@ -1,0 +1,35 @@
+/* Shared heading font for CRM and the public site. Imported first so the
+ * intentional !important family survives legacy workspace resets in all dialogs.
+ * Sizes, line heights, spacing, body copy and controls keep their existing owners.
+ * The supplied static Heavy face is 900, not a variable 400–900 font. */
+@font-face {
+  font-family: Mont;
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/mont/Mont-HeavyDEMO.otf') format('opentype');
+}
+:root {
+  --sb-font-heading: Mont, Montserrat, Arial, sans-serif;
+  --sb-weight-heading: 900;
+}
+@layer heading-typography {
+  :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6),
+  html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--sb-font-heading) !important;
+    font-weight: var(--sb-weight-heading) !important;
+    font-synthesis: none;
+  }
+  :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6) :where(span, em, strong, b, i, a),
+  html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) :where(span, em, strong, b, i, a) {
+    font-family: inherit !important;
+    font-weight: inherit !important;
+  }
+  /* A button inside a heading is still a control, not heading text. */
+  :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea),
+  :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea) *,
+  html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea),
+  html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea) * {
+    font-family: var(--sb-font) !important;
+  }
+}

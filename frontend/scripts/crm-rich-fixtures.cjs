@@ -1,6 +1,19 @@
 const {fixtures:base}=require('./crm-workspace-smoke.cjs');
 const {fixtures:dialogs}=require('./workspace-dialogs-mock.cjs');
 const fixtures=new Map([...base,...dialogs]);
+fixtures.set('/crm/work-time/current',{serverTime:'2026-09-28T09:00:00Z',timezone:'Europe/Moscow',date:'2026-09-28',todayEndsAt:'2026-09-28T21:00:00Z',today:{workedMs:0,breakMs:0},active:null,canTrack:true});
+fixtures.set('/crm/work-time/corrections/options',{canCreate:true,canReview:false,timezone:'Europe/Moscow'});
+fixtures.set('/crm/work-time/corrections',{items:[],total:0,page:1,pages:1});
+fixtures.set('/crm/work-time/unclosed',{items:[],total:0,page:1,pages:1});
+fixtures.set('/crm/work-time',{month:'2026-09',timezone:'Europe/Moscow',serverTime:'2026-09-28T09:00:00Z',totals:{workedMs:0,breakMs:0},items:[]});
+fixtures.set('/auth/access',{...fixtures.get('/auth/access'),permissions:[...(fixtures.get('/auth/access')?.permissions||[]),'work_time.read','work_time.track']});
+fixtures.set('/crm/payment-calendar',{items:[],plans:[],totals:{plannedCents:0,paidCents:0,outstandingCents:0,overdueCents:0},today:'2026-09-24',canWrite:true,canSettle:true,visibilities:['PERSONAL','COMPANY']});
+fixtures.set('/crm/work-schedule',{items:[],totals:{entries:0,draftMinutes:0,publishedMinutes:0},canCreate:true});
+fixtures.set('/crm/work-schedule/options',{people:[],departments:[]});
+fixtures.set('/auth/access',{...fixtures.get('/auth/access'),permissions:[...(fixtures.get('/auth/access')?.permissions||[]),'work_schedule.read','work_schedule.write','work_schedule.publish']});
+fixtures.set('/auth/access',{...fixtures.get('/auth/access'),permissions:[...(fixtures.get('/auth/access')?.permissions||[]),'payment_calendar.read','payment_calendar.write','payment_calendar.settle','meetings.read','meetings.write','meetings.manage']});
+fixtures.set('/crm/meetings',{items:[],total:0,page:1,pages:1,canCreate:true,videoAvailable:false});
+fixtures.set('/crm/meetings/team',{items:[],hasMore:false});
 const person={id:'mock-admin',firstName:'Анна',lastName:'Соколова',email:'mock@example.invalid'};
 const task={id:'qa-task',title:'Подготовить запуск коллекции',description:'Согласовать макеты и сценарий с командой',status:'IN_PROGRESS',priority:'HIGH',progress:50,position:0,createdAt:'2026-09-22T10:00:00Z',dueDate:'2026-09-30T10:00:00Z',assignedToId:person.id,assignedTo:person,children:[],labels:[],comments:[{id:'comment',body:'Материалы готовы к согласованию',createdAt:'2026-09-22T10:00:00Z',author:person}],_count:{comments:1,children:0,files:1}};
 const lead={id:'qa-lead',title:'Поставка в салон',contactName:'Мария',contactEmail:'salon@example.invalid',contactPhone:'+79990000000',source:'SITE',stageId:'qa-stage',status:'NEW',managerId:person.id,amount:24000,probability:25,tags:[],createdAt:task.createdAt,customer:null,organization:null,tasks:[task],interactions:[]};
@@ -13,9 +26,9 @@ const publication={id:'qa-publication',taskId:task.id,ideaId:'qa-idea',task:{...
 fixtures.set('/crm/content-plan',{items:[publication],total:1});fixtures.set('/crm/content-plan/team',[person]);fixtures.set('/crm/content-plan/qa-publication',publication);fixtures.set('/crm/content-plan/qa-publication/comments',task.comments);fixtures.set('/crm/content-plan/qa-publication/files',[]);
 for(const kind of ['REFERRAL','BLOGGER'])for(const section of ['overview','participants','registrations','rewards','payouts','settings'])fixtures.set(`/partners/admin/${kind}/${section}`,{settings:{name:'Партнёрская программа',rewardPercent:5,attributionDays:30,holdDays:14,minimumOrderAmount:0,minimumPayout:1000,signupRewardAmount:0,signupHoldDays:14,signupRewardUnit:'RUB',termsText:'Условия участия в программе',isEnabled:true},rows:[],total:0,page:1,pages:1,totals:[],summary:{participants:8,pending:2,uniqueVisitors:120,registrations:6}});
 
-const b2bOrder={id:'qa-b2b-order',orderNumber:'B2B-2026-001',source:'B2B',status:'CONFIRMED',finalAmount:24000,createdAt:task.createdAt,organization:{id:'qa-org',name:'Салон «Пример»',inn:'1234567890'},user:person,items:[{id:'qa-line',productName:'Материалы для салона',variantName:'Основной',quantity:10,price:2400,total:24000}],history:[{id:'qa-status',toStatus:'CONFIRMED',createdAt:task.createdAt,comment:'Заказ подтверждён'}]};
+const b2bOrder={canWrite:true,id:'qa-b2b-order',orderNumber:'B2B-2026-001',source:'B2B',status:'CONFIRMED',finalAmount:24000,createdAt:task.createdAt,organization:{id:'qa-org',name:'Салон «Пример»',inn:'1234567890'},user:person,items:[{id:'qa-line',productName:'Материалы для салона',variantName:'Основной',quantity:10,price:2400,total:24000}],history:[{id:'qa-status',toStatus:'CONFIRMED',createdAt:task.createdAt,comment:'Заказ подтверждён'}]};
 fixtures.set('/oms/orders/list',{items:[b2bOrder],total:1,page:1,pages:1});fixtures.set('/oms/orders/qa-b2b-order',b2bOrder);
-fixtures.set('/marketplaces/orders',[{id:'qa-market-order',externalId:'OZ-001',orderNumber:'MP-001',channel:'OZON',status:'NEW',buyerName:'Тестовый покупатель',totalAmount:1500,createdAt:task.createdAt}]);fixtures.set('/marketplaces/integrations',[]);
+fixtures.set('/marketplaces/orders',[{canWrite:true,id:'qa-market-order',externalId:'OZ-001',orderNumber:'MP-001',channel:'OZON',status:'NEW',buyerName:'Тестовый покупатель',totalAmount:1500,createdAt:task.createdAt}]);fixtures.set('/marketplaces/integrations',[]);
 fixtures.set('/system-settings/dashboard',{staff:1,activeStaff:1,sessions:1,permissions:2,auditToday:0,integrations:0,activeJobs:0,failedJobs:0});
 fixtures.set('/system-settings/staff',[{...person,role:'ADMIN',isActive:true,_count:{sessions:1},permissionOverrides:[]}]);
 fixtures.set('/system-settings/departments',[{id:'qa-department',name:'Продажи',parentId:null,leaderId:person.id,version:1,members:[person],leader:person}]);

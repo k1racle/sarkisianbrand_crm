@@ -1,0 +1,31 @@
+import 'reflect-metadata';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { CreateScheduleDto, ScheduleTransitionDto, UpdateScheduleDto } from './work-schedule.dto';
+import { localStamp, scheduleFields, scheduleInstant, scheduleMonth } from './work-schedule.policy';
+
+const fields = { kind: 'SHIFT', startLocal: '2026-09-24T09:00', endLocal: '2026-09-24T18:00', timezone: 'Europe/Moscow', breakMinutes: 60, note: '' };
+describe('Work schedule wall clock and plan contract', () => {
+  it('resolves Moscow independently of host timezone', () => expect(scheduleInstant(fields.startLocal, fields.timezone).toISOString()).toBe('2026-09-24T06:00:00.000Z'));
+  it('resolves a fractional UTC offset', () => expect(scheduleInstant(fields.startLocal, 'Asia/Kathmandu').toISOString()).toBe('2026-09-24T03:15:00.000Z'));
+  it('round-trips local midnight', () => expect(localStamp(scheduleInstant('2026-09-24T00:00', 'Asia/Vladivostok'), 'Asia/Vladivostok')).toBe('2026-09-24T00:00'));
+  it.each(['2026-02-30T09:00', '2026-09-24T24:00', '2026-09-24T09:61', '2100-01-01T00:00', 'invalid'])('rejects invalid local datetime %s', value => expect(() => scheduleInstant(value, 'UTC')).toThrow());
+  it('rejects a nonexistent zone', () => expect(() => scheduleInstant(fields.startLocal, 'Not/A_Zone')).toThrow());
+  it('rejects a missing DST hour', () => expect(() => scheduleInstant('2026-03-29T02:30', 'Europe/Berlin')).toThrow());
+  it('rejects an ambiguous DST hour', () => expect(() => scheduleInstant('2026-10-25T02:30', 'Europe/Berlin')).toThrow());
+  it('subtracts planned break from elapsed minutes', () => expect(scheduleFields(fields).plannedMinutes).toBe(480));
+  it('supports overnight shifts', () => expect(scheduleFields({ ...fields, startLocal: '2026-09-24T22:00', endLocal: '2026-09-25T06:00', breakMinutes: 30 }).plannedMinutes).toBe(450));
+  it('accounts for DST elapsed duration', () => expect(scheduleFields({ ...fields, timezone: 'Europe/Berlin', startLocal: '2026-03-29T00:00', endLocal: '2026-03-29T08:00', breakMinutes: 0 }).plannedMinutes).toBe(420));
+  it.each([0, -60, 1500])('rejects a shift duration %s', minutes => expect(() => scheduleFields({ ...fields, startLocal: '2026-09-24T00:00', endLocal: new Date(Date.parse('2026-09-24T00:00Z') + minutes * 60000).toISOString().slice(0, 16), breakMinutes: 0 })).toThrow());
+  it('rejects a break equal to the shift', () => expect(() => scheduleFields({ ...fields, breakMinutes: 540 })).toThrow());
+  it.each(['DAY_OFF', 'ABSENCE'])('non-working day %s has zero planned work', kind => expect(scheduleFields({ ...fields, kind, startLocal: '2026-09-24T00:00', endLocal: '2026-09-25T00:00', breakMinutes: 0 }).plannedMinutes).toBe(0));
+  it('supports a 25-hour day off', () => expect(scheduleFields({ ...fields, kind: 'DAY_OFF', timezone: 'Europe/Berlin', startLocal: '2026-10-25T00:00', endLocal: '2026-10-26T00:00', breakMinutes: 0 }).plannedMinutes).toBe(0));
+  it('rejects partial or multi-day absence', () => expect(() => scheduleFields({ ...fields, kind: 'ABSENCE', breakMinutes: 0 })).toThrow());
+  it('rolls calendar year without a timezone shift', () => expect(scheduleMonth('2026-12')).toEqual({ start: '2026-12-01T00:00', end: '2027-01-01T00:00' }));
+  it('rejects invalid months', () => expect(() => scheduleMonth('2026-13')).toThrow());
+  const uuid = '51000000-0000-4000-8000-000000000001';
+  it('accepts create fields', async () => expect(await validate(plainToInstance(CreateScheduleDto, { ...fields, employeeId: uuid, requestKey: uuid }))).toHaveLength(0));
+  it.each([{ breakMinutes: -1 }, { breakMinutes: 0.5 }, { departmentId: uuid }, { status: 'PUBLISHED' }, { creatorId: uuid }])('rejects invalid or forged fields %j', async change => expect((await validate(plainToInstance(CreateScheduleDto, { ...fields, employeeId: uuid, requestKey: uuid, ...change }), { whitelist: true, forbidNonWhitelisted: true })).length).toBeGreaterThan(0));
+  it('requires a trimmed reason when updating', async () => expect((await validate(plainToInstance(UpdateScheduleDto, { ...fields, version: 1, reason: '  ' }))).length).toBeGreaterThan(0));
+  it('rejects invented state transitions', async () => expect((await validate(plainToInstance(ScheduleTransitionDto, { status: 'DRAFT', version: 1, reason: 'test' }))).length).toBeGreaterThan(0));
+});

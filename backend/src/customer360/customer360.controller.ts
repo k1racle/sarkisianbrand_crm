@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, ParseEnumPipe, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { CustomerStatus, OrganizationStatus } from '@prisma/client';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,21 +16,22 @@ import { AddOrganizationMemberDto, CreateOrganizationDto, UpdateCustomerDto, Upd
 export class Customer360Controller {
   constructor(private readonly customers: Customer360Service) {}
 
-  @Get('dashboard') @Permissions('customers.read') dashboard() { return this.customers.dashboard(); }
+  @Get('dashboard') @Header('Cache-Control', 'private, no-store') @Permissions('customers.read') dashboard(@Req() req: any) { return this.customers.dashboard(req.user.sub); }
+  @Get('team') @Header('Cache-Control', 'private, no-store') @Permissions('customers.read') team(@Req() req: any) { return this.customers.team(req.user.sub); }
   @Permissions('customers.read')
-  @Get('customers') listCustomers(@Query('search') search?: string, @Query('status') status?: CustomerStatus, @Query('segment') segment?: string) { return this.customers.customers(search, status, segment); }
+  @Get('customers') @Header('Cache-Control', 'private, no-store') listCustomers(@Req() req: any, @Query('search') search?: string, @Query('status', new ParseEnumPipe(CustomerStatus, { optional: true })) status?: CustomerStatus, @Query('segment') segment?: string) { return this.customers.customers(req.user.sub, search, status, segment); }
   @Permissions('customers.read')
-  @Get('customers/:id') customer(@Param('id') id: string) { return this.customers.customer(id); }
+  @Get('customers/:id') @Header('Cache-Control', 'private, no-store') customer(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) { return this.customers.customer(req.user.sub, id); }
   @Permissions('customers.write')
-  @Patch('customers/:id') updateCustomer(@Param('id') id: string, @Body() dto: UpdateCustomerDto) { return this.customers.updateCustomer(id, dto); }
+  @Patch('customers/:id') updateCustomer(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCustomerDto, @Req() req: any) { return this.customers.updateCustomer(req.user.sub, id, dto); }
   @Permissions('customers.read')
-  @Get('organizations') listOrganizations(@Query('search') search?: string, @Query('status') status?: OrganizationStatus) { return this.customers.organizations(search, status); }
+  @Get('organizations') @Header('Cache-Control', 'private, no-store') listOrganizations(@Req() req: any, @Query('search') search?: string, @Query('status', new ParseEnumPipe(OrganizationStatus, { optional: true })) status?: OrganizationStatus) { return this.customers.organizations(req.user.sub, search, status); }
   @Permissions('customers.write')
-  @Post('organizations') createOrganization(@Body() dto: CreateOrganizationDto) { return this.customers.createOrganization(dto); }
+  @Post('organizations') createOrganization(@Body() dto: CreateOrganizationDto, @Req() req: any) { return this.customers.createOrganization(req.user.sub, dto); }
   @Permissions('customers.read')
-  @Get('organizations/:id') organization(@Param('id') id: string) { return this.customers.organization(id); }
+  @Get('organizations/:id') @Header('Cache-Control', 'private, no-store') organization(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) { return this.customers.organization(req.user.sub, id); }
   @Permissions('customers.write')
-  @Patch('organizations/:id') updateOrganization(@Param('id') id: string, @Body() dto: UpdateOrganizationDto) { return this.customers.updateOrganization(id, dto); }
+  @Patch('organizations/:id') updateOrganization(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateOrganizationDto, @Req() req: any) { return this.customers.updateOrganization(req.user.sub, id, dto); }
   @Permissions('customers.write')
-  @Post('organizations/:id/members') addMember(@Param('id') id: string, @Body() dto: AddOrganizationMemberDto) { return this.customers.addMember(id, dto); }
+  @Post('organizations/:id/members') addMember(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddOrganizationMemberDto, @Req() req: any) { return this.customers.addMember(req.user.sub, id, dto); }
 }

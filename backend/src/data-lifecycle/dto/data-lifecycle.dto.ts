@@ -1,9 +1,12 @@
 import { DataEntityType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class TrashListQueryDto {
   @IsOptional() @IsEnum(DataEntityType) type?: DataEntityType;
   @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 50;
 }
 
 export class LifecycleActionDto {

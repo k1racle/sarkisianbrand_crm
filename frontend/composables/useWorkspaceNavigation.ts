@@ -28,10 +28,11 @@ const INTERNAL = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'M
 const WEB = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'];
 const CATALOG = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'];
 const CRM = ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'];
+const CRM_READ = [...CRM, 'EXECUTIVE'];
 const MARKETING = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR'];
 const SITE = ['ADMIN', 'CONTENT_MANAGER', 'SUPERVISOR'];
-const CHANNELS = ['ADMIN', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'WAREHOUSE'];
-const SUPPORT = ['ADMIN', 'IT_SUPPORT', 'SUPERVISOR'];
+const CHANNELS = ['ADMIN', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'];
+const SUPPORT = ['ADMIN', 'IT_SUPPORT', 'SUPERVISOR', 'EXECUTIVE'];
 const REPORTS = ['ADMIN', 'EXECUTIVE', 'SUPERVISOR'];
 const ADMIN = ['ADMIN'];
 
@@ -56,13 +57,18 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'product-badges', label: 'Бейджи товаров', to: '/admin-workspace/product-badges', permission: 'catalog.read', roles: CATALOG, keywords: 'новинка популярное скидка метки' },
   ] },
   { id: 'crm', label: 'CRM', description: 'Клиенты, организации, воронка и задачи команды.', icon: 'Users', items: [
-    { id: 'crm-dashboard', label: 'Обзор CRM', to: '/crm/', permission: 'crm.read', roles: CRM },
-    { id: 'pipeline', label: 'Воронка продаж', to: '/crm/deals', permission: 'crm.read', roles: CRM, keywords: 'сделки лиды kanban' },
-    { id: 'customers', label: 'Клиенты 360°', to: '/crm/customers', permission: 'customers.read', roles: CRM },
+    { id: 'crm-dashboard', label: 'Обзор CRM', to: '/crm/', permission: 'crm.read', roles: CRM_READ },
+    { id: 'pipeline', label: 'Воронка продаж', to: '/crm/deals', permission: 'crm.read', roles: CRM_READ, keywords: 'сделки лиды kanban' },
+    { id: 'customers', label: 'Клиенты 360°', to: '/crm/customers', permission: 'customers.read', roles: CRM_READ },
     { id: 'web-customers', label: 'Клиенты интернет-магазина', to: '/admin-workspace/customers', permission: 'crm.read', roles: MARKETING },
-    { id: 'organizations', label: 'Организации B2B', to: '/crm/organizations', permission: 'customers.read', roles: CRM, keywords: 'компании партнеры' },
-    { id: 'tasks', label: 'Задачи', to: '/crm/tasks', permission: 'crm.read', roles: CRM, keywords: 'календарь gantt команда' },
-    { id: 'crm-files', label: 'Файлы', to: '/crm/files', permission: 'crm.read', roles: CRM, keywords: 'диск документы папки вложения загрузка' },
+    { id: 'organizations', label: 'Организации B2B', to: '/crm/organizations', permission: 'customers.read', roles: CRM_READ, keywords: 'компании партнеры' },
+    { id: 'tasks', label: 'Задачи', to: '/crm/tasks', permission: 'crm.read', roles: CRM_READ, keywords: 'календарь gantt команда' },
+    { id: 'crm-files', label: 'Файлы', to: '/crm/files', permission: 'crm.read', roles: CRM_READ, keywords: 'диск документы папки вложения загрузка' },
+    { id: 'work-schedule', label: 'Графики работы', to: '/crm/work-schedule', permission: 'work_schedule.read', roles: INTERNAL, keywords: 'смены работа сотрудники календарь выходные отсутствие расписание' },
+    { id: 'work-time', label: 'Рабочее время', to: '/crm/work-time', permission: 'work_time.read', roles: INTERNAL, keywords: 'начать завершить день перерыв фактическое время история часов' },
+    { id: 'crm-chat', label: 'Чат команды', to: '/crm/chat', roles: INTERNAL, keywords: 'общение сообщения переписка сотрудники' },
+    { id: 'crm-meetings', label: 'Встречи', to: '/crm/meetings', permission: 'meetings.read', roles: INTERNAL, keywords: 'планёрки собеседования расписание видеовстречи' },
+    { id: 'payment-calendar', label: 'Календарь платежей', to: '/crm/payment-calendar', permission: 'payment_calendar.read', roles: INTERNAL, keywords: 'финансы расходы связь интернет сервер подписка сумма оплата периодичность' },
     { id: 'content-plan', label: 'Контент-план', to: '/crm/content-plan', permission: 'content_plan.read', roles: [...CRM, 'CONTENT_MANAGER'], keywords: 'smm смм контент календарь рилс reels shorts шортс сценарий публикации' },
   ] },
   { id: 'loyalty', label: 'Бонусная программа', description: 'Правила клуба и бонусные счета клиентов.', icon: 'Award', items: [
@@ -130,7 +136,10 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
 export function buildWorkspaceNavigation(role?: string | null, can: (permission?: string) => boolean = () => true): WorkspaceGroup[] {
   if (!role || !INTERNAL.includes(role)) return [];
   const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
-  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission)).map(item => ({ ...item, to: CRM_DESTINATIONS.find(destination => destination.id === item.id)?.path || item.to })) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission)).map(item => {
+    const destination = CRM_DESTINATIONS.find(destination => destination.id === item.id);
+    return { ...item, label: destination?.label || item.label, keywords: `${item.keywords || ''} ${item.label} ${destination?.group || ''}`, to: destination?.path || item.to };
+  }) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 export function flattenWorkspaceNavigation(groups: readonly WorkspaceGroup[]): WorkspaceDestination[] {
   return groups.flatMap(group => group.items.map(item => ({ ...item, groupId: group.id, groupLabel: group.label })));
@@ -182,7 +191,7 @@ export function useWorkspaceNavigation() {
     { label: active.value.label, to: active.value.to },
   ] : [{ label: 'Рабочий стол', to: '/workspace' }]);
   function hydratePreferences() {
-    if (!import.meta.client) return;
+    if (!import.meta.client || !access.ready.value) return;
     const key = storageKey();
     if (owner.value === key) return;
     owner.value = key || '';
@@ -191,7 +200,7 @@ export function useWorkspaceNavigation() {
     preferences.value = sanitizeWorkspacePreferences(data, groups.value);
   }
   function persistPreferences() {
-    if (!import.meta.client || !storageKey()) return;
+    if (!import.meta.client || !storageKey() || !access.ready.value) return;
     preferences.value = sanitizeWorkspacePreferences(preferences.value, groups.value);
     try { localStorage.setItem(storageKey()!, JSON.stringify(preferences.value)); } catch { /* No API fallback or personal-data writes. */ }
   }
@@ -209,6 +218,7 @@ export function useWorkspaceNavigation() {
     persistPreferences();
   }
   function rememberCurrent() {
+    if (!access.ready.value) return;
     hydratePreferences();
     if (!active.value || active.value.id === 'workspace') return;
     preferences.value = { ...resolved.value, recent: [active.value.id, ...resolved.value.recent.filter(id => id !== active.value!.id)].slice(0, 8) };
@@ -216,5 +226,6 @@ export function useWorkspaceNavigation() {
   }
   onMounted(rememberCurrent);
   watch(() => `${user.value?.id || ''}:${user.value?.role || ''}:${route.fullPath}`, rememberCurrent);
+  watch(access.ready, ready => { if (ready) rememberCurrent(); });
   return { groups, leaves, active, breadcrumbs, favorites, recent, start, paletteOpen, toggleFavorite, setStart, search: (query: string) => searchWorkspaceLeaves(groups.value, query) };
 }

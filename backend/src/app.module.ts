@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { PaymentCalendarModule } from './payment-calendar/payment-calendar.module';
+import { WorkScheduleModule } from './work-schedule/work-schedule.module';
+import { WorkTimeModule } from './work-time/work-time.module';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ProductsModule } from './products/products.module';
@@ -34,6 +37,7 @@ import { GiftCardsModule } from './gift-cards/gift-cards.module';
 import { MediaModule } from './media/media.module';
 import { PartnersModule } from './partners/partners.module';
 import { ContactMessagesModule } from './contact-messages/contact-messages.module';
+import { MeetingsModule } from './meetings/meetings.module';
 
 @Module({
   imports: [
@@ -82,6 +86,10 @@ import { ContactMessagesModule } from './contact-messages/contact-messages.modul
     GiftCardsModule,
     PartnersModule,
     ContactMessagesModule,
+    MeetingsModule,
+    PaymentCalendarModule,
+    WorkScheduleModule,
+    WorkTimeModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })

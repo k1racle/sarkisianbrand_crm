@@ -4,6 +4,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { PlatformChatController } from './platform-chat.controller';
 import { PlatformChatGateway } from './platform-chat.gateway';
 import { PlatformChatService } from './platform-chat.service';
+import { ChatRecordsService } from './chat-records.service';
 
-@Module({ imports: [AuthModule], controllers: [PlatformChatController], providers: [PlatformChatService, PlatformChatGateway, RolesGuard], exports: [PlatformChatGateway] })
+@Module({ imports: [AuthModule], controllers: [PlatformChatController], providers: [PlatformChatService, PlatformChatGateway, ChatRecordsService, RolesGuard], exports: [PlatformChatGateway] })
 export class PlatformChatModule {}

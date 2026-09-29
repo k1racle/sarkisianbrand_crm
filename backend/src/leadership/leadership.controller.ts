@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -13,5 +13,5 @@ import { LeadershipService } from './leadership.service';
 @Roles('ADMIN', 'EXECUTIVE', 'SUPERVISOR')
 export class LeadershipController {
   constructor(private readonly leadership: LeadershipService) {}
-  @Get('overview') @Permissions('leadership.read') overview() { return this.leadership.overview(); }
+  @Get('overview') @Header('Cache-Control', 'private, no-store') @Permissions('leadership.read') overview(@Req() request: any) { return this.leadership.overview(request.user.sub); }
 }

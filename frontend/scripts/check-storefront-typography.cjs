@@ -1,11 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const postcss = require('postcss');
 const files = ['storefront.css', 'storefront-glass.css', 'storefront-menu-admin.css', 'storefront-pages.css', 'storefront-system.css', 'storefront-checkout.css', 'storefront-filters.css', 'site-partnerships.css'];
 const failures = [];
 for (const name of files) {
   const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', name), 'utf8');
   if (/font-size\s*:\s*(?:\d+(?:\.\d+)?(?:px|rem|em)|clamp\()/i.test(source)) failures.push(`${name}: размер шрифта должен использовать типографический токен`);
-  if (/font-family\s*:\s*(?!var\()[^;}]+/i.test(source)) failures.push(`${name}: семейство шрифта должно использовать общий токен`);
+  postcss.parse(source).walkDecls('font-family', declaration => {
+    if (!/^var\(/.test(declaration.value.trim())) failures.push(`${name}: семейство шрифта должно использовать общий токен`);
+  });
 }
 const main = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'main.css'), 'utf8');
 if (main.includes('fonts.googleapis.com')) failures.push('Основной шрифт не должен загружаться из внешнего CSS');

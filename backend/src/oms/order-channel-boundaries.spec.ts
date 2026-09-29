@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MarketplaceOrderStatus, OrderSource, OrderStatus } from '@prisma/client';
+import { operationAccess } from '../common/operational-access.fixture';
 import { OmsService } from './oms.service';
 import { AdminService } from '../admin/admin.service';
 import { MarketplacesController } from '../marketplaces/marketplaces.controller';
@@ -11,8 +12,10 @@ describe('CRM order channel boundaries', () => {
     const record: any = { id: 'order-1', orderNumber: 'MOCK-1', source, status, marketplaceStaging: { id: 'staging-1' }, items: [], finalAmount: 100 };
     const sequence: string[] = [];
     const tx = {
+      $executeRaw: jest.fn(), dataTrashEntry: { findMany: jest.fn().mockResolvedValue([]) }, customer: { findMany: jest.fn().mockResolvedValue([]) }, organization: { findMany: jest.fn().mockResolvedValue([]) },
       $queryRaw: jest.fn(async () => { sequence.push('lock'); return []; }),
       order: {
+        findMany: jest.fn(async () => [{ id: record.id }]),
         findFirst: jest.fn(async ({ where, select }: any) => {
           sequence.push(select ? 'candidate' : 'current');
           return where.source.in.includes(record.source) ? (select ? { id: record.id } : { ...record }) : null;
@@ -25,7 +28,7 @@ describe('CRM order channel boundaries', () => {
     };
     const db = { $transaction: jest.fn(async (fn: any) => fn(tx)) };
     const oneC = { enqueueOrder: jest.fn().mockResolvedValue({}) };
-    const service = new OmsService(db as any, oneC as any);
+    const service = new OmsService(db as any, oneC as any, undefined, operationAccess());
     const admin = new AdminService(db as any, oneC as any, {} as any);
     function noWrites() {
       expect(tx.order.update).not.toHaveBeenCalled();
@@ -53,7 +56,7 @@ describe('CRM order channel boundaries', () => {
   it('checks the current status after locking, not a pre-lock snapshot', async () => {
     const f = fixture();
     f.tx.$queryRaw.mockImplementation(async () => { f.sequence.push('lock'); f.record.status = 'DELIVERED'; return []; });
-    await expect(f.service.updateMarketplace('order-1', 'CONFIRMED')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(f.service.updateMarketplace('order-1', 'CONFIRMED', undefined, undefined, 'actor')).rejects.toBeInstanceOf(BadRequestException);
     expect(f.sequence).toEqual(['candidate', 'lock', 'current']);
     f.noWrites();
   });
@@ -62,7 +65,7 @@ describe('CRM order channel boundaries', () => {
     ['NEW', 'DELIVERED'], ['NEW', 'RETURNED'], ['CANCELLED', 'NEW'], ['REFUNDED', 'CONFIRMED'], ['DELIVERED', 'CANCELLED'],
   ])('rejects transition %s → %s without writes', async (from, to) => {
     const f = fixture('OZON', from);
-    await expect(f.service.updateMarketplace('order-1', to)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(f.service.updateMarketplace('order-1', to, undefined, undefined, 'actor')).rejects.toBeInstanceOf(BadRequestException);
     f.noWrites();
   });
 
@@ -75,12 +78,12 @@ describe('CRM order channel boundaries', () => {
     expect(f.tx.orderStatusHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ fromStatus: 'NEW', toStatus: 'CONFIRMED', changedBy: 'actor' }) });
     expect(f.tx.marketplaceOrder.update).toHaveBeenCalledWith({ where: { id: 'staging-1' }, data: { status: 'CONFIRMED', trackingNumber: 'tracking', internalNote: 'note' } });
     expect(f.oneC.enqueueOrder).toHaveBeenCalledWith('order-1', 'actor');
-    expect(f.db.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 30000 });
+    expect(f.db.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 30000, isolationLevel: 'Serializable' });
   });
 
   it('does not add duplicate status history for the same status', async () => {
     const f = fixture('OZON', 'CONFIRMED');
-    await f.service.updateMarketplace('order-1', 'CONFIRMED', 'new-tracking');
+    await f.service.updateMarketplace('order-1', 'CONFIRMED', 'new-tracking', undefined, 'actor');
     expect(f.tx.orderStatusHistory.create).not.toHaveBeenCalled();
     expect(f.record.trackingNumber).toBe('new-tracking');
   });
@@ -88,7 +91,7 @@ describe('CRM order channel boundaries', () => {
   it('rejects an order no longer available after the lock', async () => {
     const f = fixture();
     f.tx.order.findFirst.mockResolvedValueOnce({ id: 'order-1' }).mockResolvedValueOnce(null);
-    await expect(f.service.updateMarketplace('order-1', 'CONFIRMED')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(f.service.updateMarketplace('order-1', 'CONFIRMED', undefined, undefined, 'actor')).rejects.toBeInstanceOf(NotFoundException);
     f.noWrites();
   });
 

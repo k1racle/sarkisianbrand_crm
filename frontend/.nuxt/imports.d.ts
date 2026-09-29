@@ -40,6 +40,7 @@ export { useCrmCardDrag } from '../composables/useCrmCardDrag';
 export { useCrmDrive, CrmDriveItem } from '../composables/useCrmDrive';
 export { useCrmNavigation } from '../composables/useCrmNavigation';
 export { useCrmPwa, CrmInstallPrompt } from '../composables/useCrmPwa';
+export { useCrmReminders } from '../composables/useCrmReminders';
 export { useMobileNavigationSheet } from '../composables/useMobileNavigationSheet';
 export { usePlatformChat } from '../composables/usePlatformChat';
 export { useStorefront } from '../composables/useStorefront';

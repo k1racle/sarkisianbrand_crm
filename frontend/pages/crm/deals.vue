@@ -32,6 +32,8 @@ const pipeline = ref<any>({ stages: [] }),
   dragged = ref(""),
   activityText = ref("");
 const cardTab=ref('general'),relatedBusy=ref(false),selectedBaseline=ref(''),createBaseline=ref('');
+const customerCandidates = ref<any[]>([]);
+const createLostStage = computed(() => pipeline.value.stages.some((stage:any) => stage.id === draft.stageId && stage.isLost));
 const commentEntries=computed(()=>(selected.value?.interactions||[]).filter((entry:any)=>!['CREATED','STAGE_CHANGED'].includes(entry.type)).map((entry:any)=>({...entry,author:entry.user,body:entry.content})));
 const selectedDirty=computed(()=>!!selected.value&&JSON.stringify(selected.value)!==selectedBaseline.value);
 function canLeave(){return !saving.value&&!relatedBusy.value&&(!(selectedDirty.value||activityText.value.trim()||(createOpen.value&&JSON.stringify(draft)!==createBaseline.value))||window.confirm('Есть несохранённые изменения. Закрыть без сохранения?'));}
@@ -54,7 +56,10 @@ const draft = reactive<any>({
   expectedCloseAt: "",
   nextContactAt: "",
   tags: "",
+  customerId: "",
+  lostReason: "",
 });
+watch(() => [draft.contactPhone, draft.contactEmail], () => { customerCandidates.value = []; draft.customerId = ''; });
 const headers = computed(() => ({ Authorization: `Bearer ${token.value}` }));
 const money = (v: any) =>
   new Intl.NumberFormat("ru-RU", {
@@ -115,6 +120,7 @@ function flash(v: string) {
   setTimeout(() => (notice.value = ""), 2400);
 }
 function openCreate(stage?: any) {
+  if (!can('crm.write') || saving.value) return;
   Object.assign(draft, {
     source: "MANUAL",
     contactName: "",
@@ -127,12 +133,16 @@ function openCreate(stage?: any) {
     expectedCloseAt: "",
     nextContactAt: "",
     tags: "",
+    customerId: "",
+    lostReason: "",
   });
+  customerCandidates.value = [];
   createOpen.value = true;
   createBaseline.value = JSON.stringify(draft);
   error.value = "";
 }
 async function createLead() {
+  if (!can('crm.write') || saving.value) return;
   saving.value = true;
   error.value = "";
   try {
@@ -142,6 +152,8 @@ async function createLead() {
       headers: headers.value,
       body: {
         ...draft,
+        stageId: draft.stageId || undefined,
+        contactEmail: draft.contactEmail.trim() || undefined,
         amount: Number(draft.amount || 0),
         expectedCloseAt: draft.expectedCloseAt
           ? new Date(draft.expectedCloseAt).toISOString()
@@ -154,18 +166,25 @@ async function createLead() {
           .map((x) => x.trim())
           .filter(Boolean),
         managerId: draft.managerId || undefined,
+        customerId: draft.customerId || undefined,
+        lostReason: createLostStage.value ? draft.lostReason || undefined : undefined,
       },
     });
     createOpen.value = false;
     await load();
     flash("Сделка создана");
   } catch (e: any) {
+    if (e?.data?.code === 'CRM_CUSTOMER_MATCH_AMBIGUOUS' && Array.isArray(e.data.candidates)) {
+      customerCandidates.value = e.data.candidates;
+      draft.customerId = '';
+    }
     error.value = e?.data?.message || "Не удалось создать сделку";
   } finally {
     saving.value = false;
   }
 }
 async function moveLead(leadId: string, stageId: string) {
+  if (!can('crm.write') || saving.value) return;
   const lead = pipeline.value.stages
     .flatMap((s: any) => s.leads)
     .find((x: any) => x.id === leadId);
@@ -180,7 +199,7 @@ async function moveLead(leadId: string, stageId: string) {
   flash("Этап сделки изменён");
 }
 async function saveSelected() {
-  if (!selected.value) return;
+  if (!can('crm.write') || !selected.value || saving.value) return;
   saving.value = true;
   try {
     const body = {
@@ -216,7 +235,7 @@ async function saveSelected() {
   }
 }
 async function addActivity(type = "NOTE") {
-  if (!selected.value || !activityText.value.trim() || saving.value) return;
+  if (!can('crm.write') || !selected.value || !activityText.value.trim() || saving.value) return;
   saving.value=true;error.value='';try{
   const interaction=await $fetch(`/crm/leads/${selected.value.id}/interactions`, {
     baseURL: config.public.apiBase,
@@ -240,11 +259,11 @@ function leadMenu(e: MouseEvent, lead: any) {
         icon: "open",
         action: () => openLead(lead),
       },
-      {
+      ...(can('crm.write') ? [{
         label: "Создать задачу",
-        icon: "status",
+        icon: "status" as const,
         action: () => navigateTo(`/crm/tasks?lead=${lead.id}`),
-      },
+      }] : []),
       {
         label: "Копировать телефон",
         icon: "copy",
@@ -274,19 +293,21 @@ onMounted(async () => {
           <span data-v-ui-c1ada31b5812>Сделки, прогноз и история контактов в едином процессе</span>
         </div>
         <div data-v-ui-c1ada31b5812>
-          <button data-v-ui-c1ada31b5812 class="light crm-button" @click="settingsOpen = true">
+          <button v-if="can('crm.write')" data-v-ui-c1ada31b5812 class="light crm-button" @click="settingsOpen = true">
             <Settings2 data-v-ui-c1ada31b5812 :size="16" />Настроить
           </button>
           <button data-v-ui-c1ada31b5812 class="light crm-button crm-button--refresh" @click="load">
             <RefreshCw data-v-ui-c1ada31b5812 :size="16" />Обновить</button
-          ><button class="crm-button crm-button--primary" data-v-ui-c1ada31b5812 @click="openCreate()">
+          ><button v-if="can('crm.write')" class="crm-button crm-button--primary" data-v-ui-c1ada31b5812 @click="openCreate()">
             <Plus data-v-ui-c1ada31b5812 :size="16" />Новая сделка
           </button>
         </div>
       </header>
       <p data-v-ui-c1ada31b5812 v-if="error" class="operation-error" role="alert">{{ error }}</p>
+      <section v-if="pipeline.requiresSetup" class="crm-surface crm-register crm-stack" role="status"><h2>Воронка ещё не создана</h2><p>{{ can('crm.write') ? 'Создайте первую сделку — появится основная воронка со стандартными этапами. Или добавьте свою в настройках.' : 'Сотрудник с правом настройки продаж должен создать воронку.' }}</p></section>
       <section data-v-ui-c1ada31b5812 class="toolbar crm-toolbar crm-filter-toolbar">
-        <select class="crm-input" data-v-ui-c1ada31b5812 v-model="activePipelineId" aria-label="Воронка продаж" @change="switchPipeline">
+        <select class="crm-input" data-v-ui-c1ada31b5812 v-model="activePipelineId" :disabled="!pipelines.length" aria-label="Воронка продаж" @change="switchPipeline">
+          <option v-if="!pipelines.length" value="">Нет активных воронок</option>
           <option data-v-ui-c1ada31b5812 v-for="item in pipelines" :key="item.id" :value="item.id">
             {{ item.name }}
           </option>
@@ -383,7 +404,7 @@ onMounted(async () => {
                 }}</small
               >
             </div>
-            <button data-v-ui-c1ada31b5812 class="add-card crm-button" @click="openCreate(stage)">
+            <button v-if="can('crm.write')" data-v-ui-c1ada31b5812 class="add-card crm-button" @click="openCreate(stage)">
               <Plus data-v-ui-c1ada31b5812 :size="14" />Добавить сделку
             </button>
           </div>
@@ -404,21 +425,22 @@ onMounted(async () => {
           <p v-if="error" class="crm-work-error" role="alert">{{error}}</p><p v-if="selectedDirty" class="crm-muted">Есть несохранённые изменения</p>
           <section v-show="cardTab==='general'" id="lead-general-panel" role="tabpanel" aria-labelledby="lead-general-tab" class="crm-detail-general">
           <div data-v-ui-c1ada31b5812 class="fields two">
-            <label data-v-ui-c1ada31b5812>Название<input class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.title" /></label
+            <label data-v-ui-c1ada31b5812>Название<input :readonly="!can('crm.write')" class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.title" /></label
             ><label data-v-ui-c1ada31b5812
-              >Этап<select class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.stageId">
+              >Этап<select :disabled="!can('crm.write')" class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.stageId">
                 <option data-v-ui-c1ada31b5812 v-for="s in pipeline.stages" :value="s.id">
                   {{ s.name }}
                 </option>
               </select></label
-            ><label data-v-ui-c1ada31b5812>Контакт<input class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.contactName" /></label
-            ><label data-v-ui-c1ada31b5812>Телефон<input class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.contactPhone" /></label
+            ><label data-v-ui-c1ada31b5812>Контакт<input :readonly="!can('crm.write')" class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.contactName" /></label
+            ><label data-v-ui-c1ada31b5812>Телефон<input :readonly="!can('crm.write')" class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.contactPhone" /></label
             ><label data-v-ui-c1ada31b5812
               >Email<input class="crm-input" data-v-ui-c1ada31b5812
+                :readonly="!can('crm.write')"
                 v-model="selected.contactEmail"
                 type="email" /></label
             ><label data-v-ui-c1ada31b5812
-              >Ответственный<select class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.managerId">
+              >Ответственный<select :disabled="!can('crm.write')" class="crm-input" data-v-ui-c1ada31b5812 v-model="selected.managerId">
                 <option data-v-ui-c1ada31b5812 value="">Не назначен</option>
                 <option data-v-ui-c1ada31b5812 v-for="u in team" :value="u.id">
                   {{
@@ -429,32 +451,37 @@ onMounted(async () => {
               </select></label
             ><label data-v-ui-c1ada31b5812
               >Сумма, ₽<input class="crm-input" data-v-ui-c1ada31b5812
+                :readonly="!can('crm.write')"
                 v-model.number="selected.amount"
                 type="number"
                 min="0" /></label
             ><label data-v-ui-c1ada31b5812
               >Вероятность, %<input class="crm-input" data-v-ui-c1ada31b5812
+                :readonly="!can('crm.write')"
                 v-model.number="selected.probability"
                 type="number"
                 min="0"
                 max="100" /></label
             ><label data-v-ui-c1ada31b5812
               >План закрытия<input class="crm-input" data-v-ui-c1ada31b5812
+                :readonly="!can('crm.write')"
                 v-model="selected.expectedCloseAt"
                 type="date" /></label
             ><label data-v-ui-c1ada31b5812
               >Следующий контакт<input class="crm-input" data-v-ui-c1ada31b5812
+                :readonly="!can('crm.write')"
                 v-model="selected.nextContactAt"
                 type="datetime-local" /></label
             ><label data-v-ui-c1ada31b5812 class="wide"
               >Причина проигрыша<select class="crm-input" data-v-ui-c1ada31b5812
+                :disabled="!can('crm.write')"
                 v-if="pipeline.lostReasons?.length"
                 v-model="selected.lostReason"
                 ><option data-v-ui-c1ada31b5812 value="">Не выбрана</option>
                 <option data-v-ui-c1ada31b5812 v-for="reason in pipeline.lostReasons" :value="reason">
                   {{ reason }}
                 </option></select
-              ><input class="crm-input" data-v-ui-c1ada31b5812 v-else v-model="selected.lostReason"
+              ><input :readonly="!can('crm.write')" class="crm-input" data-v-ui-c1ada31b5812 v-else v-model="selected.lostReason"
             /></label>
           </div>
           </section>
@@ -489,14 +516,24 @@ onMounted(async () => {
             >Контактное лицо<input class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.contactName" required
           /></label>
           <div data-v-ui-c1ada31b5812 class="two">
-            <label data-v-ui-c1ada31b5812>Телефон<input class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.contactPhone" /></label
+            <label data-v-ui-c1ada31b5812>Телефон<input class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.contactPhone" :required="pipeline.requiresSetup || pipeline.requiredFields?.includes('contactPhone')" /></label
             ><label data-v-ui-c1ada31b5812
               >Email<input class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.contactEmail" type="email"
             /></label>
           </div>
+          <label v-if="customerCandidates.length" data-v-ui-c1ada31b5812>Клиент для сделки
+            <select class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.customerId" required>
+              <option value="" disabled>Выберите клиента из совпадений</option>
+              <option v-for="customer in customerCandidates" :key="customer.id" :value="customer.id">
+                {{ [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'Без имени' }} · {{ customer.email || customer.phone || 'Без контактов' }}
+              </option>
+            </select>
+            <small>Показаны до 10 совпадений. Если нужного клиента нет, уточните телефон или email.</small>
+          </label>
           <div data-v-ui-c1ada31b5812 class="two">
             <label data-v-ui-c1ada31b5812
               >Этап<select class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.stageId">
+                <option v-if="!pipeline.stages.length" value="">Первый этап основной воронки</option>
                 <option data-v-ui-c1ada31b5812 v-for="s in pipeline.stages" :value="s.id">
                   {{ s.name }}
                 </option>
@@ -513,6 +550,13 @@ onMounted(async () => {
               </select></label
             >
           </div>
+          <label v-if="createLostStage" data-v-ui-c1ada31b5812>Причина отказа
+            <select v-if="pipeline.lostReasons?.length" class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.lostReason" required>
+              <option value="" disabled>Выберите причину</option>
+              <option v-for="reason in pipeline.lostReasons" :key="reason" :value="reason">{{ reason }}</option>
+            </select>
+            <input v-else class="crm-input" data-v-ui-c1ada31b5812 v-model="draft.lostReason" />
+          </label>
           <div data-v-ui-c1ada31b5812 class="two">
             <label data-v-ui-c1ada31b5812
               >Сумма, ₽<input class="crm-input" data-v-ui-c1ada31b5812

@@ -14,6 +14,11 @@ export class AuditInterceptor implements NestInterceptor {
     const method = String(request.method || '').toUpperCase();
     if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return next.handle();
     if (String(request.originalUrl || request.url || '').includes('/bots/webhooks/')) return next.handle();
+    // Guest lifecycle has transactional, secret-free audit in MeetingGuestsService.
+    // Polling is POST to keep capabilities out of URLs; it is not a business mutation.
+    if (/\/meeting-guests\/(join|status|leave)(?:\?|$)/.test(String(request.originalUrl || request.url || ''))) return next.handle();
+    // Media capabilities are audited atomically on first issuance, not on refresh.
+    if (/\/(?:meeting-guests|crm\/meetings\/[\w-]+)\/media\/token(?:\?|$)/.test(String(request.originalUrl || request.url || ''))) return next.handle();
 
     const correlationId = String(request.headers?.['x-correlation-id'] || randomUUID());
     response.setHeader('x-correlation-id', correlationId);

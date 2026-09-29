@@ -76,6 +76,7 @@ export class CreateLeadDto {
   @IsOptional() @IsInt() @Min(0) @Max(100) probability?: number;
   @IsOptional() @IsDateString() expectedCloseAt?: string;
   @IsOptional() @IsDateString() nextContactAt?: string;
+  @IsOptional() @IsString() lostReason?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
 }
 

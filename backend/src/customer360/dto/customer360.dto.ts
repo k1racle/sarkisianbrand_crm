@@ -2,6 +2,7 @@ import { CustomerStatus, OrganizationMemberRole, OrganizationStatus } from '@pri
 import { IsBoolean, IsEmail, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class UpdateCustomerDto {
+  @IsOptional() @IsUUID() accountManagerId?: string | null;
   @IsOptional() @IsString() firstName?: string;
   @IsOptional() @IsString() lastName?: string;
   @IsOptional() @IsEmail() email?: string;
@@ -19,7 +20,7 @@ export class CreateOrganizationDto {
   @IsOptional() @IsEnum(OrganizationStatus) status?: OrganizationStatus;
   @IsOptional() @IsNumber() @Min(0) @Max(100) discountTier?: number;
   @IsOptional() @IsNumber() @Min(0) creditLimit?: number;
-  @IsOptional() @IsUUID() accountManagerId?: string;
+  @IsOptional() @IsUUID() accountManagerId?: string | null;
   @IsOptional() @IsUUID() ownerUserId?: string;
 }
 
@@ -32,7 +33,7 @@ export class UpdateOrganizationDto {
   @IsOptional() @IsEnum(OrganizationStatus) status?: OrganizationStatus;
   @IsOptional() @IsNumber() @Min(0) @Max(100) discountTier?: number;
   @IsOptional() @IsNumber() @Min(0) creditLimit?: number;
-  @IsOptional() @IsUUID() accountManagerId?: string;
+  @IsOptional() @IsUUID() accountManagerId?: string | null;
 }
 
 export class AddOrganizationMemberDto {

@@ -1,3 +1,4 @@
+import { operationAccess } from '../common/operational-access.fixture';
 import { OmsService } from './oms.service';
 import { OmsOrderListDto } from './dto/order-list.dto';
 import { plainToInstance } from 'class-transformer';
@@ -11,10 +12,10 @@ describe('CRM B2B order register', () => {
   });
   it('uses canonical orders, filters before pagination, and returns a real count', async () => {
     const findMany = jest.fn().mockResolvedValue([{ id: 'b2b' }]), count = jest.fn().mockResolvedValue(31);
-    const db = { order: { findMany, count }, $transaction: (queries: any[]) => Promise.all(queries) };
-    const service = new OmsService(db as any, {} as any);
-    const result = await service.listOrders({ source: 'B2B', page: 2, limit: 30, search: '  Салон  ' });
-    expect(findMany.mock.calls[0][0]).toMatchObject({ where: { source: 'B2B' }, skip: 30, take: 30 });
+    const db = { order: { findMany, count }, customer: { findMany: jest.fn().mockResolvedValue([]) }, organization: { findMany: jest.fn().mockResolvedValue([]) }, dataTrashEntry: { findMany: jest.fn().mockResolvedValue([]) }, $transaction: (fn: any) => fn(db) };
+    const service = new OmsService(db as any, {} as any, undefined, operationAccess());
+    const result = await service.listOrders('actor', { source: 'B2B', page: 2, limit: 30, search: '  Салон  ' });
+    expect(findMany.mock.calls[0][0]).toMatchObject({ where: { AND: expect.arrayContaining([expect.objectContaining({ source: 'B2B' })]) }, skip: 30, take: 30 });
     expect(count.mock.calls[0][0].where).toEqual(findMany.mock.calls[0][0].where);
     expect(result).toMatchObject({ total: 31, page: 2, pages: 2 });
   });

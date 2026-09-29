@@ -6,6 +6,8 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PasswordResetRequestController } from './password-reset-request.controller';
+import { CrmReadAccess } from '../crm/read-access';
+import { CompanyScopeGuard } from '../common/guards/company-scope.guard';
 
-@Module({ imports: [JwtModule.register({}), NotificationsModule], controllers: [AuthController, PasswordResetRequestController], providers: [AuthService, JwtAuthGuard, OptionalJwtAuthGuard], exports: [AuthService, JwtModule, JwtAuthGuard, OptionalJwtAuthGuard] })
+@Module({ imports: [JwtModule.register({}), NotificationsModule], controllers: [AuthController, PasswordResetRequestController], providers: [AuthService, JwtAuthGuard, OptionalJwtAuthGuard, CrmReadAccess, CompanyScopeGuard], exports: [AuthService, JwtModule, JwtAuthGuard, OptionalJwtAuthGuard, CrmReadAccess, CompanyScopeGuard] })
 export class AuthModule {}

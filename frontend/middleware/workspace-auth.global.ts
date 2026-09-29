@@ -4,8 +4,9 @@ import { CRM_DESTINATIONS, crmDestination, isCrmPath } from '~/shared/crm-worksp
 import { buildWorkspaceNavigation, flattenWorkspaceNavigation } from '~/composables/useWorkspaceNavigation';
 import { safeInternalRedirect } from '~/shared/internal-redirect';
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return;
+  if (/^\/meeting-guest\/?$/.test(to.path)) return; // Separate guest capability; never hydrate a CRM session here.
   if (to.path === '/b2b' || to.path.startsWith('/b2b/')) {
     const b2b = useB2BSession(); b2b.hydrate();
     if (!b2b.token.value) return navigateTo({ path: '/b2b-login', query: { redirect: to.fullPath } });
@@ -29,6 +30,10 @@ export default defineNuxtRouteMiddleware((to) => {
     }
     if (!session.token.value) return navigateTo({ path: '/crm/login', query: { redirect: to.fullPath } });
     const access = useWorkspaceAccess();
+    await access.ensure();
+    // Keep the requested URL; the shell offers retry without mounting protected
+    // content. A network error is not a confirmed permission denial.
+    if (!access.ready.value) return;
     const allowed = flattenWorkspaceNavigation(buildWorkspaceNavigation(session.user.value?.role, access.can));
     const destination = crmDestination(to.path);
     if (destination && !allowed.some(item => item.id === destination.id)) {

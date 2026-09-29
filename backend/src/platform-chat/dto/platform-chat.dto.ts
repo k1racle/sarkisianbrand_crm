@@ -1,16 +1,16 @@
 import { CrmChatType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsIn, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 
 export class PlatformEntityAttachmentDto {
-  @IsString() type!: string;
+  @IsIn(['TASK', 'STAGE', 'CUSTOMER', 'PRODUCT']) type!: string;
   @IsUUID() id!: string;
 }
 
 export class CreatePlatformMessageDto {
   @IsOptional() @IsString() body?: string;
   @IsOptional() @IsUUID() replyToId?: string;
-  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => PlatformEntityAttachmentDto)
+  @IsOptional() @IsArray() @ArrayMaxSize(8) @ValidateNested({ each: true }) @Type(() => PlatformEntityAttachmentDto)
   entities?: PlatformEntityAttachmentDto[];
 }
 

@@ -64,7 +64,7 @@ export class AdminService {
   }
 
   async createStorefrontPage(dto: CreateStorefrontPageDto) {
-    const reserved = ['admin', 'admin-workspace', 'account', 'auth', 'api', 'b2b', 'b2b-login', 'cart', 'catalog', 'crm', 'crm-chat', 'crm-customers', 'crm-marketplaces', 'crm-organizations', 'crm-pipeline', 'crm-tasks', 'favorites', 'helpdesk', 'leadership', 'login', 'marketplaces', 'password-reset', 'products', 'system-settings', 'workspace', 'workspace-login', 'fonts', 'storefront', '_nuxt'];
+    const reserved = ['admin', 'admin-workspace', 'account', 'auth', 'api', 'b2b', 'b2b-login', 'cart', 'catalog', 'crm', 'crm-chat', 'crm-customers', 'crm-marketplaces', 'crm-organizations', 'crm-pipeline', 'crm-tasks', 'favorites', 'helpdesk', 'leadership', 'login', 'marketplaces', 'meeting-guest', 'password-reset', 'products', 'system-settings', 'workspace', 'workspace-login', 'fonts', 'storefront', '_nuxt'];
     if (reserved.includes(dto.slug)) throw new BadRequestException('Этот адрес занят системным разделом');
     if (await this.prisma.storefrontPage.findUnique({ where: { slug: dto.slug } })) throw new ConflictException('Страница с таким адресом уже существует');
     return this.prisma.storefrontPage.create({ data: { slug: dto.slug, ...this.pageData(dto) } });

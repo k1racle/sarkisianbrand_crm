@@ -1,5 +1,13 @@
 import { TicketPriority, TicketSource, TicketStatus } from '@prisma/client';
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+
+export class PublicHelpdeskTicketDto {
+  @IsString() @MinLength(3) @MaxLength(180) subject!: string;
+  @IsString() @MinLength(5) @MaxLength(5000) description!: string;
+  @IsEmail() @MaxLength(254) requesterEmail!: string;
+  @IsOptional() @IsString() @MaxLength(120) requesterName?: string;
+  @IsOptional() @IsIn(['B2C', 'B2B']) source?: 'B2C' | 'B2B';
+}
 
 export class CreateHelpdeskTicketDto {
   @IsString()
@@ -57,7 +65,7 @@ export class UpdateHelpdeskTicketDto {
 
   @IsOptional()
   @IsUUID()
-  assignedToId?: string;
+  assignedToId?: string | null;
 }
 
 export class CreateHelpdeskCommentDto {

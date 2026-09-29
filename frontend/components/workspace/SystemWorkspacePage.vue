@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { crmDestination } from '~/shared/crm-workspace';
 import {
   Activity,
   KeyRound,
@@ -20,6 +21,7 @@ const section = computed(() => props.pageSection || String(route.query.section |
 const dashboard = ref<any>(null);
 const staff = ref<any[]>([]);
 const access = ref<any>({ roles: [], permissions: [] });
+const accessTab = ref('matrix');
 const audit = ref<any[]>([]);
 const logs = ref<any>({
   sync: [],
@@ -32,8 +34,10 @@ const busy = ref(false);
 const loadError = ref('');
 const pageLoaded = ref(false);
 let loadVersion = 0;
+let componentAlive = true;
 let loadController: AbortController | undefined;
 const notice = ref("");
+const retrying = ref<string[]>([]);
 const search = ref("");
 const showCreate = ref(false);
 const selectedEmployeeId = ref("");
@@ -56,7 +60,7 @@ const menu: Record<string, { title: string; kicker: string; description: string 
   audit: { title: "Журнал действий", kicker: "АУДИТ ИЗМЕНЕНИЙ", description: "Единая история критических действий во всех рабочих пространствах" },
   logs: { title: "Технические журналы", kicker: "СОСТОЯНИЕ ИНТЕГРАЦИЙ", description: "Фоновые операции, синхронизации, ошибки и повторы" },
 };
-const title = computed(() => menu[section.value] || menu.overview);
+const title = computed(() => { const page = menu[section.value] || menu.overview; return { ...page, title: crmDestination(route.path)?.label || page.title }; });
 const roleLabels = computed<Record<string, string>>(() => Object.fromEntries(access.value.roles.map((role: string) => [role, access.value.roleDetails?.find((item: any) => item.id === role)?.label || role])));
 const actionLabels: Record<string, string> = {
   LOGIN: "Вход",
@@ -80,6 +84,9 @@ const resourceLabels: Record<string, string> = {
 };
 const jobLabels: Record<string, string> = {
   "1C_PRODUCTS_IMPORT": "Импорт товаров из 1С",
+  "1C_FULL_EXCHANGE": "Полный обмен с 1С",
+  "1C_ORDER_EXPORT": "Выгрузка заказа в 1С",
+  BOT_WEBHOOK_PROCESS: "Обработка события бота",
   MARKETPLACE_ORDERS_IMPORT: "Импорт заказов маркетплейсов",
 };
 const jobStatusLabels: Record<string, string> = {
@@ -177,14 +184,27 @@ async function revokeSessions(item: any) {
   await load();
   showNotice(`Отозвано сессий: ${result.revoked}`);
 }
+function canRetryJob(entry: any) {
+  return componentAlive && !loadError.value && entry.canRetry === true
+    && logs.value.jobs.some((row: any) => row.id === entry.id && row.canRetry === true)
+    && !busy.value && !retrying.value.includes(entry.id);
+}
 async function retryJob(entry: any) {
-  await $fetch(`/system-settings/jobs/${entry.id}/retry`, {
-    baseURL: config.public.apiBase,
-    method: "POST",
-    headers: headers.value,
-  });
-  await load();
-  showNotice("Операция снова поставлена в очередь");
+  if (!canRetryJob(entry)) return;
+  const identity = token.value;
+  retrying.value = [...retrying.value, entry.id];
+  try {
+    const result = await $fetch<any>("/system-settings/jobs/" + entry.id + "/retry", {
+      baseURL: config.public.apiBase, method: "POST", headers: headers.value,
+    });
+    if (!componentAlive || token.value !== identity) return;
+    await load();
+    showNotice(result.reused ? "Повтор уже создан — новый запуск не добавлен" : "Повтор создан. Выполнение начнётся, когда автоматика включена");
+  } catch (error: any) {
+    if (!componentAlive || token.value !== identity) return;
+    showNotice(error?.data?.message || "Повтор не подтверждён. Обновите журнал");
+    await load();
+  } finally { retrying.value = retrying.value.filter(id => id !== entry.id); }
 }
 function showNotice(value: string) {
   notice.value = value;
@@ -273,7 +293,7 @@ function jobMenu(event: MouseEvent, entry: any) {
         action: () =>
           copyText(entry.correlationId, "Идентификатор цепочки скопирован"),
       },
-      ...(["FAILED", "CANCELLED"].includes(entry.status)
+      ...(canRetryJob(entry)
         ? [
             {
               label: "Повторить операцию",
@@ -288,7 +308,7 @@ function jobMenu(event: MouseEvent, entry: any) {
   );
 }
 onMounted(load);
-onUnmounted(() => { ++loadVersion; loadController?.abort(); });
+onUnmounted(() => { componentAlive = false; ++loadVersion; loadController?.abort(); });
 watch(section, () => {
   if (process.client) nextTick(() => window.scrollTo({ top: 0, behavior: "auto" }));
 });
@@ -486,7 +506,8 @@ watch(section, () => {
         </div>
       </section>
       <section v-else-if="section === 'access'" class="crm-stack">
-        <article data-v-ui-c4cc81726fbf class="panel crm-surface">
+        <CrmCardTabs v-model="accessTab" prefix="access-settings" :tabs="[['matrix', 'Действующие роли'], ['profiles', 'Проекты ролей']]" label="Настройка ролей" />
+        <article v-show="accessTab === 'matrix'" id="access-settings-matrix-panel" role="tabpanel" aria-labelledby="access-settings-matrix-tab" data-v-ui-c4cc81726fbf class="panel crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>
               <p data-v-ui-c4cc81726fbf class="kicker">БАЗОВЫЕ ПРАВА</p>
@@ -520,6 +541,7 @@ watch(section, () => {
           </div>
           <p class="crm-matrix-note">Ранее назначенные личные разрешения и запреты сохранены. Матрица показывает базовые права роли, без этих исключений.</p>
         </article>
+        <section v-if="accessTab === 'profiles'" id="access-settings-profiles-panel" role="tabpanel" aria-labelledby="access-settings-profiles-tab"><CrmAccessProfiles /></section>
       </section>
       <EcosystemIntegrations v-else-if="section === 'integrations'" />
       <BotCommandsSettings v-else-if="section === 'bot-commands'" />
@@ -575,42 +597,44 @@ watch(section, () => {
               <i data-v-ui-c4cc81726fbf></i>{{ !logs.queue?.connected ? "Нет связи" : logs.queue?.workerEnabled === false ? "Автоматика приостановлена" : "Работает" }}
             </span>
           </div>
-          <div data-v-ui-c4cc81726fbf class="job-row head crm-table-head">
+          <div data-v-ui-c4cc81726fbf class="job-row head crm-table-head crm-responsive-row crm-responsive-head">
             <span data-v-ui-c4cc81726fbf>Операция</span><span data-v-ui-c4cc81726fbf>Состояние</span><span data-v-ui-c4cc81726fbf>Прогресс</span
             ><span data-v-ui-c4cc81726fbf>Попытки</span><span data-v-ui-c4cc81726fbf>Запущена</span><span data-v-ui-c4cc81726fbf></span>
           </div>
           <div data-v-ui-c4cc81726fbf
             v-for="entry in logs.jobs"
             :key="entry.id"
-            class="job-row"
+            class="job-row crm-table-row crm-responsive-row"
             @contextmenu.prevent="jobMenu($event, entry)"
           >
-            <div data-v-ui-c4cc81726fbf>
+            <div data-v-ui-c4cc81726fbf class="crm-responsive-main">
               <strong data-v-ui-c4cc81726fbf>{{ jobLabels[entry.jobName] || entry.jobName }}</strong
               ><small data-v-ui-c4cc81726fbf
                 >{{ entry.correlationId.slice(0, 8) }} ·
                 {{
-                  entry.result?.message || entry.error || "Ожидает обработки"
+                  entry.retryReason || "Подробные данные скрыты в общем журнале"
                 }}</small
               >
             </div>
-            <span data-v-ui-c4cc81726fbf :class="`job-${entry.status.toLowerCase()}`">{{
+            <span class="crm-responsive-cell" data-label="Состояние" data-v-ui-c4cc81726fbf :class="`job-${entry.status.toLowerCase()}`">{{
               jobStatusLabels[entry.status] || entry.status
             }}</span>
-            <div data-v-ui-c4cc81726fbf class="job-progress">
+            <div class="crm-responsive-cell" data-label="Прогресс"><div data-v-ui-c4cc81726fbf class="job-progress">
               <i data-v-ui-c4cc81726fbf><em data-v-ui-c4cc81726fbf :style="{ width: `${entry.progress}%` }"></em></i
               ><b data-v-ui-c4cc81726fbf>{{ entry.progress }}%</b>
-            </div>
-            <span data-v-ui-c4cc81726fbf>{{ entry.attempts }} / {{ entry.maxAttempts }}</span>
-            <time data-v-ui-c4cc81726fbf>{{ new Date(entry.createdAt).toLocaleString("ru-RU") }}</time>
-            <button class="crm-button" data-v-ui-c4cc81726fbf
-              v-if="['FAILED', 'CANCELLED'].includes(entry.status)"
-              title="Повторить"
+            </div></div>
+            <span class="crm-responsive-cell" data-label="Попытки" data-v-ui-c4cc81726fbf>{{ entry.attempts }} / {{ entry.maxAttempts }}</span>
+            <time class="crm-responsive-cell" data-label="Запущена" data-v-ui-c4cc81726fbf>{{ new Date(entry.createdAt).toLocaleString("ru-RU") }}</time>
+            <button class="crm-button crm-button--icon crm-responsive-action" data-v-ui-c4cc81726fbf
+              v-if="entry.canRetry === true"
+              :disabled="!canRetryJob(entry)"
+              title="Повторить постановку в очередь"
+              aria-label="Повторить постановку в очередь"
               @click="retryJob(entry)"
             >
               <RotateCcw data-v-ui-c4cc81726fbf :size="14" />
             </button>
-            <span data-v-ui-c4cc81726fbf v-else></span>
+            <span class="crm-responsive-action" data-v-ui-c4cc81726fbf v-else></span>
           </div>
           <p data-v-ui-c4cc81726fbf v-if="!logs.jobs.length" class="empty">
             Фоновых операций пока не запускалось

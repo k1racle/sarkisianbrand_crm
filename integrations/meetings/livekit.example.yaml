@@ -1,0 +1,25 @@
+# Copy to a private server-only file. Empty keys intentionally prevent useful startup.
+# API and signalling are loopback-only; browsers MUST traverse the auth gateway.
+port: 7880
+bind_addresses: [127.0.0.1]
+keys: {}
+# Supply a unique key/secret pair matching backend CRM_MEDIA_API_KEY/API_SECRET.
+# Never commit the populated file. Do not enable dev mode or public RoomService.
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: true
+room:
+  auto_create: false
+  max_participants: 10
+  empty_timeout: 300
+  departure_timeout: 60
+  enable_remote_unmute: false
+logging:
+  level: warn
+  pion_level: error
+# TURN is intentionally NOT pretended ready. Decide TLS/443 routing or a separate IP,
+# provision its domain/certificate and test restrictive/mobile networks before launch.
+turn:
+  enabled: false

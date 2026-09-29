@@ -90,10 +90,13 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
   if(!options.fixtures?.has?.('/auth/access')){
     const access=responses.get('/auth/access');responses.set('/auth/access',{...access,permissions:[...access.permissions,'customers.read','customers.write']});
   }
-  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, b2b, allowFixtureForms }) => {
+  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, preserveGuestSession, b2b, allowFixtureForms }) => {
     // Retain only this non-sensitive layout choice for the explicit reload test.
     const savedLayout = preserveLayoutPreference ? localStorage.getItem('sarkisian-workspace-rail-collapsed') : null;
+    const savedGuest = preserveGuestSession ? sessionStorage.getItem('sarkisian-meeting-guest') : null;
     localStorage.clear(); sessionStorage.clear();
+    // Only this isolated browser's synthetic guest capability; never a CRM session.
+    if (savedGuest) sessionStorage.setItem('sarkisian-meeting-guest', savedGuest);
     if (savedLayout === 'true' || savedLayout === 'false') localStorage.setItem('sarkisian-workspace-rail-collapsed', savedLayout);
     if (!anonymous) {
       localStorage.setItem('sarkisian-workspace-token', token);
@@ -116,7 +119,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
     HTMLFormElement.prototype.submit = function () { window.__adminMockSubmitAttempts++; };
     HTMLFormElement.prototype.requestSubmit = function () { window.__adminMockSubmitAttempts++; };
     navigator.sendBeacon = () => false;
-  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, b2b: options.b2b === true, allowFixtureForms: options.allowFixtureForms === true });
+  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, preserveGuestSession: options.preserveGuestSession === true, b2b: options.b2b === true, allowFixtureForms: options.allowFixtureForms === true });
   await context.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -160,7 +163,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
     // Only the actual local page document and compiled static resources pass through.
     const localAsset = url.pathname.startsWith('/_nuxt/') || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/storefront/')
       || url.pathname.startsWith('/crm/brands/') || url.pathname.startsWith('/crm/pwa/') || url.pathname.startsWith('/crm/pdf/') || ['/crm/manifest.webmanifest', '/sarkisian-logo.png', '/favicon.ico'].includes(url.pathname);
-    const allowedDocument = request.resourceType() === 'document' && (['/', '/catalog', '/products/gift-card', '/b2b', '/workspace-login', '/b2b-login', '/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/leadership', '/helpdesk', '/system-settings', '/crm-marketplaces'].includes(url.pathname) || /^\/(crm|admin-workspace|crm-marketplaces|helpdesk|leadership|system-settings)\//.test(url.pathname));
+    const allowedDocument = request.resourceType() === 'document' && (['/', '/meeting-guest', '/catalog', '/products/gift-card', '/b2b', '/workspace-login', '/b2b-login', '/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/leadership', '/helpdesk', '/system-settings', '/crm-marketplaces'].includes(url.pathname) || /^\/(crm|admin-workspace|crm-marketplaces|helpdesk|leadership|system-settings)\//.test(url.pathname));
     if (url.origin === origin && (localAsset || allowedDocument) && !request.headers().authorization) return route.continue();
     traffic.externalRequests.push({ path: url.pathname, type: request.resourceType() });
     return route.abort('blockedbyclient');

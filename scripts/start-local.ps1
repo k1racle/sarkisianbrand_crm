@@ -52,6 +52,7 @@ $localProcessEnvironment = @{
     CORS_ORIGIN = 'http://localhost:3001,http://127.0.0.1:3001';
     ECOSYSTEM_AUTOMATION_ENABLED = 'false'; STOREFRONT_EXTERNAL_CALLS_ENABLED = 'false';
     MAIL_DELIVERY_ENABLED = 'false'; LOYALTY_MAINTENANCE_ENABLED = 'false';
+    CRM_MEDIA_ENABLED = 'false'; CRM_MEDIA_GATEWAY_ENFORCED = 'false';
     REDIS_URL = 'redis://127.0.0.1:6379';
     NUXT_PUBLIC_API_BASE = 'http://localhost:3000/api/v1'; NUXT_SEO_API_BASE = 'http://localhost:3000/api/v1';
     NUXT_PUBLIC_SITE_URL = 'http://localhost:3001'; NUXT_PUBLIC_SEO_INDEXING_ENABLED = 'false';

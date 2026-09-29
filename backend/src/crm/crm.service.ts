@@ -1,11 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { LeadStatus, Prisma, TaskStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { recordCrmChange, taskHistoryFields, leadHistoryFields } from './history';
+import { taskStatusWhere } from './task-deadline';
 import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineStageDto, CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, CreateTaskTemplateDto, ReorderPipelineStagesDto, UpdateLeadDto, UpdatePipelineDto, UpdatePipelineStageDto, UpdateTaskDto, UpdateTaskTemplateDto } from './dto/crm.dto';
 
 const crmRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER_B2B, UserRole.MANAGER_SALES, UserRole.SUPERVISOR];
-const activeTaskStatuses: TaskStatus[] = [TaskStatus.BACKLOG, TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW, TaskStatus.OVERDUE];
 const stages = [
   { name: 'Новые', code: 'NEW', color: '#8b8f98', sortOrder: 10, probability: 10 },
   { name: 'Первичный контакт', code: 'CONTACTED', color: '#4f7dcf', sortOrder: 20, probability: 25 },
@@ -19,54 +19,14 @@ const stages = [
 export class CrmService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async dashboard() {
-    const pipeline = await this.ensurePipeline();
-    await this.refreshOverdueTasks();
-    const now = new Date();
-    const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const [customers, openLeads, activeTasks, overdueTasks, dueToday, wonMonth, forecast, recentInteractions] = await this.prisma.$transaction([
-      this.prisma.customer.count(),
-      this.prisma.lead.count({ where: { status: { notIn: [LeadStatus.WON, LeadStatus.LOST] } } }),
-      this.prisma.task.count({ where: { status: { in: activeTaskStatuses } } }),
-      this.prisma.task.count({ where: { status: TaskStatus.OVERDUE } }),
-      this.prisma.task.count({ where: { status: { in: activeTaskStatuses }, dueDate: { gte: now, lte: todayEnd } } }),
-      this.prisma.lead.aggregate({ where: { status: LeadStatus.WON, closedAt: { gte: monthStart } }, _count: { _all: true }, _sum: { amount: true } }),
-      this.prisma.lead.findMany({ where: { status: { notIn: [LeadStatus.WON, LeadStatus.LOST] } }, select: { amount: true, probability: true } }),
-      this.prisma.interaction.findMany({ include: { user: { select: { firstName: true, lastName: true, email: true } }, lead: { select: { id: true, title: true, contactName: true } } }, orderBy: { createdAt: 'desc' }, take: 8 }),
-    ]);
-    const stageRows = await this.prisma.lead.groupBy({ by: ['stageId'], _count: { _all: true }, _sum: { amount: true } });
-    const stageMap = new Map(stageRows.map(row => [row.stageId, row]));
-    return {
-      customers, openLeads, activeTasks, overdueTasks, dueToday,
-      wonMonth: { count: wonMonth._count._all, amount: Number(wonMonth._sum.amount || 0) },
-      forecast: forecast.reduce((sum, item) => sum + Number(item.amount) * item.probability / 100, 0),
-      funnel: pipeline.stages.map(stage => ({ id: stage.id, name: stage.name, color: stage.color, count: stageMap.get(stage.id)?._count._all || 0, amount: Number(stageMap.get(stage.id)?._sum.amount || 0) })),
-      recentInteractions,
-    };
-  }
-
-  team() {
-    return this.prisma.user.findMany({ where: { role: { in: crmRoles }, isActive: true }, select: { id: true, firstName: true, lastName: true, email: true, role: true }, orderBy: [{ firstName: 'asc' }, { email: 'asc' }] });
-  }
-
-  async customers() {
-    const customers = await this.prisma.customer.findMany({ include: { user: { select: { role: true } }, organizationMemberships: { where: { isActive: true }, include: { organization: true } }, _count: { select: { orders: true, interactions: true, tasks: true } } }, orderBy: { createdAt: 'desc' } });
-    return customers.map(({ user, organizationMemberships, ...customer }) => ({ ...customer, role: user?.role || 'CUSTOMER_B2C', b2bProfile: organizationMemberships[0]?.organization || null }));
-  }
-
-  async pipeline(pipelineId?: string) {
+  // Mutation response helpers only. HTTP reads live in CrmReadService and always require an actor.
+  private async pipeline(pipelineId?: string) {
     const pipeline = pipelineId
       ? await this.prisma.crmPipeline.findFirst({ where: { id: pipelineId, isActive: true }, include: { stages: { orderBy: { sortOrder: 'asc' } } } })
       : await this.ensurePipeline();
     if (!pipeline) throw new NotFoundException('Воронка не найдена');
     const leads = await this.leads();
     return { ...pipeline, stages: pipeline.stages.map(stage => ({ ...stage, leads: leads.filter(lead => lead.stageId === stage.id) })) };
-  }
-
-  async pipelines() {
-    await this.ensurePipeline();
-    return this.prisma.crmPipeline.findMany({ where: { isActive: true }, include: { stages: { orderBy: { sortOrder: 'asc' } }, _count: { select: { stages: true } } }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] });
   }
 
   async createPipeline(dto: CreatePipelineDto) {
@@ -125,74 +85,84 @@ export class CrmService {
     return this.pipeline(pipelineId);
   }
 
-  async leads() {
-    await this.ensurePipeline();
+  private async leads() {
     return this.prisma.lead.findMany({ include: this.leadInclude(), orderBy: [{ expectedCloseAt: 'asc' }, { updatedAt: 'desc' }] });
   }
 
-  async lead(id: string) {
+  private async lead(id: string) {
     const lead = await this.prisma.lead.findUnique({ where: { id }, include: this.leadInclude(true) });
     if (!lead) throw new NotFoundException('Сделка не найдена');
     return lead;
   }
 
-  async createLead(dto: CreateLeadDto, actorId: string) {
-    const pipeline = await this.ensurePipeline();
-    let stage = pipeline.stages.find(item => item.code === (dto.status || LeadStatus.NEW)) || pipeline.stages[0];
-    let requiredFields = pipeline.requiredFields;
+  // Customer matching/creation belongs to the authorized facade, never to this low-level method.
+  async createLead(dto: CreateLeadDto, actorId: string, options: { customerId: string | null; compact?: boolean; initializePipeline?: boolean } = { customerId: null }) {
+    let stage: Prisma.CrmPipelineStageGetPayload<{}> | undefined;
+    let requiredFields: string[];
+    let lostReasons: string[];
     if (dto.stageId) {
       const selectedStage = await this.prisma.crmPipelineStage.findUnique({ where: { id: dto.stageId }, include: { pipeline: true } });
       if (!selectedStage?.pipeline.isActive) throw new BadRequestException('Этап воронки не найден');
       stage = selectedStage;
       requiredFields = selectedStage.pipeline.requiredFields;
+      lostReasons = selectedStage.pipeline.lostReasons;
+    } else {
+      const pipeline = await this.ensurePipeline(options.initializePipeline ?? false);
+      stage = pipeline.stages.find(item => dto.status === LeadStatus.WON ? item.isWon : dto.status === LeadStatus.LOST ? item.isLost : item.code === (dto.status || LeadStatus.NEW) && !item.isWon && !item.isLost);
+      if (!stage && !dto.status) stage = pipeline.stages[0];
+      requiredFields = pipeline.requiredFields;
+      lostReasons = pipeline.lostReasons;
     }
     if (!stage) throw new BadRequestException('Этап воронки не найден');
     this.assertRequiredLeadFields(requiredFields, dto);
-    const normalizedEmail = dto.contactEmail?.trim().toLowerCase() || null;
-    const normalizedPhone = dto.contactPhone?.replace(/\D/g, '') || null;
+    if (stage.isLost && lostReasons.length && !dto.lostReason?.trim()) throw new BadRequestException('Укажите причину проигрыша сделки');
+    if (dto.lostReason && lostReasons.length && !lostReasons.includes(dto.lostReason)) throw new BadRequestException('Выберите причину проигрыша из настроек воронки');
     const lead = await this.prisma.$transaction(async tx => {
-      let customer = dto.customerId ? await tx.customer.findUnique({ where: { id: dto.customerId } }) : null;
-      if (!customer && (normalizedEmail || normalizedPhone)) customer = await tx.customer.findFirst({ where: { OR: [normalizedEmail ? { normalizedEmail } : {}, normalizedPhone ? { normalizedPhone } : {}].filter(item => Object.keys(item).length) } });
-      if (!customer) {
-        const names = dto.contactName.trim().split(/\s+/);
-        customer = await tx.customer.create({ data: { firstName: names.shift() || dto.contactName, lastName: names.join(' ') || null, email: dto.contactEmail, phone: dto.contactPhone, normalizedEmail, normalizedPhone, segment: 'Лид', source: dto.source } });
-      }
       const created = await tx.lead.create({ data: {
         source: dto.source, title: dto.title || `Сделка с ${dto.contactName}`, contactName: dto.contactName, contactPhone: dto.contactPhone || '', contactEmail: dto.contactEmail,
         message: dto.message, status: this.statusForStage(stage), stageId: stage.id, managerId: dto.managerId || actorId, createdById: actorId,
-        customerId: customer.id, organizationId: dto.organizationId, amount: dto.amount || 0, probability: dto.probability ?? stage.probability,
+        customerId: options.customerId, organizationId: dto.organizationId, amount: dto.amount || 0, probability: dto.probability ?? stage.probability,
         expectedCloseAt: dto.expectedCloseAt ? new Date(dto.expectedCloseAt) : undefined, nextContactAt: dto.nextContactAt ? new Date(dto.nextContactAt) : undefined, tags: dto.tags || [],
+        lostReason: dto.lostReason, closedAt: stage.isWon || stage.isLost ? new Date() : undefined,
       } });
-      await tx.interaction.create({ data: { leadId: created.id, customerId: customer.id, userId: actorId, type: 'CREATED', content: `Сделка создана на этапе «${stage.name}»` } });
+      await tx.interaction.create({ data: { leadId: created.id, customerId: options.customerId, userId: actorId, type: 'CREATED', content: `Сделка создана на этапе «${stage.name}»` } });
       await recordCrmChange(tx,actorId,'crm.lead',created.id,null,created,leadHistoryFields,'Создана сделка');
       return created;
     });
-    return this.lead(lead.id);
+    return options.compact ? lead : this.lead(lead.id);
   }
 
-  async updateLead(id: string, dto: UpdateLeadDto, actorId: string) {
+  async updateLead(id: string, dto: UpdateLeadDto, actorId: string, compact = false) {
     const current = await this.prisma.lead.findUnique({ where: { id }, include: { stage: true } });
     if (!current) throw new NotFoundException('Сделка не найдена');
-    const stage = dto.stageId ? await this.prisma.crmPipelineStage.findUnique({ where: { id: dto.stageId }, include: { pipeline: true } }) : null;
-    if (dto.stageId && !stage) throw new BadRequestException('Этап воронки не найден');
+    let stage = (dto.stageId || current.stageId) ? await this.prisma.crmPipelineStage.findUnique({ where: { id: dto.stageId || current.stageId! }, include: { pipeline: true } }) : null;
+    if (dto.status && !dto.stageId && dto.status !== current.status) {
+      // A raw status update must pass the same stage rules as drag-and-drop.
+      const pipelineId = stage?.pipelineId || (await this.prisma.crmPipeline.findFirst({ where: { isActive: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }] }))?.id;
+      stage = pipelineId ? await this.prisma.crmPipelineStage.findFirst({ where: { pipelineId, ...(dto.status === LeadStatus.WON ? { isWon: true } : dto.status === LeadStatus.LOST ? { isLost: true } : { code: dto.status, isWon: false, isLost: false }) }, include: { pipeline: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }) : null;
+      if (!stage) throw new BadRequestException('Для этого статуса не найден этап активной воронки');
+    }
+    if ((dto.stageId || current.stageId || dto.status) && !stage?.pipeline.isActive) throw new BadRequestException('Этап активной воронки не найден');
     if (stage) {
       this.assertRequiredLeadFields(stage.pipeline.requiredFields, { ...current, ...dto });
-      if (stage.isLost && stage.pipeline.lostReasons.length && !dto.lostReason && !current.lostReason) throw new BadRequestException('Укажите причину проигрыша сделки');
-      if (dto.lostReason && stage.pipeline.lostReasons.length && !stage.pipeline.lostReasons.includes(dto.lostReason)) throw new BadRequestException('Выберите причину проигрыша из настроек воронки');
+      const lostReason = dto.lostReason === undefined ? current.lostReason : dto.lostReason;
+      if (stage.isLost && stage.pipeline.lostReasons.length && !lostReason?.trim()) throw new BadRequestException('Укажите причину проигрыша сделки');
+      if (lostReason && stage.pipeline.lostReasons.length && !stage.pipeline.lostReasons.includes(lostReason)) throw new BadRequestException('Выберите причину проигрыша из настроек воронки');
     }
-    const nextStatus = stage ? this.statusForStage(stage) : dto.status;
-    await this.prisma.$transaction(async tx => {
+    const nextStatus = (dto.stageId || dto.status) && stage ? this.statusForStage(stage) : dto.status;
+    const result = await this.prisma.$transaction(async tx => {
       const updated = await tx.lead.update({ where: { id }, data: {
         source: dto.source, title: dto.title, contactName: dto.contactName, contactPhone: dto.contactPhone, contactEmail: dto.contactEmail, message: dto.message,
-        status: nextStatus, stageId: dto.stageId, managerId: dto.managerId, customerId: dto.customerId, organizationId: dto.organizationId,
-        amount: dto.amount, probability: dto.probability ?? stage?.probability, expectedCloseAt: dto.expectedCloseAt ? new Date(dto.expectedCloseAt) : undefined,
-        nextContactAt: dto.nextContactAt ? new Date(dto.nextContactAt) : undefined, lostReason: dto.lostReason, tags: dto.tags,
-        closedAt: nextStatus && ([LeadStatus.WON, LeadStatus.LOST] as LeadStatus[]).includes(nextStatus) ? new Date() : nextStatus ? null : undefined,
+        status: nextStatus, stageId: dto.stageId || (dto.status ? stage?.id : undefined), managerId: dto.managerId, customerId: dto.customerId, organizationId: dto.organizationId,
+        amount: dto.amount, probability: dto.probability ?? ((dto.stageId || dto.status) ? stage?.probability : undefined), expectedCloseAt: dto.expectedCloseAt === null ? null : dto.expectedCloseAt ? new Date(dto.expectedCloseAt) : undefined,
+        nextContactAt: dto.nextContactAt === null ? null : dto.nextContactAt ? new Date(dto.nextContactAt) : undefined, lostReason: dto.lostReason, tags: dto.tags,
+        closedAt: nextStatus && nextStatus !== current.status ? ([LeadStatus.WON, LeadStatus.LOST] as LeadStatus[]).includes(nextStatus) ? new Date() : null : undefined,
       } });
-      if (stage && stage.id !== current.stageId) await tx.interaction.create({ data: { leadId: id, customerId: current.customerId, userId: actorId, type: 'STAGE_CHANGED', content: `Этап изменён: «${current.stage?.name || current.status}» → «${stage.name}»` } });
+      if (stage && stage.id !== current.stageId) await tx.interaction.create({ data: { leadId: id, customerId: updated.customerId, userId: actorId, type: 'STAGE_CHANGED', content: `Этап изменён: «${current.stage?.name || current.status}» → «${stage.name}»` } });
       await recordCrmChange(tx,actorId,'crm.lead',id,current,updated,leadHistoryFields);
+      return updated;
     });
-    return this.lead(id);
+    return compact ? result : this.lead(id);
   }
 
   async addInteraction(id: string, dto: CreateInteractionDto, actorId: string) {
@@ -201,12 +171,7 @@ export class CrmService {
     return this.prisma.interaction.create({ data: { leadId: id, customerId: dto.customerId || lead.customerId, userId: actorId, type: dto.type, content: dto.content }, include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } });
   }
 
-  async tasks(status?: TaskStatus, assignedToId?: string) {
-    await this.refreshOverdueTasks();
-    return this.prisma.task.findMany({ where: { ...(status ? { status } : { status: { not: TaskStatus.CANCELLED } }), ...(assignedToId ? { assignedToId } : {}) }, include: this.taskInclude(), orderBy: [{ position: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }], take: 500 });
-  }
-
-  async createTask(dto: CreateTaskDto, actorId: string) {
+  async createTask(dto: CreateTaskDto, actorId: string, compact = false) {
     const assignedToId = dto.assignedToId || actorId;
     await this.assertTeamMember(assignedToId);
     this.assertDates(dto.startDate, dto.dueDate);
@@ -225,10 +190,10 @@ export class CrmService {
       return created;
     });
     await this.syncTaskReminder(task.id, assignedToId, task.dueDate, dto.reminderBeforeMinutes ?? 60);
-    return this.prisma.task.findUniqueOrThrow({ where: { id: task.id }, include: this.taskInclude() });
+    return compact ? task : this.prisma.task.findUniqueOrThrow({ where: { id: task.id }, include: this.taskInclude() });
   }
 
-  async updateTask(id: string, dto: UpdateTaskDto, beforeId?: string | null, actorId?: string) {
+  async updateTask(id: string, dto: UpdateTaskDto, beforeId?: string | null, actorId?: string, orderScope?: Prisma.TaskWhereInput, compact = false) {
     if (dto.title !== undefined && !dto.title.trim()) throw new BadRequestException('Введите название задачи');
     if (dto.assignedToId) await this.assertTeamMember(dto.assignedToId);
     const task = await this.taskTransaction(async db => {
@@ -251,15 +216,16 @@ export class CrmService {
     if (updated.parentId !== current.parentId) await this.syncParentProgress(db, updated.parentId);
     await recordCrmChange(db,actorId,'crm.task',id,current,updated,taskHistoryFields);
     if (beforeId !== undefined) {
-      const cards = await db.task.findMany({ where: { status: updated.status, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'desc' }] });
+      const cards = await db.task.findMany({ where: orderScope ? { AND: [orderScope, taskStatusWhere(updated.status, new Date()), { id: { not: id } }] } : { status: updated.status, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }] });
       const index = beforeId ? cards.findIndex((item: any) => item.id === beforeId) : cards.length;
+      if (orderScope && beforeId && index < 0) throw new BadRequestException('Карточка назначения недоступна или уже перемещена. Обновите доску.');
       cards.splice(index < 0 ? cards.length : index, 0, { id });
       for (let i = 0; i < cards.length; i++) if (cards[i].position !== i) await db.task.update({ where: { id: cards[i].id }, data: { position: i } });
     }
     return updated;
     });
     if (dto.dueDate !== undefined || dto.assignedToId !== undefined || dto.reminderBeforeMinutes !== undefined) await this.syncTaskReminder(task.id, task.assignedToId, task.dueDate, dto.reminderBeforeMinutes ?? 60);
-    return this.prisma.task.findUniqueOrThrow({ where: { id }, include: this.taskInclude() });
+    return compact ? task : this.prisma.task.findUniqueOrThrow({ where: { id }, include: this.taskInclude() });
   }
 
   async archiveTask(id: string, actorId?: string) {
@@ -280,24 +246,9 @@ export class CrmService {
     return this.prisma.crmTaskComment.create({ data: { taskId: id, authorId: actorId, body: dto.body.trim() }, include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
   }
 
-  async taskComments(id: string, before?: string) {
-    if (!await this.prisma.task.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Задача не найдена');
-    if (before && !await this.prisma.crmTaskComment.findFirst({ where: { id: before, taskId: id } })) throw new BadRequestException('Некорректный курсор комментариев');
-    return this.prisma.crmTaskComment.findMany({ where: { taskId: id }, ...(before ? { cursor: { id: before }, skip: 1 } : {}), take: 30, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
-  }
-
   async moveTask(id: string, status: TaskStatus, beforeId?: string, actorId?: string) {
     if (status === TaskStatus.CANCELLED) throw new BadRequestException('Для архива используйте действие «Перенести в архив»');
     return this.updateTask(id, { status }, beforeId || null, actorId);
-  }
-
-  async history(kind:'task'|'lead',id:string,before?:string){
-    const entity=kind==='task'?await this.prisma.task.findUnique({where:{id}}):await this.prisma.lead.findUnique({where:{id}});
-    if(!entity)throw new NotFoundException('Карточка не найдена');
-    const where={resource:`crm.${kind}`,resourceId:id};
-    if(before&&!await this.prisma.auditLog.findFirst({where:{...where,id:before}}))throw new BadRequestException('Некорректный курсор истории');
-    const items=await this.prisma.auditLog.findMany({where,...(before?{cursor:{id:before},skip:1}:{}),take:31,orderBy:[{createdAt:'desc'},{id:'desc'}],select:{id:true,action:true,payload:true,createdAt:true,actor:{select:{id:true,firstName:true,lastName:true,email:true}}}});
-    return {items:items.slice(0,30),more:items.length>30};
   }
 
   private taskTransaction<T>(operation: (db: any) => Promise<T>): Promise<T> {
@@ -353,32 +304,17 @@ export class CrmService {
     return this.createTask({ title: template.title, description: template.description || undefined, assignedToId: dto.assignedToId || template.defaultAssigneeId || actorId, leadId: dto.leadId, customerId: dto.customerId, organizationId: dto.organizationId, orderId: dto.orderId, priority: template.priority, labels: template.labels, estimateMinutes: template.estimateMinutes || undefined, dueDate, templateId: template.id, reminderBeforeMinutes: template.reminderBeforeMin ?? 60 }, actorId);
   }
 
-  async reminders(userId: string) {
-    const now = new Date();
-    const where: Prisma.CrmTaskReminderWhereInput = { recipientId: userId, dismissedAt: null, remindAt: { lte: now }, task: { status: { notIn: [TaskStatus.DONE, TaskStatus.CANCELLED] } } };
-    await this.prisma.crmTaskReminder.updateMany({ where: { ...where, deliveredAt: null }, data: { deliveredAt: now } });
-    return this.prisma.crmTaskReminder.findMany({ where, include: { task: { include: { assignedTo: { select: { id: true, firstName: true, lastName: true, email: true } }, lead: { select: { id: true, title: true, contactName: true } } } } }, orderBy: { remindAt: 'asc' }, take: 50 });
-  }
-
-  async dismissReminder(id: string, userId: string) {
-    const reminder = await this.prisma.crmTaskReminder.findFirst({ where: { id, recipientId: userId } });
-    if (!reminder) throw new NotFoundException('Напоминание не найдено');
-    await this.prisma.crmTaskReminder.update({ where: { id }, data: { dismissedAt: new Date() } });
-    return { success: true };
-  }
-
-  private async ensurePipeline() {
-    const pipelineName = 'Основная воронка продаж';
-    let pipeline = await this.prisma.crmPipeline.findFirst({ where: { isActive: true }, include: { stages: { orderBy: { sortOrder: 'asc' } } }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] });
-    if (!pipeline) {
-      pipeline = await this.prisma.crmPipeline.create({ data: { name: pipelineName, isDefault: true, isActive: true, requiredFields: ['contactName', 'contactPhone'] }, include: { stages: true } });
-      await this.prisma.crmPipelineStage.createMany({ data: stages.map(definition => ({ ...definition, pipelineId: pipeline!.id, isWon: definition.isWon || false, isLost: definition.isLost || false })) });
-    }
-    pipeline = await this.prisma.crmPipeline.findUniqueOrThrow({ where: { id: pipeline.id }, include: { stages: { orderBy: { sortOrder: 'asc' } } } });
-    const stageMap = new Map(pipeline.stages.map(stage => [stage.code, stage.id]));
-    const legacy = await this.prisma.lead.findMany({ where: { stageId: null }, select: { id: true, status: true } });
-    for (const lead of legacy) await this.prisma.lead.update({ where: { id: lead.id }, data: { stageId: stageMap.get(lead.status) || pipeline.stages[0]?.id } });
-    return pipeline;
+  private async ensurePipeline(allowCreate = true) {
+    // Called only by explicit writes. Legacy lead stages are projected on reads, never mass-migrated here.
+    return this.prisma.$transaction(async db => {
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(73422111)`;
+      const include = { stages: { orderBy: { sortOrder: 'asc' as const } } };
+      const current = await db.crmPipeline.findFirst({ where: { isActive: true }, include, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }] });
+      if (current) return current;
+      if (!allowCreate) throw new ForbiddenException('Сначала попросите администратора настроить воронку продаж');
+      return db.crmPipeline.create({ data: { name: 'Основная воронка продаж', isDefault: true, isActive: true, requiredFields: ['contactName', 'contactPhone'],
+        stages: { create: stages.map(stage => ({ ...stage, isWon: stage.isWon || false, isLost: stage.isLost || false })) } }, include });
+    });
   }
 
   private async pipelineRecord(id: string) {
@@ -396,7 +332,7 @@ export class CrmService {
 
   private assertRequiredLeadFields(fields: string[], data: Record<string, any>) {
     const labels: Record<string, string> = { title: 'Название', contactName: 'Контакт', contactPhone: 'Телефон', contactEmail: 'Email', amount: 'Сумма', managerId: 'Ответственный', organizationId: 'Организация', expectedCloseAt: 'Плановая дата закрытия', nextContactAt: 'Следующий контакт' };
-    const missing = fields.filter(field => data[field] === undefined || data[field] === null || data[field] === '');
+    const missing = fields.filter(field => data[field] === undefined || data[field] === null || (typeof data[field] === 'string' && !data[field].trim()));
     if (missing.length) throw new BadRequestException(`Заполните обязательные поля: ${missing.map(field => labels[field] || field).join(', ')}`);
   }
 
@@ -413,10 +349,6 @@ export class CrmService {
 
   private async assertTeamMember(userId: string) {
     if (!await this.prisma.user.findFirst({ where: { id: userId, role: { in: crmRoles }, isActive: true }, select: { id: true } })) throw new NotFoundException('Ответственный сотрудник не найден');
-  }
-
-  private async refreshOverdueTasks() {
-    await this.prisma.task.updateMany({ where: { status: { in: [TaskStatus.BACKLOG, TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW] }, dueDate: { lt: new Date() } }, data: { status: TaskStatus.OVERDUE } });
   }
 
   private assertDates(start?: string, due?: string) {

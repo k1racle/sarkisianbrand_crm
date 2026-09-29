@@ -7,6 +7,7 @@ import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { activeSession, SessionClaims } from '../auth/active-session';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
+import { ChatRecordsService } from './chat-records.service';
 
 type Recipient = {
   data: Record<string, any>;
@@ -23,7 +24,7 @@ export class PlatformChatGateway implements OnGatewayConnection, OnGatewayDiscon
   private sessionPoll?: ReturnType<typeof setInterval>;
   private checking = false;
 
-  constructor(private readonly jwt: JwtService, private readonly prisma: PrismaService, private readonly config: ConfigService) {}
+  constructor(private readonly jwt: JwtService, private readonly prisma: PrismaService, private readonly config: ConfigService, private readonly records: ChatRecordsService) {}
 
   afterInit(server: Server) {
     this.server = server;
@@ -109,23 +110,36 @@ export class PlatformChatGateway implements OnGatewayConnection, OnGatewayDiscon
   }
 
   async publishMessage(message: any) {
+    if (typeof message?.id !== 'string' || !message.id || typeof message.channelId !== 'string' || !message.channelId) return;
     await this.deliver(`channel:${message.channelId}`, async (client, userId) => {
       if (!await this.channelAccess(message.channelId, userId)) { await client.leave(`channel:${message.channelId}`); return; }
-      client.emit('platform-chat:message', message);
+      const visible = await this.records.message(message.id, message.channelId, userId);
+      // Never reuse the sender's view. Loading may yield during revocation.
+      if (!visible || !await this.authorize(client)) return;
+      if (!await this.channelAccess(message.channelId, userId)) { await client.leave(`channel:${message.channelId}`); return; }
+      client.emit('platform-chat:message', visible);
     });
   }
 
   async publishChannel(channel: any) {
+    if (typeof channel?.id !== 'string' || !channel.id) return;
     await this.deliver('staff', async (client, userId) => {
       if (!await this.channelAccess(channel.id, userId)) { await client.leave(`channel:${channel.id}`); return; }
+      const visible = (await this.records.channels(userId, channel.id))[0];
+      if (!visible || !await this.authorize(client)) return;
+      if (!await this.channelAccess(channel.id, userId)) { await client.leave(`channel:${channel.id}`); return; }
       await client.join(`channel:${channel.id}`);
-      client.emit('platform-chat:channel', channel);
+      client.emit('platform-chat:channel', visible);
     });
   }
 
-  async publishReminder(recipientId: string, reminder: any) {
+  async publishReminder(recipientId: string, loadAuthorized: () => Promise<{ id: string; task: { id: string; title: string } } | null>) {
     await this.deliver(`user:${recipientId}`, async (client, userId) => {
-      if (userId === recipientId) client.emit('crm:reminder', reminder);
+      if (userId !== recipientId) return;
+      const reminder = await loadAuthorized();
+      // Loading can yield while the session is revoked. Check it once more;
+      // authorization failures never broadcast a cached task payload.
+      if (reminder && await this.authorize(client)) client.emit('crm:reminder', reminder);
     });
   }
 }

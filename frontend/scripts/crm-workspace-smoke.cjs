@@ -30,15 +30,17 @@ async function assertTypography(page) {
     if(el.closest('svg') || !el.getBoundingClientRect().width || !el.getBoundingClientRect().height) return [];
     if(!el.matches('input,select,textarea') && ![...el.childNodes].some(node=>node.nodeType===3&&node.textContent.trim())) return [];
     const style=getComputedStyle(el), input=el.matches('input,select,textarea');
-    return [12,14,20,...(input&&innerWidth<1024?[16]:[])].includes(parseFloat(style.fontSize)) && ['400','600'].includes(style.fontWeight) ? [] : [{tag:el.tagName,cls:el.className,text:el.textContent.trim().slice(0,40),size:style.fontSize,weight:style.fontWeight}];
+    const heading=!!el.closest('h1,h2,h3,h4,h5,h6')&&!el.closest('button,input,select,textarea');
+    const family=style.fontFamily.replace(/["\s]/g,'');
+    return [12,14,20,...(input&&innerWidth<1024?[16]:[])].includes(parseFloat(style.fontSize)) && (heading?['900']:['400','600']).includes(style.fontWeight) && family===(heading?'Mont,Montserrat,Arial,sans-serif':'Montserrat,Arial,sans-serif') ? [] : [{tag:el.tagName,cls:el.className,text:el.textContent.trim().slice(0,40),size:style.fontSize,weight:style.fontWeight,family}];
   }));
   assert.deepEqual(findings,[], 'CRM uses only approved text sizes and weights');
 }
 async function assertMenuSurface(page) {
   assert.equal(await page.locator('.crm-app-sidebar').evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)', 'Legacy CRM CSS must not paint the new sidebar dark');
-  for (const box of await page.locator('.crm-navigation a').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().height))) assert.ok(box>=44, 'CRM navigation touch targets');
-  const icons=await page.locator('.crm-navigation a svg').evaluateAll(nodes=>nodes.map(el=>({name:el.dataset.icon,shape:el.innerHTML,size:el.getAttribute('width')})));
-  assert.ok(icons.every(icon=>icon.name && icon.name!=='LayoutDashboard' && icon.size==='20'),'Real, consistently sized icons, no fallback');
+  for (const box of await page.locator('.crm-navigation a').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).map(el=>el.getBoundingClientRect().height))) assert.ok(box>=44, 'CRM navigation touch targets');
+  const icons=await page.locator('.crm-navigation a svg').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).map(el=>({name:el.dataset.icon,shape:el.innerHTML,size:el.getAttribute('width'),nested:!!el.closest('.crm-nav-children')})));
+  assert.ok(icons.every(icon=>icon.name && icon.name!=='LayoutDashboard' && icon.size===(icon.nested?'18':'20')),'Real icons, consistent root/child sizes, no fallback');
   assert.equal(new Set(icons.map(icon=>icon.shape)).size, icons.length,'Distinct rendered menu symbols');
   for(const size of await page.locator('.crm-navigation a > span').evaluateAll(nodes=>nodes.map(el=>getComputedStyle(el).fontSize))) assert.equal(size,'14px');
   await assertTypography(page);

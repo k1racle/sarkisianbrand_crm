@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { applyStorefrontTransition, releaseStorefrontGiftReservation } from './storefront-order-transition';
 import { AdminService } from '../admin/admin.service';
+import { operationAccess } from './operational-access.fixture';
 import { OmsService } from '../oms/oms.service';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
 
@@ -14,6 +15,7 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
     const state = { stock: 10, reserved: 4, balance: 950, entries: [] as any[], mails: [] as any[], promo: 'RESERVED', giftBalanceMinor: 100000, giftReservedMinor: 25000, giftRedemptions: [] as any[] };
     const notifications: any = { prepare: jest.fn((data: any) => ({ ...data, encryptedPayload: 'mock-only' })) };
     const tx: any = {
+      $executeRaw: jest.fn(), dataTrashEntry: { findMany: jest.fn().mockResolvedValue([]) }, customer: { findMany: jest.fn().mockResolvedValue([]) }, organization: { findMany: jest.fn().mockResolvedValue([]) },
       $queryRaw: jest.fn().mockResolvedValue([]),
       user: { findUnique: jest.fn().mockResolvedValue({ notificationPreferences: { email: true } }) },
       productVariant: { updateMany: jest.fn(async ({ where, data }: any) => {
@@ -43,6 +45,7 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
       }) },
       mailOutbox: { create: jest.fn(async ({ data }: any) => { state.mails.push(data); return data; }) },
       order: {
+        findMany: jest.fn(async () => [{ id: order.id }]),
         findUnique: jest.fn(async () => ({ ...order })), findFirst: jest.fn(async () => ({ ...order })),
         update: jest.fn(async ({ data }: any) => { Object.assign(order, data); return { ...order }; }),
       },
@@ -169,7 +172,7 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
   it.each(['admin', 'oms', 'oneC'])('%s locks and rereads before transitioning unpaid cancellation', async (caller) => {
     const ctx = fixture();
     if (caller === 'admin') await new AdminService(ctx.prisma, ctx.oneC, {} as any, ctx.notifications).updateOrderStatus('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff');
-    if (caller === 'oms') await new OmsService(ctx.prisma, ctx.oneC, ctx.notifications).update('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff');
+    if (caller === 'oms') await new OmsService(ctx.prisma, ctx.oneC, ctx.notifications, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff');
     if (caller === 'oneC') await new OneCSyncService(ctx.prisma, {} as any, {} as any, ctx.notifications).importOrderStatuses({ statuses: [{ platformOrderId: 'mock-order', status: 'CANCELLED' }] });
     const read = caller === 'admin' ? ctx.tx.order.findUnique : ctx.tx.order.findFirst;
     expect(ctx.tx.$queryRaw.mock.calls[0][0].join('?')).toContain('FOR UPDATE');
@@ -182,7 +185,7 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
   it.each(['admin', 'oms', 'oneC'])('%s prohibits unpaid fulfillment through the shared helper', async (caller) => {
     const ctx = fixture(); ctx.order.status = OrderStatus.CONFIRMED;
     const call = caller === 'admin' ? new AdminService(ctx.prisma, ctx.oneC, {} as any).updateOrderStatus('MOCK-ORDER', { status: OrderStatus.ASSEMBLING }, 'mock-staff') :
-      caller === 'oms' ? new OmsService(ctx.prisma, ctx.oneC).update('MOCK-ORDER', { status: OrderStatus.ASSEMBLING }, 'mock-staff') :
+      caller === 'oms' ? new OmsService(ctx.prisma, ctx.oneC, undefined, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.ASSEMBLING }, 'mock-staff') :
       new OneCSyncService(ctx.prisma, {} as any, {} as any).importOrderStatuses({ statuses: [{ platformOrderId: 'mock-order', status: 'PICKING' }] });
     await expect(call).rejects.toBeInstanceOf(BadRequestException); expect(ctx.tx.order.update).not.toHaveBeenCalled();
   });

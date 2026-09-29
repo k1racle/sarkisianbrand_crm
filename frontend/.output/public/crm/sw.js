@@ -1,8 +1,8 @@
 /* Only public installation/offline resources are cached. CRM documents and API
  * responses (including authenticated GETs) are always network-only. */
-const CACHE = 'sarkisian-crm-public-v3';
+const CACHE = 'sarkisian-crm-public-v4-brand2';
 const OFFLINE = '/crm/pwa/offline.html';
-const PUBLIC_RESOURCES = [OFFLINE, '/crm/pwa/offline.css', '/crm/pwa/offline.js', '/crm/pwa/icon-192.png', '/crm/pwa/icon-512.png', '/crm/pwa/icon-180.png'];
+const PUBLIC_RESOURCES = [OFFLINE, '/crm/pwa/offline.css', '/crm/pwa/offline.js', '/crm/pwa/icon.svg', '/crm/pwa/icon-192.png', '/crm/pwa/icon-512.png', '/crm/pwa/icon-180.png', '/crm/pwa/icon-maskable-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(PUBLIC_RESOURCES)));
   // A new worker waits for the previous windows to close; no forced draft reload.

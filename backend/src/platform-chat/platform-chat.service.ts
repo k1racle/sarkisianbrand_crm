@@ -1,12 +1,12 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CrmChatType, PlatformChatAttachmentKind, TaskStatus, UserRole } from '@prisma/client';
+import { CrmChatType, PlatformChatAttachmentKind, UserRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlatformChannelDto, CreatePlatformMessageDto, PlatformEntityAttachmentDto } from './dto/platform-chat.dto';
 import { PlatformChatGateway } from './platform-chat.gateway';
-import { AuthService } from '../auth/auth.service';
+import { ChatRecordsService } from './chat-records.service';
 
 const internalRoles: UserRole[] = [
   UserRole.ADMIN, UserRole.CONTENT_MANAGER, UserRole.MANAGER_B2B, UserRole.MANAGER_SALES,
@@ -23,7 +23,7 @@ const defaults = [
 @Injectable()
 export class PlatformChatService {
   private readonly uploadDirectory = join(process.cwd(), 'uploads', 'platform-chat');
-  constructor(private readonly prisma: PrismaService, private readonly realtime: PlatformChatGateway, private readonly auth: AuthService) {}
+  constructor(private readonly prisma: PrismaService, private readonly realtime: PlatformChatGateway, private readonly records: ChatRecordsService) {}
 
   team() {
     return this.prisma.user.findMany({
@@ -34,17 +34,9 @@ export class PlatformChatService {
   }
 
   async channels(userId: string) {
+    await this.records.assertStaff(userId);
     await this.ensureDefaultChannels(userId);
-    const channels = await this.prisma.crmChatChannel.findMany({
-      where: { isArchived: false, OR: [{ type: CrmChatType.TEAM }, { createdById: userId }, { members: { some: { userId } } }] },
-      include: {
-        members: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
-        messages: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 1, include: { attachments: true } },
-        _count: { select: { messages: true } },
-      },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
-    });
-    return Promise.all(channels.map(async channel => ({ ...channel, unread: await this.unreadForChannel(channel.id, userId, channel.members.find(item => item.userId === userId)?.lastReadAt) })));
+    return this.records.channels(userId);
   }
 
   async unread(userId: string) {
@@ -53,6 +45,7 @@ export class PlatformChatService {
   }
 
   async createChannel(dto: CreatePlatformChannelDto, actorId: string) {
+    await this.records.assertStaff(actorId);
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Введите название канала');
     if (await this.prisma.crmChatChannel.findUnique({ where: { name } })) throw new ConflictException('Канал с таким названием уже существует');
@@ -66,23 +59,13 @@ export class PlatformChatService {
       include: { members: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } } },
     });
     await this.realtime.publishChannel(channel);
-    return channel;
+    return (await this.records.channels(actorId, channel.id))[0];
   }
 
   async messages(channelId: string, userId: string) {
-    await this.assertChannelAccess(channelId, userId);
-    const rows = await this.prisma.crmChatMessage.findMany({
-      where: { channelId, deletedAt: null },
-      include: {
-        attachments: true,
-        author: { select: { id: true, firstName: true, lastName: true, email: true } },
-        replyTo: { include: { author: { select: { firstName: true, lastName: true, email: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    const rows = await this.records.messages(channelId, userId);
     await this.markRead(channelId, userId);
-    return rows.reverse();
+    return rows;
   }
 
   async postMessage(channelId: string, dto: CreatePlatformMessageDto, userId: string) {
@@ -96,7 +79,7 @@ export class PlatformChatService {
       include: { attachments: true, author: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
     await this.realtime.publishMessage(message);
-    return message;
+    return this.records.message(message.id, channelId, userId);
   }
 
   async postUpload(channelId: string, files: any[], body: string | undefined, entitiesSource: string | undefined, replyToId: string | undefined, userId: string) {
@@ -111,6 +94,7 @@ export class PlatformChatService {
     if ((!files || !files.length) && !body?.trim() && !entityAttachments.length) throw new BadRequestException('Сообщение не может быть пустым');
     await mkdir(this.uploadDirectory, { recursive: true });
     const stored: { key: string; path: string; attachment: any }[] = [];
+    let message: any;
     try {
       for (const file of files || []) {
         if (!file?.buffer?.length) throw new BadRequestException('Файл пуст');
@@ -122,21 +106,22 @@ export class PlatformChatService {
         const kind = file.mimetype?.startsWith('image/') ? PlatformChatAttachmentKind.IMAGE : file.mimetype?.startsWith('audio/') ? PlatformChatAttachmentKind.AUDIO : PlatformChatAttachmentKind.FILE;
         stored.push({ key, path: target, attachment: { kind, name: file.originalname || 'Файл', mimeType: file.mimetype || 'application/octet-stream', size: file.size, storageKey: key } });
       }
-      const message = await this.prisma.crmChatMessage.create({
+      message = await this.prisma.crmChatMessage.create({
         data: { channelId, authorId: userId, body: body?.trim() || '', replyToId, attachments: { create: [...stored.map(item => item.attachment), ...entityAttachments] } },
         include: { attachments: true, author: { select: { id: true, firstName: true, lastName: true, email: true } } },
       });
-      await this.realtime.publishMessage(message);
-      return message;
     } catch (error) {
       await Promise.all(stored.map(item => unlink(item.path).catch(() => undefined)));
       throw error;
     }
+    // Delivery/read failures must not delete files of an already persisted message.
+    await this.realtime.publishMessage(message);
+    return this.records.message(message.id, channelId, userId);
   }
 
   async attachment(id: string, userId: string) {
-    const attachment = await this.prisma.platformChatAttachment.findUnique({ where: { id }, include: { message: { select: { channelId: true } } } });
-    if (!attachment?.storageKey) throw new NotFoundException('Вложение не найдено');
+    const attachment = await this.prisma.platformChatAttachment.findUnique({ where: { id }, include: { message: { select: { channelId: true, deletedAt: true } } } });
+    if (!attachment?.storageKey || attachment.kind === 'ENTITY' || attachment.message.deletedAt) throw new NotFoundException('Вложение не найдено');
     await this.assertChannelAccess(attachment.message.channelId, userId);
     try {
       return { ...attachment, buffer: await readFile(join(this.uploadDirectory, attachment.storageKey)) };
@@ -155,41 +140,12 @@ export class PlatformChatService {
     return { success: true };
   }
 
-  async searchEntities(type: string, search = '', userId: string, entityId?: string) {
-    const permissions:Record<string,string>={TASK:'crm.read',STAGE:'crm.read',CUSTOMER:'customers.read',PRODUCT:'catalog.read'};
-    if(!permissions[type])throw new BadRequestException('Неизвестный тип карточки');
-    const access=await this.auth.access(userId);
-    if(!access.permissions.includes(permissions[type]))throw new ForbiddenException('Нет доступа к этому типу карточек');
-    const query = search.trim();
-    if (type === 'TASK') {
-      const rows = await this.prisma.task.findMany({ where: { ...(entityId?{id:entityId}:{}), status: { not: TaskStatus.CANCELLED }, ...(query ? { OR: [{ title: { contains: query, mode: 'insensitive' } }, { description: { contains: query, mode: 'insensitive' } }] } : {}) }, include: { assignedTo: { select: { firstName: true, lastName: true, email: true } } }, orderBy: { updatedAt: 'desc' }, take: 20 });
-      return rows.map(item => ({ id: item.id, type, title: item.title, subtitle: `${this.taskStatus(item.status)} · ${[item.assignedTo?.firstName, item.assignedTo?.lastName].filter(Boolean).join(' ') || item.assignedTo?.email}`, url: '/crm-tasks' }));
-    }
-    if (type === 'CUSTOMER') {
-      const rows = await this.prisma.customer.findMany({ where: entityId ? {id:entityId} : query ? { OR: [{ firstName: { contains: query, mode: 'insensitive' } }, { lastName: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }, { phone: { contains: query } }] } : {}, orderBy: { updatedAt: 'desc' }, take: 20 });
-      return rows.map(item => ({ id: item.id, type, title: [item.firstName, item.lastName].filter(Boolean).join(' ') || item.email || item.phone || 'Клиент', subtitle: item.email || item.phone || 'Карточка Customer 360°', url: '/crm-customers' }));
-    }
-    if (type === 'STAGE') {
-      const rows = await this.prisma.crmPipelineStage.findMany({ where: entityId ? {id:entityId} : query ? { name: { contains: query, mode: 'insensitive' } } : {}, include: { pipeline: true, _count: { select: { leads: true } } }, orderBy: { sortOrder: 'asc' }, take: 20 });
-      return rows.map(item => ({ id: item.id, type, title: item.name, subtitle: `${item.pipeline.name} · ${item._count.leads} сделок`, url: '/crm-pipeline', color: item.color }));
-    }
-    if (type === 'PRODUCT') {
-      const rows = await this.prisma.product.findMany({ where: { ...(entityId?{id:entityId}:{}), isActive: true, ...(query ? { OR: [{ nameRu: { contains: query, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }] } : {}) }, include: { images: { take: 1 } }, orderBy: { updatedAt: 'desc' }, take: 20 });
-      return rows.map(item => ({ id: item.id, type, title: item.nameRu, subtitle: `${item.sku} · ${Number(item.basePrice).toLocaleString('ru-RU')} ₽`, url: '/admin-workspace?section=products', image: item.images[0]?.url }));
-    }
-    throw new BadRequestException('Неизвестный тип карточки');
+  searchEntities(type: string, search = '', userId: string, entityId?: string) {
+    return this.records.search(type, search, userId, entityId);
   }
 
-  private async resolveEntities(entities: PlatformEntityAttachmentDto[],userId:string) {
-    const result: any[] = [];
-    for (const entity of entities.slice(0, 8)) {
-      if (!entity?.id || !entity?.type) throw new BadRequestException('Некорректная прикреплённая карточка');
-      const matches = await this.searchEntities(entity.type,'',userId,entity.id);
-      const item: any = matches.find(candidate => candidate.id === entity.id);
-      if (!item) throw new NotFoundException('Прикреплённая карточка не найдена');
-      result.push({ kind: PlatformChatAttachmentKind.ENTITY, name: item.title, entityType: entity.type, entityId: entity.id, metadata: { subtitle: item.subtitle, url: item.url, color: item.color, image: item.image } });
-    }
-    return result;
+  private resolveEntities(entities: PlatformEntityAttachmentDto[], userId: string) {
+    return this.records.resolve(entities, userId);
   }
 
   private async ensureDefaultChannels(userId: string) {
@@ -215,11 +171,4 @@ export class PlatformChatService {
     if (count !== ids.length) throw new BadRequestException('Один из участников недоступен для внутреннего чата');
   }
 
-  private unreadForChannel(channelId: string, userId: string, lastReadAt?: Date | null) {
-    return this.prisma.crmChatMessage.count({ where: { channelId, deletedAt: null, authorId: { not: userId }, ...(lastReadAt ? { createdAt: { gt: lastReadAt } } : {}) } });
-  }
-
-  private taskStatus(status: TaskStatus) {
-    return ({ BACKLOG: 'В очереди', TODO: 'Запланирована', IN_PROGRESS: 'В работе', REVIEW: 'На проверке', DONE: 'Выполнена', OVERDUE: 'Просрочена', CANCELLED: 'В архиве' } as Record<TaskStatus, string>)[status];
-  }
 }

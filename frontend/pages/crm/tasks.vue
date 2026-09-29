@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { crmTaskDraft } from '~/shared/crm-task-draft';
 useHead({ title: 'Задачи — SARKISIAN CRM' });
 import {
   CalendarDays,
@@ -49,11 +50,7 @@ const cardDrag = useCrmCardDrag((id, status, beforeId) => reorderTask(id, status
 const taskChildren = computed(() => selected.value?.children || []);
 const dirty = computed(() => !!selected.value && JSON.stringify(selected.value) !== selectedBaseline.value);
 const createDirty = computed(() => dialog.value && JSON.stringify(draft) !== createBaseline.value);
-const cloneTask = (task: any) => {
-  const copy = JSON.parse(JSON.stringify(task));
-  for (const field of ["startDate", "dueDate"]) copy[field] = copy[field] ? String(copy[field]).slice(0, 10) : "";
-  return copy;
-};
+const cloneTask = crmTaskDraft;
 function openTask(task: any) {
   if (!task) return;
   if (!task || saving.value || !closeTask()) return;
@@ -203,7 +200,7 @@ function person(u: any) {
   );
 }
 function openCreate(seed: any = {}) {
-  if (saving.value || !closeTask()) return;
+  if (!writable.value || saving.value || !closeTask()) return;
   Object.assign(draft, {
     title: "",
     description: "",
@@ -223,7 +220,7 @@ function openCreate(seed: any = {}) {
   createBaseline.value = JSON.stringify(draft);
 }
 async function createTask() {
-  if (saving.value) return;
+  if (!writable.value || saving.value) return;
   saving.value = true;
   error.value = "";
   try {
@@ -269,7 +266,7 @@ async function patchTask(id: string, body: any) {
   return updated;
 }
 async function moveTask(id: string, status: string) {
-  if (!id || saving.value || tasks.value.find(item => item.id === id)?.status === status) return;
+  if (!writable.value || !id || saving.value || tasks.value.find(item => item.id === id)?.status === status) return;
   if (selected.value?.id === id && !canDiscard()) return;
   saving.value = true; error.value = "";
   try {
@@ -303,7 +300,7 @@ async function reorderTask(id: string, status: string, beforeId?: string) {
   } catch (e) { failure(e); } finally { saving.value = false; cardDrag.finish(); }
 }
 async function addSubtask() {
-  if (!selected.value || saving.value || !subtaskTitle.value.trim()) return;
+  if (!writable.value || !selected.value || saving.value || !subtaskTitle.value.trim()) return;
   saving.value = true; error.value = '';
   try {
     await $fetch('/crm/tasks', { baseURL: config.public.apiBase, headers: headers.value, method: 'POST', body: { title: subtaskTitle.value.trim(), parentId: selected.value.id, assignedToId: subtaskAssignee.value || selected.value.assignedToId, leadId: selected.value.leadId || undefined } });
@@ -311,7 +308,7 @@ async function addSubtask() {
   } catch (e) { failure(e); } finally { saving.value = false; }
 }
 async function toggleSubtask(task: any) {
-  if (saving.value) return; saving.value = true; error.value = '';
+  if (!writable.value || saving.value) return; saving.value = true; error.value = '';
   try { await patchTask(task.id, { status: task.status === 'DONE' ? 'TODO' : 'DONE' }); await refreshRelated(); }
   catch (e) { failure(e); } finally { saving.value = false; }
 }
@@ -327,7 +324,7 @@ async function moreComments() {
   } catch (e) { failure(e); } finally { commentLoading.value = false; }
 }
 async function saveSelected() {
-  if (!selected.value || saving.value) return;
+  if (!writable.value || !selected.value || saving.value) return;
   saving.value = true;
   error.value = "";
   try {
@@ -365,7 +362,7 @@ async function saveSelected() {
   }
 }
 async function archiveTask(item: any) {
-  if (saving.value || (selected.value?.id === item.id && !canDiscard())) return;
+  if (!writable.value || saving.value || (selected.value?.id === item.id && !canDiscard())) return;
   saving.value = true; error.value = "";
   try {
     await $fetch(`/crm/tasks/${item.id}`, {
@@ -381,10 +378,10 @@ async function archiveTask(item: any) {
   finally { saving.value = false; }
 }
 function requestArchiveTask(item: any) {
-  if (!saving.value && window.confirm("Перенести задачу в архив?")) void archiveTask(item);
+  if (writable.value && !saving.value && window.confirm("Перенести задачу в архив?")) void archiveTask(item);
 }
 async function addComment() {
-  if (!selected.value || !comment.value.trim() || saving.value) return;
+  if (!writable.value || !selected.value || !comment.value.trim() || saving.value) return;
   const id = selected.value.id;
   saving.value = true; error.value = "";
   try {
@@ -417,19 +414,19 @@ function menu(e: MouseEvent, t: any) {
         icon: "open",
         action: () => openTask(t),
       },
-      {
+      ...(writable.value ? [{
         label: "Отметить выполненной",
-        icon: "status",
+        icon: "status" as const,
         action: () => moveTask(t.id, "DONE"),
       },
       {
         label: "Перенести в архив",
-        icon: "archive",
+        icon: "archive" as const,
         danger: true,
         separator: true,
         confirm: `Архивировать задачу «${t.title}»?`,
         action: () => archiveTask(t),
-      },
+      }] : []),
     ],
     person(t.assignedTo),
   );
@@ -459,16 +456,16 @@ onMounted(async () => {
       ><header data-v-ui-acc13851dfa0 class="page-head crm-page-header">
         <div data-v-ui-acc13851dfa0>
           <p data-v-ui-acc13851dfa0>CRM / ЗАДАЧИ</p>
-          <h1 data-v-ui-acc13851dfa0>Работа команды</h1>
+          <h1 data-v-ui-acc13851dfa0>Задачи</h1>
           <span data-v-ui-acc13851dfa0>Канбан, сроки, загрузка и контроль выполнения</span>
         </div>
         <div data-v-ui-acc13851dfa0>
-          <button data-v-ui-acc13851dfa0 class="light crm-button" @click="automationOpen = true">
+          <button v-if="writable" data-v-ui-acc13851dfa0 class="light crm-button" @click="automationOpen = true">
             <Sparkles data-v-ui-acc13851dfa0 :size="16" />Автоматизация
           </button>
           <button data-v-ui-acc13851dfa0 class="light crm-button crm-button--refresh" :disabled="saving" @click="load">
             <RefreshCw data-v-ui-acc13851dfa0 :size="16" />Обновить</button
-          ><button class="crm-button crm-button--primary" data-v-ui-acc13851dfa0 @click="openCreate()">
+          ><button v-if="writable" class="crm-button crm-button--primary" data-v-ui-acc13851dfa0 @click="openCreate()">
             <Plus data-v-ui-acc13851dfa0 :size="16" />Новая задача
           </button>
         </div>
@@ -553,7 +550,7 @@ onMounted(async () => {
               </footer>
               <small v-if="t._count?.comments" class="crm-task-summary"><MessageSquare :size="14" />{{ t._count.comments }} комм.</small>
             </div>
-            <button data-v-ui-acc13851dfa0 class="add crm-button" @click="openCreate({ status: col.id })">
+            <button v-if="writable" data-v-ui-acc13851dfa0 class="add crm-button" @click="openCreate({ status: col.id })">
               <Plus data-v-ui-acc13851dfa0 :size="13" />Добавить
             </button>
           </div>
@@ -645,19 +642,19 @@ onMounted(async () => {
           <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
           <p data-v-ui-acc13851dfa0 v-if="dirty" role="status">Есть несохранённые изменения</p>
           <section v-show="cardTab==='general'" id="task-general-panel" role="tabpanel" aria-labelledby="task-general-tab" class="crm-card-general crm-detail-general">
-          <label data-v-ui-acc13851dfa0>Название<input class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.title" /></label
+          <label data-v-ui-acc13851dfa0>Название<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.title" /></label
           ><label data-v-ui-acc13851dfa0
-            >Описание<textarea class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.description" rows="4" />
+            >Описание<textarea :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.description" rows="4" />
           </label>
           <div data-v-ui-acc13851dfa0 class="two">
             <label data-v-ui-acc13851dfa0
-              >Статус<select class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.status">
+              >Статус<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.status">
                 <option data-v-ui-acc13851dfa0 v-for="c in columns" :value="c.id">
                   {{ c.label }}
                 </option>
               </select></label
             ><label data-v-ui-acc13851dfa0
-              >Приоритет<select class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.priority">
+              >Приоритет<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.priority">
                 <option data-v-ui-acc13851dfa0 v-for="(l, k) in priorityLabels" :value="k">
                   {{ l }}
                 </option>
@@ -665,14 +662,14 @@ onMounted(async () => {
             >
           </div>
           <label data-v-ui-acc13851dfa0
-            >Ответственный<select class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.assignedToId">
+            >Ответственный<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.assignedToId">
               <option data-v-ui-acc13851dfa0 v-for="u in team" :value="u.id">{{ person(u) }}</option>
             </select></label
           >
           <div data-v-ui-acc13851dfa0 class="two">
             <label data-v-ui-acc13851dfa0
-              >Начало<input class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.startDate" type="date" /></label
-            ><label data-v-ui-acc13851dfa0>Срок<input class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.dueDate" type="date" /></label>
+              >Начало<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.startDate" type="date" /></label
+            ><label data-v-ui-acc13851dfa0>Срок<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.dueDate" type="date" /></label>
           </div>
           <button v-if="selected.parent" class="crm-work-button crm-button" @click="openTask(tasks.find(t => t.id === selected.parent.id))"><CornerDownRight :size="16" />{{ selected.parent.title }}</button>
           <label data-v-ui-acc13851dfa0
@@ -770,7 +767,7 @@ onMounted(async () => {
       </form>
     </div>
     <CrmTaskAutomation
-      v-if="automationOpen"
+      v-if="automationOpen && writable"
       v-model="automationOpen"
       @created="load(); flash('Задача создана по шаблону')"
     />

@@ -127,6 +127,7 @@ declare global {
   const useCrmDrive: typeof import('../../composables/useCrmDrive').useCrmDrive
   const useCrmNavigation: typeof import('../../composables/useCrmNavigation').useCrmNavigation
   const useCrmPwa: typeof import('../../composables/useCrmPwa').useCrmPwa
+  const useCrmReminders: typeof import('../../composables/useCrmReminders').useCrmReminders
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
   const useError: typeof import('../../node_modules/nuxt/dist/app/composables/error').useError
@@ -390,6 +391,7 @@ declare module 'vue' {
     readonly useCrmDrive: UnwrapRef<typeof import('../../composables/useCrmDrive')['useCrmDrive']>
     readonly useCrmNavigation: UnwrapRef<typeof import('../../composables/useCrmNavigation')['useCrmNavigation']>
     readonly useCrmPwa: UnwrapRef<typeof import('../../composables/useCrmPwa')['useCrmPwa']>
+    readonly useCrmReminders: UnwrapRef<typeof import('../../composables/useCrmReminders')['useCrmReminders']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['useError']>

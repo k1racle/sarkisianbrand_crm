@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { crmDestination } from '~/shared/crm-workspace';
 import { RefreshCw, Save, Search, Check, X, ExternalLink, Wallet, Users, MousePointer2, Building2, Copy, UserRoundPlus, Link2, ShieldCheck, SlidersHorizontal, Clock, CircleHelp } from '@lucide/vue';
 const props=defineProps<{kind:'REFERRAL'|'BLOGGER';section:string}>();
 const route = useRoute();
@@ -6,7 +7,7 @@ const bloggerSectionPath = (section: string) => route.path.startsWith('/crm/') ?
 const config=useRuntimeConfig(),{token,user}=useWorkspaceSession(),access=useWorkspaceAccess();
 const canWrite=computed(()=>['ADMIN','SUPERVISOR'].includes(user.value?.role||'')&&access.can('partners.write'));
 const canPay=computed(()=>user.value?.role==='ADMIN'&&access.can('partners.payouts'));
-const title=computed(()=>({settings:props.kind==='BLOGGER'?'Настройки блогеров':'Реферальная программа',participants:props.kind==='BLOGGER'?'Заявки и партнёры':'Участники',overview:'Блогеры',registrations:'Привлечённые организации',rewards:'Начисления',payouts:'Выплаты блогерам'}[props.section]||'Партнёры'));
+const title=computed(()=>crmDestination(route.path)?.label||({settings:props.kind==='BLOGGER'?'Настройки блогеров':'Реферальная программа',participants:props.kind==='BLOGGER'?'Заявки и партнёры':'Участники',overview:'Блогеры',registrations:'Привлечённые организации',rewards:'Начисления',payouts:'Выплаты блогерам'}[props.section]||'Партнёры'));
 const data=ref<any>(null),loading=ref(false),busy=ref(false),error=ref(''),notice=ref(''),search=ref(''),page=ref(1);
 const form=reactive<any>({}),baseline=ref('');
 const edit=ref<any>(null),decision=reactive({status:'ACTIVE',rewardPercent:'',note:'',paymentReference:'',payoutVerified:false});

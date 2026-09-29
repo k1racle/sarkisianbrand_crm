@@ -23,12 +23,13 @@ export class AuditService {
     return this.prisma.auditLog.create({ data: entry });
   }
 
-  list(resource?: string, action?: string, actorId?: string) {
-    return this.prisma.auditLog.findMany({
+  async list(resource?: string, action?: string, actorId?: string) {
+    const rows = await this.prisma.auditLog.findMany({
       where: { ...(resource ? { resource } : {}), ...(action ? { action } : {}), ...(actorId ? { actorId } : {}) },
-      include: { actor: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } },
+      select: { id: true, action: true, resource: true, resourceId: true, route: true, correlationId: true, createdAt: true, actor: { select: { id: true, firstName: true, lastName: true, role: true } } },
       orderBy: { createdAt: 'desc' },
       take: 250,
     });
+    return rows.map(row => ({ ...row, route: row.route?.split('?')[0] }));
   }
 }

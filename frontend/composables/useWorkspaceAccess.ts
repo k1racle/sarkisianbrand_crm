@@ -20,9 +20,19 @@ export function useWorkspaceAccess() {
       state.value = { identity: requestedIdentity, permissions: result.permissions.filter(key => typeof key === 'string'), ready: true, loading: false, error: '', version };
     } catch {
       if (requestedIdentity === identity.value && state.value.version === version) state.value.error = 'Не удалось проверить права доступа.';
-      // Role-based navigation remains usable; every API action is still server-authorized.
+      // An unavailable permission check never grants a protected action.
     } finally { if (requestedIdentity === identity.value && state.value.version === version) state.value.loading = false; }
   }
-  function can(permission?: string) { return !permission || !current.value || state.value.permissions.includes(permission); }
-  return { ready: current, loading, error, can, refresh };
+  function can(permission?: string) {
+    return !permission || (current.value && state.value.permissions.includes(permission));
+  }
+  async function ensure() {
+    if (current.value) return;
+    if (!loading.value) { await refresh(); return; }
+    // A route must wait for an already running check as well as a check it starts.
+    await new Promise<void>(resolve => {
+      const stop = watch(() => loading.value, pending => { if (!pending) { stop(); resolve(); } });
+    });
+  }
+  return { ready: current, loading, error, can, refresh, ensure };
 }

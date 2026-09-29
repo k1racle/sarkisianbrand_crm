@@ -13,6 +13,8 @@ export default defineNuxtConfig({
     '/admin': { redirect: '/admin-workspace' }, '/marketplaces': { redirect: '/crm-marketplaces' },
     '/booking/**': { headers: { 'X-Robots-Tag': 'noindex,nofollow', 'Referrer-Policy': 'strict-origin-when-cross-origin' } },
     '/media-library': { headers: { 'X-Robots-Tag': 'noindex,nofollow' } },
+    '/meeting-guest': { headers: { 'X-Robots-Tag': 'noindex,nofollow', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } },
+    '/meeting-guest/**': { headers: { 'X-Robots-Tag': 'noindex,nofollow', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } },
     '/crm/**': { headers: { 'X-Robots-Tag': 'noindex,nofollow', 'Cache-Control': 'no-store', 'Referrer-Policy': 'same-origin' } },
     '/crm/sw.js': { headers: { 'Cache-Control': 'no-cache', 'Content-Type': 'text/javascript; charset=utf-8' } },
     '/crm/manifest.webmanifest': { headers: { 'Content-Type': 'application/manifest+json' } },

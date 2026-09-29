@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { MarketplaceChannel, Prisma } from '@prisma/client';
 import { BackgroundJobsService, JobProgress } from '../background-jobs/background-jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OmsService } from '../oms/oms.service';
@@ -11,23 +11,28 @@ export class MarketplacesService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService, private readonly oms: OmsService, private readonly jobs: BackgroundJobsService) {}
 
   onModuleInit() {
-    this.jobs.register('MARKETPLACE_ORDERS_IMPORT', (payload, progress) => this.processImport(payload, progress));
+    this.jobs.register('MARKETPLACE_ORDERS_IMPORT', (payload, progress, context) => this.processImport(payload, progress, context.initiatedById));
   }
 
-  dashboard() { return this.oms.marketplaceDashboard(); }
+  dashboard(actor: string) { return this.oms.marketplaceDashboard(actor); }
 
-  orders(channel?: string) { return this.oms.marketplaceOrders(channel as any); }
+  orders(actor: string, channel?: MarketplaceChannel) { return this.oms.marketplaceOrders(actor, channel); }
 
-  async upsert(dto: UpsertMarketplaceOrderDto) {
-    return this.oms.ingestMarketplace(dto);
+  async upsert(dto: UpsertMarketplaceOrderDto, actor: string) {
+    return this.oms.ingestMarketplace(dto, actor);
   }
 
-  importMany(dto: MarketplaceImportDto, initiatedById?: string) { return this.jobs.enqueue('MARKETPLACE_ORDERS_IMPORT', dto, initiatedById); }
+  async importMany(dto: MarketplaceImportDto, initiatedById: string) {
+    await this.oms.assertMarketplaceImport(initiatedById);
+    return this.jobs.enqueue('MARKETPLACE_ORDERS_IMPORT', dto, initiatedById);
+  }
 
-  private async processImport(dto: MarketplaceImportDto, progress: JobProgress) {
+  private async processImport(dto: MarketplaceImportDto, progress: JobProgress, actor: string | null) {
+    if (!actor) throw new ForbiddenException('Не указан инициатор импорта');
+    await this.oms.assertMarketplaceImport(actor);
     let processed = 0;
     for (const order of dto.orders) {
-      await this.upsert(order);
+      await this.upsert(order, actor);
       processed += 1;
       await progress((processed / dto.orders.length) * 100);
     }

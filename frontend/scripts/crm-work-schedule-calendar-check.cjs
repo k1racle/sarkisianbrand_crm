@@ -1,0 +1,20 @@
+// Pure calendar counting rules; no API/database writes.
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
+const { stripTypeScriptTypes } = require('node:module');
+const source = stripTypeScriptTypes(fs.readFileSync(require('node:path').join(__dirname, '../shared/crm-work-schedule.ts'), 'utf8')).replace(/^export /gm, '');
+const ctx = {};
+vm.runInNewContext(source + '\nthis.api = { workingEmployeeCount, employeeCountLabel, intersectsScheduleDay };', ctx);
+const { workingEmployeeCount: count, employeeCountLabel: label, intersectsScheduleDay } = ctx.api;
+const shift = { employeeId: 'anna', kind: 'SHIFT', status: 'PUBLISHED', startLocal: '2026-09-24T22:00', endLocal: '2026-09-25T06:00' };
+const off = { ...shift, kind: 'DAY_OFF', startLocal: '2026-09-26T00:00', endLocal: '2026-09-27T00:00' };
+assert.equal(count([off, { ...off, employeeId: 'ivan', kind: 'ABSENCE' }], '2026-09-26'), 0);
+assert.equal(count([shift], '2026-09-24'), 1);
+assert.equal(count([shift], '2026-09-25'), 1);
+assert.equal(count([shift], '2026-09-26'), 0);
+assert.equal(count([shift, { ...shift, startLocal: '2026-09-25T14:00', endLocal: '2026-09-25T18:00' }], '2026-09-25'), 1);
+assert.equal(count([shift, { ...shift, employeeId: 'ivan' }, { ...shift, employeeId: 'maria', status: 'CANCELLED' }], '2026-09-25'), 2);
+assert.equal(count([{ ...shift, status: 'DRAFT' }], '2026-09-25'), 1);
+assert.equal(intersectsScheduleDay({ ...shift, endLocal: '2026-09-25T00:00' }, '2026-09-25'), false);
+assert.equal(count([{ ...shift, startLocal: '2026-12-31T22:00', endLocal: '2027-01-01T06:00' }], '2027-01-01'), 1);
+for (const [n, word] of [[0,'сотрудников'],[1,'сотрудник'],[2,'сотрудника'],[4,'сотрудника'],[5,'сотрудников'],[11,'сотрудников'],[12,'сотрудников'],[14,'сотрудников'],[21,'сотрудник'],[22,'сотрудника'],[25,'сотрудников'],[101,'сотрудник'],[111,'сотрудников']]) assert.equal(label(n), `${n} ${word}`);
+console.log('Schedule calendar PASS: working people only, unique employees, overnight/midnight/year boundaries, cancelled/absence/rest exclusions, Russian plurals.');

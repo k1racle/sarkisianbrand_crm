@@ -4,7 +4,7 @@ export const PRIVATE_ROUTES = [
   '/api', '/docs', '/admin', '/account', '/cart', '/checkout', '/favorites',
   '/login', '/password-reset', '/auth', '/workspace', '/workspace-login',
   '/system-settings', '/crm', '/marketplaces', '/b2b', '/leadership', '/helpdesk',
-  '/preview', '/drafts',
+  '/preview', '/drafts', '/meeting-guest',
 ];
 
 export function siteOrigin(value: string): string {

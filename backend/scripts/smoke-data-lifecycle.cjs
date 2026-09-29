@@ -43,7 +43,7 @@ async function main() {
   const before = await request(`/system-settings/accounts?type=B2C&search=${encodeURIComponent(target.email)}`, token);
   if (before.total !== 1) throw new Error('Тестовая учётная запись отсутствует в активном реестре');
   const preview = await request(`/data-lifecycle/USER/${target.id}/preview`, token);
-  if (!preview.canPurge) throw new Error('Новая учётная запись ошибочно заблокирована для удаления');
+  if (preview.canPurge) throw new Error('Удаление вне корзины не должно быть доступно');
   const firstTrash = await request(`/data-lifecycle/USER/${target.id}/trash`, token, { method: 'POST', body: JSON.stringify({ reason: 'Автоматическая проверка восстановления' }) });
   const hidden = await request(`/system-settings/accounts?type=B2C&search=${encodeURIComponent(target.email)}`, token);
   if (hidden.total !== 0) throw new Error('Объект из корзины остался в рабочем реестре');
@@ -52,10 +52,12 @@ async function main() {
   if (!restored?.isActive) throw new Error('Исходное состояние учётной записи не восстановлено');
 
   const secondTrash = await request(`/data-lifecycle/USER/${target.id}/trash`, token, { method: 'POST', body: JSON.stringify({ reason: 'Автоматическая проверка удаления' }) });
+  await request(`/data-lifecycle/trash/${secondTrash.id}`, token, { method: 'DELETE', body: JSON.stringify({ confirmation: secondTrash.displayName, currentAdminPassword: 'intentionally-invalid' }) }, 401);
   await request(`/data-lifecycle/trash/${secondTrash.id}`, token, { method: 'DELETE', body: JSON.stringify({ confirmation: 'неверное подтверждение', currentAdminPassword: adminPassword }) }, 400);
-  await request(`/data-lifecycle/trash/${secondTrash.id}`, token, { method: 'DELETE', body: JSON.stringify({ confirmation: secondTrash.displayName, currentAdminPassword: adminPassword }) });
-  if (await prisma.user.findUnique({ where: { id: target.id } })) throw new Error('Учётная запись не была окончательно удалена');
-  target = null;
+  await request(`/data-lifecycle/trash/${secondTrash.id}`, token, { method: 'DELETE', body: JSON.stringify({ confirmation: secondTrash.displayName, currentAdminPassword: adminPassword }) }, 409);
+  if (!(await prisma.user.findUnique({ where: { id: target.id } }))) throw new Error('Учётная запись удалена до истечения срока хранения');
+  // Do not backdate retention in a connected database just to make a smoke pass.
+  await request(`/data-lifecycle/trash/${secondTrash.id}/restore`, token, { method: 'POST' });
 
   const productTrash = await request(`/data-lifecycle/PRODUCT/${product.id}/trash`, token, { method: 'POST', body: JSON.stringify({ reason: 'Автоматическая проверка товара' }) });
   const trashList = await request(`/data-lifecycle/trash?search=${encodeURIComponent(product.nameRu)}`, token);
@@ -81,10 +83,10 @@ async function main() {
   let immutableHistoryProtected = null;
   if (orderedItem) {
     const protectedPreview = await request(`/data-lifecycle/PRODUCT/${orderedItem.variant.productId}/preview`, token);
-    immutableHistoryProtected = !protectedPreview.canPurge && protectedPreview.blockingDependencies.some((item) => item.key === 'orderItems');
+    immutableHistoryProtected = !protectedPreview.canPurge && protectedPreview.blockingDependencies.some((item) => item.key.startsWith('OrderItem.'));
     if (!immutableHistoryProtected) throw new Error('Товар из заказа не защищён от физического удаления');
   }
-  console.log(JSON.stringify({ ok: true, archive: true, trash: true, hiddenFromRegistry: true, restore: true, typedConfirmation: true, passwordConfirmation: true, permanentDelete: true, productRestore: true, customerRestore: true, organizationRestore: true, immutableHistoryProtected }, null, 2));
+  console.log(JSON.stringify({ ok: true, archive: true, trash: true, hiddenFromRegistry: true, restore: true, typedConfirmation: true, passwordConfirmation: true, retentionEnforced: true, permanentDelete: 'not exercised; requires expired isolated fixture', productRestore: true, customerRestore: true, organizationRestore: true, immutableHistoryProtected }, null, 2));
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => {

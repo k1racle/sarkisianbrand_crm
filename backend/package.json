@@ -51,6 +51,7 @@
     "express-rate-limit": "^7.0.0",
     "helmet": "^7.0.0",
     "ioredis": "^5.3.0",
+    "livekit-server-sdk": "2.19.1",
     "nodemailer": "^10.0.10",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",

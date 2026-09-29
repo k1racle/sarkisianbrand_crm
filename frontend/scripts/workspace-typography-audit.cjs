@@ -7,7 +7,8 @@ async function auditTypography(page,rootSelector='.workspace-frame,.studio-rail,
       if(!el?.closest(selector)||!el.getClientRects().length||getComputedStyle(el).visibility==='hidden')return;
       const s=getComputedStyle(el);
       const navigation=el.closest('.studio-rail nav a,.studio-rail .wn-group-toggle,.b2b-rail nav a');
-      entries.push({text:(el.textContent||el.getAttribute('placeholder')||el.getAttribute('aria-label')||el.tagName).trim().slice(0,65),family:s.fontFamily.replace(/["\s]/g,''),size:s.fontSize,weight:s.fontWeight,style:s.fontStyle,navigationWeight:navigation?(el.closest('.wn-group-items')?'400':'600'):null});
+      const heading=document.documentElement.hasAttribute('data-crm-ui')&&!!el.closest('h1,h2,h3,h4,h5,h6')&&!el.closest('button,input,select,textarea');
+      entries.push({heading,text:(el.textContent||el.getAttribute('placeholder')||el.getAttribute('aria-label')||el.tagName).trim().slice(0,65),family:s.fontFamily.replace(/["\s]/g,''),size:s.fontSize,weight:s.fontWeight,style:s.fontStyle,navigationWeight:navigation?(el.closest('.wn-group-items')?'400':'600'):null});
     };
     const walk=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     while(walk.nextNode())if(walk.currentNode.textContent.trim())inspect(walk.currentNode.parentElement);
@@ -16,9 +17,9 @@ async function auditTypography(page,rootSelector='.workspace-frame,.studio-rail,
   },rootSelector);
   assert.ok(styles.length,'Typography inventory cannot be empty');
   for(const style of styles){
-    assert.equal(style.family,'Montserrat,Arial,sans-serif','Font family: '+JSON.stringify(style));
+    assert.equal(style.family,style.heading?'Mont,Montserrat,Arial,sans-serif':'Montserrat,Arial,sans-serif','Font family: '+JSON.stringify(style));
     assert.ok(['12px','14px','20px'].includes(style.size),'Only three text sizes: '+JSON.stringify(style));
-    assert.ok(['400','600'].includes(style.weight),'Regular/semibold weights only: '+JSON.stringify(style));
+    assert.ok((style.heading?['900']:['400','600']).includes(style.weight),'Weight for text role: '+JSON.stringify(style));
     if(style.navigationWeight)assert.equal(style.weight,style.navigationWeight,'Shared navigation role: '+JSON.stringify(style));
     assert.equal(style.style,'normal','No legacy italic: '+JSON.stringify(style));
   }

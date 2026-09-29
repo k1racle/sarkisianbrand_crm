@@ -4,8 +4,14 @@ const {parse}=require('@vue/compiler-sfc'),{baseParse}=require('@vue/compiler-do
 const root=path.resolve(__dirname,'..');
 const files=['pages/crm/tasks.vue','pages/crm/deals.vue','pages/crm/customers.vue','pages/crm/organizations.vue','pages/crm/files.vue','pages/crm/content-plan.vue','components/workspace/ReportsWorkspacePage.vue','components/workspace/SupportWorkspacePage.vue','components/workspace/PartnerWorkspacePage.vue','components/workspace/StoreWorkspacePage.vue','components/workspace/ContactMessagesWorkspace.vue','components/storefront/SitePromoCodesEditor.vue','components/storefront/SiteGiftCardsEditor.vue','components/CrmSubtasks.vue','components/CrmCardComments.vue','components/CrmCardTabs.vue','components/CrmChangeHistory.vue','components/CrmLeadTasks.vue','components/CrmTaskFiles.vue','components/CrmTaskAutomation.vue','components/CrmPipelineSettings.vue','components/CrmDrivePicker.vue','components/CrmFilePreview.vue','components/CrmPdfViewer.vue','components/PlatformChatDrawer.vue','components/UserProfileDrawer.vue','components/AdminOrderDrawer.vue'];
 files.push('components/AdminMediaPicker.vue','components/AdminMediaBrowser.vue');
-files.push("components/workspace/SystemWorkspacePage.vue","components/workspace/ChannelsWorkspacePage.vue","components/workspace/SalonSubscriptionSettings.vue","components/EcosystemAccounts.vue","components/EcosystemTrash.vue","components/EcosystemIntegrations.vue","components/BotCommandsSettings.vue","components/WorkspaceOrdersTable.vue",'pages/crm/b2b-orders.vue','pages/crm/settings/departments.vue');
+files.push('components/crm/CrmAccessProfiles.vue', 'components/crm/CrmEmployeeAccessReview.vue', 'components/crm/CrmSectionNavigation.vue');
+files.push("components/workspace/SystemWorkspacePage.vue","components/workspace/ChannelsWorkspacePage.vue","components/workspace/SalonSubscriptionSettings.vue","components/EcosystemAccounts.vue","components/EcosystemTrash.vue","components/EcosystemIntegrations.vue","components/BotCommandsSettings.vue","components/WorkspaceOrdersTable.vue",'pages/crm/b2b-orders.vue','pages/crm/settings/departments.vue','pages/crm/meetings.vue');
 const failures=[];let controls=0;
+files.push('components/crm/CrmMeetingGuests.vue','pages/meeting-guest.vue');
+files.push('pages/crm/payment-calendar.vue');
+files.push('pages/crm/work-schedule.vue');
+files.push('components/crm/CrmSchedulePatterns.vue');
+files.push('pages/crm/work-time.vue', 'components/crm/CrmWorkClock.vue', 'components/crm/CrmTimeCorrections.vue', 'components/crm/CrmTimesheet.vue');
 for(const file of files){const sfc=parse(fs.readFileSync(path.join(root,file),'utf8')).descriptor;assert.equal(sfc.styles.length,0,file+' must not own a visual skin');
  function walk(n){if(n.type===1){const plain=name=>n.props.find(p=>p.type===6&&p.name===name)?.value?.content||'';const cls=plain('class').split(/\s+/);let required='';
  if(n.tag==='button')required='crm-button';

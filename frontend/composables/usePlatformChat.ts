@@ -2,6 +2,7 @@ import { io, type Socket } from 'socket.io-client';
 
 let realtime: Socket | null = null;
 let realtimeToken = '';
+let unreadVersion = 0;
 
 export function usePlatformChat() {
   const config = useRuntimeConfig();
@@ -18,15 +19,16 @@ export function usePlatformChat() {
   function closeChat() { isOpen.value = false; }
   function toggleChat() { isOpen.value = !isOpen.value; }
   async function refreshUnread() {
+    const version = ++unreadVersion, identity = token.value;
     if (!token.value) { unread.value = 0; return; }
     try {
       const result = await $fetch<{ total: number }>('/platform-chat/unread', {
         baseURL: config.public.apiBase,
         headers: { Authorization: `Bearer ${token.value}` },
       });
-      unread.value = result.total;
+      if (version === unreadVersion && token.value === identity) unread.value = result.total;
     } catch {
-      // Счётчик не должен мешать работе остальных разделов платформы.
+      if (version === unreadVersion && token.value === identity) unread.value = 0;
     }
   }
 
@@ -37,9 +39,10 @@ export function usePlatformChat() {
     realtimeToken = token.value;
     const origin = String(config.public.apiBase).replace(/\/api\/v1\/?$/, '');
     realtime = io(`${origin}/platform-chat`, { auth: { token: token.value }, transports: ['websocket', 'polling'], reconnection: true });
-    realtime.on('connect', () => connected.value = true);
-    realtime.on('disconnect', () => connected.value = false);
     const connection = realtime, connectionToken = realtimeToken;
+    const current = () => connection === realtime && token.value === connectionToken;
+    realtime.on('connect', () => { if (current()) connected.value = true; });
+    realtime.on('disconnect', () => { if (current()) connected.value = false; });
     realtime.on('platform-chat:error', () => {
       if (connection !== realtime) return;
       const reopen = isOpen.value;
@@ -49,9 +52,9 @@ export function usePlatformChat() {
         if (account && token.value && token.value !== connectionToken) { connectRealtime(); isOpen.value = reopen; }
       }).catch(() => { /* Stay disconnected when authorization cannot be confirmed. */ });
     });
-    realtime.on('platform-chat:message', message => { lastMessage.value = { ...message, receivedAt: Date.now() }; void refreshUnread(); });
-    realtime.on('platform-chat:channel', channel => { lastChannel.value = { ...channel, receivedAt: Date.now() }; });
-    realtime.on('crm:reminder', reminder => { lastReminder.value = { ...reminder, receivedAt: Date.now() }; });
+    realtime.on('platform-chat:message', message => { if (!current()) return; lastMessage.value = { ...message, receivedAt: Date.now() }; void refreshUnread(); });
+    realtime.on('platform-chat:channel', channel => { if (current()) lastChannel.value = { ...channel, receivedAt: Date.now() }; });
+    realtime.on('crm:reminder', reminder => { if (current()) lastReminder.value = { ...reminder, receivedAt: Date.now() }; });
   }
 
   function joinRealtimeChannel(channelId: string) {
@@ -60,6 +63,7 @@ export function usePlatformChat() {
   }
 
   function disconnectRealtime() {
+    ++unreadVersion;
     realtime?.disconnect(); realtime = null; realtimeToken = '';
     connected.value = false; isOpen.value = false; unread.value = 0;
     lastMessage.value = null; lastChannel.value = null; lastReminder.value = null;

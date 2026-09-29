@@ -1,0 +1,1 @@
+import{_ as e}from"./CfkFT9zv.js";import{d as o,ba as a,j as t,a as n}from"./DjOuNq5F.js";import"./DFgD_t6F.js";import"./DuIw9ysr.js";const l=o({__name:"loyalty-members",setup(m){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(r,s)=>(n(),t(e,{"page-section":"loyalty-members"}))}});export{l as default};

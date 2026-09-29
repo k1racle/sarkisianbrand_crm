@@ -1,0 +1,1 @@
+import{_ as o}from"./DmfrUkv_.js";import{d as n,ba as a,j as t,a as r}from"./DjOuNq5F.js";const p=n({__name:"bloggers-overview",setup(s){return a({meta:[{name:"robots",content:"noindex, nofollow"}]}),(c,_)=>{const e=o;return r(),t(e,{kind:"BLOGGER",section:"overview"})}}});export{p as default};

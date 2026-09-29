@@ -1,179 +1,176 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { CustomerStatus, DataEntityType, OrganizationStatus, Prisma, TrashEntryStatus } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { CustomerStatus, DataEntityType, OrganizationStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { CrmReadAccess, CrmReadPolicy } from '../crm/read-access';
 import { PurgeDataDto, TrashListQueryDto } from './dto/data-lifecycle.dto';
 
-type Dependency = { key: string; label: string; count: number; blocking: boolean };
+type Context = { db: Prisma.TransactionClient; policy: CrmReadPolicy; actor: string };
+type Dependency = { key: string; label: string; count: number; blocking: boolean; permission: string };
+const models = { USER: 'User', CUSTOMER: 'Customer', ORGANIZATION: 'Organization', PRODUCT: 'Product', CATEGORY: 'Category' } as const;
+const recordPermissions = { USER: ['system.manage', 'system.manage'], CUSTOMER: ['customers.read', 'customers.write'], ORGANIZATION: ['customers.read', 'customers.write'], PRODUCT: ['catalog.read', 'catalog.write'], CATEGORY: ['catalog.read', 'catalog.write'] } as const;
+const entrySelect = { id: true, entityType: true, entityId: true, displayName: true, status: true, reason: true, trashedAt: true, purgeAfter: true, actor: { select: { id: true, firstName: true, lastName: true } } } satisfies Prisma.DataTrashEntrySelect;
 
 @Injectable()
 export class DataLifecycleService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async trash(query: TrashListQueryDto) {
-    const rows = await this.prisma.dataTrashEntry.findMany({
-      where: {
-        status: TrashEntryStatus.TRASHED,
-        ...(query.type ? { entityType: query.type } : {}),
-        ...(query.search ? { displayName: { contains: query.search.trim(), mode: 'insensitive' } } : {}),
-      },
-      include: { actor: { select: { id: true, firstName: true, lastName: true, email: true } } },
-      orderBy: { trashedAt: 'desc' },
-      take: 200,
-    });
-    return { items: rows, total: rows.length, retentionDays: 30 };
-  }
-
-  async preview(type: DataEntityType, id: string) {
-    const entity = await this.entity(type, id);
-    const dependencies = await this.dependencies(type, id);
-    return {
-      entityType: type,
-      entityId: id,
-      displayName: this.displayName(type, entity),
-      currentState: this.currentState(type, entity),
-      dependencies,
-      blockingDependencies: dependencies.filter((item) => item.blocking && item.count > 0),
-      canPurge: dependencies.every((item) => !item.blocking || item.count === 0),
-      purgeAfterDays: 30,
-    };
-  }
-
-  async archive(type: DataEntityType, id: string, reason?: string) {
-    await this.entity(type, id);
-    await this.prisma.$transaction(async (tx) => this.setArchived(tx, type, id));
-    return { entityType: type, entityId: id, archived: true, reason: reason?.trim() || null };
-  }
-
-  async moveToTrash(type: DataEntityType, id: string, actorId: string, reason?: string) {
-    if (type === DataEntityType.USER && id === actorId) throw new ConflictException('Нельзя переместить собственную учётную запись в корзину');
-    const existing = await this.prisma.dataTrashEntry.findFirst({ where: { entityType: type, entityId: id, status: TrashEntryStatus.TRASHED } });
-    if (existing) throw new ConflictException('Объект уже находится в корзине');
-    const entity = await this.entity(type, id);
-    const preview = await this.preview(type, id);
-    const snapshot = this.json(this.safeSnapshot(type, entity));
-    const previousState = this.json(this.previousState(type, entity));
-    return this.prisma.$transaction(async (tx) => {
-      await this.setArchived(tx, type, id);
-      if (type === DataEntityType.USER) await tx.session.deleteMany({ where: { userId: id } });
-      return tx.dataTrashEntry.create({
-        data: {
-          entityType: type,
-          entityId: id,
-          displayName: preview.displayName,
-          snapshot,
-          previousState,
-          dependencySummary: this.json(preview.dependencies),
-          reason: reason?.trim() || null,
-          actorId,
-          purgeAfter: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      });
-    });
-  }
-
-  async restore(entryId: string) {
-    const entry = await this.prisma.dataTrashEntry.findUnique({ where: { id: entryId } });
-    if (!entry || entry.status !== TrashEntryStatus.TRASHED) throw new NotFoundException('Объект не найден в корзине');
-    await this.entity(entry.entityType, entry.entityId);
-    await this.prisma.$transaction(async (tx) => {
-      await this.restoreState(tx, entry.entityType, entry.entityId, entry.previousState as Record<string, unknown>);
-      await tx.dataTrashEntry.update({ where: { id: entry.id }, data: { status: TrashEntryStatus.RESTORED, restoredAt: new Date() } });
-    });
-    return { restored: true, entityType: entry.entityType, entityId: entry.entityId };
-  }
-
-  async purge(entryId: string, actorId: string, dto: PurgeDataDto) {
-    const [entry, actor] = await Promise.all([
-      this.prisma.dataTrashEntry.findUnique({ where: { id: entryId } }),
-      this.prisma.user.findUnique({ where: { id: actorId } }),
-    ]);
-    if (!entry || entry.status !== TrashEntryStatus.TRASHED) throw new NotFoundException('Объект не найден в корзине');
-    if (!actor || !(await bcrypt.compare(dto.currentAdminPassword, actor.password))) throw new UnauthorizedException('Пароль администратора указан неверно');
-    if (dto.confirmation !== entry.displayName) throw new BadRequestException(`Для подтверждения введите точно: ${entry.displayName}`);
-    if (entry.entityType === DataEntityType.USER && entry.entityId === actorId) throw new ConflictException('Нельзя удалить собственную учётную запись');
-    const preview = await this.preview(entry.entityType, entry.entityId);
-    if (!preview.canPurge) {
-      const blockers = preview.blockingDependencies.map((item) => `${item.label}: ${item.count}`).join('; ');
-      throw new ConflictException(`Окончательное удаление запрещено. Сначала обработайте связи: ${blockers}`);
+  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
+  private async run<T>(actor: string, write: boolean, action: (ctx: Context) => Promise<T>) {
+    try {
+      return await this.prisma.$transaction(async db => {
+        if (write) await db.$executeRaw`SELECT pg_advisory_xact_lock(73422112)`;
+        const policy = await this.access.resolve(db, actor, 'system.manage');
+        const user = await db.user.findUnique({ where: { id: actor }, select: { role: true, isActive: true } });
+        if (!user?.isActive || user.role !== 'ADMIN' || !policy.company('system.manage')) throw new ForbiddenException('Корзина доступна администратору с правами на всю компанию');
+        return action({ db, policy, actor });
+      }, { isolationLevel: write ? Prisma.TransactionIsolationLevel.Serializable : Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 30000 });
+    } catch (error: any) {
+      if (['P2002', 'P2003', 'P2014', 'P2034'].includes(error.code)) throw new ConflictException('Связи или состояние записи изменились. Обновите данные и повторите действие.');
+      throw error;
     }
-    await this.prisma.$transaction(async (tx) => {
-      await this.deleteEntity(tx, entry.entityType, entry.entityId);
-      await tx.dataTrashEntry.update({ where: { id: entry.id }, data: {
-        status: TrashEntryStatus.PURGED,
-        purgedAt: new Date(),
-        snapshot: { purged: true },
-        previousState: {},
-        dependencySummary: this.json(preview.dependencies),
-      } });
-    });
-    return { purged: true, entityType: entry.entityType };
   }
-
-  private async entity(type: DataEntityType, id: string) {
+  private requireType(ctx: Context, type: DataEntityType, write = false) {
+    const permissions = recordPermissions[type];
+    if (!permissions) throw new BadRequestException('Для этого типа данных жизненный цикл ещё не подключён');
+    if (!ctx.policy.company(permissions[0])) throw new NotFoundException('Объект не найден или недоступен');
+    if (write && !ctx.policy.company(permissions[1])) throw new ForbiddenException('Для изменения требуются права на весь раздел');
+  }
+  private async lock(ctx: Context, type: DataEntityType, id: string) {
+    this.requireType(ctx, type, true);
+    await ctx.db.$queryRaw(Prisma.sql`SELECT id FROM ${Prisma.raw('"' + models[type] + '"')} WHERE id = ${id} FOR UPDATE`);
+  }
+  private protectSelf(ctx: Context, type: DataEntityType, id: string) {
+    if (type === 'USER' && id === ctx.actor) throw new ConflictException('Нельзя архивировать, удалять или восстанавливать собственную учётную запись');
+  }
+  trash(actor: string, query: TrashListQueryDto) { return this.run(actor, false, async ctx => {
+    if (query.type) this.requireType(ctx, query.type);
+    const allowed = Object.keys(models).filter(type => ctx.policy.company(recordPermissions[type][0])) as DataEntityType[];
+    const where: Prisma.DataTrashEntryWhereInput = { status: 'TRASHED', entityType: query.type || { in: allowed }, ...(query.search?.trim() ? { displayName: { contains: query.search.trim(), mode: 'insensitive' } } : {}) };
+    const page = query.page || 1, limit = query.limit || 50;
+    const [rows, total] = await Promise.all([
+      ctx.db.dataTrashEntry.findMany({ where, select: entrySelect, orderBy: [{ trashedAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }),
+      ctx.db.dataTrashEntry.count({ where }),
+    ]);
+    return { items: rows.map(row => ({ ...row, canRestore: ctx.policy.company(recordPermissions[row.entityType][1]) && !(row.entityType === 'USER' && row.entityId === actor) })), total, page, pages: Math.max(1, Math.ceil(total / limit)), retentionDays: 30, automaticPurge: false };
+  }); }
+  private async previewIn(ctx: Context, type: DataEntityType, id: string) {
+    this.requireType(ctx, type);
+    const entity = await this.entity(ctx.db, type, id);
+    const entry = await ctx.db.dataTrashEntry.findFirst({ where: { entityType: type, entityId: id, status: 'TRASHED' }, select: { id: true, purgeAfter: true } });
+    const dependencies = await this.dependencies(ctx.db, type, id);
+    const canWrite = ctx.policy.company(recordPermissions[type][1]) && !(type === 'USER' && id === ctx.actor);
+    const exposed: Array<Omit<Dependency, 'permission' | 'count'> & { count: number | null }> = dependencies.filter(item => ctx.policy.company(item.permission)).map(({ permission, ...item }) => item);
+    if (dependencies.some(item => item.count && !ctx.policy.company(item.permission))) exposed.push({ key: 'restricted', label: 'Связи в закрытых разделах', count: null, blocking: true });
+    return { entityType: type, entityId: id, displayName: this.displayName(type, entity), currentState: this.currentState(type, entity),
+      dependencies: exposed, blockingDependencies: exposed.filter(item => item.blocking && item.count !== 0),
+      canRestore: Boolean(entry && canWrite), canPurge: Boolean(entry && canWrite && entry.purgeAfter <= new Date() && dependencies.every(item => !item.blocking || item.count === 0)),
+      canWrite, purgeAfter: entry?.purgeAfter || null, purgeAfterDays: 30, automaticPurge: false };
+  }
+  preview(actor: string, type: DataEntityType, id: string) { return this.run(actor, false, ctx => this.previewIn(ctx, type, id)); }
+  archive(actor: string, type: DataEntityType, id: string, reason?: string) { return this.run(actor, true, async ctx => {
+    await this.lock(ctx, type, id); this.protectSelf(ctx, type, id);
+    await this.entity(ctx.db, type, id);
+    await this.setArchived(ctx.db, type, id);
+    if (type === 'USER') await ctx.db.session.deleteMany({ where: { userId: id } });
+    await this.audit(ctx, type, id, 'ARCHIVE');
+    return { entityType: type, entityId: id, archived: true };
+  }); }
+  moveToTrash(type: DataEntityType, id: string, actor: string, reason?: string) { return this.run(actor, true, async ctx => {
+    await this.lock(ctx, type, id); this.protectSelf(ctx, type, id);
+    const entity = await this.entity(ctx.db, type, id);
+    const existing = await ctx.db.dataTrashEntry.findFirst({ where: { entityType: type, entityId: id, status: 'TRASHED' }, select: entrySelect });
+    if (existing) return { ...existing, canRestore: true };
+    await this.setArchived(ctx.db, type, id);
+    if (type === 'USER') await ctx.db.session.deleteMany({ where: { userId: id } });
+    const entry = await ctx.db.dataTrashEntry.create({ data: { entityType: type, entityId: id, displayName: this.displayName(type, entity),
+      snapshot: { entityType: type, entityId: id }, previousState: this.json(this.previousState(type, entity)), dependencySummary: {},
+      reason: reason?.trim() || null, actorId: actor, purgeAfter: new Date(Date.now() + 30 * 86400000) }, select: entrySelect });
+    await this.audit(ctx, type, id, 'TRASH'); return { ...entry, canRestore: true };
+  }); }
+  private async entry(ctx: Context, id: string) {
+    const row = await ctx.db.dataTrashEntry.findUnique({ where: { id } });
+    if (!row || row.status !== 'TRASHED') throw new NotFoundException('Объект не найден или недоступен');
+    this.requireType(ctx, row.entityType, true); this.protectSelf(ctx, row.entityType, row.entityId);
+    await this.lock(ctx, row.entityType, row.entityId);
+    await ctx.db.$queryRaw`SELECT id FROM "DataTrashEntry" WHERE id = ${id} FOR UPDATE`;
+    const current = await ctx.db.dataTrashEntry.findUnique({ where: { id } });
+    if (!current || current.status !== 'TRASHED') throw new ConflictException('Запись корзины уже изменена. Обновите список.');
+    return current;
+  }
+  restore(actor: string, entryId: string) { return this.run(actor, true, async ctx => {
+    const entry = await this.entry(ctx, entryId);
+    await this.entity(ctx.db, entry.entityType, entry.entityId);
+    const state = entry.previousState as Record<string, any>;
+    if (!state || typeof state !== 'object') throw new ConflictException('Сохранённое состояние недоступно');
+    const valid = ['USER', 'PRODUCT', 'CATEGORY'].includes(entry.entityType) ? typeof state.isActive === 'boolean'
+      : Object.values(entry.entityType === 'CUSTOMER' ? CustomerStatus : OrganizationStatus).includes(state.status);
+    if (!valid) throw new ConflictException('Сохранённое состояние не поддерживается');
+    await this.restoreState(ctx.db, entry.entityType, entry.entityId, state);
+    await ctx.db.dataTrashEntry.updateMany({ where: { entityType: entry.entityType, entityId: entry.entityId, status: 'TRASHED' }, data: { status: 'RESTORED', restoredAt: new Date() } });
+    await this.audit(ctx, entry.entityType, entry.entityId, 'RESTORE');
+    return { restored: true, entityType: entry.entityType, entityId: entry.entityId };
+  }); }
+  purge(entryId: string, actor: string, dto: PurgeDataDto) { return this.run(actor, true, async ctx => {
+    const entry = await this.entry(ctx, entryId);
+    const user = await ctx.db.user.findUnique({ where: { id: actor }, select: { password: true } });
+    if (!user?.password || !(await bcrypt.compare(dto.currentAdminPassword, user.password))) throw new UnauthorizedException('Пароль администратора указан неверно');
+    if (dto.confirmation !== entry.displayName) throw new BadRequestException('Название для подтверждения не совпадает');
+    if (entry.purgeAfter > new Date()) throw new ConflictException('Срок хранения в корзине ещё не истёк');
+    await this.entity(ctx.db, entry.entityType, entry.entityId);
+    const dependencies = await this.dependencies(ctx.db, entry.entityType, entry.entityId);
+    if (dependencies.some(item => item.blocking && item.count > 0)) throw new ConflictException('Окончательное удаление запрещено: у записи есть связанные данные');
+    await this.deleteEntity(ctx.db, entry.entityType, entry.entityId);
+    // Clear all historical copies, not only the most recent trash cycle.
+    await ctx.db.dataTrashEntry.updateMany({ where: { entityType: entry.entityType, entityId: entry.entityId }, data: {
+      status: 'PURGED', purgedAt: new Date(), displayName: 'Удалённая запись', reason: null, snapshot: { purged: true }, previousState: {}, dependencySummary: {} } });
+    await this.audit(ctx, entry.entityType, entry.entityId, 'PURGE');
+    return { purged: true, entityType: entry.entityType };
+  }); }
+  private audit(ctx: Context, type: DataEntityType, id: string, action: string) {
+    return ctx.db.auditLog.create({ data: { actorId: ctx.actor, resource: 'data-lifecycle', resourceId: id, action, payload: { entityType: type } } });
+  }
+  private async dependencies(db: Prisma.TransactionClient, type: DataEntityType, id: string): Promise<Dependency[]> {
+    // Enumerate every incoming schema relation; new cascade/SetNull links block by default.
+    const target = models[type], result: Dependency[] = [];
+    for (const model of Prisma.dmmf.datamodel.models) for (const field of model.fields) {
+      if (field.kind !== 'object' || !field.relationFromFields?.length || field.type !== target) continue;
+      if (field.relationFromFields.length !== 1 || field.relationToFields?.[0] !== 'id') throw new ConflictException('Для нового типа связи требуется проверка удаления');
+      const delegate = model.name[0].toLowerCase() + model.name.slice(1);
+      const count = await (db as any)[delegate].count({ where: { [field.relationFromFields[0]]: id } });
+      const catalogChild = type === 'PRODUCT' && ['ProductVariant', 'ProductCategory', 'ProductImage'].includes(model.name);
+      result.push({ key: model.name + '.' + field.name, label: this.relationLabel(model.name), count, blocking: !catalogChild, permission: this.relationPermission(model.name) });
+    }
+    if (type === 'PRODUCT') {
+      // Product variants will cascade; all references to those variants are checked too.
+      for (const model of Prisma.dmmf.datamodel.models) for (const field of model.fields) {
+        if (field.kind !== 'object' || !field.relationFromFields?.length || field.type !== 'ProductVariant') continue;
+        const delegate = model.name[0].toLowerCase() + model.name.slice(1);
+        const count = await (db as any)[delegate].count({ where: { [field.name]: { productId: id } } });
+        result.push({ key: model.name + '.' + field.name, label: this.relationLabel(model.name), count, blocking: model.name !== 'CartItem', permission: this.relationPermission(model.name) });
+      }
+    }
+    return result;
+  }
+  private relationPermission(model: string) {
+    if (/^(Order|Payment)/.test(model)) return 'oms.read';
+    if (/^(Task|Lead|Interaction|Crm)/.test(model)) return 'crm.read';
+    if (/^(Helpdesk)/.test(model)) return 'helpdesk.read';
+    if (/^(Product|Category)/.test(model)) return 'catalog.read';
+    if (/^(Customer|Organization|B2B)/.test(model)) return 'customers.read';
+    return 'system.manage';
+  }
+  private relationLabel(model: string) {
+    return ({ Order: 'Заказы', OrderItem: 'Позиции заказов', Task: 'Задачи', Lead: 'Сделки', Interaction: 'Взаимодействия', HelpdeskTicket: 'Обращения', OrganizationMember: 'Представители организаций', ProductVariant: 'Варианты товара', ProductCategory: 'Связи с категориями', ProductImage: 'Изображения товара', Category: 'Дочерние категории', CartItem: 'Позиции корзин', Session: 'Сессии', AuditLog: 'История действий', DataTrashEntry: 'История корзины' } as Record<string, string>)[model] || 'Служебные связи: ' + model;
+  }
+  private async entity(db: Prisma.TransactionClient, type: DataEntityType, id: string) {
     let entity: any;
-    if (type === DataEntityType.USER) entity = await this.prisma.user.findUnique({ where: { id }, select: { id: true, email: true, phone: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true } });
-    else if (type === DataEntityType.CUSTOMER) entity = await this.prisma.customer.findUnique({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true, phone: true, status: true, segment: true, source: true, createdAt: true } });
-    else if (type === DataEntityType.ORGANIZATION) entity = await this.prisma.organization.findUnique({ where: { id }, select: { id: true, name: true, legalName: true, inn: true, status: true, createdAt: true } });
-    else if (type === DataEntityType.PRODUCT) entity = await this.prisma.product.findUnique({ where: { id }, select: { id: true, nameRu: true, sku: true, slug: true, basePrice: true, currency: true, externalId: true, isSynced: true, isActive: true, createdAt: true } });
-    else if (type === DataEntityType.CATEGORY) entity = await this.prisma.category.findUnique({ where: { id }, select: { id: true, nameRu: true, slug: true, parentId: true, isActive: true, sortOrder: true } });
+    if (type === DataEntityType.USER) entity = await db.user.findUnique({ where: { id }, select: { id: true, email: true, phone: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true } });
+    else if (type === DataEntityType.CUSTOMER) entity = await db.customer.findUnique({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true, phone: true, status: true, segment: true, source: true, createdAt: true } });
+    else if (type === DataEntityType.ORGANIZATION) entity = await db.organization.findUnique({ where: { id }, select: { id: true, name: true, legalName: true, inn: true, status: true, createdAt: true } });
+    else if (type === DataEntityType.PRODUCT) entity = await db.product.findUnique({ where: { id }, select: { id: true, nameRu: true, sku: true, slug: true, basePrice: true, currency: true, externalId: true, isSynced: true, isActive: true, createdAt: true } });
+    else if (type === DataEntityType.CATEGORY) entity = await db.category.findUnique({ where: { id }, select: { id: true, nameRu: true, slug: true, parentId: true, isActive: true, sortOrder: true } });
     else throw new BadRequestException('Для этого типа данных жизненный цикл ещё не подключён');
     if (!entity) throw new NotFoundException('Объект не найден');
     return entity;
-  }
-
-  private async dependencies(type: DataEntityType, id: string): Promise<Dependency[]> {
-    if (type === DataEntityType.USER) {
-      const [orders, managedOrders, assignedTasks, createdTasks, interactions, memberships, b2bProfiles, carts, tickets, partners] = await this.prisma.$transaction([
-        this.prisma.order.count({ where: { userId: id } }), this.prisma.order.count({ where: { managerId: id } }),
-        this.prisma.task.count({ where: { assignedToId: id } }), this.prisma.task.count({ where: { createdById: id } }),
-        this.prisma.interaction.count({ where: { userId: id } }), this.prisma.organizationMember.count({ where: { userId: id } }),
-        this.prisma.b2BProfile.count({ where: { userId: id } }), this.prisma.cart.count({ where: { userId: id } }),
-        this.prisma.helpdeskTicket.count({ where: { OR: [{ requesterUserId: id }, { assignedToId: id }] } }),
-        this.prisma.partnerParticipant.count({where:{userId:id}}),
-      ]);
-      return this.dependencyRows([['orders','Заказы покупателя',orders],['managedOrders','Заказы в работе',managedOrders],['assignedTasks','Назначенные задачи',assignedTasks],['createdTasks','Созданные задачи',createdTasks],['interactions','Взаимодействия',interactions],['memberships','Участие в организациях',memberships],['b2bProfiles','B2B-профиль',b2bProfiles],['carts','Корзина покупателя',carts],['tickets','Обращения Helpdesk',tickets],['partners','Партнёрский финансовый журнал',partners]]);
-    }
-    if (type === DataEntityType.CUSTOMER) {
-      const [orders, leads, interactions, memberships, tickets, tasks] = await this.prisma.$transaction([
-        this.prisma.order.count({ where: { customerId: id } }), this.prisma.lead.count({ where: { customerId: id } }),
-        this.prisma.interaction.count({ where: { customerId: id } }), this.prisma.organizationMember.count({ where: { customerId: id } }),
-        this.prisma.helpdeskTicket.count({ where: { customerId: id } }), this.prisma.task.count({ where: { customerId: id } }),
-      ]);
-      return this.dependencyRows([['orders','Заказы',orders],['leads','Сделки',leads],['interactions','Взаимодействия',interactions],['memberships','Организации',memberships],['tickets','Обращения Helpdesk',tickets],['tasks','Задачи',tasks]]);
-    }
-    if (type === DataEntityType.ORGANIZATION) {
-      const [orders, leads, members, tickets, clients, services, bookings, tasks, referrals] = await this.prisma.$transaction([
-        this.prisma.order.count({ where: { organizationId: id } }), this.prisma.lead.count({ where: { organizationId: id } }),
-        this.prisma.organizationMember.count({ where: { organizationId: id } }), this.prisma.helpdeskTicket.count({ where: { organizationId: id } }),
-        this.prisma.b2BClient.count({ where: { organizationId: id } }), this.prisma.b2BService.count({ where: { organizationId: id } }),
-        this.prisma.b2BBooking.count({ where: { organizationId: id } }), this.prisma.task.count({ where: { organizationId: id } }),
-        this.prisma.partnerBusinessRegistration.count({where:{organizationId:id}}),
-      ]);
-      return this.dependencyRows([['orders','Заказы',orders],['leads','Сделки',leads],['members','Сотрудники организации',members],['tickets','Обращения Helpdesk',tickets],['clients','Клиенты салона',clients],['services','Услуги',services],['bookings','Записи',bookings],['tasks','Задачи',tasks],['referrals','Партнёрское привлечение организации',referrals]]);
-    }
-    if (type === DataEntityType.PRODUCT) {
-      const [variants, orderItems, cartItems, categories, images] = await this.prisma.$transaction([
-        this.prisma.productVariant.count({ where: { productId: id } }), this.prisma.orderItem.count({ where: { variant: { productId: id } } }),
-        this.prisma.cartItem.count({ where: { variant: { productId: id } } }), this.prisma.productCategory.count({ where: { productId: id } }),
-        this.prisma.productImage.count({ where: { productId: id } }),
-      ]);
-      return [
-        { key:'orderItems', label:'Позиции в заказах', count:orderItems, blocking:true },
-        { key:'cartItems', label:'Товары в корзинах', count:cartItems, blocking:false },
-        { key:'variants', label:'Варианты товара', count:variants, blocking:false },
-        { key:'categories', label:'Категории', count:categories, blocking:false },
-        { key:'images', label:'Изображения', count:images, blocking:false },
-      ];
-    }
-    const [products, children] = await this.prisma.$transaction([
-      this.prisma.productCategory.count({ where: { categoryId: id } }), this.prisma.category.count({ where: { parentId: id } }),
-    ]);
-    return this.dependencyRows([['products','Товары категории',products],['children','Дочерние категории',children]]);
-  }
-
-  private dependencyRows(rows: Array<[string, string, number]>): Dependency[] {
-    return rows.map(([key, label, count]) => ({ key, label, count, blocking: true }));
   }
 
   private displayName(type: DataEntityType, entity: any) {
@@ -192,10 +189,6 @@ export class DataLifecycleService {
   private previousState(type: DataEntityType, entity: any) {
     if (type === DataEntityType.USER || type === DataEntityType.PRODUCT || type === DataEntityType.CATEGORY) return { isActive: entity.isActive };
     return { status: entity.status };
-  }
-
-  private safeSnapshot(type: DataEntityType, entity: any) {
-    return { ...entity, entityType: type };
   }
 
   private async setArchived(tx: Prisma.TransactionClient, type: DataEntityType, id: string) {

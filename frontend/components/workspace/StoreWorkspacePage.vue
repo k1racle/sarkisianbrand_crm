@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { crmDestination } from '~/shared/crm-workspace';
 import { Award, Check, Coins, Eye, Gift, GripVertical, ImagePlus, Pencil, Plus, RefreshCw, Save, Search, Trash2, X } from "@lucide/vue";
 import { inlineProductPrices } from '~/shared/inline-product-prices';
 import { storefrontVariantPrice } from '~/shared/product-merchandising';
@@ -758,7 +759,7 @@ onBeforeUnmount(() => {
           <p data-v-ui-642ff821094a class="kicker">
             SARKISIAN / {{ menu.find((m) => m.id === active)?.label }}
           </p>
-          <h1 data-v-ui-642ff821094a>{{ menu.find((m) => m.id === active)?.label }}</h1>
+          <h1 data-v-ui-642ff821094a>{{ crmDestination(route.path)?.label || menu.find((m) => m.id === active)?.label }}</h1>
         </div>
         <div data-v-ui-642ff821094a v-if="active !== 'catalog-menu' && !(route.path.startsWith('/crm/') && active === 'promotions')" class="header-actions">
           <select class="crm-input" v-if="active === 'dashboard'" v-model.number="dashboardDays" aria-label="Период обзора" :disabled="busy" @change="load"><option :value="7">За 7 дней</option><option :value="30">За 30 дней</option></select>

@@ -1,5 +1,5 @@
 import { BadGatewayException, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
-import { JobRunStatus, MarketplaceOrderStatus, OrderSource, OrderStatus, Prisma } from '@prisma/client';
+import { MarketplaceOrderStatus, OrderSource, OrderStatus, Prisma } from '@prisma/client';
 import { BackgroundJobsService, JobProgress } from '../background-jobs/background-jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
@@ -63,12 +63,12 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
         const recentRun = await this.prisma.jobRun.findFirst({
           where: {
             jobName: '1C_ORDER_EXPORT',
-            status: { in: [JobRunStatus.WAITING, JobRunStatus.ACTIVE, JobRunStatus.RETRYING] },
-            createdAt: { gte: new Date(Date.now() - 15 * 60_000) },
             input: { path: ['orderId'], equals: order.id },
           },
           select: { id: true },
         });
+        // Never bypass a failed/uncertain export by creating another job every minute.
+        // Subsequent deliberate order changes enqueue a fresh export through their own workflow.
         if (!recentRun) await this.enqueueOrder(order.id);
       }
     } catch (error: any) {
@@ -125,7 +125,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     return { success: true, processed, message: `Обработано товаров: ${processed}` };
   }
 
-  logs() { return this.prisma.syncLog.findMany({ where: { system: '1C_KA' }, orderBy: { createdAt: 'desc' }, take: 50 }); }
+  logs() { return this.prisma.syncLog.findMany({ where: { system: '1C_KA' }, select: { id: true, system: true, action: true, status: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 50 }); }
 
   private async processFullExchange(progress: JobProgress) {
     const startedAt = new Date();

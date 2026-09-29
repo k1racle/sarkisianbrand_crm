@@ -25,7 +25,7 @@ async function main(){
  for(const file of ['pages/crm/customers.vue','pages/crm/organizations.vue']){
   const h=harness(file),a=h.api,open=a.openCustomer||a.openOrganization,save=a.saveCustomer||a.saveOrganization;
   await open({id:'fixture'});assert.equal(a.selected.value,null);assert.match(a.error.value,/Mock failure/);passed();
-  h.state.handler=async()=>({id:'fixture',firstName:'Before',name:'Before'});await open({id:'fixture'});
+  h.state.handler=async()=>({id:'fixture',firstName:'Before',name:'Before',canWrite:true});await open({id:'fixture'});
   a.selected.value.firstName='Unsaved';assert.equal(h.hooks.leave.every(f=>f()),false);passed();
   h.state.handler=()=>{throw {data:{message:['Validation failed','Keep draft']}}};await save();assert.equal(a.selected.value.firstName,'Unsaved');assert.match(a.error.value,/Validation failed/);assert.equal(a.actionBusy.value,false);passed();
   let release;h.state.handler=()=>new Promise(resolve=>release=resolve);const pending=save();await save();assert.equal(a.actionBusy.value,true);assert.equal(h.hooks.leave.every(f=>f()),false);release({id:'fixture',name:'Saved'});h.state.handler=async()=>file.includes('organizations')?[]:{};await pending;assert.equal(a.actionBusy.value,false);passed();

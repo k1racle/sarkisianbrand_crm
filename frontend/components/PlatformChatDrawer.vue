@@ -60,6 +60,9 @@ const entityType = ref("TASK");
 const entitySearch = ref("");
 const entityResults = ref<any[]>([]);
 const entityLoading = ref(false);
+const entityError = ref("");
+let viewEpoch = 0, channelRequest = 0, messageRequest = 0, entityRequest = 0;
+const currentView = (epoch: number, identity: string) => isOpen.value && viewEpoch === epoch && token.value === identity;
 const mediaUrls = reactive<Record<string, string>>({});
 const fileInput = ref<HTMLInputElement | null>(null);
 const draftChannel = reactive<any>({
@@ -162,59 +165,72 @@ function recordingTime() {
 }
 
 async function loadChannels(preserve = true) {
-  const [channelRows, teamRows] = await Promise.all([
-    $fetch<any[]>("/platform-chat/channels", {
-      baseURL: config.public.apiBase,
-      headers: headers.value,
-    }),
-    $fetch<any[]>("/platform-chat/team", {
-      baseURL: config.public.apiBase,
-      headers: headers.value,
-    }),
-  ]);
-  channels.value = channelRows;
-  team.value = teamRows;
-  unread.value = channelRows.reduce((sum, channel) => sum + channel.unread, 0);
-  const selected =
-    preserve && active.value
-      ? channelRows.find((channel) => channel.id === active.value.id)
-      : channelRows[0];
-  if (selected) await selectChannel(selected, false);
+  const epoch = viewEpoch, identity = token.value, version = ++channelRequest;
+  try {
+    const [channelRows, teamRows] = await Promise.all([
+      $fetch<any[]>("/platform-chat/channels", { baseURL: config.public.apiBase, headers: headers.value }),
+      $fetch<any[]>("/platform-chat/team", { baseURL: config.public.apiBase, headers: headers.value }),
+    ]);
+    if (!currentView(epoch, identity) || version !== channelRequest) return;
+    channels.value = channelRows; team.value = teamRows;
+    unread.value = channelRows.reduce((sum, channel) => sum + channel.unread, 0);
+    const selected = preserve && active.value ? channelRows.find(channel => channel.id === active.value.id) : channelRows[0];
+    if (selected) await selectChannel(selected, false);
+    else { ++messageRequest; active.value = null; messages.value = []; releaseMedia(); }
+  } catch (exception: any) {
+    if (!currentView(epoch, identity) || version !== channelRequest) return;
+    channels.value = []; team.value = []; active.value = null; messages.value = []; releaseMedia();
+    error.value = exception?.data?.message || "Не удалось загрузить каналы";
+  }
 }
 async function selectChannel(channel: any, showConversation = true) {
   if (showConversation) mobileChannels.value = false;
-  active.value = channel;
+  ++messageRequest; active.value = channel; messages.value = []; releaseMedia();
   joinRealtimeChannel(channel.id);
-  messages.value = await $fetch<any[]>(
-    `/platform-chat/channels/${channel.id}/messages`,
-    { baseURL: config.public.apiBase, headers: headers.value },
-  );
-  const local = channels.value.find((item) => item.id === channel.id);
-  if (local) local.unread = 0;
-  unread.value = channels.value.reduce((sum, item) => sum + item.unread, 0);
-  await hydrateMedia(messages.value);
-  nextTick(scrollBottom);
+  await refreshMessages(true);
 }
-async function refreshMessages() {
-  if (!active.value || sending.value) return;
-  const rows = await $fetch<any[]>(
-    `/platform-chat/channels/${active.value.id}/messages`,
-    { baseURL: config.public.apiBase, headers: headers.value },
-  );
-  if (
-    JSON.stringify(rows.map((item) => item.id)) !==
-    JSON.stringify(messages.value.map((item) => item.id))
-  ) {
+async function refreshMessages(force = false) {
+  if (!active.value || (sending.value && !force)) return;
+  const id = active.value.id, epoch = viewEpoch, identity = token.value, version = ++messageRequest;
+  const valid = () => currentView(epoch, identity) && version === messageRequest && active.value?.id === id;
+  try {
+    const rows = await $fetch<any[]>(`/platform-chat/channels/${id}/messages`, { baseURL: config.public.apiBase, headers: headers.value });
+    if (!valid()) return;
+    const changed = JSON.stringify(rows.map(item => item.id)) !== JSON.stringify(messages.value.map(item => item.id));
+    // Same IDs can now contain restricted references after access was revoked.
     messages.value = rows;
-    await hydrateMedia(rows);
-    nextTick(scrollBottom);
+    const channel = channels.value.find(item => item.id === id);
+    if (channel) channel.unread = 0;
+    unread.value = channels.value.reduce((sum, item) => sum + item.unread, 0);
+    const attachmentIds = new Set(rows.flatMap(row => row.attachments || []).map(item => item.id));
+    for (const [key, url] of Object.entries(mediaUrls)) if (!attachmentIds.has(key)) { URL.revokeObjectURL(url); delete mediaUrls[key]; }
+    await hydrateMedia(rows, valid);
+    if (valid() && changed) nextTick(scrollBottom);
+  } catch (exception: any) {
+    if (!valid()) return;
+    messages.value = []; releaseMedia();
+    error.value = exception?.data?.message || "Не удалось обновить сообщения";
   }
+}
+function releaseMedia() {
+  for (const [id, url] of Object.entries(mediaUrls)) { URL.revokeObjectURL(url); delete mediaUrls[id]; }
+}
+function clearView() {
+  ++viewEpoch; ++channelRequest; ++messageRequest; ++entityRequest;
+  channels.value = []; messages.value = []; team.value = []; active.value = null;
+  entityResults.value = []; entities.value = []; entityError.value = ""; entityLoading.value = false; entityOpen.value = false;
+  createOpen.value = false; emojiOpen.value = false;
+  Object.assign(draftChannel, { name: "", description: "", type: "TEAM", memberIds: [] });
+  if (recorder && recorder.state !== 'inactive') { recorder.onstop = null; recorder.stop(); }
+  stopRecordingState();
+  if (entityDebounce) clearTimeout(entityDebounce);
+  releaseMedia();
 }
 function scrollBottom() {
   const list = document.querySelector(".platform-chat .message-list");
   if (list) list.scrollTop = list.scrollHeight;
 }
-async function hydrateMedia(rows: any[]) {
+async function hydrateMedia(rows: any[], valid: () => boolean) {
   const attachments = rows
     .flatMap((message) => message.attachments || [])
     .filter(
@@ -228,8 +244,10 @@ async function hydrateMedia(rows: any[]) {
           `${config.public.apiBase}/platform-chat/attachments/${item.id}`,
           { headers: headers.value },
         );
-        if (response.ok)
-          mediaUrls[item.id] = URL.createObjectURL(await response.blob());
+        if (response.ok) {
+          const blob = await response.blob();
+          if (valid()) mediaUrls[item.id] = URL.createObjectURL(blob);
+        }
       } catch {
         /* карточка сообщения остаётся доступной без предпросмотра */
       }
@@ -244,6 +262,8 @@ async function send() {
   )
     return;
   sending.value = true;
+  const epoch = viewEpoch, identity = token.value, channelId = active.value.id;
+  const valid = () => currentView(epoch, identity) && active.value?.id === channelId;
   error.value = "";
   try {
     if (files.value.length) {
@@ -282,6 +302,7 @@ async function send() {
         },
       });
     }
+    if (!valid()) return;
     text.value = "";
     clearQueuedFiles();
     entities.value = [];
@@ -290,7 +311,7 @@ async function send() {
     await refreshMessages();
     await loadChannels(true);
   } catch (exception: any) {
-    error.value = exception?.data?.message || "Не удалось отправить сообщение";
+    if (valid()) error.value = exception?.data?.message || "Не удалось отправить сообщение";
   } finally {
     sending.value = false;
   }
@@ -327,15 +348,19 @@ function clearQueuedFiles() {
   files.value = [];
 }
 async function downloadAttachment(item: any) {
+  const epoch = viewEpoch, identity = token.value;
   const response = await fetch(
     `${config.public.apiBase}/platform-chat/attachments/${item.id}`,
     { headers: headers.value },
   );
+  if (!currentView(epoch, identity)) return;
   if (!response.ok) {
     error.value = "Не удалось скачать файл";
     return;
   }
-  const url = URL.createObjectURL(await response.blob());
+  const blob = await response.blob();
+  if (!currentView(epoch, identity)) return;
+  const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = item.name;
@@ -352,49 +377,44 @@ async function openEntities() {
   if (entityOpen.value) await loadEntities();
 }
 async function loadEntities() {
-  entityLoading.value = true;
+  if (!entityOpen.value) return;
+  const version = ++entityRequest, epoch = viewEpoch, identity = token.value, type = entityType.value;
+  entityLoading.value = true; entityResults.value = []; entityError.value = "";
+  const valid = () => version === entityRequest && currentView(epoch, identity) && entityOpen.value && type === entityType.value;
   try {
-    entityResults.value = await $fetch<any[]>("/platform-chat/entities", {
-      baseURL: config.public.apiBase,
-      headers: headers.value,
-      query: { type: entityType.value, search: entitySearch.value },
-    });
-  } finally {
-    entityLoading.value = false;
-  }
+    const rows = await $fetch<any[]>("/platform-chat/entities", { baseURL: config.public.apiBase, headers: headers.value, query: { type, search: entitySearch.value } });
+    if (valid()) entityResults.value = rows;
+  } catch (exception: any) {
+    if (valid()) entityError.value = exception?.data?.message || "Не удалось найти карточки";
+  } finally { if (valid()) entityLoading.value = false; }
 }
 function delayedEntitySearch() {
+  ++entityRequest; entityResults.value = []; entityError.value = ""; entityLoading.value = true;
   if (entityDebounce) clearTimeout(entityDebounce);
   entityDebounce = setTimeout(loadEntities, 250);
 }
 async function switchEntityType(type: string) {
-  entityType.value = type;
-  entitySearch.value = "";
-  await loadEntities();
+  entityType.value = type; entitySearch.value = ""; await loadEntities();
 }
 function attachEntity(item: any) {
-  if (
-    !entities.value.some(
-      (entity) => entity.type === item.type && entity.id === item.id,
-    )
-  )
-    entities.value.push(item);
+  if (entityLoading.value || !entityResults.value.some(row => row.id === item.id && row.type === item.type)) return;
+  if (entities.value.length >= 8) { entityError.value = "Можно прикрепить до 8 карточек"; return; }
+  if (!entities.value.some(entity => entity.type === item.type && entity.id === item.id)) entities.value.push(item);
 }
 async function createChannel() {
-  await $fetch("/platform-chat/channels", {
-    baseURL: config.public.apiBase,
-    method: "POST",
-    headers: headers.value,
-    body: draftChannel,
-  });
-  Object.assign(draftChannel, {
-    name: "",
-    description: "",
-    type: "TEAM",
-    memberIds: [],
-  });
-  createOpen.value = false;
-  await loadChannels(false);
+  const epoch = viewEpoch, identity = token.value;
+  try {
+    await $fetch("/platform-chat/channels", {
+      baseURL: config.public.apiBase, method: "POST", headers: headers.value,
+      body: { ...draftChannel, memberIds: [...draftChannel.memberIds] },
+    });
+    if (!currentView(epoch, identity)) return;
+    Object.assign(draftChannel, { name: "", description: "", type: "TEAM", memberIds: [] });
+    createOpen.value = false;
+    await loadChannels(false);
+  } catch (exception: any) {
+    if (currentView(epoch, identity)) error.value = exception?.data?.message || "Не удалось создать канал";
+  }
 }
 async function toggleRecording() {
   if (recording.value) {
@@ -402,8 +422,11 @@ async function toggleRecording() {
     return;
   }
   error.value = "";
+  const epoch = viewEpoch, identity = token.value;
   try {
-    recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!currentView(epoch, identity) || recording.value) { stream.getTracks().forEach(track => track.stop()); return; }
+    recordStream = stream;
     recordChunks = [];
     recorder = new MediaRecorder(recordStream);
     recorder.ondataavailable = (event) => {
@@ -449,32 +472,31 @@ function entityIcon(type: string) {
 }
 function openEntityCard(item: any) {
   const target = item.metadata?.url;
-  if (target) {
+  if (!item.restricted && typeof target === 'string' && /^\/(?:crm\/(?:tasks|customers|pipeline)(?:[?#]|$)|catalog\/[^/])/.test(target)) {
     closeChat();
     navigateTo(target);
   }
 }
 
 watch(isOpen, async (value) => {
+  if (poll) clearInterval(poll); poll = undefined;
   if (value) {
-    mobileChannels.value = false;
-    connectRealtime();
-    loading.value = true;
-    error.value = "";
-    try {
-      await loadChannels();
-    } catch (exception: any) {
-      error.value = exception?.data?.message || "Не удалось открыть чат";
-    } finally {
-      loading.value = false;
-    }
-    if (poll) clearInterval(poll);
-    poll = setInterval(refreshMessages, 60000);
-  } else if (poll) {
-    clearInterval(poll);
-    poll = undefined;
-    refreshUnread();
-  }
+    const epoch = viewEpoch, identity = token.value;
+    mobileChannels.value = false; connectRealtime(); loading.value = true; error.value = "";
+    await loadChannels();
+    if (!currentView(epoch, identity)) return;
+    loading.value = false;
+    poll = setInterval(() => { void refreshMessages(); }, 60000);
+  } else { clearView(); void refreshUnread(); }
+});
+watch(entityOpen, value => {
+  if (!value) { ++entityRequest; entityResults.value = []; entityError.value = ""; entityLoading.value = false; if (entityDebounce) clearTimeout(entityDebounce); }
+});
+watch(token, () => {
+  clearView(); text.value = ""; clearQueuedFiles();
+  if (recorder && recorder.state !== 'inactive') { recorder.onstop = null; recorder.stop(); }
+  stopRecordingState();
+  if (isOpen.value && token.value) void loadChannels(false);
 });
 watch(lastMessage, async (message) => {
   if (!message || !isOpen.value) return;
@@ -485,6 +507,7 @@ watch(lastChannel, async (channel) => {
   if (channel && isOpen.value) await loadChannels(true);
 });
 onBeforeUnmount(() => {
+  clearView();
   if (poll) clearInterval(poll);
   if (entityDebounce) clearTimeout(entityDebounce);
   if (recording.value) recorder?.stop();
@@ -592,6 +615,7 @@ onBeforeUnmount(() => {
                       >
                         <button data-v-ui-6f58f7dddb37
                           v-if="item.kind === 'ENTITY'"
+                          :disabled="item.restricted || !item.metadata?.url"
                           class="entity-card crm-button crm-card-action crm-interactive"
                           @click="openEntityCard(item)"
                         >
@@ -600,15 +624,15 @@ onBeforeUnmount(() => {
                               background: item.metadata?.color || undefined,
                             }"
                             ><component data-v-ui-6f58f7dddb37
-                              :is="entityIcon(item.entityType)"
+                              :is="item.restricted ? Lock : entityIcon(item.entityType)"
                               :size="16"
                           /></i>
                           <span data-v-ui-6f58f7dddb37
-                            ><small data-v-ui-6f58f7dddb37>{{ typeLabels[item.entityType] }}</small
+                            ><small data-v-ui-6f58f7dddb37>{{ typeLabels[item.entityType] || 'Карточка CRM' }}</small
                             ><b data-v-ui-6f58f7dddb37>{{ item.name }}</b
-                            ><em data-v-ui-6f58f7dddb37>{{ item.metadata?.subtitle }}</em></span
+                            ><em data-v-ui-6f58f7dddb37>{{ item.restricted ? 'Нет доступа или карточка удалена' : item.metadata?.subtitle }}</em></span
                           >
-                          <ChevronLeft data-v-ui-6f58f7dddb37 :size="15" />
+                          <ChevronLeft v-if="!item.restricted" data-v-ui-6f58f7dddb37 :size="15" />
                         </button>
                         <button data-v-ui-6f58f7dddb37
                           v-else-if="item.kind === 'IMAGE'"
@@ -796,7 +820,9 @@ onBeforeUnmount(() => {
                         ><small data-v-ui-6f58f7dddb37>{{ item.subtitle }}</small></span
                       ><Plus data-v-ui-6f58f7dddb37 :size="14" />
                     </button>
-                    <p data-v-ui-6f58f7dddb37 v-if="!entityLoading && !entityResults.length">
+                    <p v-if="entityError" class="crm-muted" role="status">{{entityError}}</p>
+                    <p v-if="entityLoading" class="crm-muted">Ищем доступные карточки…</p>
+                    <p data-v-ui-6f58f7dddb37 v-if="!entityError && !entityLoading && !entityResults.length">
                       Ничего не найдено
                     </p>
                   </div>

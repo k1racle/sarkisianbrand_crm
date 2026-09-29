@@ -258,6 +258,10 @@ model CrmDepartment {
   leaderId String?
   leader User? @relation("DepartmentLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   members User[] @relation("DepartmentMembers")
+  accessProfileGrants CrmAccessGrantDepartment[]
+  paymentPlans CrmPaymentPlan[]
+  workSchedules CrmWorkSchedule[]
+  workPatterns CrmWorkPattern[]
   version Int @default(1)
   archivedAt DateTime?
   createdAt DateTime @default(now())
@@ -278,6 +282,17 @@ model User {
   departmentId String?
   department CrmDepartment? @relation("DepartmentMembers", fields: [departmentId], references: [id], onDelete: SetNull)
   ledDepartments CrmDepartment[] @relation("DepartmentLeader")
+  meetingsOrganized CrmMeeting[] @relation("MeetingOrganizer")
+  meetingMemberships CrmMeetingMember[]
+  meetingMediaSessions CrmMeetingMediaSession[]
+  paymentPlans CrmPaymentPlan[]
+  workSchedules CrmWorkSchedule[] @relation("WorkScheduleEmployee")
+  schedulesCreated CrmWorkSchedule[] @relation("WorkScheduleCreator")
+  workPatterns CrmWorkPattern[] @relation("WorkPatternEmployee")
+  patternsCreated CrmWorkPattern[] @relation("WorkPatternCreator")
+  workSessions CrmWorkSession[]
+  workTimeCorrections CrmWorkTimeCorrection[]
+  timesheetPeriods CrmTimesheetPeriod[]
 
   locale  Locale  @default(ru)
   country String? @default("RU")
@@ -314,6 +329,9 @@ model User {
   ticketsAssigned         HelpdeskTicket[]     @relation("TicketAssignee")
   ticketComments          HelpdeskComment[]
   customer                Customer?
+  managedCustomers        Customer[]           @relation("CustomerAccountManager")
+  createdCustomers        Customer[]           @relation("CustomerCreator")
+  createdOrganizations    Organization[]       @relation("OrganizationCreator")
   organizationMemberships OrganizationMember[]
   managedOrganizations    Organization[]       @relation("OrganizationAccountManager")
   permissionOverrides     UserPermission[]
@@ -420,6 +438,370 @@ model DataTrashEntry {
   @@index([actorId, trashedAt])
 }
 
+model CrmWorkSession {
+  id String @id @default(uuid())
+  employeeId String
+  employee User @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  departmentId String?
+  timezone String
+  startedAt DateTime
+  endedAt DateTime?
+  version Int @default(1)
+  breaks CrmWorkBreak[]
+  events CrmWorkTimeEvent[]
+  corrections CrmWorkTimeCorrection[]
+  @@index([employeeId, startedAt])
+}
+
+model CrmWorkBreak {
+  id String @id @default(uuid())
+  sessionId String
+  session CrmWorkSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  startedAt DateTime
+  endedAt DateTime?
+  @@index([sessionId, startedAt])
+}
+
+model CrmWorkTimeEvent {
+  id String @id @default(uuid())
+  sessionId String
+  session CrmWorkSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  actorId String
+  action String
+  version Int
+  requestKey String
+  requestHash String
+  createdAt DateTime
+  beforeSnapshot Json?
+  afterSnapshot Json?
+  @@unique([actorId, requestKey])
+  @@unique([sessionId, version])
+}
+
+model CrmWorkTimeCorrection {
+  id String @id @default(uuid())
+  employeeId String
+  employee User @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  departmentId String?
+  sessionId String?
+  session CrmWorkSession? @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  baseVersion Int?
+  timezone String
+  startedAt DateTime
+  endedAt DateTime
+  breaks Json
+  original Json?
+  reason String
+  status String @default("PENDING")
+  version Int @default(1)
+  requestKey String
+  requestHash String
+  reviewerId String?
+  reviewerName String?
+  reviewNote String?
+  reviewRequestKey String?
+  reviewedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([employeeId, requestKey])
+  @@unique([reviewerId, reviewRequestKey])
+  @@index([employeeId, createdAt])
+  @@index([status, departmentId, createdAt])
+}
+
+model CrmTimesheetPeriod {
+  id String @id @default(uuid())
+  employeeId String
+  employee User @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  month String
+  timezone String
+  startsAt DateTime
+  endsAt DateTime
+  departmentId String?
+  status String @default("DRAFT")
+  revision Int @default(1)
+  edition Int @default(1)
+  sourceHash String?
+  snapshot Json?
+  events CrmTimesheetEvent[]
+  @@unique([employeeId, month])
+  @@index([employeeId, status, startsAt, endsAt])
+}
+
+model CrmTimesheetEvent {
+  id String @id @default(uuid())
+  periodId String
+  period CrmTimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  revision Int
+  edition Int
+  action String
+  actorId String
+  actorName String
+  reason String
+  requestKey String
+  requestHash String
+  snapshot Json?
+  createdAt DateTime @default(now())
+  @@unique([periodId, revision])
+  @@unique([actorId, requestKey])
+}
+
+model CrmWorkPattern {
+  id String @id @default(uuid())
+  employeeId String
+  employee User @relation("WorkPatternEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+  creatorId String
+  creator User @relation("WorkPatternCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  departmentId String?
+  department CrmDepartment? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentName String @default("")
+  pattern String
+  startDate String
+  endDate String?
+  startTime String
+  endTime String
+  timezone String
+  breakMinutes Int @default(0)
+  note String @default("")
+  status String @default("DRAFT")
+  version Int @default(1)
+  requestKey String
+  requestHash String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events CrmWorkPatternEvent[]
+  @@unique([creatorId, requestKey])
+  @@index([employeeId, startDate])
+  @@index([departmentId, startDate])
+}
+
+model CrmWorkPatternEvent {
+  id String @id @default(uuid())
+  patternId String
+  pattern CrmWorkPattern @relation(fields: [patternId], references: [id], onDelete: Restrict)
+  version Int
+  action String
+  actorId String
+  actorName String
+  reason String
+  snapshot Json
+  createdAt DateTime @default(now())
+  @@unique([patternId, version])
+}
+
+model CrmWorkSchedule {
+  id String @id @default(uuid())
+  employeeId String
+  employee User @relation("WorkScheduleEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+  creatorId String
+  creator User @relation("WorkScheduleCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  departmentId String?
+  department CrmDepartment? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentName String @default("")
+  kind String
+  startLocal String
+  endLocal String
+  timezone String
+  startsAt DateTime
+  endsAt DateTime
+  breakMinutes Int @default(0)
+  plannedMinutes Int @default(0)
+  note String @default("")
+  status String @default("DRAFT")
+  version Int @default(1)
+  requestKey String
+  requestHash String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events CrmWorkScheduleEvent[]
+  @@unique([creatorId, requestKey])
+  @@index([employeeId, startsAt, endsAt])
+  @@index([departmentId, startLocal])
+}
+
+model CrmWorkScheduleEvent {
+  id String @id @default(uuid())
+  scheduleId String
+  schedule CrmWorkSchedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  version Int
+  action String
+  actorId String
+  actorName String
+  reason String
+  snapshot Json
+  createdAt DateTime @default(now())
+  @@unique([scheduleId, version])
+}
+
+model CrmPaymentPlan {
+  id String @id @default(uuid())
+  title String
+  vendor String @default("")
+  category String
+  notes String @default("")
+  amountCents Int
+  startDate DateTime @db.Date
+  endDate DateTime? @db.Date
+  frequency String
+  interval Int @default(1)
+  visibility String @default("PERSONAL")
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  departmentId String?
+  department CrmDepartment? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  version Int @default(1)
+  requestKey String
+  requestHash String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments CrmPlannedPayment[]
+  @@unique([ownerId, requestKey])
+  @@index([ownerId, startDate])
+  @@index([departmentId, startDate])
+}
+
+model CrmPlannedPayment {
+  id String @id @default(uuid())
+  planId String
+  plan CrmPaymentPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  dueDate DateTime @db.Date
+  paidOn DateTime? @db.Date
+  amountCents Int
+  title String
+  vendor String
+  category String
+  version Int @default(1)
+  requestKey String
+  requestHash String
+  updatedAt DateTime @updatedAt
+  @@unique([planId, dueDate])
+  @@index([dueDate])
+}
+
+enum CrmMeetingStatus {
+  SCHEDULED
+  CANCELLED
+}
+
+model CrmMeeting {
+  id String @id @default(uuid())
+  title String
+  agenda String @default("")
+  kind String @default("TEAM")
+  startsAt DateTime
+  endsAt DateTime
+  timezone String @default("Europe/Moscow")
+  status CrmMeetingStatus @default(SCHEDULED)
+  organizerId String
+  organizer User @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  members CrmMeetingMember[]
+  invitations CrmMeetingInvitation[]
+  mediaRooms CrmMeetingMediaRoom[]
+  version Int @default(1)
+  requestKey String
+  requestHash String
+  cancelledAt DateTime?
+  cancellationReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizerId, requestKey])
+  @@index([startsAt, id])
+  @@index([organizerId, startsAt])
+  @@index([status, startsAt])
+}
+
+model CrmMeetingMember {
+  meetingId String
+  userId String
+  meeting CrmMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, userId])
+  @@index([userId, meetingId])
+}
+
+enum CrmMeetingGuestStatus {
+  WAITING
+  ADMITTED
+  REJECTED
+  REVOKED
+  LEFT
+}
+
+model CrmMeetingInvitation {
+  id String @id @default(uuid())
+  meetingId String
+  meeting CrmMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  label String
+  tokenHash String @unique
+  pinHash String
+  requestKey String
+  version Int @default(1)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  guest CrmMeetingGuest?
+  @@unique([meetingId, requestKey])
+  @@index([meetingId, expiresAt])
+}
+
+model CrmMeetingGuest {
+  id String @id @default(uuid())
+  invitationId String @unique
+  invitation CrmMeetingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  displayName String
+  joinKeyHash String
+  ticketHash String @unique
+  status CrmMeetingGuestStatus @default(WAITING)
+  version Int @default(1)
+  expiresAt DateTime
+  joinedAt DateTime @default(now())
+  decidedAt DateTime?
+  mediaSessions CrmMeetingMediaSession[]
+}
+
+model CrmMeetingMediaRoom {
+  id String @id @default(uuid())
+  meetingId String
+  meeting CrmMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meetingVersion Int
+  version Int @default(1)
+  openedAt DateTime
+  closedAt DateTime?
+  closeReason String?
+  remoteClosedAt DateTime?
+  lastCheckedAt DateTime?
+  lastError String?
+  sessions CrmMeetingMediaSession[]
+  @@unique([meetingId, meetingVersion])
+  @@index([remoteClosedAt, openedAt])
+}
+
+model CrmMeetingMediaSession {
+  id String @id @default(uuid())
+  roomId String
+  room CrmMeetingMediaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestId String?
+  guest CrmMeetingGuest? @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  guestTicketHash String?
+  createdAt DateTime
+  expiresAt DateTime
+  revokedAt DateTime?
+  @@index([roomId, revokedAt])
+  @@index([userId, roomId])
+  @@index([guestId, roomId])
+}
+
+// Shared across API processes. Only digests, never raw addresses/tokens/PINs.
+model CrmMeetingGuestRate {
+  key String @id
+  hits Int
+  resetAt DateTime
+  @@index([resetAt])
+}
+
 model Permission {
   id          String           @id @default(uuid())
   key         String           @unique
@@ -428,6 +810,7 @@ model Permission {
   description String?
   roles       RolePermission[]
   users       UserPermission[]
+  profileGrants CrmAccessProfileGrant[]
   createdAt   DateTime         @default(now())
 
   @@unique([resource, action])
@@ -453,6 +836,50 @@ model UserPermission {
 
   @@id([userId, permissionId])
   @@index([permissionId])
+}
+
+// Preparation stage: no employee assignments until all data paths enforce scopes.
+enum CrmAccessScope {
+  OWN
+  PARTICIPATING
+  DEPARTMENT
+  DEPARTMENT_TREE
+  SELECTED_DEPARTMENTS
+  COMPANY
+}
+
+model CrmAccessProfile {
+  id String @id @default(uuid())
+  name String
+  normalizedName String @unique
+  description String @default("")
+  version Int @default(1)
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  grants CrmAccessProfileGrant[]
+  @@index([archivedAt, name])
+}
+
+model CrmAccessProfileGrant {
+  id String @id @default(uuid())
+  profileId String
+  profile CrmAccessProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+  scope CrmAccessScope
+  departments CrmAccessGrantDepartment[]
+  @@unique([profileId, permissionId])
+  @@index([permissionId])
+}
+
+model CrmAccessGrantDepartment {
+  grantId String
+  grant CrmAccessProfileGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  departmentId String
+  department CrmDepartment @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  @@id([grantId, departmentId])
+  @@index([departmentId])
 }
 
 model AuditLog {
@@ -522,6 +949,10 @@ model Customer {
   status          CustomerStatus @default(ACTIVE)
   segment         String?
   source          String         @default("WEB")
+  accountManagerId String?
+  accountManager   User? @relation("CustomerAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  createdById      String?
+  createdBy        User? @relation("CustomerCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   externalIdentities      CustomerExternalIdentity[]
   organizationMemberships OrganizationMember[]
@@ -536,6 +967,8 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   @@index([normalizedEmail])
+  @@index([accountManagerId])
+  @@index([createdById])
   @@index([normalizedPhone])
   @@index([status, segment])
 }
@@ -566,6 +999,8 @@ model Organization {
   creditLimit      Decimal            @default(0.00) @db.Decimal(15, 2)
   accountManagerId String?
   accountManager   User?              @relation("OrganizationAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  createdById      String?
+  createdBy        User?              @relation("OrganizationCreator", fields: [createdById], references: [id], onDelete: SetNull)
   external1CId     String?            @unique
   lastSync1CAt     DateTime?
 
@@ -587,6 +1022,7 @@ model Organization {
 
   @@index([status])
   @@index([accountManagerId])
+  @@index([createdById])
 }
 
 model OrganizationMember {
@@ -1530,6 +1966,7 @@ model CrmPipelineStage {
 
 model Lead {
   files CrmLeadFile[]
+  driveRestrictions CrmDriveRestriction[]
   id             String        @id @default(uuid())
   b2bProfileId   String?
   b2bProfile     B2BProfile?   @relation(fields: [b2bProfileId], references: [id])
@@ -1625,6 +2062,7 @@ model Task {
   children       Task[]            @relation("TaskHierarchy")
   comments       CrmTaskComment[]
   files          CrmTaskFile[]
+  driveRestrictions CrmDriveRestriction[]
   publication    CrmPublication?
   reminders      CrmTaskReminder[]
   templateId     String?
@@ -1741,9 +2179,30 @@ model CrmDriveNode {
   updatedAt   DateTime @updatedAt
   tasks       CrmTaskFile[]
   leads       CrmLeadFile[]
+  restricted  Boolean @default(false)
+  restrictions CrmDriveRestriction[]
 
   @@index([scope, ownerId, parentId, deletedAt])
   @@index([trashBatch])
+}
+
+// Durable access origins, NOT attachment links. Detach/move never removes them.
+// A deleted parent becomes null and denies access until explicit recovery review.
+model CrmDriveRestriction {
+  id String @id @default(uuid())
+  nodeId String
+  node CrmDriveNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  originKind String
+  originId String
+  taskId String?
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  leadId String?
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([nodeId, originKind, originId])
+  @@index([taskId])
+  @@index([leadId])
 }
 
 model CrmTaskFile {

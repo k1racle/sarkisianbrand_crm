@@ -1,0 +1,1 @@
+import{_ as a}from"./DmfrUkv_.js";import{u as s}from"./C2yPRcAP.js";import{d as o,ba as n,j as r,a as c}from"./DjOuNq5F.js";const l=o({__name:"settings",setup(i){const{active:e}=s();return n(()=>({title:`${e.value?.label||"Рабочее пространство"} — SARKISIAN CRM`})),(_,m)=>{const t=a;return c(),r(t,{kind:"REFERRAL",section:"settings"})}}});export{l as default};

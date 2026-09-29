@@ -1,0 +1,21 @@
+# Staging template, NOT deployed. Requires private livekit.yaml and network acceptance.
+# Do not replace the application's existing compose stack with this file.
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.7
+    profiles: [media-staging]
+    command: [--config, /etc/livekit.yaml]
+    network_mode: host
+    restart: "no"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ./private/livekit.yaml:/etc/livekit.yaml:ro
+    tmpfs:
+      - /tmp:size=64m
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
