@@ -14,7 +14,7 @@ const requestedPartner = computed(() => ['referrals', 'bloggers'].includes(reque
 const partnerTitle = computed(() => requestedTab.value === 'bloggers' ? 'Кабинет блогера' : 'Реферальная программа');
 const isB2C = computed(() => profile.value?.role === 'CUSTOMER_B2C');
 const hasLoyalty = computed(() => isB2C.value && !!dashboard.value?.loyalty && dashboard.value.loyalty.isEligible !== false);
-const roleLink = computed(() => profile.value?.role === 'CUSTOMER_B2B' ? { to: '/b2b', label: 'Профессиональный кабинет' } : { to: '/workspace', label: 'Рабочее пространство' });
+const roleLink = computed(() => profile.value?.role === 'CUSTOMER_B2B' ? { to: '/b2b', label: 'Профессиональный кабинет' } : { to: '/crm/', label: 'CRM' });
 const tabs = computed(() => [{ id: 'overview', label: 'Обзор', icon: UserRound }, { id: 'orders', label: 'Мои заказы', icon: Package }, { id: 'giftcards', label: 'Подарочные карты', icon: Gift }, ...(hasLoyalty.value ? [{ id: 'loyalty', label: 'Бонусы', icon: Award }] : []), ...(isB2C.value?[{id:'referrals',label:'Пригласить друзей',icon:UsersIcon},{id:'bloggers',label:'Блогерам',icon:Award}]:[]), { id: 'addresses', label: 'Адреса', icon: MapPin }, { id: 'profile', label: 'Мои данные', icon: Settings }, { id: 'notifications', label: 'Уведомления', icon: Bell }]);
 watch(hasLoyalty, eligible => { if (!eligible && active.value === 'loyalty') active.value = 'overview'; });
 function selectRequestedTab() {

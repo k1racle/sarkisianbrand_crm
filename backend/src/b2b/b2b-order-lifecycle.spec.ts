@@ -1,3 +1,4 @@
+import { settlementBasis } from '../1c-sync/finance-policy';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { B2BService } from './b2b.service';
@@ -28,9 +29,35 @@ describe('B2B inventory: memory-only transactions; no 1C/database',()=>{
  it('rejects invalid or excessive aggregated quantities',async()=>{
   for(const quantities of [[0],[1.5],[6000,6000]]){const f=fixture();await expect(f.service.createOrder('u',{items:quantities.map(quantity=>({variantId:'v',quantity}))})).rejects.toBeInstanceOf(BadRequestException);expect(f.writes).toHaveLength(0);}
  });
- function stockFixture(){const state={stock:10,reserved:5};const tx:any={productVariant:{updateMany:jest.fn(async({where,data}:any)=>{if(state.reserved<where.reserved.gte||where.stock&&state.stock<where.stock.gte)return {count:0};state.reserved-=data.reserved.decrement;state.stock-=data.stock?.decrement||0;return {count:1};})}};return{state,tx,order:{source:'B2B',reservationState:'ACTIVE',items:[{variantId:'v',quantity:2}]}};}
+ function stockFixture(){const state={stock:10,reserved:5};const tx:any={productVariant:{updateMany:jest.fn(async({where,data}:any)=>{if(state.reserved<where.reserved.gte||where.stock&&state.stock<where.stock.gte)return {count:0};state.reserved-=data.reserved.decrement;state.stock-=data.stock?.decrement||0;return {count:1};})}};const order={id:'order',source:'B2B',reservationState:'ACTIVE',items:[{id:'line',variantId:'v',quantity:2}]};tx.oneCOrderFinance={findUnique:jest.fn(async()=>({basisHash:settlementBasis(order),releaseAllowed:true,validUntil:new Date(Date.now()+60000)}))};return{state,tx,order};}
  it('cancellation releases reservation without restoring stock that was never consumed',async()=>{const f=stockFixture();expect(await applyB2BStockTransition(f.tx,f.order,OrderStatus.CANCELLED)).toEqual({reservationState:'RELEASED',reservationExpiresAt:null});expect(f.state).toEqual({stock:10,reserved:3});});
  it('dispatch consumes physical stock and reservation atomically; replay is inert',async()=>{const f=stockFixture();const update=await applyB2BStockTransition(f.tx,f.order,OrderStatus.SHIPPED);expect(f.state).toEqual({stock:8,reserved:3});Object.assign(f.order,update);await applyB2BStockTransition(f.tx,f.order,OrderStatus.DELIVERED);expect(f.state).toEqual({stock:8,reserved:3});});
  it('historic LEGACY inventory is never auto-corrected',async()=>{const f=stockFixture();f.order.reservationState='LEGACY';expect(await applyB2BStockTransition(f.tx,f.order,OrderStatus.CANCELLED)).toEqual({});expect(f.tx.productVariant.updateMany).not.toHaveBeenCalled();});
  it('unmatched reserves stop transition, never mark a failed order consumed',async()=>{const f=stockFixture();f.state.reserved=0;await expect(applyB2BStockTransition(f.tx,f.order,OrderStatus.SHIPPED)).rejects.toBeInstanceOf(ConflictException);});
+ it.each(['NEW','CONFIRMED','ASSEMBLING','CANCELLED','REFUNDED'] as OrderStatus[])('rejects %s after dispatch without changing inventory',async target=>{
+  const f=stockFixture();const order={...f.order,status:OrderStatus.SHIPPED,reservationState:'CONSUMED'};
+  await expect(applyB2BStockTransition(f.tx,order,target)).rejects.toBeInstanceOf(ConflictException);
+  expect(f.tx.productVariant.updateMany).not.toHaveBeenCalled();
+ });
+ it('cancellation replay is inert but reopening requires a new reservation',async()=>{
+  const f=stockFixture();const order={...f.order,status:OrderStatus.NEW};
+  Object.assign(order,await applyB2BStockTransition(f.tx,order,OrderStatus.CANCELLED),{status:OrderStatus.CANCELLED});
+  expect(await applyB2BStockTransition(f.tx,order,OrderStatus.CANCELLED)).toEqual({});
+  await expect(applyB2BStockTransition(f.tx,order,OrderStatus.CONFIRMED)).rejects.toBeInstanceOf(ConflictException);
+  expect(f.state).toEqual({stock:10,reserved:3});expect(f.tx.productVariant.updateMany).toHaveBeenCalledTimes(1);
+ });
+ it.each(['UNKNOWN','DIGITAL'])('rejects unexpected reservation %s',async reservationState=>{
+  const f=stockFixture();await expect(applyB2BStockTransition(f.tx,{...f.order,reservationState},OrderStatus.SHIPPED)).rejects.toBeInstanceOf(ConflictException);
+  expect(f.tx.productVariant.updateMany).not.toHaveBeenCalled();
+ });
+ it('does not implement a return by merely changing status and leaving a reserve behind',async()=>{
+  const f=stockFixture();await expect(applyB2BStockTransition(f.tx,{...f.order,status:OrderStatus.PAID},OrderStatus.REFUNDED)).rejects.toBeInstanceOf(ConflictException);
+  expect(f.tx.productVariant.updateMany).not.toHaveBeenCalled();
+ });
+ it('does not reopen a delivered order or regress an active picking order',async()=>{
+  const f=stockFixture();
+  await expect(applyB2BStockTransition(f.tx,{...f.order,status:OrderStatus.DELIVERED,reservationState:'CONSUMED'},OrderStatus.SHIPPED)).rejects.toBeInstanceOf(ConflictException);
+  await expect(applyB2BStockTransition(f.tx,{...f.order,status:OrderStatus.ASSEMBLING},OrderStatus.CONFIRMED)).rejects.toBeInstanceOf(ConflictException);
+  expect(f.tx.productVariant.updateMany).not.toHaveBeenCalled();
+ });
 });

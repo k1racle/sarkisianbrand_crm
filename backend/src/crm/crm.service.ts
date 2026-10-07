@@ -180,7 +180,7 @@ export class CrmService {
       await this.assertTaskParent(db, dto.parentId);
       const created = await db.task.create({ data: {
       title: dto.title, description: dto.description, assignedToId, createdById: actorId, leadId: dto.leadId, customerId: dto.customerId, organizationId: dto.organizationId,
-      orderId: dto.orderId, parentId: dto.parentId, status: dto.status || TaskStatus.TODO, priority: dto.priority || 'MEDIUM', progress: dto.status === TaskStatus.DONE ? 100 : dto.progress || 0,
+      orderId: dto.orderId, parentId: dto.parentId, pipelineId: dto.pipelineId, status: dto.status || TaskStatus.TODO, priority: dto.priority || 'MEDIUM', progress: dto.status === TaskStatus.DONE ? 100 : dto.progress || 0,
       position: dto.position || 0, startDate: dto.startDate ? new Date(dto.startDate) : undefined, dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       estimateMinutes: dto.estimateMinutes, labels: dto.labels || [], templateId: dto.templateId, completedAt: dto.status === TaskStatus.DONE ? new Date() : undefined,
       } });
@@ -208,7 +208,7 @@ export class CrmService {
     const progress = children.length ? Math.round(children.reduce((sum: number, c: any) => sum + c.progress, 0) / children.length) : (status || current.status) === TaskStatus.DONE ? 100 : dto.progress ?? (current.status === TaskStatus.DONE && status ? 0 : undefined);
     const updated = await db.task.update({ where: { id }, data: {
       title: dto.title, description: dto.description, assignedToId: dto.assignedToId, leadId: dto.leadId, customerId: dto.customerId, organizationId: dto.organizationId,
-      orderId: dto.orderId, parentId: dto.parentId, status, priority: dto.priority, progress,
+      orderId: dto.orderId, parentId: dto.parentId, pipelineId: dto.pipelineId, status, priority: dto.priority, progress,
       position: dto.position, startDate: dto.startDate ? new Date(dto.startDate) : undefined, dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       estimateMinutes: dto.estimateMinutes, labels: dto.labels, completedAt: status === TaskStatus.DONE ? new Date() : status ? null : undefined,
     } });

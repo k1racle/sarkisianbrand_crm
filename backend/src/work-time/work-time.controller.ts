@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Header, Param, ParseIntPipe, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, ParseIntPipe, ParseUUIDPipe, Post, Query, Req, StreamableFile, UseGuards } from '@nestjs/common';
+import { timesheetWorkbook } from './timesheet-export';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -15,6 +16,11 @@ export class WorkTimeController {
   constructor(private readonly time: WorkTimeService, private readonly corrections: TimeCorrectionService, private readonly timesheet: TimesheetService) {}
   @Get('timesheet/options') @Permissions('work_time.read','work_time.review') @Header('Cache-Control', 'private, no-store') sheetOptions(@Req() req:any){return this.timesheet.options(req.user.sub);}
   @Get('timesheet') @Permissions('work_time.read','work_time.review') @Header('Cache-Control', 'private, no-store') sheet(@Req() req:any,@Query() query:TimesheetQueryDto){return this.timesheet.list(req.user.sub,query);}
+  @Get('timesheet/export') @Permissions('work_time.read','work_time.review','work_time.export') @Header('Cache-Control','private, no-store')
+  async sheetExport(@Req() req:any,@Query() query:TimesheetQueryDto){
+    const report=await this.timesheet.exportData(req.user.sub,query);
+    return new StreamableFile(await timesheetWorkbook(report),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',disposition:`attachment; filename="timesheet-${query.month}.xlsx"`});
+  }
   @Post('timesheet/:employeeId/actions') @Permissions('work_time.read','work_time.review') @Header('Cache-Control','private, no-store') sheetAction(@Req() req:any,@Param('employeeId',new ParseUUIDPipe({version:'4'})) employeeId:string,@Body() dto:TimesheetActionDto){return this.timesheet.act(req.user.sub,employeeId,dto);}
   @Get('timesheet/:employeeId/versions/:revision') @Permissions('work_time.read','work_time.review') @Header('Cache-Control','private, no-store') sheetVersion(@Req() req:any,@Param('employeeId',new ParseUUIDPipe({version:'4'})) employeeId:string,@Param('revision',ParseIntPipe) revision:number,@Query() query:WorkTimeQueryDto){return this.timesheet.archive(req.user.sub,employeeId,query.month,revision);}
   @Get('timesheet/:employeeId') @Permissions('work_time.read','work_time.review') @Header('Cache-Control', 'private, no-store') sheetEmployee(@Req() req:any,@Param('employeeId',new ParseUUIDPipe({version:'4'})) employeeId:string,@Query() query:WorkTimeQueryDto){return this.timesheet.detail(req.user.sub,employeeId,query.month);}

@@ -30,13 +30,14 @@ export class MarketplacesService implements OnModuleInit {
   private async processImport(dto: MarketplaceImportDto, progress: JobProgress, actor: string | null) {
     if (!actor) throw new ForbiddenException('Не указан инициатор импорта');
     await this.oms.assertMarketplaceImport(actor);
-    let processed = 0;
+    let processed = 0, conflicts = 0;
     for (const order of dto.orders) {
-      await this.upsert(order, actor);
+      const result = await this.upsert(order, actor);
+      if (result.marketplaceImportIssue) conflicts += 1;
       processed += 1;
       await progress((processed / dto.orders.length) * 100);
     }
-    return { success: true, processed, message: `Обработано заказов: ${processed}` };
+    return { success: conflicts === 0, processed, conflicts, message: `Обработано заказов: ${processed}; требуют сверки: ${conflicts}` };
   }
 
   async update(id: string, dto: UpdateMarketplaceOrderDto, changedBy: string) {

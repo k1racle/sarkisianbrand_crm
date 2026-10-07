@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestKey as createRequestKey } from '~/shared/request-key';
 import { Plus, X } from '@lucide/vue';
 type Person = { id: string; firstName?: string; lastName?: string; canAssign?: boolean };
 type Pattern = { id: string; employeeId: string; employee: Person; departmentName: string; label: string; pattern: string; startDate: string; endDate: string | null; startTime: string; endTime: string; timezone: string; breakMinutes: number; note: string; status: string; version: number; today: string; canPublish: boolean; canEnd: boolean; canCancel: boolean; events?: { version: number; action: string; actorName: string; reason: string; createdAt: string }[] };
@@ -27,7 +28,7 @@ function fill(row: Pattern | null) {
   lastDate.value = row ? row.endDate || (row.startDate > row.today ? row.startDate : row.today) : '';
   baseline.value = JSON.stringify(draft);
 }
-function create() { if (!props.canCreate || busy.value) return; fill(null); requestKey.value = crypto.randomUUID(); opened.value = true; }
+function create() { if (!props.canCreate || busy.value) return; fill(null); requestKey.value = createRequestKey(); opened.value = true; }
 async function open(id: string) {
   if (busy.value) return; busy.value = true; error.value = '';
   try { fill(await request<Pattern>('/' + id)); opened.value = true; } catch (e) { error.value = message(e); } finally { busy.value = false; }

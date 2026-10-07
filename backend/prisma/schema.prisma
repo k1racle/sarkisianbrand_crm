@@ -262,6 +262,7 @@ model CrmDepartment {
   paymentPlans CrmPaymentPlan[]
   workSchedules CrmWorkSchedule[]
   workPatterns CrmWorkPattern[]
+  taskPipelines CrmTaskPipeline[]
   version Int @default(1)
   archivedAt DateTime?
   createdAt DateTime @default(now())
@@ -271,6 +272,10 @@ model CrmDepartment {
 }
 
 model User {
+  accessProfileMode Boolean @default(false)
+  accessVersion Int @default(1)
+  accessAssignments CrmAccessAssignment[]
+  knowledgeArticles CrmKnowledgeArticle[]
   id        String   @id @default(uuid())
   email     String   @unique
   phone     String?  @unique
@@ -838,7 +843,7 @@ model UserPermission {
   @@index([permissionId])
 }
 
-// Preparation stage: no employee assignments until all data paths enforce scopes.
+// Editable profiles are applied to employees as explicit versioned snapshots.
 enum CrmAccessScope {
   OWN
   PARTICIPATING
@@ -849,6 +854,7 @@ enum CrmAccessScope {
 }
 
 model CrmAccessProfile {
+  assignments CrmAccessAssignment[]
   id String @id @default(uuid())
   name String
   normalizedName String @unique
@@ -859,6 +865,18 @@ model CrmAccessProfile {
   updatedAt DateTime @updatedAt
   grants CrmAccessProfileGrant[]
   @@index([archivedAt, name])
+}
+
+model CrmAccessAssignment {
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String
+  profile CrmAccessProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  profileVersion Int
+  snapshot Json
+  assignedAt DateTime @default(now())
+  @@id([userId, profileId])
+  @@index([profileId])
 }
 
 model CrmAccessProfileGrant {
@@ -1325,6 +1343,7 @@ model ProductVariant {
   saleEndsAt DateTime?
   stock    Int     @default(0)
   reserved Int     @default(0)
+  damagedStock Int @default(0)
   isActive Boolean @default(true)
 
   sku String @unique
@@ -1415,6 +1434,11 @@ model CartItem {
 }
 
 model Order {
+  oneCFinance OneCOrderFinance?
+  oneCRequests OneCOrderRequest[]
+  financeVersion Int @default(1)
+  paymentDueAt DateTime?
+  financeEntries OrderFinanceEntry[]
   id          String @id @default(uuid())
   orderNumber String @unique
   checkoutKey String? @unique
@@ -1486,6 +1510,11 @@ model Order {
   pickingStartedAt    DateTime?
   pickedAt            DateTime?
   packedAt            DateTime?
+  fulfillmentManaged  Boolean @default(false)
+  marketplaceImportHash String?
+  marketplaceImportIssue String?
+  execution           OrderExecution?
+  executionOperations OrderExecutionOperation[]
 
   history            OrderStatusHistory[]
   payments           Payment[]
@@ -1835,6 +1864,11 @@ model BotWebhookEvent {
 }
 
 model OrderItem {
+  cancelledQuantity Int @default(0)
+  returnedQuantity Int @default(0)
+  damagedReturnedQuantity Int @default(0)
+  pickedQuantity Int @default(0)
+  shippedQuantity Int @default(0)
   id      String @id @default(uuid())
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -1852,6 +1886,36 @@ model OrderItem {
   price       Decimal @db.Decimal(15, 2)
   quantity    Int
   total       Decimal @db.Decimal(15, 2)
+}
+
+model OrderExecution {
+  settlementReviewRequired Boolean @default(false)
+  orderId String @id
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  version Int @default(1)
+  snapshotHash String
+  paymentTerms String
+  deliveryTerms String
+  confirmedBy String
+  confirmedAt DateTime @default(now())
+}
+
+model OrderExecutionOperation {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  requestKey String
+  requestHash String
+  kind String
+  actorId String
+  actorName String
+  lines Json
+  trackingNumber String?
+  reason String?
+  settlementStatus String @default("NOT_REQUIRED")
+  createdAt DateTime @default(now())
+  @@unique([orderId, requestKey])
+  @@index([orderId, createdAt])
 }
 
 model GiftCard {
@@ -1912,6 +1976,72 @@ model OrderStatusHistory {
   changedBy  String?
 
   createdAt DateTime @default(now())
+}
+
+model OneCOrderFinance {
+  orderId String @id
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  revision Int
+  payloadHash String
+  basisHash String
+  asOf DateTime
+  validUntil DateTime
+  receivedAt DateTime @default(now())
+  currency Currency
+  total Decimal @db.Decimal(15, 2)
+  paid Decimal @db.Decimal(15, 2)
+  refunded Decimal @db.Decimal(15, 2)
+  debt Decimal @db.Decimal(15, 2)
+  refundDue Decimal @db.Decimal(15, 2)
+  paymentDueAt DateTime?
+  releaseAllowed Boolean
+  releaseReason String
+  documents Json
+}
+
+model OneCOrderRequest {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  requestKey String
+  requestHash String
+  kind String
+  comment String
+  operationId String?
+  basisHash String
+  sourceRevision Int
+  status String @default("PENDING")
+  responseMessage String?
+  externalDocumentId String?
+  actorId String
+  actorName String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([orderId, requestKey])
+  @@index([orderId, status])
+}
+
+// Read-only historical local journal. New accounting records originate in 1C only.
+model OrderFinanceEntry {
+  basisAmount Decimal @db.Decimal(15, 2)
+  currency Currency @default(RUB)
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind String
+  amount Decimal @db.Decimal(15, 2)
+  requestKey String
+  requestHash String
+  operationId String?
+  reversesId String? @unique
+  document String
+  reason String
+  occurredAt DateTime
+  actorId String
+  actorName String
+  createdAt DateTime @default(now())
+  @@unique([orderId, requestKey])
+  @@index([orderId, createdAt])
 }
 
 model Payment {
@@ -2028,7 +2158,22 @@ model Interaction {
   @@index([customerId])
 }
 
+model CrmTaskPipeline {
+  id String @id @default(uuid())
+  name String
+  departmentId String?
+  department CrmDepartment? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  labels Json
+  version Int @default(1)
+  tasks Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([departmentId])
+}
+
 model Task {
+  pipelineId String @default("00000000-0000-4000-8000-000000000001")
+  pipeline CrmTaskPipeline @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
   id          String  @id @default(uuid())
   title       String
   description String?
@@ -2073,6 +2218,7 @@ model Task {
   completedAt DateTime?
 
   @@index([status, position])
+  @@index([pipelineId, status, position])
   @@index([assignedToId, dueDate])
   @@index([startDate, dueDate])
   @@index([leadId])
@@ -2225,6 +2371,7 @@ model CrmLeadFile {
 
 model CrmChatChannel {
   id          String           @id @default(uuid())
+  directKey   String?          @unique
   name        String           @unique
   description String?
   type        CrmChatType      @default(TEAM)
@@ -2557,4 +2704,18 @@ model Booking {
   endTime   DateTime
   status    String   @default("CONFIRMED")
   createdAt DateTime @default(now())
+}
+
+model CrmKnowledgeArticle {
+  id String @id @default(uuid())
+  title String
+  category String
+  body String
+  status String @default("DRAFT")
+  version Int @default(1)
+  createdById String
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, updatedAt])
 }

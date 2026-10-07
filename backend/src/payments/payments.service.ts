@@ -62,6 +62,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const payment = await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${authorized.id} FOR UPDATE`;
       const order = await tx.order.findUniqueOrThrow({ where: { id: authorized.id } });
+      if (order.source === 'B2B' && await tx.orderFinanceEntry.count({ where: { orderId: order.id } })) throw new ConflictException('По заказу ведётся ручной журнал расчётов. Онлайн-оплата требует сверки с бухгалтерией.');
       if (!PAYABLE.includes(order.status as any) || ['PAID', 'SUCCEEDED'].includes(order.paymentStatus || '')) throw new BadRequestException('Этот заказ нельзя оплатить: он уже оплачен, отменён или завершён.');
       if (order.reservationState === 'ACTIVE') {
         const snapshot = (order.priceSnapshot || {}) as Record<string, unknown>;

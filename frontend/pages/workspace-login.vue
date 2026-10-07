@@ -15,7 +15,7 @@ async function submit() {
   error.value = '';
   try {
     await login(email.value, password.value);
-    const redirect = safeInternalRedirect(route.query.redirect,'/workspace');
+    const redirect = safeInternalRedirect(route.query.redirect,'/admin-workspace/dashboard');
     await navigateTo(redirect);
   } catch (exception: any) {
     error.value = exception?.data?.message || exception?.message || 'Не удалось войти';

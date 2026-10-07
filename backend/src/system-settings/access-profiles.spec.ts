@@ -13,14 +13,14 @@ import { CreateAccessProfileDto, PreviewAccessProfilesDto, UpdateAccessProfileDt
 
 const uuid = '8c60f023-20a7-45a0-aa87-c9d589970b22';
 const valid = { name: 'Продажи', description: '', grants: [{ permissionKey: 'crm.read', scope: 'OWN', departmentIds: [] }] };
-describe('Draft access profiles API boundary', () => {
+describe('Versioned access profiles API boundary', () => {
   it('requires authenticated ADMIN and system.manage for every profile endpoint', () => {
     expect(Reflect.getMetadata(GUARDS_METADATA, AccessProfilesController)).toEqual([JwtAuthGuard, RolesGuard, CompanyScopeGuard]);
     expect(Reflect.getMetadata('roles', AccessProfilesController)).toEqual(['ADMIN']);
     expect(Reflect.getMetadata(PERMISSIONS_KEY, AccessProfilesController)).toEqual(['system.manage']);
   });
   it.each([{ denied: [] }, { denied: [{ effect: 'DENY', permission: { key: 'system.manage' } }] }])('does not bypass permission checks for administrator', async ({ denied }) => {
-    const db: any = { rolePermission: { findMany: jest.fn().mockResolvedValue(denied.length ? [{ permission: { key: 'system.manage' } }] : []) }, userPermission: { findMany: jest.fn().mockResolvedValue(denied) } };
+    const db: any = { user: { findUnique: jest.fn().mockResolvedValue({ id: uuid, role: 'ADMIN', isActive: true, accessProfileMode: false }) }, rolePermission: { findMany: jest.fn().mockResolvedValue(denied.length ? [{ permission: { key: 'system.manage' } }] : []) }, userPermission: { findMany: jest.fn().mockResolvedValue(denied) } };
     const guard = new RolesGuard(new Reflector(), db);
     await expect(guard.canActivate({ getHandler: () => AccessProfilesController.prototype.create, getClass: () => AccessProfilesController,
       switchToHttp: () => ({ getRequest: () => ({ user: { sub: uuid, role: 'ADMIN' } }) }) } as any)).rejects.toThrow('нет разрешения');
@@ -32,10 +32,10 @@ describe('Draft access profiles API boundary', () => {
       switchToHttp: () => ({ getRequest: () => ({ user: { sub: uuid, role } }) }) } as any)).rejects.toThrow('Недостаточно прав');
     expect(db.rolePermission.findMany).not.toHaveBeenCalled();
   });
-  it('does not expose assignment or activation endpoints before server-wide enforcement exists', () => {
+  it('keeps assignments behind the same administrator and company permission boundary', () => {
     const methods = Object.getOwnPropertyNames(AccessProfilesController.prototype).filter(key => key !== 'constructor');
-    expect(methods).toEqual(['catalog', 'list', 'preview', 'get', 'create', 'update', 'archive', 'restore']);
-    for (const key of methods) expect(String(Reflect.getMetadata(PATH_METADATA, (AccessProfilesController.prototype as any)[key]))).not.toMatch(/assign|activate/);
+    expect(methods).toEqual(['catalog', 'list', 'preview', 'assignment', 'assign', 'reset', 'get', 'create', 'update', 'archive', 'restore']);
+    expect(Reflect.getMetadata(PATH_METADATA, AccessProfilesController.prototype.assign)).toBe('assign');
   });
   it.each([
     { ...valid, name: '   ' }, { ...valid, name: 'x'.repeat(81) },

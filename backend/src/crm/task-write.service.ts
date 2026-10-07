@@ -6,11 +6,12 @@ import { CrmReadService } from './crm-read.service';
 import { customerVisibility } from '../customer360/customer-access';
 import { CrmService } from './crm.service';
 import { CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, UpdateTaskDto } from './dto/crm.dto';
+import { DEFAULT_TASK_PIPELINE, taskPipelineScope } from './task-pipelines.service';
 
 type Context = { db: Prisma.TransactionClient; read: CrmReadPolicy; write: CrmReadPolicy; core: CrmService; reader: CrmReadService };
 
 /** HTTP task mutation boundary. Authorization, effects, reminders, audit and response share one transaction.
- * Draft profiles remain disabled. Never call the legacy core directly from a task endpoint. */
+ * Never call the legacy core directly from a task endpoint. */
 @Injectable()
 export class CrmTaskWriteService {
   constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
@@ -73,20 +74,39 @@ export class CrmTaskWriteService {
   }
   private async createIn(ctx: Context, dto: CreateTaskDto, actorId: string) {
     await this.assignee(ctx, dto.assignedToId || actorId); await this.references(ctx, dto); await this.parents(ctx, dto.parentId);
+    if (dto.parentId) {
+      const parent = await this.task(ctx, dto.parentId);
+      if (dto.pipelineId && dto.pipelineId !== parent.pipelineId) throw new BadRequestException('Подзадача должна находиться в воронке родительской задачи');
+      dto = { ...dto, pipelineId: parent.pipelineId };
+    }
+    if (dto.pipelineId) await this.pipeline(ctx, dto.pipelineId);
     const task = await ctx.core.createTask(dto, actorId, true);
     await this.task(ctx, task.id); // Verify effective ownership after defaults, not a client-provided owner.
     return ctx.reader.task(actorId, task.id);
   }
   create(actorId: string, dto: CreateTaskDto) { return this.run(actorId, ctx => this.createIn(ctx, dto, actorId)); }
+  private async pipeline(ctx: Context, id: string) {
+    if (!await ctx.db.crmTaskPipeline.findFirst({ where: { AND: [{ id }, taskPipelineScope(ctx.read), taskPipelineScope(ctx.write)] } })) throw new NotFoundException('Воронка не найдена или недоступна');
+  }
   update(actorId: string, id: string, dto: UpdateTaskDto, beforeId?: string | null) {
     return this.run(actorId, async ctx => {
       const current = await this.task(ctx, id);
+      const pipelineId = dto.pipelineId || current.pipelineId || DEFAULT_TASK_PIPELINE;
+      if (dto.pipelineId && dto.pipelineId !== current.pipelineId) {
+        await this.pipeline(ctx, dto.pipelineId);
+        if (await ctx.db.task.count({ where: { parentId: id } })) throw new BadRequestException('Задачу с подзадачами нельзя перенести в другую воронку');
+      }
+      const parentId = dto.parentId === undefined ? current.parentId : dto.parentId;
+      if (parentId) {
+        const parent = await this.task(ctx, parentId);
+        if ((parent.pipelineId || DEFAULT_TASK_PIPELINE) !== pipelineId) throw new BadRequestException('Подзадача должна находиться в воронке родительской задачи');
+      }
       if (dto.assignedToId) await this.assignee(ctx, dto.assignedToId);
       await this.references(ctx, dto); await this.children(ctx, id);
       await this.parents(ctx, current.parentId); if (dto.parentId !== current.parentId) await this.parents(ctx, dto.parentId);
       if (beforeId === id) throw new BadRequestException('Нельзя переместить карточку перед самой собой');
       if (beforeId) await this.task(ctx, beforeId);
-      await ctx.core.updateTask(id, dto, beforeId, actorId, this.scope(ctx), true);
+      await ctx.core.updateTask(id, dto, beforeId, actorId, { AND: [this.scope(ctx), { pipelineId }] }, true);
       await this.task(ctx, id); // A mutation cannot transfer a record outside the allowed resulting scope.
       return ctx.reader.task(actorId, id);
     });

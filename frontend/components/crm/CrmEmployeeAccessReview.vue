@@ -4,7 +4,7 @@ const props = defineProps<{ employeeId: string }>();
 const emit = defineEmits<{ close: [] }>();
 const session = useWorkspaceSession(), config = useRuntimeConfig();
 const result = ref<any>(null), loading = ref(false), error = ref(''), search = ref(''), filter = ref('all');
-const sources: Record<string, string> = { ROLE: 'По роли', ALLOW: 'Личное разрешение', DENY: 'Личный запрет', NOT_GRANTED: 'Не выдано', BLOCKED_ACCOUNT: 'Учётная запись заблокирована' };
+const sources: Record<string, string> = { ROLE: 'По роли', PROFILE: 'По назначенному профилю', ALLOW: 'Личное разрешение', DENY: 'Личный запрет', NOT_GRANTED: 'Не выдано', BLOCKED_ACCOUNT: 'Учётная запись заблокирована' };
 const visible = computed(() => (result.value?.permissions || []).filter((item: any) =>
   (filter.value === 'all' || item.allowed === (filter.value === 'allowed')) &&
   `${item.description} ${item.key}`.toLocaleLowerCase('ru-RU').includes(search.value.toLocaleLowerCase('ru-RU'))));
@@ -43,7 +43,7 @@ onBeforeUnmount(() => { ++version; controller?.abort(); });
             <p>Отдел: {{ result.employee.department?.name || 'Не назначен' }}</p>
             <p v-if="!result.employee.isActive" role="alert">Учётная запись заблокирована. Доступ закрыт.</p>
             <p role="note">{{ result.dataVisibility.message }}</p>
-            <p>Показаны права роли с учётом ранее сохранённых личных разрешений и запретов.</p>
+            <p>Показаны действующие разрешения и источник каждого решения. Личный запрет имеет приоритет.</p>
           </section>
           <label class="crm-input-group"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" aria-label="Поиск разрешений" placeholder="Найти разрешение" /></label>
           <label class="crm-field">Показать<select v-model="filter" class="crm-input"><option value="all">Все разрешения</option><option value="allowed">Разрешённые</option><option value="denied">Недоступные</option></select></label>

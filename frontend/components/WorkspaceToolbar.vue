@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ChevronRight, ExternalLink, LogOut, MessageCircle, Pin, Search, Star, X } from '@lucide/vue';
 const router = useRouter();
-const { areas, selectedArea, switchArea } = useWorkspaceAreaSelection();
 const { logout } = useWorkspaceSession();
 const { unread, toggleChat, isOpen: chatOpen } = usePlatformChat();
 const signingOut = useState<boolean>('workspace-signing-out', () => false);
@@ -62,7 +61,6 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', globalKeys); unloc
 
 <template>
   <div class="wn-toolbar" aria-label="Навигация по рабочему пространству">
-    <div class="studio-area-switch workspace-area-switch"><select :value="selectedArea?.id || ''" aria-label="Выбрать рабочее пространство" @change="switchArea"><option v-for="area in areas" :key="area.id" :value="area.id">{{ area.label }}</option></select></div>
     <nav class="wn-breadcrumbs" aria-label="Хлебные крошки"><template v-for="(crumb, index) in breadcrumbs" :key="index"><ChevronRight v-if="index" :size="14" aria-hidden="true" /><NuxtLink :to="crumb.to" :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined">{{ crumb.label }}</NuxtLink></template></nav>
     <div class="wn-toolbar-actions">
       <button type="button" class="wn-command-trigger" aria-label="Найти раздел" @click="paletteOpen = true"><Search :size="18" /><span>Найти раздел</span><kbd aria-hidden="true">Ctrl K</kbd></button>

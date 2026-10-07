@@ -73,7 +73,7 @@ onMounted(async()=>{await load();const id=typeof route.query.customer==='string'
     <header data-v-ui-765289f0fbc4 class="page-header crm-page-header"><div data-v-ui-765289f0fbc4><p data-v-ui-765289f0fbc4>CRM / CUSTOMER 360</p><h1 data-v-ui-765289f0fbc4>Клиенты</h1><span data-v-ui-765289f0fbc4>Единая история B2C и B2B: покупки, лиды, обращения и компании</span></div><button class="crm-button crm-button--refresh" data-v-ui-765289f0fbc4 @click="load"><RefreshCw data-v-ui-765289f0fbc4 :size="16" :class="{ spin: loading }" /> Обновить</button></header>
     <p data-v-ui-765289f0fbc4 v-if="error" class="operation-error" role="alert">{{ error }}</p>
     <WorkspaceLoading v-if="!dashboard && loading" label="Собираем клиентские данные" />
-    <div data-v-ui-765289f0fbc4 v-else-if="dashboard" class="page-body">
+    <div data-v-ui-765289f0fbc4 v-else-if="dashboard" class="page-body crm-page-content crm-directory-content">
       <section data-v-ui-765289f0fbc4 class="kpis">
         <article class="crm-surface" data-v-ui-765289f0fbc4><UserRound data-v-ui-765289f0fbc4 :size="18" /><span data-v-ui-765289f0fbc4>Всего клиентов</span><strong data-v-ui-765289f0fbc4>{{ dashboard?.customers || 0 }}</strong><small data-v-ui-765289f0fbc4>{{ dashboard?.newCustomers || 0 }} новых за 30 дней</small></article>
         <article class="crm-surface" data-v-ui-765289f0fbc4><Users data-v-ui-765289f0fbc4 :size="18" /><span data-v-ui-765289f0fbc4>Активные</span><strong data-v-ui-765289f0fbc4>{{ dashboard?.active || 0 }}</strong><small data-v-ui-765289f0fbc4>доступны для работы</small></article>

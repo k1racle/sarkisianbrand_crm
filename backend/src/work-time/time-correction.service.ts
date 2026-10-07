@@ -2,13 +2,13 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 import { CreateTimeCorrectionDto, DecideTimeCorrectionDto, TimeCorrectionQueryDto } from './time-correction.dto';
 import { correctionFields, proposalView, timeSnapshot } from './time-correction.policy';
 import { timeTotals } from './work-time.policy';
 import { lockTimeEmployee, requireOpenTime } from './timesheet-closing.policy';
-const employeeSelect = { id: true, firstName: true, lastName: true, departmentId: true, isActive: true, role: true } as const;
+const employeeSelect = { id: true, firstName: true, lastName: true, departmentId: true, isActive: true, role: true, accessProfileMode: true } as const;
 const include = { employee: { select: employeeSelect }, session: { select: { version: true } } } as const;
 type Correction = Prisma.CrmWorkTimeCorrectionGetPayload<{ include: typeof include }>;
 @Injectable()
@@ -19,13 +19,13 @@ export class TimeCorrectionService {
     catch (e) { if (e instanceof Prisma.PrismaClientKnownRequestError && ['P2002','P2034'].includes(e.code)) throw new ConflictException('Заявка или рабочий день уже изменены. Обновите данные; повторную заявку не создавайте'); throw e; }
   }
   private async actor(db: Prisma.TransactionClient, id: string) {
-    const user = await db.user.findUnique({ where: { id }, select: { ...employeeSelect, timezone: true } });
+    const user = await db.user.findUnique({ where: { id }, select: { ...employeeSelect, accessProfileMode: true, timezone: true } });
     if (!user?.isActive || !internalWorkspaceRoles.includes(user.role)) throw new ForbiddenException('Нет доступа к рабочему времени');
     const [roles, overrides] = await Promise.all([
       db.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
       db.userPermission.findMany({ where: { userId: id }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    const permissions = effectivePermissions(roles, overrides).permissions;
+    const permissions = (await employeeAccess(db, user, roles, overrides)).permissions;
     if (!permissions.includes('work_time.read')) throw new ForbiddenException('Нет доступа к рабочему времени');
     const company = ['ADMIN','EXECUTIVE'].includes(user.role);
     const departments = permissions.includes('work_time.review') && !company ? (await db.crmDepartment.findMany({ where: { leaderId: id, archivedAt: null }, select: { id: true } })).map(row => row.id) : [];

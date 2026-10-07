@@ -44,11 +44,11 @@ const ADMIN = ['ADMIN'];
  */
 export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
   { id: 'dashboard', label: 'Рабочий стол', description: 'Быстрые переходы и обзор интернет-магазина.', icon: 'LayoutDashboard', items: [
-    { id: 'workspace', label: 'Мой рабочий стол', to: '/workspace', roles: INTERNAL, keywords: 'главная начало dashboard' },
     { id: 'web-dashboard', label: 'Обзор магазина', to: '/admin-workspace/dashboard', permission: 'admin.read', roles: CATALOG },
   ] },
   { id: 'sales', label: 'Продажи', description: 'Заказы интернет-магазина.', icon: 'ShoppingBag', items: [
     { id: 'b2b-orders', label: 'Заказы B2B', to: '/crm/b2b-orders', permission: 'oms.read', roles: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'], keywords: 'опт компании поставки заказы' },
+    { id: 'order-fulfillment', label: 'Сборка и отгрузка', to: '/crm/fulfillment', permission: 'oms.read', roles: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'], keywords: 'склад сборка отгрузка исполнение' },
     { id: 'web-orders', label: 'Заказы интернет-магазина', to: '/admin-workspace/orders', permission: 'web_orders.read', roles: WEB, keywords: 'web продажи оплата доставка' },
   ] },
   { id: 'catalog', label: 'Каталог', description: 'Товары, варианты и карточки интернет-магазина.', icon: 'Boxes', items: [
@@ -174,7 +174,11 @@ export function useWorkspaceNavigation() {
   const route = useRoute();
   const { user } = useWorkspaceSession();
   const access = useWorkspaceAccess();
-  const groups = computed(() => buildWorkspaceNavigation(user.value?.role, access.can));
+  const groups = computed(() => {
+    const allowed = buildWorkspaceNavigation(user.value?.role, access.can);
+    const siteEditor = route.path.startsWith('/admin-workspace') || route.path === '/media-library';
+    return siteEditor ? allowed.filter(group => ['dashboard', 'catalog', 'site', 'media'].includes(group.id)) : allowed;
+  });
   const leaves = computed(() => flattenWorkspaceNavigation(groups.value));
   const active = computed(() => findWorkspaceLeaf(groups.value, route.path, route.query.section));
   const preferences = useState<WorkspacePreferences>('workspace-navigation-preferences', () => ({ favorites: [], recent: [], start: null }));
@@ -186,10 +190,10 @@ export function useWorkspaceNavigation() {
   const recent = computed(() => resolved.value.recent.flatMap(id => leaves.value.filter(item => item.id === id)));
   const start = computed(() => leaves.value.find(item => item.id === resolved.value.start) || null);
   const breadcrumbs = computed(() => active.value && active.value.id !== 'workspace' ? [
-    { label: 'Рабочий стол', to: '/workspace' },
+    { label: 'Админка сайта', to: '/admin-workspace/dashboard' },
     ...(active.value.groupLabel !== 'Рабочий стол' ? [{ label: active.value.groupLabel, to: groups.value.find(group => group.id === active.value!.groupId)?.items[0]?.to || '/workspace' }] : []),
     { label: active.value.label, to: active.value.to },
-  ] : [{ label: 'Рабочий стол', to: '/workspace' }]);
+  ] : [{ label: 'Админка сайта', to: '/admin-workspace/dashboard' }]);
   function hydratePreferences() {
     if (!import.meta.client || !access.ready.value) return;
     const key = storageKey();

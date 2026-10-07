@@ -53,6 +53,7 @@ export class UpdateTaskTemplateDto extends CreateTaskTemplateDto {
 }
 
 export class CreateTaskFromTemplateDto {
+  @IsOptional() @IsUUID() pipelineId?: string;
   @IsOptional() @IsUUID() assignedToId?: string;
   @IsOptional() @IsUUID() leadId?: string;
   @IsOptional() @IsUUID() customerId?: string;
@@ -107,6 +108,7 @@ export class CreateInteractionDto {
 }
 
 export class CreateTaskDto {
+  @IsOptional() @IsUUID() pipelineId?: string;
   @IsString() @MaxLength(200) title!: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsUUID() assignedToId?: string;
@@ -129,6 +131,7 @@ export class CreateTaskDto {
 }
 
 export class UpdateTaskDto {
+  @IsOptional() @IsUUID() pipelineId?: string;
   @IsOptional() @IsString() @MaxLength(200) title?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsUUID() assignedToId?: string;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestKey as createRequestKey } from '~/shared/request-key';
 import { Clock3, Pause, Play, RefreshCw, Square } from '@lucide/vue';
 import { workTimeCounter, workTimeDuration, type WorkTimeAction, type WorkTimeCurrent } from '~/shared/crm-work-time';
 defineProps<{ compact?: boolean }>();
@@ -47,7 +48,7 @@ async function send() {
 function act(action: WorkTimeAction) {
   if (disabled.value) return;
   if (action === 'FINISH' && !window.confirm('Завершить рабочий день? Открытый перерыв тоже будет завершён.')) return;
-  pending.value = { action, version: data.value?.active?.version || 0, ...(data.value?.active ? { sessionId: data.value.active.id } : {}), requestKey: crypto.randomUUID() };
+  pending.value = { action, version: data.value?.active?.version || 0, ...(data.value?.active ? { sessionId: data.value.active.id } : {}), requestKey: createRequestKey() };
   send();
 }
 function wake() { if (!document.hidden) load(); }
@@ -70,7 +71,7 @@ defineExpose({ refresh: load });
           <div><small>Работа сегодня</small><strong>{{ workTimeCounter(worked) }}</strong></div>
           <div><small>Перерывы сегодня</small><strong>{{ workTimeDuration(breaks) }}</strong></div>
           <div><small>В текущем рабочем дне</small><strong>{{ data.active ? workTimeDuration(activeWorked) : '—' }}</strong></div>
-          <div><small>Начало рабочего дня</small><span>{{ data.active ? time(data.active.startedAt) : 'Ещё не отмечено' }}</span></div>
+          <div><small>Начало рабочего дня</small><strong v-if="data.active">{{ time(data.active.startedAt) }}</strong><span v-else>Ещё не отмечено</span></div>
         </div>
         <div v-if="data.canTrack" class="crm-action-bar crm-action-bar--spread">
           <button v-if="!data.active" class="crm-button crm-button--primary" :disabled="disabled" @click="act('START')"><Play :size="18" />Начать рабочий день</button>

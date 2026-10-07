@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestKey as createRequestKey } from '~/shared/request-key';
 import { Copy, RefreshCw, UserPlus } from '@lucide/vue';
 const props=defineProps<{meetingId:string;version:number;disabled:boolean;active:boolean}>();
 const emit=defineEmits<{busy:[value:boolean];refresh:[]}>();
@@ -28,7 +29,7 @@ async function action(run:()=>Promise<void>){
 }
 async function create(){
   if(!label.value.trim()||issued.value)return;
-  await action(async()=>{if(!requestKey.value)requestKey.value=crypto.randomUUID();const data=await request('/invitations',{method:'POST',body:{label:label.value.trim(),version:props.version,requestKey:requestKey.value}});issued.value={link:`${window.location.origin}/meeting-guest#invite=${data.invitationToken}`,pin:data.pin,expiresAt:data.expiresAt};copied.value=false;label.value='';requestKey.value='';});
+  await action(async()=>{if(!requestKey.value)requestKey.value=createRequestKey();const data=await request('/invitations',{method:'POST',body:{label:label.value.trim(),version:props.version,requestKey:requestKey.value}});issued.value={link:`${window.location.origin}/meeting-guest#invite=${data.invitationToken}`,pin:data.pin,expiresAt:data.expiresAt};copied.value=false;label.value='';requestKey.value='';});
 }
 async function revoke(row:Invitation){
   if(!window.confirm(`Отозвать приглашение «${row.label}»? Гость потеряет доступ.`))return;

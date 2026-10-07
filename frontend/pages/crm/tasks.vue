@@ -95,7 +95,11 @@ const draft = reactive<any>({
   reminderBeforeMinutes: 60,
 });
 const headers = computed(() => ({ Authorization: `Bearer ${token.value}` }));
-const columns = [
+const pipelineId = ref('00000000-0000-4000-8000-000000000001');
+const pipelines = ref<any[]>([]), departments = ref<any[]>([]), canManagePipelines = ref(false);
+const pipelineEditor = ref(false), editingPipeline = ref<any>(null);
+const activePipeline = computed(() => pipelines.value.find(item => item.id === pipelineId.value));
+const baseColumns = [
   { id: "BACKLOG", label: "Бэклог", color: "#8b8f98" },
   { id: "TODO", label: "К выполнению", color: "#4f7dcf" },
   { id: "IN_PROGRESS", label: "В работе", color: "#d58a35" },
@@ -103,6 +107,15 @@ const columns = [
   { id: "OVERDUE", label: "Просрочено", color: "#bb5145" },
   { id: "DONE", label: "Готово", color: "#2d9568" },
 ];
+const columns = computed(() => baseColumns.map(column => ({ ...column, label: activePipeline.value?.labels?.[column.id] || column.label })));
+const selectedColumns = computed(() => baseColumns.map(column => ({ ...column, label: pipelines.value.find(item => item.id === selected.value?.pipelineId)?.labels?.[column.id] || column.label })));
+function editPipeline(create = false) { editingPipeline.value = create ? null : activePipeline.value; pipelineEditor.value = true; }
+async function pipelineSaved(id: string) { pipelineEditor.value = false; pipelineId.value = id; await load(); flash('Воронка сохранена'); }
+async function changePipeline(event: Event) {
+ const input = event.target as HTMLSelectElement;
+ if (!canDiscard()) { input.value = pipelineId.value; return; }
+ selected.value = null; dialog.value = false; pipelineId.value = input.value; await load();
+}
 const priorityLabels: any = {
   LOW: "Низкий",
   MEDIUM: "Обычный",
@@ -168,8 +181,12 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
+    const settings = await $fetch<any>('/crm/task-pipelines', { baseURL: config.public.apiBase, headers: headers.value });
+    pipelines.value = settings.pipelines; departments.value = settings.departments; canManagePipelines.value = settings.canManage;
+    if (!pipelines.value.some(item => item.id === pipelineId.value)) pipelineId.value = pipelines.value[0]?.id || '';
     [tasks.value, team.value, leads.value] = await Promise.all([
       $fetch("/crm/tasks", {
+        query: { pipelineId: pipelineId.value },
         baseURL: config.public.apiBase,
         headers: headers.value,
       }),
@@ -202,6 +219,7 @@ function person(u: any) {
 function openCreate(seed: any = {}) {
   if (!writable.value || saving.value || !closeTask()) return;
   Object.assign(draft, {
+    pipelineId: pipelineId.value,
     title: "",
     description: "",
     assignedToId: team.value[0]?.id || "",
@@ -280,7 +298,7 @@ async function moveTask(id: string, status: string) {
   finally { saving.value = false; dragged.value = ""; }
 }
 async function refreshRelated() {
-  try { tasks.value = await $fetch<any[]>('/crm/tasks', { baseURL: config.public.apiBase, headers: headers.value }); }
+  try { tasks.value = await $fetch<any[]>('/crm/tasks', { baseURL: config.public.apiBase, headers: headers.value, query: { pipelineId: pipelineId.value } }); }
   catch { error.value = 'Изменения сохранены, но обновить список не удалось. Нажмите «Обновить».'; return; }
   const fresh = tasks.value.find(task => task.id === selected.value?.id);
   if (fresh && selected.value) {
@@ -334,6 +352,7 @@ async function saveSelected() {
       headers: headers.value,
       body: {
         title: selected.value.title,
+        pipelineId: selected.value.pipelineId,
         description: selected.value.description || undefined,
         assignedToId: selected.value.assignedToId,
         status: selected.value.status,
@@ -439,6 +458,10 @@ function shiftMonth(n: number) {
   );
 }
 onMounted(async () => {
+  if (route.query.task) {
+    try { const task = await $fetch<any>(`/crm/tasks/${encodeURIComponent(String(route.query.task))}`, { baseURL: config.public.apiBase, headers: headers.value }); pipelineId.value = task.pipelineId; }
+    catch (e) { failure(e); loading.value = false; return; }
+  }
   await load();
   if (route.query.lead) openCreate({ leadId: String(route.query.lead) });
   else if (route.query.create) openCreate();
@@ -470,6 +493,11 @@ onMounted(async () => {
           </button>
         </div>
       </header>
+      <section class="crm-toolbar crm-task-pipeline-toolbar" aria-label="Воронки задач">
+        <label class="crm-field">Воронка задач<select aria-label="Воронка задач" class="crm-input" :value="pipelineId" :disabled="saving" @change="changePipeline"><option v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">{{ pipeline.name }}{{ pipeline.department ? ` · ${pipeline.department.name}` : '' }}</option></select></label>
+        <button v-if="canManagePipelines" class="crm-button" :disabled="saving" @click="editPipeline()">Настроить статусы</button>
+        <button v-if="canManagePipelines" class="crm-button" :disabled="saving" @click="editPipeline(true)"><Plus :size="16" />Новая воронка</button>
+      </section>
       <section data-v-ui-acc13851dfa0 class="toolbar crm-toolbar">
         <label class="crm-input-group" data-v-ui-acc13851dfa0
           ><Search data-v-ui-acc13851dfa0 :size="15" /><input class="crm-input" data-v-ui-acc13851dfa0
@@ -642,6 +670,7 @@ onMounted(async () => {
           <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
           <p data-v-ui-acc13851dfa0 v-if="dirty" role="status">Есть несохранённые изменения</p>
           <section v-show="cardTab==='general'" id="task-general-panel" role="tabpanel" aria-labelledby="task-general-tab" class="crm-card-general crm-detail-general">
+          <label class="crm-field">Воронка<select v-model="selected.pipelineId" class="crm-input" :disabled="!writable || !!selected.parentId || !!selected._count?.children"><option v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">{{ pipeline.name }}</option></select><small v-if="selected.parentId || selected._count?.children">Задачи с подзадачами остаются в одной воронке.</small></label>
           <label data-v-ui-acc13851dfa0>Название<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.title" /></label
           ><label data-v-ui-acc13851dfa0
             >Описание<textarea :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.description" rows="4" />
@@ -649,7 +678,7 @@ onMounted(async () => {
           <div data-v-ui-acc13851dfa0 class="two">
             <label data-v-ui-acc13851dfa0
               >Статус<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.status">
-                <option data-v-ui-acc13851dfa0 v-for="c in columns" :value="c.id">
+                <option data-v-ui-acc13851dfa0 v-for="c in selectedColumns" :value="c.id">
                   {{ c.label }}
                 </option>
               </select></label
@@ -769,8 +798,10 @@ onMounted(async () => {
     <CrmTaskAutomation
       v-if="automationOpen && writable"
       v-model="automationOpen"
+      :pipeline-id="pipelineId"
       @created="load(); flash('Задача создана по шаблону')"
     />
+    <CrmTaskPipelineEditor v-if="pipelineEditor" :pipeline="editingPipeline" :departments="departments" @close="pipelineEditor = false" @saved="pipelineSaved" />
     <div data-v-ui-acc13851dfa0 v-if="notice" class="toast">{{ notice }}</div>
   </main>
 </template>

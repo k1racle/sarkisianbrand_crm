@@ -506,7 +506,7 @@ watch(section, () => {
         </div>
       </section>
       <section v-else-if="section === 'access'" class="crm-stack">
-        <CrmCardTabs v-model="accessTab" prefix="access-settings" :tabs="[['matrix', 'Действующие роли'], ['profiles', 'Проекты ролей']]" label="Настройка ролей" />
+        <CrmCardTabs v-model="accessTab" prefix="access-settings" :tabs="[['matrix', 'Действующие роли'], ['profiles', 'Профили доступа']]" label="Настройка ролей" />
         <article v-show="accessTab === 'matrix'" id="access-settings-matrix-panel" role="tabpanel" aria-labelledby="access-settings-matrix-tab" data-v-ui-c4cc81726fbf class="panel crm-surface">
           <div data-v-ui-c4cc81726fbf class="panel-head">
             <div data-v-ui-c4cc81726fbf>

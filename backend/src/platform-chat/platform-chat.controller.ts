@@ -5,7 +5,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { CreatePlatformChannelDto, CreatePlatformMessageDto } from './dto/platform-chat.dto';
+import { CreatePlatformChannelDto, CreatePlatformMessageDto, OpenDirectChatDto, PlatformMessagesQueryDto } from './dto/platform-chat.dto';
 import { PlatformChatService } from './platform-chat.service';
 
 const roles = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'CURATOR', 'WAREHOUSE'];
@@ -21,7 +21,8 @@ export class PlatformChatController {
   @Get('channels') @Header('Cache-Control', 'private, no-store') channels(@Req() request: any) { return this.chat.channels(request.user.sub); }
   @Get('unread') @Header('Cache-Control', 'private, no-store') unread(@Req() request: any) { return this.chat.unread(request.user.sub); }
   @Post('channels') createChannel(@Body() dto: CreatePlatformChannelDto, @Req() request: any) { return this.chat.createChannel(dto, request.user.sub); }
-  @Get('channels/:id/messages') @Header('Cache-Control', 'private, no-store') messages(@Param('id') id: string, @Req() request: any) { return this.chat.messages(id, request.user.sub); }
+  @Post('direct') openDirect(@Body() dto:OpenDirectChatDto,@Req() request:any){return this.chat.openDirect(request.user.sub,dto.userId);}
+  @Get('channels/:id/messages') @Header('Cache-Control', 'private, no-store') messages(@Param('id') id: string, @Req() request: any,@Query() query:PlatformMessagesQueryDto) { return this.chat.messages(id, request.user.sub,query.before); }
   @Post('channels/:id/messages') postMessage(@Param('id') id: string, @Body() dto: CreatePlatformMessageDto, @Req() request: any) { return this.chat.postMessage(id, dto, request.user.sub); }
   @Post('channels/:id/messages/upload')
   @UseInterceptors(FilesInterceptor('files', 8, { limits: { fileSize: 10 * 1024 * 1024 } }))

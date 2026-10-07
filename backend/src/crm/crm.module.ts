@@ -14,6 +14,7 @@ import { CrmReadAccess } from './read-access';
 import { CrmTaskWriteService } from './task-write.service';
 import { CrmLeadWriteService } from './lead-write.service';
 import { CrmRemindersService } from './reminders.service';
+import { CrmTaskPipelinesService } from './task-pipelines.service';
 
-@Module({ imports: [AuthModule, PlatformChatModule], controllers: [CrmController, CrmDriveController, CrmContentController], providers: [CrmService, CrmReadService, CrmReadAccess, CrmTaskWriteService, CrmLeadWriteService, CrmDriveService, CrmContentService, CrmRemindersService, CrmReminderScheduler, RolesGuard] })
+@Module({ imports: [AuthModule, PlatformChatModule], controllers: [CrmController, CrmDriveController, CrmContentController], providers: [CrmTaskPipelinesService, CrmService, CrmReadService, CrmReadAccess, CrmTaskWriteService, CrmLeadWriteService, CrmDriveService, CrmContentService, CrmRemindersService, CrmReminderScheduler, RolesGuard] })
 export class CrmModule {}

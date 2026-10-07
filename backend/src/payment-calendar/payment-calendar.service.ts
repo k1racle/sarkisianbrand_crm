@@ -3,7 +3,7 @@ import { CrmPaymentPlan, Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { calendarDate, companyToday, dateKey, dueDates } from './payment-calendar.policy';
 import { CreatePaymentPlanDto, PaymentCalendarQueryDto, PaymentPlanFieldsDto, SetPlannedPaymentDto, UpdatePaymentPlanDto } from './payment-calendar.dto';
 
@@ -15,10 +15,10 @@ export class PaymentCalendarService {
     catch(e){if(e instanceof Prisma.PrismaClientKnownRequestError&&['P2034','P2002'].includes(e.code))throw new ConflictException('Данные уже изменены. Обновите карточку и повторите действие');throw e;}
   }
   private async actor(db:Prisma.TransactionClient,id:string,operation='read'){
-    const user=await db.user.findUnique({where:{id},select:{id:true,role:true,isActive:true,departmentId:true,department:{select:{archivedAt:true}}}});
+    const user=await db.user.findUnique({where:{id},select:{id:true,role:true,accessProfileMode:true,isActive:true,departmentId:true,department:{select:{archivedAt:true}}}});
     if(!user?.isActive||!internalWorkspaceRoles.includes(user.role))throw new ForbiddenException('Нет доступа к финансам CRM');
     const [roles,overrides]=await Promise.all([db.rolePermission.findMany({where:{role:user.role},select:{permission:{select:{key:true}}}}),db.userPermission.findMany({where:{userId:id},select:{effect:true,permission:{select:{key:true}}}})]);
-    const permissions=new Set(effectivePermissions(roles,overrides).permissions);
+    const permissions=new Set((await employeeAccess(db,user,roles,overrides)).permissions);
     if(!permissions.has('payment_calendar.read')||!permissions.has('payment_calendar.'+operation))throw new ForbiddenException('Нет разрешения на эту операцию календаря платежей');
     return {...user,permissions,company:['ADMIN','EXECUTIVE'].includes(user.role),departmentId:user.department&&!user.department.archivedAt?user.departmentId:null};
   }

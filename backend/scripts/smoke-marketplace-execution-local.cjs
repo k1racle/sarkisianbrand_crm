@@ -1,0 +1,40 @@
+/* Local transaction-only integration smoke. No external providers; QA writes are rolled back. */
+const {PrismaClient}=require('@prisma/client'),{randomUUID}=require('node:crypto'),assert=require('node:assert/strict');
+const {OmsService}=require('../dist/src/oms/oms.service'),{OmsExecutionService}=require('../dist/src/oms/oms-execution.service'),{OmsAdjustmentService}=require('../dist/src/oms/oms-adjustment.service'),{CrmReadAccess}=require('../dist/src/crm/read-access'),{OneCSyncService}=require('../dist/src/1c-sync/1c-sync.service');
+if(process.env.ALLOW_LOCAL_ORDER_SMOKE!=='true')throw new Error('Set ALLOW_LOCAL_ORDER_SMOKE=true');
+const db=new PrismaClient(),rollback=new Error('QA rollback');
+(async()=>{try{await db.$transaction(async tx=>{
+ const actor=await tx.user.findUniqueOrThrow({where:{email:process.env.LOCAL_ADMIN_EMAIL||'admin@local.sarkisian.test'},select:{id:true}}),key='qa-market-'+randomUUID(),offer=key+'-offer';
+ const product=await tx.product.create({data:{sku:key,slug:key,nameRu:'QA marketplace',externalId:offer,basePrice:100,variants:{create:[{sku:key+'-1',name:'one',options:{},price:100,stock:20,reserved:2},{sku:key+'-2',name:'two',options:{},price:100,stock:20,reserved:0}]}},include:{variants:true}}),variant=product.variants.find(v=>v.sku.endsWith('-1'));
+ const adapter={$transaction:fn=>fn(tx)},access=new CrmReadAccess(),queue={enqueueOrder:async()=>null};const oms=new OmsService(adapter,queue,undefined,access),execution=new OmsExecutionService(adapter,access),adjustment=new OmsAdjustmentService(adapter,access);
+ const input={channel:'OZON',externalId:key,totalAmount:400,items:[{sku:offer,quantity:4,price:100}]};
+ await assert.rejects(oms.ingestMarketplace({...input,items:[{sku:offer,quantity:0,price:100}]},actor.id),e=>e.status===400);
+ const result=await oms.ingestMarketplace(input,actor.id);const id=result.id;
+ const read=()=>tx.order.findUniqueOrThrow({where:{id},include:{items:{include:{variant:{select:{sku:true}}}},execution:true,executionOperations:{orderBy:[{createdAt:'asc'},{id:'asc'}]}}});
+ let o=await read();const itemId=o.items[0].id;assert.equal(o.items[0].variantId,null);
+ await tx.order.update({where:{id},data:{managerId:actor.id}});o=await read();await oms.mapMarketplaceItem(actor.id,id,{itemId,sku:variant.sku,expectedUpdatedAt:o.updatedAt.toISOString()});
+ await oms.ingestMarketplace(input,actor.id);o=await read();assert.equal(o.items[0].id,itemId);assert.equal(o.items[0].variantId,variant.id);
+ const body=async(kind,extra={})=>{const current=await read();return {kind,requestKey:randomUUID(),expectedVersion:current.execution?.version||0,expectedUpdatedAt:current.updatedAt.toISOString(),...extra}};
+ const checks={compositionChecked:true,pricesChecked:true,paymentTerms:'Platform',deliveryTerms:'Our warehouse'};
+ await assert.rejects(execution.execute(actor.id,id,await body('CONFIRM',checks)),e=>e.status===400);
+ await execution.execute(actor.id,id,await body('CONFIRM',{...checks,localWarehouseConfirmed:true}));assert.equal((await tx.productVariant.findUnique({where:{id:variant.id}})).reserved,6);
+ await execution.execute(actor.id,id,await body('PICK',{lines:[{itemId,quantity:4}]}));await execution.execute(actor.id,id,await body('SHIP',{lines:[{itemId,quantity:2}]}));
+ const before=await read();await oms.ingestMarketplace(input,actor.id);let after=await read();assert.equal(after.items[0].id,itemId);assert.equal(after.items[0].shippedQuantity,2);assert.equal(after.execution.version,before.execution.version);assert.equal(after.updatedAt.getTime(),before.updatedAt.getTime());
+ await oms.ingestMarketplace({...input,totalAmount:500,items:[{sku:offer,quantity:5,price:100}]},actor.id);after=await read();assert(after.marketplaceImportIssue);assert.equal(after.items[0].quantity,4);assert.equal(Number(after.finalAmount),400);assert.equal(after.status,'ASSEMBLING');
+ await assert.rejects(execution.execute(actor.id,id,await body('SHIP',{lines:[{itemId,quantity:1}]})),e=>e.status===409);
+ await adjustment.adjust(actor.id,id,await body('CANCEL_REMAINDER',{reason:'External correction: cancel remainder',lines:[{itemId,quantity:2}]}));await adjustment.adjust(actor.id,id,await body('RETURN',{reason:'QA return',lines:[{itemId,quantity:1,damagedQuantity:0}]}));
+ const incoming=await tx.marketplaceOrder.findUniqueOrThrow({where:{canonicalOrderId:id}}),current=await read();
+ await assert.rejects(oms.resolveMarketplaceImport(actor.id,id,{expectedUpdatedAt:current.updatedAt.toISOString(),expectedIncomingAt:'2000-01-01T00:00:00.000Z',reason:'stale review'}),e=>e.status===409);
+ await oms.resolveMarketplaceImport(actor.id,id,{expectedUpdatedAt:current.updatedAt.toISOString(),expectedIncomingAt:incoming.updatedAt.toISOString(),reason:'Customer confirmed original order; remainder cancelled'});
+ await oms.ingestMarketplace({...input,totalAmount:500,items:[{sku:offer,quantity:5,price:100}]},actor.id);assert.equal((await read()).marketplaceImportIssue,null);assert.equal((await read()).items[0].quantity,4);
+ const inventory=await tx.productVariant.findUniqueOrThrow({where:{id:variant.id}});assert.equal(inventory.stock,19);assert.equal(inventory.reserved,2);
+ const oneC=new OneCSyncService({order:tx.order}, {}, {});const snapshot=await read(),payload=oneC.orderPayload(snapshot,{});assert.equal(payload.items[0].id,itemId);assert.equal(payload.items[0].catalogSku,variant.sku);assert.equal(payload.operations.length,5);assert.equal(payload.warehouse.requiresPicking,false);
+ const ack={orders:[{platformOrderId:id,accepted:true,revision:snapshot.updatedAt.toISOString(),executionVersion:snapshot.execution.version,acceptedOperationIds:snapshot.executionOperations.map(op=>op.id)}]};
+ await assert.rejects(oneC.applyAcknowledgement(snapshot,{acceptedIds:[id]}),e=>e.status===502);
+ await tx.order.update({where:{id},data:{internalNotes:'concurrent local change',updatedAt:new Date(Date.now()+1000)}});await assert.rejects(oneC.applyAcknowledgement(snapshot,ack),e=>e.status===409);assert.equal((await read()).isSynced1C,false);
+ const fresh=await read();ack.orders[0].revision=fresh.updatedAt.toISOString();await oneC.applyAcknowledgement(fresh,ack);assert.equal((await read()).isSynced1C,true);
+ const stockImport=new OneCSyncService(adapter,{},{});const importResult=await stockImport.processProducts({products:[{externalId:offer,sku:variant.sku,nameRu:'QA',slug:key,price:100,stock:999}]},async()=>{});assert.deepEqual(importResult.stockSkipped,[variant.sku]);assert.equal((await tx.productVariant.findUniqueOrThrow({where:{id:variant.id}})).stock,19);
+ throw rollback;
+},{timeout:30000,isolationLevel:'Serializable'});}catch(e){if(e!==rollback)throw e;}
+console.log('PASS SKU mapping, explicit local reservation, immutable repeated import, conflict freeze, partial shipment/cancel/return, other reserves, 1C documents and stale/incomplete acknowledgements; rolled back');
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>db.$disconnect());

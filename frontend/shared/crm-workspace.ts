@@ -21,6 +21,7 @@ export const CRM_DESTINATIONS: CrmDestination[] = [
   { id: 'web-customers', path: '/crm/buyers', label: 'Клиенты — прежний экран', group: 'Клиенты и продажи', icon: 'UserRound', sidebarFallbackFor: 'customers', screen: 'store', section: 'customers' },
   { id: 'web-orders', path: '/crm/orders', label: 'Заказы сайта', group: 'Заказы и исполнение', icon: 'ShoppingBag', screen: 'store', section: 'orders' },
   { id: 'b2b-orders', path: '/crm/b2b-orders', label: 'Заказы B2B', group: 'Заказы и исполнение', icon: 'PackageCheck' },
+  { id: 'order-fulfillment', path: '/crm/fulfillment', label: 'Сборка и отгрузка', group: 'Заказы и исполнение', icon: 'PackageCheck' },
   { id: 'channel-dashboard', path: '/crm/marketplaces/overview', label: 'Обзор маркетплейсов', group: 'Заказы и исполнение', parent: 'marketplaces', icon: 'Store', screen: 'channels', section: 'overview' },
   { id: 'channel-orders', path: '/crm/marketplaces/orders', label: 'Заказы маркетплейсов', group: 'Заказы и исполнение', parent: 'marketplaces', icon: 'ReceiptText', screen: 'channels', section: 'orders' },
   { id: 'payment-calendar', path: '/crm/payment-calendar', label: 'Календарь платежей', group: 'Финансы', icon: 'CalendarCheck2' },

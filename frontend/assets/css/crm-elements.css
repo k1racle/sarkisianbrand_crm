@@ -16,6 +16,23 @@
  html[data-crm-ui] .crm-standard { padding:24px 16px!important; background:var(--crm-bg)!important; min-width:0!important; }
  html[data-crm-ui] .crm-page-content { padding:0!important; margin:0!important; }
  html[data-crm-ui] .crm-page-content--stack {display:grid;gap:16px;min-width:0;}
+ html[data-crm-ui] .crm-directory-content {max-width:none!important;width:100%;min-width:0;}
+ html[data-crm-ui] .crm-directory-content > .kpis {padding:0!important;margin:0 0 16px!important;}
+ html[data-crm-ui] .crm-order-filters {display:flex;align-items:center;flex-wrap:wrap;}
+ html[data-crm-ui] .crm-order-filters > select {flex:0 1 190px;width:190px;}
+ html[data-crm-ui] .crm-order-filters > .crm-input-group {flex:1 1 260px;min-width:0;}
+ html[data-crm-ui] .crm-order-filters > label:not(.crm-input-group) {display:flex;align-items:center;gap:8px;}
+ html[data-crm-ui] .crm-order-filters > [role=status] {white-space:nowrap;}
+ html[data-crm-ui] .crm-task-pipeline-toolbar {display:flex;flex-wrap:wrap;align-items:end;}
+ html[data-crm-ui] .crm-task-pipeline-toolbar > .crm-field {flex:1 1 280px;min-width:0;}
+ html[data-crm-ui] .crm-manager-search {display:grid;grid-template-columns:minmax(0,1fr);align-items:center;}
+ html[data-crm-ui] .crm-manager-search > .crm-input {min-width:0;width:100%;}
+ @media(min-width:768px) {
+  html[data-crm-ui] .crm-manager-search {grid-template-columns:minmax(0,1fr) auto;}
+ }
+ @media(max-width:767px) {
+  html[data-crm-ui] .crm-order-filters > :is(select,.crm-input-group) {flex:1 1 100%;width:100%;}
+ }
  html[data-crm-ui] .crm-section-inset {margin:0 var(--workspace-gutter,16px) 16px;min-width:0;}
  html[data-crm-ui] .crm-panel-header {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:16px 20px;border-bottom:1px solid var(--crm-line);}
  html[data-crm-ui] .crm-panel-header :is(h2,p) {margin:0;}
@@ -28,6 +45,9 @@
  html[data-crm-ui] .crm-surface { background:var(--crm-surface)!important; background-image:none!important; color:var(--crm-ink)!important; border:1px solid var(--crm-line)!important; border-radius:var(--crm-radius-card)!important; box-shadow:none!important; backdrop-filter:none!important; }
  html[data-crm-ui] .crm-surface--tint {background:var(--crm-tint)!important;border-color:#dfd9fa!important;}
  html[data-crm-ui] .crm-surface--tint > strong {color:var(--crm-accent-ink)!important;}
+ html[data-crm-ui] .crm-standard .loyalty-program-preview {background:linear-gradient(135deg,#39314f,#625385 55%,#344d68)!important;color:#fff!important;}
+ html[data-crm-ui] .crm-standard .loyalty-program-preview :is(h2,b,strong) {color:#fff!important;}
+ html[data-crm-ui] .crm-standard .loyalty-program-preview :is(p,small,span) {color:#f1edf8!important;opacity:1!important;}
  html[data-crm-ui] .crm-surface > :is(span,small) {color:var(--crm-muted)!important;}
  html[data-crm-ui] .crm-item-card {background:var(--crm-surface)!important;border:1px solid var(--crm-line)!important;border-radius:12px!important;color:var(--crm-ink)!important;box-shadow:none!important;}
  html[data-crm-ui] :is(.crm-item-card,.crm-interactive):hover {background:var(--crm-hover-bg)!important;border-color:var(--crm-hover-border)!important;}
@@ -105,6 +125,8 @@
  html[data-crm-ui] .crm-detail-card > .crm-card-tabs {margin:16px var(--crm-detail-gutter) 0!important;}
  html[data-crm-ui] .crm-detail-body {display:block!important;flex:1 1 0!important;min-height:0!important;min-width:0!important;padding:24px var(--crm-detail-gutter)!important;margin:0!important;border:0!important;overflow:auto!important;}
  html[data-crm-ui] .crm-detail-body.crm-stack {display:grid!important;align-content:start!important;gap:16px!important;}
+ html[data-crm-ui] .crm-order-tab-panel {display:grid;align-content:start;gap:16px;min-width:0;}
+ html[data-crm-ui] .crm-order-tab-panel[hidden] {display:none!important;}
  html[data-crm-ui] .crm-detail-body > :is(label,.two) {margin-bottom:16px;}
  html[data-crm-ui] .crm-detail-general {display:grid;gap:16px;}
  html[data-crm-ui] .crm-detail-body :is(.fields,.two,.crm-detail-subtask-create) {display:grid;grid-template-columns:minmax(0,1fr);align-content:start;align-items:end;gap:16px;}
@@ -256,3 +278,5 @@
  @media(min-width:1024px){html[data-crm-ui] .crm-standard {padding:24px!important;}}
  @media(max-width:639px){html[data-crm-ui] .crm-page-header {margin-bottom:24px!important;}html[data-crm-ui] .crm-card-tabs {gap:0;margin-bottom:16px;}html[data-crm-ui] .crm-card-tabs button {padding:10px;}}
 }
+
+html[data-crm-ui] .crm-execution-card { padding: 16px; overflow-wrap: anywhere; }

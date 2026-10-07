@@ -7,6 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { CompanyScope, CompanyScopeGuard } from '../common/guards/company-scope.guard';
 import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
 import { OneCSyncService } from './1c-sync.service';
+import { OneCFinanceDto } from './dto/finance.dto';
 
 @ApiTags('1c-sync')
 @Controller('1c-sync')
@@ -45,6 +46,11 @@ export class OneCSyncController {
 @Controller('1c-webhook')
 export class OneCWebhookController {
   constructor(private readonly sync: OneCSyncService) {}
+  @Post('order-finance')
+  async orderFinance(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCFinanceDto) {
+    if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');
+    return this.sync.importFinance(dto);
+  }
 
   @Post('order-statuses')
   @ApiOperation({ summary: 'Статусы складской сборки из 1С/ТСД' })

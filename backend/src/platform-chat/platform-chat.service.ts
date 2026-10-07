@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CrmChatType, PlatformChatAttachmentKind, UserRole } from '@prisma/client';
+import { CrmChatType, PlatformChatAttachmentKind, Prisma, UserRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
@@ -62,9 +62,27 @@ export class PlatformChatService {
     return (await this.records.channels(actorId, channel.id))[0];
   }
 
-  async messages(channelId: string, userId: string) {
-    const rows = await this.records.messages(channelId, userId);
-    await this.markRead(channelId, userId);
+  async openDirect(actorId:string,peerId:string){
+    await this.records.assertStaff(actorId);
+    if(actorId===peerId)throw new BadRequestException('Выберите другого сотрудника');
+    const memberIds=[actorId,peerId].sort(),directKey=memberIds.join(':');
+    const channel=await this.prisma.$transaction(async db=>{
+      const count=await db.user.count({where:{id:{in:memberIds},role:{in:internalRoles},isActive:true}});
+      if(count!==2)throw new BadRequestException('Сотрудник недоступен для личного диалога');
+      return db.crmChatChannel.upsert({where:{directKey},update:{},create:{directKey,name:'Личный диалог '+randomUUID(),type:CrmChatType.PRIVATE,createdById:actorId,members:{create:memberIds.map(userId=>({userId,role:'MEMBER'}))}}});
+    }).catch(async error=>{
+      // Concurrent opens of the same pair must converge to the one unique channel.
+      if(!(error instanceof Prisma.PrismaClientKnownRequestError)||error.code!=='P2002')throw error;
+      const existing=await this.prisma.crmChatChannel.findUnique({where:{directKey}});if(!existing)throw error;return existing;
+    });
+    if(channel.isArchived)throw new ConflictException('Диалог находится в архиве');
+    await this.realtime.publishChannel(channel);
+    return (await this.records.channels(actorId,channel.id))[0];
+  }
+
+  async messages(channelId: string, userId: string, before?:string) {
+    const rows = await this.records.messages(channelId, userId, before);
+    if(!before)await this.markRead(channelId, userId);
     return rows;
   }
 

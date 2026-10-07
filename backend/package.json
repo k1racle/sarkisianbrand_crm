@@ -44,10 +44,11 @@
     "@nestjs/throttler": "^5.0.0",
     "@nestjs/websockets": "^10.4.22",
     "@prisma/client": "^5.0.0",
-    "bcrypt": "^5.1.0",
+    "bcrypt": "6.0.0",
     "bullmq": "^4.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
+    "exceljs": "4.4.0",
     "express-rate-limit": "^7.0.0",
     "helmet": "^7.0.0",
     "ioredis": "^5.3.0",
@@ -60,6 +61,10 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
     "winston": "^3.10.0"
+  },
+  "overrides": {
+    "exceljs": { "uuid": "11.1.1" },
+    "bullmq": { "uuid": "11.1.1" }
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

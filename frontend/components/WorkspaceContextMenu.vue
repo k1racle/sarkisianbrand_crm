@@ -104,24 +104,13 @@ function generic(event: MouseEvent) {
     ]);
     return;
   }
-  openContextMenu(event, "Рабочее пространство", [
+  openContextMenu(event, "Действия страницы", [
     {
       label: "Обновить данные страницы",
       icon: "refresh",
       action: () => window.location.reload(),
     },
     { label: "Вернуться назад", icon: "open", action: () => router.back() },
-    {
-      label: "Все рабочие пространства",
-      icon: "home",
-      separator: true,
-      action: () => router.push("/workspace"),
-    },
-    {
-      label: "Открыть магазин",
-      icon: "external",
-      action: () => window.open("/", "_blank"),
-    },
   ]);
 }
 function closeOnEscape(event: KeyboardEvent) {

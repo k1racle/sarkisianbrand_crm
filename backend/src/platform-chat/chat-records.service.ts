@@ -104,9 +104,11 @@ export class ChatRecordsService {
     });
   }
 
-  messages(channelId: string, actor: string) { return this.read(actor, async db => {
+  messages(channelId: string, actor: string, before?:string) { return this.read(actor, async db => {
     if (!await db.crmChatChannel.findFirst({ where: { id: channelId, ...this.channelWhere(actor) }, select: { id: true } })) throw new NotFoundException('Канал не найден или недоступен');
-    const rows = await db.crmChatMessage.findMany({ where: { channelId, deletedAt: null }, include: messageInclude, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100 });
+    const anchor=before?await db.crmChatMessage.findFirst({where:{id:before,channelId,deletedAt:null},select:{id:true,createdAt:true}}):null;
+    if(before&&!anchor)throw new NotFoundException('Сообщение в этом диалоге не найдено');
+    const rows = await db.crmChatMessage.findMany({ where: { channelId, deletedAt: null,...(anchor?{OR:[{createdAt:{lt:anchor.createdAt}},{createdAt:anchor.createdAt,id:{lt:anchor.id}}]}:{}) }, include: messageInclude, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100 });
     return this.project(db, actor, rows.reverse());
   }); }
   message(id: string, channelId: string, actor: string) { return this.read(actor, async db => {
@@ -123,7 +125,8 @@ export class ChatRecordsService {
     return Promise.all(rows.map(async row => {
       const lastReadAt = row.members.find(member => member.userId === actor)?.lastReadAt;
       const unread = await db.crmChatMessage.count({ where: { channelId: row.id, deletedAt: null, authorId: { not: actor }, ...(lastReadAt ? { createdAt: { gt: lastReadAt } } : {}) } });
-      return { ...row, messages: row.messages.map(message => messages.get(message.id)), unread };
+      const peer=row.directKey?row.members.find(member=>member.userId!==actor)?.user:null;
+      return { ...row,...(row.directKey?{name:[peer?.firstName,peer?.lastName].filter(Boolean).join(' ')||'Сотрудник',description:'Личный диалог',isDirect:true}:{}), messages: row.messages.map(message => messages.get(message.id)), unread };
     }));
   }); }
 }

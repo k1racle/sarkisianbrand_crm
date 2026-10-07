@@ -138,8 +138,8 @@ export const integrationDefinitions: IntegrationDefinition[] = [
     ],
   },
   {
-    key: 'ONE_C', provider: 'ONE_C', name: '1С: товары, заказы и клиенты', category: IntegrationCategory.ERP,
-    description: 'Двусторонний обмен номенклатурой, ценами, остатками, заказами и клиентами.',
+    key: 'ONE_C', provider: 'ONE_C', name: '1С:Комплексная автоматизация', category: IntegrationCategory.ERP,
+    description: 'Обмен заказами и запросами; получение расчётов, документов и разрешений отгрузки из 1С.',
     documentationUrl: 'https://featureit.ru/blog/integraciya-1s-sajt-api-guide/',
     fields: [
       { key: 'baseUrl', label: 'Адрес HTTP-сервиса 1С', type: 'url', required: true },
@@ -151,6 +151,7 @@ export const integrationDefinitions: IntegrationDefinition[] = [
       { key: 'counterpartiesPath', label: 'Путь получения контрагентов', type: 'text', placeholder: '/hs/sarkisian/v1/counterparties' },
       { key: 'ordersPath', label: 'Путь передачи заказов', type: 'text', placeholder: '/hs/sarkisian/v1/orders' },
       { key: 'orderStatusesPath', label: 'Путь статусов сборки', type: 'text', placeholder: '/hs/sarkisian/v1/order-statuses' },
+      { key: 'orderFinancePath', label: 'Путь расчётов и документов', type: 'text', placeholder: '/hs/sarkisian/v1/order-finance' },
       { key: 'warehouseId', label: 'ID склада 1С для сборки', type: 'text', required: true },
       { key: 'organizationId', label: 'ID организации 1С', type: 'text', required: true },
       { key: 'orderType', label: 'Вид документа заказа', type: 'text', placeholder: 'Заказ клиента' },

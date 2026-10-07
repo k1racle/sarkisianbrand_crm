@@ -1,0 +1,81 @@
+name: sarkisian-crm-local
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Set LOCAL_DB_PASSWORD in .env.local}
+      POSTGRES_DB: sarkisian_brand
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d sarkisian_brand"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:${LOCAL_DB_PASSWORD}@postgres:5432/sarkisian_brand?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${LOCAL_JWT_SECRET:?Set LOCAL_JWT_SECRET}
+      JWT_REFRESH_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}
+      INTEGRATION_ENCRYPTION_KEY: ${LOCAL_ENCRYPTION_KEY:?Set LOCAL_ENCRYPTION_KEY}
+      CORS_ORIGIN: http://localhost:3001,http://127.0.0.1:3001,${LOCAL_SITE_URL:-http://localhost:3001}
+      SITE_URL: ${LOCAL_SITE_URL:-http://localhost:3001}
+      PUBLIC_APP_URL: ${LOCAL_SITE_URL:-http://localhost:3001}
+      SEO_INDEXING_ENABLED: "false"
+      ECOSYSTEM_AUTOMATION_ENABLED: "false"
+      STOREFRONT_EXTERNAL_CALLS_ENABLED: "false"
+      MAIL_DELIVERY_ENABLED: "false"
+      LOYALTY_MAINTENANCE_ENABLED: "false"
+      CRM_MEDIA_ENABLED: "false"
+      CRM_MEDIA_GATEWAY_ENFORCED: "false"
+    ports:
+      - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:3000:3000"
+    volumes:
+      - uploads:/app/uploads
+      - crm_files:/app/private-crm-files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: frontend
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_API_BASE: ${LOCAL_API_URL:-http://localhost:3000/api/v1}
+      NUXT_SEO_API_BASE: http://backend:3000/api/v1
+      NUXT_PUBLIC_SITE_URL: ${LOCAL_SITE_URL:-http://localhost:3001}
+      NUXT_PUBLIC_SEO_INDEXING_ENABLED: "false"
+    ports:
+      - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:3001:3000"
+    depends_on:
+      - backend
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  crm_files:

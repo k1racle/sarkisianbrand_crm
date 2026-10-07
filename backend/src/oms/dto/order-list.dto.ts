@@ -1,8 +1,9 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { OrderSource, OrderStatus } from '@prisma/client';
 
 export class OmsOrderListDto {
+  @IsOptional() @IsIn(['true']) needsReview?: 'true';
   @IsOptional() @IsEnum(OrderSource) source?: OrderSource;
   @IsOptional() @IsEnum(OrderStatus) status?: OrderStatus;
   @IsOptional() @IsString() @MaxLength(200) search?: string;

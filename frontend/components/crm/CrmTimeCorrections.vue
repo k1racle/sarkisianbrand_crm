@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestKey as createRequestKey } from '~/shared/request-key';
 import { Plus, RefreshCw, Trash2, X } from '@lucide/vue';
 import { workTimeDuration, workTimeLocal, type TimeCorrection, type WorkTimeSession } from '~/shared/crm-work-time';
 const props = defineProps<{ visible: boolean; scope: 'MINE' | 'REVIEW'; canCreate: boolean; canReview: boolean; timezone: string; month: string }>();
@@ -33,7 +34,7 @@ function close() { if (leave()) { opened.value = false; ++openVersion; } }
 const { panel, keyboard } = useCatalogDialog(computed(() => opened.value), close);
 function create(row: WorkTimeSession | null = null) {
   if (!props.canCreate || !leave()) return;
-  source.value = row; selected.value = null; pending.value = null; note.value = ''; formError.value = ''; requestKey.value = crypto.randomUUID();
+  source.value = row; selected.value = null; pending.value = null; note.value = ''; formError.value = ''; requestKey.value = createRequestKey();
   const tz = row?.timezone || props.timezone;
   Object.assign(draft, { startLocal: row ? workTimeLocal(row.startedAt,tz) : props.month + '-01T09:00', endLocal: row?.endedAt ? workTimeLocal(row.endedAt,tz) : '', timezone: tz, reason: '',
     breaks: row?.breaks.map(pause => ({ startLocal: workTimeLocal(pause.startedAt,tz), endLocal: pause.endedAt ? workTimeLocal(pause.endedAt,tz) : '' })) || [] });
@@ -69,7 +70,7 @@ function decide(action: 'APPROVE'|'REJECT'|'CANCEL') {
   if (!row || busy.value || pending.value || !(action === 'APPROVE' ? row.canApprove : action === 'REJECT' ? row.canReject : row.canCancel)) return;
   if (note.value.trim().length < 3) { formError.value = 'Укажите комментарий к решению (не менее 3 символов).'; return; }
   if (!window.confirm(action === 'APPROVE' ? 'Принять исправление? Фактические часы будут пересчитаны, исходные отметки останутся в истории.' : action === 'REJECT' ? 'Отклонить заявку без изменения часов?' : 'Отозвать заявку?')) return;
-  pending.value = { path: '/corrections/' + row.id + '/decision', body: { action, version: row.version, note: note.value.trim(), requestKey: crypto.randomUUID() } }; send();
+  pending.value = { path: '/corrections/' + row.id + '/decision', body: { action, version: row.version, note: note.value.trim(), requestKey: createRequestKey() } }; send();
 }
 function changePage(delta: number) { page.value += delta; load(); }
 function unload(e: BeforeUnloadEvent) { if (dirty.value || busy.value) { e.preventDefault(); e.returnValue = ''; } }

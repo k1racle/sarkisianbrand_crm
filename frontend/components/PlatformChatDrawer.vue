@@ -48,6 +48,9 @@ const error = ref("");
 const emojiOpen = ref(false);
 const entityOpen = ref(false);
 const createOpen = ref(false);
+const directPicker = ref(false), directBusy = ref(false);
+const historyBefore = ref(''), historyBusy = ref(false), hasOlder = ref(false);
+const directCandidates = computed(() => team.value.filter(member => member.id !== user.value?.id && (!channelSearch.value || person(member).toLowerCase().includes(channelSearch.value.toLowerCase()))));
 const mobileChannels = ref(false);
 const { panel: chatPanel, keyboard: chatKeyboard } = useCatalogDialog(computed(() => isOpen.value), closeChat);
 function chatKeys(event: KeyboardEvent) {
@@ -175,7 +178,8 @@ async function loadChannels(preserve = true) {
     channels.value = channelRows; team.value = teamRows;
     unread.value = channelRows.reduce((sum, channel) => sum + channel.unread, 0);
     const selected = preserve && active.value ? channelRows.find(channel => channel.id === active.value.id) : channelRows[0];
-    if (selected) await selectChannel(selected, false);
+    if (selected && selected.id === active.value?.id) { active.value=selected; await refreshMessages(true); }
+    else if (selected) await selectChannel(selected, false);
     else { ++messageRequest; active.value = null; messages.value = []; releaseMedia(); }
   } catch (exception: any) {
     if (!currentView(epoch, identity) || version !== channelRequest) return;
@@ -185,7 +189,7 @@ async function loadChannels(preserve = true) {
 }
 async function selectChannel(channel: any, showConversation = true) {
   if (showConversation) mobileChannels.value = false;
-  ++messageRequest; active.value = channel; messages.value = []; releaseMedia();
+  ++messageRequest; historyBefore.value='';hasOlder.value=false;active.value = channel; messages.value = []; releaseMedia();
   joinRealtimeChannel(channel.id);
   await refreshMessages(true);
 }
@@ -194,23 +198,40 @@ async function refreshMessages(force = false) {
   const id = active.value.id, epoch = viewEpoch, identity = token.value, version = ++messageRequest;
   const valid = () => currentView(epoch, identity) && version === messageRequest && active.value?.id === id;
   try {
-    const rows = await $fetch<any[]>(`/platform-chat/channels/${id}/messages`, { baseURL: config.public.apiBase, headers: headers.value });
+    const rows = await $fetch<any[]>(`/platform-chat/channels/${id}/messages`, { baseURL: config.public.apiBase, headers: headers.value,query:historyBefore.value?{before:historyBefore.value}:{} });
     if (!valid()) return;
     const changed = JSON.stringify(rows.map(item => item.id)) !== JSON.stringify(messages.value.map(item => item.id));
     // Same IDs can now contain restricted references after access was revoked.
     messages.value = rows;
+    hasOlder.value=rows.length===100;
     const channel = channels.value.find(item => item.id === id);
-    if (channel) channel.unread = 0;
+    if (channel&&!historyBefore.value) channel.unread = 0;
     unread.value = channels.value.reduce((sum, item) => sum + item.unread, 0);
     const attachmentIds = new Set(rows.flatMap(row => row.attachments || []).map(item => item.id));
     for (const [key, url] of Object.entries(mediaUrls)) if (!attachmentIds.has(key)) { URL.revokeObjectURL(url); delete mediaUrls[key]; }
     await hydrateMedia(rows, valid);
-    if (valid() && changed) nextTick(scrollBottom);
+    if (valid() && changed && !historyBefore.value) nextTick(scrollBottom);
   } catch (exception: any) {
     if (!valid()) return;
     messages.value = []; releaseMedia();
     error.value = exception?.data?.message || "Не удалось обновить сообщения";
   }
+}
+async function browseHistory(latest=false){
+  if(historyBusy.value)return;const epoch=viewEpoch,identity=token.value;historyBusy.value=true;
+  historyBefore.value=latest?'':messages.value[0]?.id||'';
+  try{await refreshMessages(true);if(currentView(epoch,identity)&&!latest)nextTick(()=>{const list=document.querySelector('.platform-chat .message-list');if(list)list.scrollTop=0;});}
+  finally{if(currentView(epoch,identity))historyBusy.value=false;}
+}
+async function openDirect(member:any){
+  if(directBusy.value)return;const epoch=viewEpoch,identity=token.value;directBusy.value=true;error.value='';
+  try{
+    const channel=await $fetch<any>('/platform-chat/direct',{baseURL:config.public.apiBase,headers:headers.value,method:'POST',body:{userId:member.id},timeout:20000,retry:0});
+    if(!currentView(epoch,identity))return;
+    if(!channels.value.some(row=>row.id===channel.id))channels.value.push(channel);
+    directPicker.value=false;channelSearch.value='';await selectChannel(channel);
+  }catch(e:any){if(currentView(epoch,identity))error.value=e?.data?.message||'Не удалось открыть личный диалог';}
+  finally{if(currentView(epoch,identity))directBusy.value=false;}
 }
 function releaseMedia() {
   for (const [id, url] of Object.entries(mediaUrls)) { URL.revokeObjectURL(url); delete mediaUrls[id]; }
@@ -219,7 +240,7 @@ function clearView() {
   ++viewEpoch; ++channelRequest; ++messageRequest; ++entityRequest;
   channels.value = []; messages.value = []; team.value = []; active.value = null;
   entityResults.value = []; entities.value = []; entityError.value = ""; entityLoading.value = false; entityOpen.value = false;
-  createOpen.value = false; emojiOpen.value = false;
+  createOpen.value = false; emojiOpen.value = false;directPicker.value=false;directBusy.value=false;historyBefore.value='';historyBusy.value=false;hasOlder.value=false;
   Object.assign(draftChannel, { name: "", description: "", type: "TEAM", memberIds: [] });
   if (recorder && recorder.state !== 'inactive') { recorder.onstop = null; recorder.stop(); }
   stopRecordingState();
@@ -308,6 +329,7 @@ async function send() {
     entities.value = [];
     emojiOpen.value = false;
     entityOpen.value = false;
+    historyBefore.value='';
     await refreshMessages();
     await loadChannels(true);
   } catch (exception: any) {
@@ -527,8 +549,8 @@ onBeforeUnmount(() => {
               <button data-v-ui-6f58f7dddb37 type="button" class="chat-channel-toggle crm-button" :aria-label="mobileChannels ? 'Вернуться к переписке' : 'Показать каналы'" :aria-expanded="mobileChannels" :disabled="mobileChannels && !active" @click="mobileChannels = !mobileChannels"><ChevronLeft data-v-ui-6f58f7dddb37 v-if="mobileChannels" :size="20"/><Hash data-v-ui-6f58f7dddb37 v-else :size="20"/></button>
               <i data-v-ui-6f58f7dddb37><MessageCircle data-v-ui-6f58f7dddb37 :size="18" /></i
               ><span data-v-ui-6f58f7dddb37
-                ><p data-v-ui-6f58f7dddb37>ЕДИНАЯ ЭКОСИСТЕМА</p>
-                <h2 data-v-ui-6f58f7dddb37>Чат платформы</h2></span
+                ><p data-v-ui-6f58f7dddb37>КОМАНДА</p>
+                <h2 data-v-ui-6f58f7dddb37>Чат команды</h2></span
               >
             </div>
             <em data-v-ui-6f58f7dddb37 class="realtime-state" :class="{ connected }"
@@ -539,19 +561,22 @@ onBeforeUnmount(() => {
               <X data-v-ui-6f58f7dddb37 :size="19" />
             </button>
           </header>
-          <WorkspaceLoading v-if="loading" label="Открываем чат платформы" />
+          <WorkspaceLoading v-if="loading" label="Открываем чат команды" />
           <div data-v-ui-6f58f7dddb37 v-else class="chat-body" :class="{ 'chat-body--channels': mobileChannels || !active }">
             <aside data-v-ui-6f58f7dddb37 class="channels">
               <header data-v-ui-6f58f7dddb37>
-                <b data-v-ui-6f58f7dddb37>Каналы</b
+                <b data-v-ui-6f58f7dddb37>{{directPicker?'Сотрудники':'Каналы и диалоги'}}</b
                 ><button class="crm-button crm-button--primary crm-button--icon" data-v-ui-6f58f7dddb37 type="button" aria-label="Создать канал" @click="createOpen = true"><Plus data-v-ui-6f58f7dddb37 :size="15" /></button>
               </header>
+              <button class="crm-button" type="button" @click="directPicker=!directPicker;channelSearch='';mobileChannels=true"><UserRound :size="16" />{{directPicker?'К диалогам':'Личное сообщение'}}</button>
               <label class="crm-input-group" data-v-ui-6f58f7dddb37
                 ><Search data-v-ui-6f58f7dddb37 :size="14" /><input class="crm-input" data-v-ui-6f58f7dddb37
                   v-model="channelSearch"
-                  placeholder="Найти канал"
+                  :placeholder="directPicker?'Найти сотрудника':'Найти канал или диалог'"
+                  :aria-label="directPicker?'Найти сотрудника':'Найти канал или диалог'"
               /></label>
-              <nav data-v-ui-6f58f7dddb37>
+              <nav v-if="directPicker" data-v-ui-6f58f7dddb37 aria-label="Сотрудники для личного диалога"><button v-for="member in directCandidates" :key="member.id" class="crm-button crm-card-action crm-interactive" :disabled="directBusy" @click="openDirect(member)"><UserRound :size="16" /><span>{{person(member)}}</span></button><p v-if="!directCandidates.length" class="crm-inline-note">Сотрудники не найдены.</p></nav>
+              <nav v-else data-v-ui-6f58f7dddb37>
                 <button class="crm-button crm-card-action crm-interactive" data-v-ui-6f58f7dddb37
                   v-for="channel in visibleChannels"
                   :key="channel.id"
@@ -559,7 +584,7 @@ onBeforeUnmount(() => {
                   @click="selectChannel(channel)"
                 >
                   <i data-v-ui-6f58f7dddb37
-                    ><Lock data-v-ui-6f58f7dddb37 v-if="channel.type === 'PRIVATE'" :size="13" /><Hash data-v-ui-6f58f7dddb37
+                    ><UserRound v-if="channel.isDirect" :size="14" /><Lock data-v-ui-6f58f7dddb37 v-else-if="channel.type === 'PRIVATE'" :size="13" /><Hash data-v-ui-6f58f7dddb37
                       v-else
                       :size="14"
                   /></i>
@@ -595,6 +620,7 @@ onBeforeUnmount(() => {
                 >
               </header>
               <div data-v-ui-6f58f7dddb37 class="message-list">
+                <div class="crm-action-bar"><button v-if="hasOlder" class="crm-button" :disabled="historyBusy" @click="browseHistory()">Более ранние сообщения</button><button v-if="historyBefore" class="crm-button" :disabled="historyBusy" @click="browseHistory(true)">К последним сообщениям</button></div>
                 <div data-v-ui-6f58f7dddb37
                   v-for="message in messages"
                   :key="message.id"
@@ -675,7 +701,8 @@ onBeforeUnmount(() => {
                     </div>
                   </section>
                 </div>
-                <div data-v-ui-6f58f7dddb37 v-if="!messages.length" class="empty">
+                <p v-if="!messages.length&&historyBefore" class="crm-inline-note">Более ранних сообщений нет.</p>
+                <div data-v-ui-6f58f7dddb37 v-if="!messages.length&&!historyBefore" class="empty">
                   <MessageCircle data-v-ui-6f58f7dddb37 :size="34" /><b data-v-ui-6f58f7dddb37>Начните обсуждение</b
                   ><span data-v-ui-6f58f7dddb37
                     >Напишите первое сообщение в канале «{{

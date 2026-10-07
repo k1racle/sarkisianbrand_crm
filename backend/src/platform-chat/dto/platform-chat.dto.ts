@@ -20,3 +20,10 @@ export class CreatePlatformChannelDto {
   @IsOptional() @IsEnum(CrmChatType) type?: CrmChatType;
   @IsOptional() @IsArray() @IsUUID('4', { each: true }) memberIds?: string[];
 }
+
+export class OpenDirectChatDto {
+  @IsUUID('4') userId!: string;
+}
+export class PlatformMessagesQueryDto {
+  @IsOptional() @IsUUID('4') before?:string;
+}

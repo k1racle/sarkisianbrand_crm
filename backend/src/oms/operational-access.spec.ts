@@ -30,6 +30,21 @@ function fixture(scope = 'DEPARTMENT', writeScope = 'OWN', denied: string[] = []
 }
 
 describe('Scoped operational records (unit only; no integrations)', () => {
+  it('requires a cancellation reason and records it once even after a retry', async () => {
+    const f = fixture('COMPANY', 'COMPANY');
+    // Prisma returns a snapshot, not a reference mutated by a later update.
+    f.db.order.findFirst.mockImplementation(async (args: any) => {
+      const row = f.tables.order.find(row => matches(row, args.where));
+      return row ? structuredClone(project(row, args.select)) : null;
+    });
+    await expect(f.oms.update('own', { status: 'CANCELLED', comment: '   ' }, 'actor')).rejects.toMatchObject({ status: 400 });
+    expect(f.db.order.update).not.toHaveBeenCalled();
+    expect(f.oneC.enqueueOrder).not.toHaveBeenCalled();
+    await f.oms.update('own', { status: 'CANCELLED', comment: 'Покупатель отменил заказ' }, 'actor');
+    await f.oms.update('own', { status: 'CANCELLED' }, 'actor');
+    expect(f.db.orderStatusHistory.create).toHaveBeenCalledTimes(1);
+    expect(f.db.orderStatusHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ fromStatus: 'NEW', toStatus: 'CANCELLED', changedBy: 'actor', comment: 'Покупатель отменил заказ' }) });
+  });
   it.each([
     ['OWN', ['own']], ['PARTICIPATING', ['own', 'participant']], ['DEPARTMENT', ['own', 'peer']],
     ['DEPARTMENT_TREE', ['own', 'peer', 'branch']], ['SELECTED_DEPARTMENTS', ['foreign', 'participant']],
@@ -159,7 +174,7 @@ describe('Public support and import actor trust boundaries', () => {
   });
   it('import rechecks the actor before enqueue and before each imported order', async () => {
     let handler: any;
-    const oms = { assertMarketplaceImport: jest.fn(), ingestMarketplace: jest.fn() }, jobs = { enqueue: jest.fn(), register: (_key, fn) => handler = fn };
+    const oms = { assertMarketplaceImport: jest.fn(), ingestMarketplace: jest.fn().mockResolvedValue({ marketplaceImportIssue: null }) }, jobs = { enqueue: jest.fn(), register: (_key, fn) => handler = fn };
     const service = new MarketplacesService({} as any, oms as any, jobs as any); service.onModuleInit();
     const dto: any = { orders: [{ externalId: 'a' }, { externalId: 'b' }] };
     await service.importMany(dto, 'actor'); expect(jobs.enqueue).toHaveBeenCalledWith('MARKETPLACE_ORDERS_IMPORT', dto, 'actor');

@@ -70,9 +70,9 @@ export class CrmReadService {
       return output;
     });
   }
-  tasks(actorId: string, status?: TaskStatus, assignedToId?: string) {
+  tasks(actorId: string, status?: TaskStatus, assignedToId?: string, pipelineId?: string) {
     return this.read(actorId, async (db, policy, now) => {
-      const rows = await db.task.findMany({ where: { AND: [policy.tasks(), taskStatusWhere(status, now), ...(assignedToId ? [{ assignedToId }] : [])] }, include: this.taskInclude(policy), orderBy: [{ position: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }], take: 500 });
+      const rows = await db.task.findMany({ where: { AND: [policy.tasks(), taskStatusWhere(status, now), ...(assignedToId ? [{ assignedToId }] : []), ...(pipelineId ? [{ pipelineId }] : [])] }, include: this.taskInclude(policy), orderBy: [{ position: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }], take: 500 });
       return this.taskReferences(db, policy, rows, now);
     });
   }

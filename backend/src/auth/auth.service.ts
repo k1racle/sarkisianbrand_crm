@@ -9,6 +9,7 @@ import { extname, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto, CompletePasswordResetDto, LoginDto, RefreshTokenDto, RegisterDto, RequestProfileChangeDto, UpdateOwnProfileDto } from './dto/auth.dto';
 import { effectivePermissions } from './effective-permissions';
+import { employeeAccess } from './employee-access';
 
 type SessionContext = { userAgent?: string; ipAddress?: string };
 type SocialProfile = { provider: string; externalId: string; email?: string | null; firstName?: string | null; lastName?: string | null; phone?: string | null; avatarUrl?: string | null; metadata?: Record<string, unknown> };
@@ -22,13 +23,14 @@ export class AuthService {
   ) {}
 
   async access(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true, isActive: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, isActive: true, departmentId: true, accessProfileMode: true } });
     if (!user?.isActive) throw new UnauthorizedException('Сессия завершена');
     const [rolePermissions, overrides] = await Promise.all([
       this.prisma.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
       this.prisma.userPermission.findMany({ where: { userId }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    return { role: user.role, ...effectivePermissions(rolePermissions, overrides) };
+    const effective = await employeeAccess(this.prisma, user, rolePermissions, overrides);
+    return { role: user.role, permissions: effective.permissions, denied: effective.denied, profileMode: user.accessProfileMode };
   }
 
   async register(dto: RegisterDto, context: SessionContext = {}) {

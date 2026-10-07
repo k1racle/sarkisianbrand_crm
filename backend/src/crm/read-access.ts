@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AccessDecision, customerScopeWhere, organizationScopeWhere, leadScopeWhere, orderScopeWhere, ticketScopeWhere, resolveProfileScopes, taskScopeWhere } from '../auth/access-scope-policy';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 
 /** Server-created only. No request/query DTO accepts decisions or an access scope. */
@@ -39,18 +39,13 @@ export class CrmReadPolicy {
 export class CrmReadAccess {
   async resolve(db: Prisma.TransactionClient, actorId: string, permission = 'crm.read') {
     if (!actorId) throw new ForbiddenException('Сотрудник не определён');
-    const actor = await db.user.findUnique({ where: { id: actorId }, select: { id: true, role: true, isActive: true, departmentId: true } });
+    const actor = await db.user.findUnique({ where: { id: actorId }, select: { id: true, role: true, isActive: true, departmentId: true, accessProfileMode: true } });
     if (!actor?.isActive || !internalWorkspaceRoles.includes(actor.role)) throw new ForbiddenException('Учётная запись недоступна');
     const [roles, overrides] = await Promise.all([
       db.rolePermission.findMany({ where: { role: actor.role }, select: { permission: { select: { key: true } } } }),
       db.userPermission.findMany({ where: { userId: actorId }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    const effective = effectivePermissions(roles, overrides);
-    // Compatibility is explicit, not a fallback for an absent/invalid profile. Drafts remain unassigned.
-    // Replace this source with versioned assignments only after every read AND write path is covered.
-    const decisions = resolveProfileScopes(actor, effective.permissions.map(permissionKey => ({
-      profileId: `legacy:${actor.role}`, profileName: actor.role, permissionKey, scope: 'COMPANY', departmentIds: [],
-    })), [], effective.denied);
+    const { decisions } = await employeeAccess(db, actor, roles, overrides);
     return new CrmReadPolicy(actor.id, decisions, permission);
   }
 }

@@ -7,6 +7,13 @@ import { OmsService } from '../oms/oms.service';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
 
 describe('Storefront transitions (mock only, no provider calls)', () => {
+  it.each(['WEB', 'B2B'])('managed %s cancellation requires a quantity document', async source => {
+    const tx: any = {};
+    await expect(applyStorefrontTransition(tx, { source, fulfillmentManaged: true, status: 'ASSEMBLING', items: [] }, OrderStatus.CANCELLED)).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('does not close an adjusted WEB order before finance reconciliation', async () => {
+    await expect(applyStorefrontTransition({} as any, { source: 'WEB', fulfillmentManaged: true, status: 'SHIPPED', reservationState: 'CONSUMED', items: [{ cancelledQuantity: 1 }] }, OrderStatus.DELIVERED)).rejects.toBeInstanceOf(ConflictException);
+  });
   function fixture(paid = false) {
     const order: any = { id: 'mock-order', orderNumber: 'MOCK-ORDER', source: 'WEB', status: paid ? OrderStatus.PAID : OrderStatus.NEW,
       paymentStatus: paid ? 'SUCCEEDED' : 'PENDING', reservationState: 'ACTIVE', reservationExpiresAt: new Date(),
@@ -83,12 +90,14 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
     expect(await applyStorefrontTransition({} as any, { source: 'WEB', reservationState: 'LEGACY' }, target)).toEqual({});
   });
   it('does not guess historic B2B or marketplace reservation semantics', async () => {
-    expect(await applyStorefrontTransition({} as any, { source: 'B2B', reservationState: 'LEGACY' }, OrderStatus.SHIPPED)).toEqual({});
+    await expect(applyStorefrontTransition({ oneCOrderFinance: { findUnique: async () => null } } as any, { source: 'B2B', reservationState: 'LEGACY' }, OrderStatus.SHIPPED)).rejects.toMatchObject({ status: 409 });
     expect(await applyStorefrontTransition({} as any, { source: 'OZON', reservationState: 'ACTIVE' }, OrderStatus.SHIPPED)).toEqual({});
   });
   it('dispatches new B2B reservations through the stock lifecycle', async () => {
-    const tx:any={productVariant:{updateMany:jest.fn().mockResolvedValue({count:1})}};
-    const result=await applyStorefrontTransition(tx,{source:'B2B',reservationState:'ACTIVE',items:[{variantId:'mock-v',quantity:2}]},OrderStatus.SHIPPED);
+    const order={source:'B2B',reservationState:'ACTIVE',items:[{id:'line',variantId:'mock-v',quantity:2}]};
+    const { settlementBasis } = await import('../1c-sync/finance-policy');
+    const tx:any={oneCOrderFinance:{findUnique:async()=>({basisHash:settlementBasis(order),releaseAllowed:true,validUntil:new Date(Date.now()+60000)})},productVariant:{updateMany:jest.fn().mockResolvedValue({count:1})}};
+    const result=await applyStorefrontTransition(tx,order,OrderStatus.SHIPPED);
     expect(result.reservationState).toBe('CONSUMED');expect(tx.productVariant.updateMany.mock.calls[0][0].data).toEqual({stock:{decrement:2},reserved:{decrement:2}});
   });
   it.each([OrderStatus.PAID, OrderStatus.ASSEMBLING, OrderStatus.SHIPPED, OrderStatus.DELIVERED])('prohibits unverified unpaid %s transition', async (target) => {
@@ -172,7 +181,7 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
   it.each(['admin', 'oms', 'oneC'])('%s locks and rereads before transitioning unpaid cancellation', async (caller) => {
     const ctx = fixture();
     if (caller === 'admin') await new AdminService(ctx.prisma, ctx.oneC, {} as any, ctx.notifications).updateOrderStatus('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff');
-    if (caller === 'oms') await new OmsService(ctx.prisma, ctx.oneC, ctx.notifications, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff');
+    if (caller === 'oms') await new OmsService(ctx.prisma, ctx.oneC, ctx.notifications, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.CANCELLED, comment: 'Отмена покупателем' }, 'mock-staff');
     if (caller === 'oneC') await new OneCSyncService(ctx.prisma, {} as any, {} as any, ctx.notifications).importOrderStatuses({ statuses: [{ platformOrderId: 'mock-order', status: 'CANCELLED' }] });
     const read = caller === 'admin' ? ctx.tx.order.findUnique : ctx.tx.order.findFirst;
     expect(ctx.tx.$queryRaw.mock.calls[0][0].join('?')).toContain('FOR UPDATE');

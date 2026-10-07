@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable 
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 import { WorkTimeCommandDto, WorkTimeQueryDto } from './work-time.dto';
 import { timePeriod, timeTotals, timeZone, todayPeriod, transitionAllowed } from './work-time.policy';
@@ -22,13 +22,13 @@ export class WorkTimeService {
     }
   }
   private async actor(db: Prisma.TransactionClient, id: string) {
-    const user = await db.user.findUnique({ where: { id }, select: { id: true, isActive: true, role: true, timezone: true, departmentId: true } });
+    const user = await db.user.findUnique({ where: { id }, select: { id: true, isActive: true, role: true, accessProfileMode: true, timezone: true, departmentId: true } });
     if (!user?.isActive || !internalWorkspaceRoles.includes(user.role)) throw new ForbiddenException('Рабочее время доступно сотрудникам CRM');
     const [roles, overrides] = await Promise.all([
       db.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
       db.userPermission.findMany({ where: { userId: id }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    const { permissions } = effectivePermissions(roles, overrides);
+    const { permissions } = (await employeeAccess(db, user, roles, overrides));
     if (!permissions.includes('work_time.read')) throw new ForbiddenException('Нет доступа к своему рабочему времени');
     return { ...user, canTrack: permissions.includes('work_time.track'), canPlan: permissions.includes('work_schedule.read') };
   }

@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CrmTimesheetPeriod, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 import { TimesheetActionDto, TimesheetQueryDto } from './timesheet.dto';
 import { calculateWorkTimePlan } from './work-time-plan';
@@ -15,17 +15,17 @@ export class TimesheetService {
   constructor(private readonly prisma:PrismaService){}
   private read<T>(run:(db:Prisma.TransactionClient)=>Promise<T>){return this.prisma.$transaction(run,{isolationLevel:Prisma.TransactionIsolationLevel.RepeatableRead,timeout:30000});}
   private async actor(db:Prisma.TransactionClient,id:string){
-    const user=await db.user.findUnique({where:{id},select:{id:true,firstName:true,lastName:true,isActive:true,role:true,timezone:true}});
+    const user=await db.user.findUnique({where:{id},select:{id:true,firstName:true,lastName:true,isActive:true,role:true,accessProfileMode:true,timezone:true}});
     if(!user?.isActive || !internalWorkspaceRoles.includes(user.role))throw new ForbiddenException('Табель доступен руководителям команды');
     const [roles,overrides]=await Promise.all([db.rolePermission.findMany({where:{role:user.role},select:{permission:{select:{key:true}}}}),db.userPermission.findMany({where:{userId:id},select:{effect:true,permission:{select:{key:true}}}})]);
-    const permissions=effectivePermissions(roles,overrides).permissions;
+    const permissions=(await employeeAccess(db,user,roles,overrides)).permissions;
     if(!permissions.includes('work_time.read') || !permissions.includes('work_time.review'))throw new ForbiddenException('Нет доступа к табелю команды');
     const company=['ADMIN','EXECUTIVE'].includes(user.role);
     const departments=await db.crmDepartment.findMany({where:company?{}:{leaderId:id,archivedAt:null},select:{id:true,name:true,archivedAt:true},orderBy:[{name:'asc'},{id:'asc'}]});
     if(!company && !departments.length)throw new ForbiddenException('Нет доступных отделов для табеля');
-    return {...user,company,departments,canPlan:permissions.includes('work_schedule.read'),timezone:timeZone(user.timezone)};
+    return {...user,company,departments,canPlan:permissions.includes('work_schedule.read'),canExport:permissions.includes('work_time.export'),timezone:timeZone(user.timezone)};
   }
-  async options(id:string){return this.read(async db=>{const actor=await this.actor(db,id);return {departments:actor.departments,timezone:actor.timezone,company:actor.company};});}
+  async options(id:string){return this.read(async db=>{const actor=await this.actor(db,id);return {departments:actor.departments,timezone:actor.timezone,company:actor.company,canExport:actor.canExport};});}
   private employeeWhere(actor:Awaited<ReturnType<TimesheetService['actor']>>,query:TimesheetQueryDto,employeeId?:string):Prisma.UserWhereInput{
     if(query.departmentId && !actor.departments.some(row=>row.id===query.departmentId))throw new NotFoundException('Отдел не найден');
     const words=(query.search||'').split(/\s+/).filter(Boolean);
@@ -75,7 +75,14 @@ export class TimesheetService {
       corrections:result.corrections.filter(row=>correctionTouches(row,result.period.start,result.period.end,result.now)).map(row=>({id:row.id,stale:Boolean(row.session&&row.baseVersion!==row.session.version)}))};
   }
   async list(id:string,query:TimesheetQueryDto){return this.read(async db=>{
-    const actor=await this.actor(db,id),people=await db.user.findMany({where:this.employeeWhere(actor,query),select:employeeSelect,orderBy:[{lastName:'asc'},{firstName:'asc'},{id:'asc'}],take:201});
+    const result=await this.collect(db,id,query,false);
+    return {...result,items:result.items.slice((result.page-1)*25,result.page*25).map(({days,intervals,corrections,serverTime,...row})=>row)};
+  });}
+  async exportData(id:string,query:TimesheetQueryDto){return this.read(db=>this.collect(db,id,query,true));}
+  private async collect(db:Prisma.TransactionClient,id:string,query:TimesheetQueryDto,exporting:boolean){
+    const actor=await this.actor(db,id);
+    if(exporting&&!actor.canExport)throw new ForbiddenException('Нет разрешения на экспорт табеля');
+    const people=await db.user.findMany({where:this.employeeWhere(actor,query),select:employeeSelect,orderBy:[{lastName:'asc'},{firstName:'asc'},{id:'asc'}],take:201});
     if(people.length>200)throw new BadRequestException('В выборке больше 200 сотрудников. Выберите отдел или уточните имя для полного расчёта');
     const records=await db.crmTimesheetPeriod.findMany({where:{employeeId:{in:people.map(row=>row.id)},month:query.month}}),byPerson=new Map(records.map(row=>[row.employeeId,row]));
     const visible=people.filter(person=>!byPerson.has(person.id)||this.periodVisible(actor,person,byPerson.get(person.id)!));
@@ -83,12 +90,15 @@ export class TimesheetService {
     for(const person of visible){const saved=byPerson.get(person.id),tz=saved?.timezone||actor.timezone;
       if(saved?.status==='CLOSED')rows.push({...this.stored(saved,actor.canPlan),workflow:this.state(saved)});
       else {const bucket=groups.get(tz)||[];bucket.push(person);groups.set(tz,bucket);}}
-    for(const [timezone,group] of groups){const result=await this.calculate(db,{...actor,timezone},group,query.month);rows.push(...result.rows.map(row=>({...row,timezone,workflow:this.state(byPerson.get(row.employee.id),result.hashes.get(row.employee.id))})));}
+    for(const [timezone,group] of groups){const result=await this.calculate(db,{...actor,timezone},group,query.month);rows.push(...result.rows.map(row=>({
+      ...(exporting?this.snapshot({...result,rows:[row],sessions:result.sessions.filter(s=>s.employeeId===row.employee.id),corrections:result.corrections.filter(c=>c.employeeId===row.employee.id)},query.month,timezone):row),
+      timezone,workflow:this.state(byPerson.get(row.employee.id),result.hashes.get(row.employee.id))})));}
     const order=new Map(people.map((row,index)=>[row.id,index]));rows.sort((a,b)=>order.get(a.employee.id)!-order.get(b.employee.id)!);
     const filtered=rows.filter(row=>query.view!=='ATTENTION'||row.needsAttention||row.workflow.stale),total=filtered.length,pages=Math.max(1,Math.ceil(total/25)),page=Math.min(query.page,pages);
     const [clock]=await db.$queryRaw<{now:Date}[]>`SELECT clock_timestamp() AS now`;
-    return {month:query.month,timezone:actor.timezone,serverTime:clock.now,scope:actor.company?'COMPANY':'DEPARTMENTS',page,pages,total,summary:sheetSummary(filtered),items:filtered.slice((page-1)*25,page*25).map(({days,intervals,corrections,serverTime,...row})=>row)};
-  });}
+    if(exporting)await db.auditLog.create({data:{actorId:id,resource:'crm.timesheet',action:'EXPORT',payload:{month:query.month,departmentId:query.departmentId||null,view:query.view,total}}});
+    return {month:query.month,timezone:actor.timezone,serverTime:clock.now,scope:actor.company?'COMPANY':'DEPARTMENTS',page,pages,total,summary:sheetSummary(filtered),items:filtered};
+  }
   async detail(id:string,employeeId:string,month:string){return this.read(async db=>{
     const actor=await this.actor(db,id),employee=await db.user.findFirst({where:this.employeeWhere(actor,{month,page:1,view:'ALL'},employeeId),select:employeeSelect});
     if(!employee)throw new NotFoundException('Сотрудник не найден');

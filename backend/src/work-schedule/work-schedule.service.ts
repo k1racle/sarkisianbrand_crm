@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { CrmWorkPattern, CrmWorkSchedule, Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 import { CreateScheduleDto, CreateWorkPatternDto, ScheduleQueryDto, ScheduleTransitionDto, UpdateScheduleDto, WorkPatternActionDto } from './work-schedule.dto';
 import { localStamp, scheduleFields, scheduleMonth } from './work-schedule.policy';
@@ -27,14 +27,14 @@ export class WorkScheduleService {
   }
 
   private async actor(db: Prisma.TransactionClient, id: string) {
-    const user = await db.user.findUnique({ where: { id }, select: { ...personSelect, role: true } });
+    const user = await db.user.findUnique({ where: { id }, select: { ...personSelect, role: true, accessProfileMode: true } });
     if (!user?.isActive || !internalWorkspaceRoles.includes(user.role)) throw new ForbiddenException('Нет доступа к графикам CRM');
     const [roles, overrides, departments] = await Promise.all([
       db.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
       db.userPermission.findMany({ where: { userId: id }, select: { effect: true, permission: { select: { key: true } } } }),
       db.crmDepartment.findMany({ where: { leaderId: id, archivedAt: null }, select: { id: true } }),
     ]);
-    const permissions = new Set(effectivePermissions(roles, overrides).permissions);
+    const permissions = new Set((await employeeAccess(db, user, roles, overrides)).permissions);
     if (!permissions.has('work_schedule.read')) throw new ForbiddenException('Нет разрешения на просмотр графиков');
     return { ...user, permissions, company: ['ADMIN', 'EXECUTIVE'].includes(user.role), departments: departments.map(d => d.id) };
   }

@@ -11,6 +11,7 @@ import { CrmReadService } from './crm-read.service';
 import { CrmTaskWriteService } from './task-write.service';
 import { CrmLeadWriteService } from './lead-write.service';
 import { CrmRemindersService } from './reminders.service';
+import { CrmTaskPipelinesService, CreateTaskPipelineDto, UpdateTaskPipelineDto } from './task-pipelines.service';
 import { MoveTaskDto } from './dto/crm.dto';
 import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineStageDto, CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, CreateTaskTemplateDto, ReorderPipelineStagesDto, UpdateLeadDto, UpdatePipelineDto, UpdatePipelineStageDto, UpdateTaskDto, UpdateTaskTemplateDto } from './dto/crm.dto';
 
@@ -19,7 +20,10 @@ import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineS
 @UseGuards(JwtAuthGuard, RolesGuard, CompanyScopeGuard)
 @Roles('ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE')
 export class CrmController {
-  constructor(private readonly crm: CrmService, private readonly reads: CrmReadService, private readonly tasksWrite: CrmTaskWriteService, private readonly leadsWrite: CrmLeadWriteService, private readonly reminderService: CrmRemindersService) {}
+  @Get('task-pipelines') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') listTaskPipelines(@Req() req: any) { return this.taskPipelines.list(req.user.sub); }
+  @Post('task-pipelines') @Permissions('crm.write') @CompanyScope('crm.read', 'crm.write') createTaskPipeline(@Req() req: any, @Body() dto: CreateTaskPipelineDto) { return this.taskPipelines.save(req.user.sub, dto); }
+  @Patch('task-pipelines/:id') @Permissions('crm.write') @CompanyScope('crm.read', 'crm.write') updateTaskPipeline(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateTaskPipelineDto) { return this.taskPipelines.save(req.user.sub, dto, id); }
+  constructor(private readonly crm: CrmService, private readonly reads: CrmReadService, private readonly tasksWrite: CrmTaskWriteService, private readonly leadsWrite: CrmLeadWriteService, private readonly reminderService: CrmRemindersService, private readonly taskPipelines: CrmTaskPipelinesService) {}
 
   @Get('dashboard') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') dashboard(@Req() req: any) { return this.reads.dashboard(req.user.sub); }
   @Get('team') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') team(@Req() req: any) { return this.reads.team(req.user.sub); }
@@ -39,7 +43,7 @@ export class CrmController {
   @Patch('leads/:id') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') updateLead(@Param('id') id: string, @Body() dto: UpdateLeadDto, @Req() request: any) { return this.leadsWrite.update(request.user.sub, id, dto); }
   @Post('leads/:id/interactions') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') interaction(@Param('id') id: string, @Body() dto: CreateInteractionDto, @Req() request: any) { return this.leadsWrite.interaction(request.user.sub, id, dto); }
 
-  @Get('tasks') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') tasks(@Req() req: any, @Query('status', new ParseEnumPipe(TaskStatus, { optional: true })) status?: TaskStatus, @Query('assignedToId') assignedToId?: string) { return this.reads.tasks(req.user.sub, status, assignedToId); }
+  @Get('tasks') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') tasks(@Req() req: any, @Query('status', new ParseEnumPipe(TaskStatus, { optional: true })) status?: TaskStatus, @Query('assignedToId') assignedToId?: string, @Query('pipelineId') pipelineId?: string) { return this.reads.tasks(req.user.sub, status, assignedToId, pipelineId); }
   @Get('tasks/:id') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') task(@Param('id') id: string, @Req() req: any) { return this.reads.task(req.user.sub, id); }
   @Post('tasks') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') createTask(@Body() dto: CreateTaskDto, @Req() request: any) { return this.tasksWrite.create(request.user.sub, dto); }
   @Patch('tasks/:id') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') updateTask(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Req() request:any) { return this.tasksWrite.update(request.user.sub, id, dto); }

@@ -18,7 +18,7 @@ const writes = endpoints.filter(endpoint => endpoint.method !== RequestMethod.GE
 describe('Executive CRM read access (real endpoint metadata and RolesGuard, no network)', () => {
   let allowed: string[];
   let overrides: { effect: string; permission: { key: string } }[];
-  const db: any = { rolePermission: { findMany: jest.fn() }, userPermission: { findMany: jest.fn() } };
+  const db: any = { user: { findUnique: jest.fn() }, rolePermission: { findMany: jest.fn() }, userPermission: { findMany: jest.fn() } };
   const guard = new RolesGuard(new Reflector(), db);
   const context = (endpoint: typeof endpoints[number], role = 'EXECUTIVE'): ExecutionContext => ({
     getClass: () => endpoint.controller, getHandler: () => endpoint.handler,
@@ -26,6 +26,7 @@ describe('Executive CRM read access (real endpoint metadata and RolesGuard, no n
   } as ExecutionContext);
   beforeEach(() => {
     jest.resetAllMocks(); allowed = ['crm.read', 'customers.read']; overrides = [];
+    db.user.findUnique.mockResolvedValue({ id: 'fixture-employee', role: 'EXECUTIVE', isActive: true, accessProfileMode: false });
     db.rolePermission.findMany.mockImplementation(({ where }) => Promise.resolve(allowed
       .filter(key => where.permission.key.in.includes(key)).map(key => ({ permission: { key } }))));
     db.userPermission.findMany.mockImplementation(({ where }) => Promise.resolve(overrides

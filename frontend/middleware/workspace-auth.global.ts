@@ -38,14 +38,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const destination = crmDestination(to.path);
     if (destination && !allowed.some(item => item.id === destination.id)) {
       const first = CRM_DESTINATIONS.find(item => allowed.some(leaf => leaf.id === item.id));
-      return navigateTo(first?.path || '/workspace');
+      if (first) return navigateTo(first.path);
+      if (to.path !== '/crm/' && to.path !== '/crm') return navigateTo('/crm/');
     }
-    if (!allowed.length) return navigateTo('/workspace');
+    if (!allowed.length && to.path !== '/crm/' && to.path !== '/crm') return navigateTo('/crm/');
     return;
   }
   const protectedRoute = workspaceRoutes.some(path => to.path === path || to.path.startsWith(`${path}/`));
   if (protectedRoute && !session.token.value) return navigateTo({ path: '/workspace-login', query: { redirect: to.fullPath } });
-  if (to.path === '/workspace-login' && session.token.value && !useState<boolean>('workspace-signing-out', () => false).value) return navigateTo('/workspace');
+  if (to.path === '/workspace-login' && session.token.value && !useState<boolean>('workspace-signing-out', () => false).value) return navigateTo('/admin-workspace/dashboard');
   if (!session.user.value || session.user.value.role === 'ADMIN') return;
   const access: Record<string, string[]> = {
     '/admin-workspace': ['CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'],
@@ -63,5 +64,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
   };
   const family = Object.keys(access).find(path => to.path === path || to.path.startsWith(`${path}/`));
   const allowed = family ? access[family] : undefined;
-  if (allowed && !allowed.includes(session.user.value.role)) return navigateTo('/workspace');
+  if (allowed && !allowed.includes(session.user.value.role)) return navigateTo('/crm/');
 });

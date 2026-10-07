@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlarmClock, CheckCircle2, Clock3, Play, Plus, Save, Trash2, X } from '@lucide/vue';
 
-defineProps<{ modelValue: boolean }>();
+const props = defineProps<{ modelValue: boolean; pipelineId?: string }>();
 const emit = defineEmits(['update:modelValue', 'created']);
 const config = useRuntimeConfig();
 const { token } = useWorkspaceSession();
@@ -13,7 +13,7 @@ const priorityLabels: any = { LOW: 'Низкий', MEDIUM: 'Обычный', HIG
 function person(user: any) { return [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || 'Не назначен'; }
 async function load() { [templates.value, reminders.value, team.value] = await Promise.all([$fetch<any[]>('/crm/task-templates', { baseURL: config.public.apiBase, headers: headers.value }), $fetch<any[]>('/crm/reminders', { baseURL: config.public.apiBase, headers: headers.value }), $fetch<any[]>('/crm/team', { baseURL: config.public.apiBase, headers: headers.value })]); }
 async function createTemplate() { saving.value = true; error.value = ''; try { await $fetch('/crm/task-templates', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: { ...draft, labels: String(draft.labels).split(',').map(item => item.trim()).filter(Boolean), estimateMinutes: Number(draft.estimateMinutes), dueInHours: Number(draft.dueInHours), reminderBeforeMin: Number(draft.reminderBeforeMin), defaultAssigneeId: draft.defaultAssigneeId || undefined } }); Object.assign(draft, { name: '', title: '', description: '', priority: 'MEDIUM', labels: '', estimateMinutes: 60, dueInHours: 24, reminderBeforeMin: 60, defaultAssigneeId: '' }); await load(); } catch (exception: any) { error.value = exception?.data?.message || 'Не удалось создать шаблон'; } finally { saving.value = false; } }
-async function launch(template: any) { await $fetch(`/crm/task-templates/${template.id}/create-task`, { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: {} }); emit('created'); emit('update:modelValue', false); }
+async function launch(template: any) { await $fetch(`/crm/task-templates/${template.id}/create-task`, { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: { pipelineId: props.pipelineId } }); emit('created'); emit('update:modelValue', false); }
 async function archive(template: any) { await $fetch(`/crm/task-templates/${template.id}`, { baseURL: config.public.apiBase, method: 'DELETE', headers: headers.value }); await load(); }
 async function dismiss(reminder: any) { await $fetch(`/crm/reminders/${reminder.id}/dismiss`, { baseURL: config.public.apiBase, method: 'POST', headers: headers.value }); await load(); }
 onMounted(load);

@@ -4,6 +4,7 @@ node_modules/
 backend/uploads/media/
 backend/private-crm-files/
 .screenshots/
+backups/
 
 # Build outputs
 dist/

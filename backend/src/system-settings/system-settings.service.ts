@@ -8,7 +8,7 @@ import { BackgroundJobsService } from '../background-jobs/background-jobs.servic
 import { AccountListQueryDto, CreateBotCommandDto, CreateEmployeeDto, ReviewProfileChangeDto, SetTemporaryPasswordDto, UpdateAccountDto, UpdateBotCommandDto, UpdateEmployeeDto, UpdateEmployeePermissionsDto, UpdateIntegrationDto, UpsertBotIdentityDto } from './dto/system-settings.dto';
 import { defaultBotCommands, integrationDefinitionMap, integrationDefinitions } from './integration-catalog';
 import { IntegrationSecretsService } from './integration-secrets.service';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { internalWorkspaceRoles, workspaceRoleCatalog, workspaceRoleDetails } from '../auth/workspace-role-catalog';
 
 const internalRoles = internalWorkspaceRoles;
@@ -230,7 +230,7 @@ export class SystemSettingsService {
   async accessReview(id: string) {
     return this.prisma.$transaction(async tx => {
       const employee = await tx.user.findUnique({ where: { id }, select: {
-        id: true, firstName: true, lastName: true, email: true, role: true, isActive: true,
+        id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, departmentId: true, accessProfileMode: true,
         department: { select: { id: true, name: true, archivedAt: true } },
       } });
       if (!employee || !internalRoles.includes(employee.role)) throw new NotFoundException('Сотрудник не найден');
@@ -240,16 +240,16 @@ export class SystemSettingsService {
       });
       const roleGrants = catalog.filter(item => item.roles.length).map(item => ({ permission: { key: item.key } }));
       const overrides = catalog.flatMap(item => item.users.map(override => ({ ...override, permission: { key: item.key } })));
-      const effective = effectivePermissions(roleGrants, overrides);
+      const effective = await employeeAccess(tx, employee, roleGrants, overrides);
       return {
         employee, role: workspaceRoleDetails(employee.role),
         permissions: catalog.map(item => ({
           key: item.key, description: item.description || item.key, resource: item.resource, action: item.action,
           allowed: employee.isActive && effective.permissions.includes(item.key),
           source: !employee.isActive ? 'BLOCKED_ACCOUNT' : effective.denied.includes(item.key) ? 'DENY'
-            : item.users.some(override => override.effect === 'ALLOW') ? 'ALLOW' : item.roles.length ? 'ROLE' : 'NOT_GRANTED',
+            : employee.accessProfileMode ? (effective.permissions.includes(item.key) ? 'PROFILE' : 'NOT_GRANTED') : item.users.some(override => override.effect === 'ALLOW') ? 'ALLOW' : item.roles.length ? 'ROLE' : 'NOT_GRANTED',
         })),
-        dataVisibility: { departmentEnforced: false, message: 'Отдел пока не ограничивает видимость записей. Эта проверка показывает разрешения на операции; серверные списки ролей и правила конкретной записи также могут ограничивать действие.' },
+        dataVisibility: { departmentEnforced: !!employee.accessProfileMode, message: employee.accessProfileMode ? 'Доступ определяется назначенными версиями профилей и личными запретами. Роль и правила конкретного раздела также могут ограничивать действие.' : 'Действует штатная роль. Для ограничения по отделу назначьте профиль доступа.' },
       };
     }, { isolationLevel: 'RepeatableRead' });
   }

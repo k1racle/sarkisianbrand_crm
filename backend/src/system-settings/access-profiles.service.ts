@@ -3,15 +3,50 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { accessScopes, resolveProfileScopes } from '../auth/access-scope-policy';
 import { internalWorkspaceRoles, workspaceRoleCatalog } from '../auth/workspace-role-catalog';
-import { AccessProfileQueryDto, CreateAccessProfileDto, PreviewAccessProfilesDto, UpdateAccessProfileDto } from './dto/access-profile.dto';
+import { AccessProfileQueryDto, AssignAccessProfilesDto, CreateAccessProfileDto, PreviewAccessProfilesDto, UpdateAccessProfileDto } from './dto/access-profile.dto';
+import { scopedPermissions } from '../auth/employee-access';
+import { CrmReadAccess } from '../crm/read-access';
 
 const profileInclude = { grants: { include: { permission: true, departments: { include: { department: { select: { id: true, name: true, archivedAt: true } } } } }, orderBy: { permission: { key: 'asc' as const } } } } as const;
-const rollout = { assignmentReady: false, mode: 'DRAFT_ONLY', message: 'Это проекты ролей. Они не меняют текущие права сотрудников. Назначение станет доступно после подключения и проверки серверных ограничений во всех рабочих разделах.' } as const;
+const rollout = { assignmentReady: true, mode: 'VERSIONED_ASSIGNMENTS', message: 'Сохранение профиля не меняет права автоматически. Назначьте проверенную версию сотруднику. Личные запреты имеют приоритет; старые личные разрешения и роль не расширяют назначенный профиль.' } as const;
 const normalizeName = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ');
 
 @Injectable()
 export class AccessProfilesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async assignment(employeeId: string) {
+    const employee = await this.prisma.user.findUnique({ where: { id: employeeId }, select: { id: true, role: true, accessProfileMode: true, accessVersion: true, accessAssignments: { select: { profileId: true, profileVersion: true, snapshot: true, assignedAt: true } } } });
+    if (!employee || !internalWorkspaceRoles.includes(employee.role)) throw new NotFoundException('Сотрудник не найден');
+    return employee;
+  }
+
+  assign(dto: AssignAccessProfilesDto, actorId: string) { return this.applyAssignment(dto.employeeId, dto.expectedAccessVersion, dto.profiles, actorId); }
+  reset(employeeId: string, version: number, actorId: string) { return this.applyAssignment(employeeId, version, null, actorId); }
+  private applyAssignment(employeeId: string, expectedVersion: number, refs: Array<{ id: string; version: number }> | null, actorId: string) {
+    return this.write(async db => {
+      const policy = await new CrmReadAccess().resolve(db, actorId, 'system.manage');
+      if (!policy.company('system.manage')) throw new BadRequestException('Нет доступа к управлению правами');
+      await db.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${employeeId} FOR UPDATE`;
+      const employee = await db.user.findUnique({ where: { id: employeeId } });
+      if (!employee || !employee.isActive || !internalWorkspaceRoles.includes(employee.role)) throw new NotFoundException('Действующий сотрудник не найден');
+      if (employeeId === actorId || employee.role === 'ADMIN') throw new BadRequestException('Администратор сохраняет отдельную роль управления системой');
+      if (employee.accessVersion !== expectedVersion) throw new ConflictException('Назначение уже изменено. Повторите предварительную проверку.');
+      const profiles = refs ? await db.crmAccessProfile.findMany({ where: { id: { in: refs.map(ref => ref.id) }, archivedAt: null }, include: profileInclude }) : [];
+      if (refs && (profiles.length !== refs.length || profiles.some(profile => refs.find(ref => ref.id === profile.id)?.version !== profile.version))) throw new ConflictException('Профиль изменён или находится в архиве. Обновите предварительную проверку.');
+      const grants = profiles.flatMap(profile => profile.grants.map(grant => ({ profileId: profile.id, profileName: profile.name, permissionKey: grant.permission.key, scope: grant.scope, departmentIds: grant.departments.map(item => item.departmentId) })));
+      if (grants.some(grant => grant.scope !== 'COMPANY' && !scopedPermissions.includes(grant.permissionKey))) throw new BadRequestException('Для операций вне задач, продаж, заказов, поддержки и контент-плана доступна только область «Вся компания». Исправьте профиль.');
+      const departments = await db.crmDepartment.findMany({ select: { id: true, parentId: true, archivedAt: true } });
+      if (resolveProfileScopes(employee, grants, departments).some(decision => decision.grants.some(grant => !grant.allowed))) throw new BadRequestException('Не удаётся определить область доступа. Проверьте отдел сотрудника и выбранные отделы.');
+      const before = await db.crmAccessAssignment.findMany({ where: { userId: employeeId } });
+      await db.crmAccessAssignment.deleteMany({ where: { userId: employeeId } });
+      for (const profile of profiles) await db.crmAccessAssignment.create({ data: { userId: employeeId, profileId: profile.id, profileVersion: profile.version, snapshot: { name: profile.name, grants: grants.filter(grant => grant.profileId === profile.id) } } });
+      await db.user.update({ where: { id: employeeId }, data: { accessProfileMode: refs !== null, accessVersion: { increment: 1 } } });
+      await db.session.deleteMany({ where: { userId: employeeId } });
+      await db.auditLog.create({ data: { actorId, resource: 'crm.access-assignment', resourceId: employeeId, action: refs ? 'ASSIGN_PROFILES' : 'RESTORE_ROLE', payload: { before: { profileMode: employee.accessProfileMode, version: employee.accessVersion, profiles: before.map(item => ({ id: item.profileId, version: item.profileVersion })) }, after: { profileMode: refs !== null, version: expectedVersion + 1, profiles: refs || [] } } } });
+      return { employeeId, profileMode: refs !== null, accessVersion: expectedVersion + 1, sessionsRevoked: true };
+    });
+  }
 
   private async write<T>(fn: (db: Prisma.TransactionClient) => Promise<T>) {
     try {
@@ -38,7 +73,7 @@ export class AccessProfilesService {
     // Narrow SMM and editorial templates do not copy the legacy mixed CONTENT_MANAGER bundle.
     templates.push({ id: 'SMM_SPECIALIST', name: 'SMM-специалист', description: 'Подготовка публикаций, сценариев и материалов без самостоятельного согласования.', permissionKeys: ['content_plan.read', 'content_plan.write'].filter(key => permissions.some(permission => permission.key === key)) });
     templates.push({ id: 'SITE_EDITOR', name: 'Редактор сайта — только витрина', description: 'Страницы и каталог сайта без контент-плана, продаж и финансов.', permissionKeys: ['admin.read', 'catalog.read', 'catalog.write', 'media.read', 'media.write'].filter(key => permissions.some(permission => permission.key === key)) });
-    return { ...rollout, scopes: accessScopes, permissions, departments, templates };
+    return { ...rollout, scopes: accessScopes, scopedPermissions, permissions, departments, templates };
   }
 
   async list(query: AccessProfileQueryDto) {
@@ -100,6 +135,7 @@ export class AccessProfilesService {
       const profile = await db.crmAccessProfile.findUnique({ where: { id } });
       if (!profile || Boolean(profile.archivedAt) !== restore) throw new NotFoundException(restore ? 'Архивный профиль не найден' : 'Действующий проект роли не найден');
       if (profile.version !== version) throw new ConflictException('Профиль уже изменён. Обновите данные.');
+      if (!restore && await db.crmAccessAssignment.count({ where: { profileId: id } })) throw new ConflictException('Профиль назначен сотрудникам. Сначала замените их назначения.');
       const updated = await db.crmAccessProfile.update({ where: { id }, data: { archivedAt: restore ? null : new Date(), version: { increment: 1 } } });
       await db.auditLog.create({ data: { actorId, resource: 'crm.access-profile', resourceId: id, action: restore ? 'RESTORE' : 'ARCHIVE', payload: { name: profile.name, version: updated.version, mode: rollout.mode } } });
       return { ...rollout, ...updated };
@@ -108,7 +144,7 @@ export class AccessProfilesService {
 
   async preview(dto: PreviewAccessProfilesDto) {
     return this.prisma.$transaction(async db => {
-      const employee = await db.user.findUnique({ where: { id: dto.employeeId }, select: { id: true, firstName: true, lastName: true, role: true, departmentId: true, isActive: true } });
+      const employee = await db.user.findUnique({ where: { id: dto.employeeId }, select: { id: true, firstName: true, lastName: true, role: true, departmentId: true, isActive: true, accessVersion: true, accessProfileMode: true } });
       if (!employee || !internalWorkspaceRoles.includes(employee.role)) throw new NotFoundException('Сотрудник не найден');
       const profiles = await db.crmAccessProfile.findMany({ where: { id: { in: dto.profiles.map(profile => profile.id) }, archivedAt: null }, include: profileInclude });
       if (profiles.length !== dto.profiles.length) throw new NotFoundException('Один из профилей отсутствует или находится в архиве');

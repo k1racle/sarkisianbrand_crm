@@ -42,6 +42,15 @@ export async function releaseStorefrontGiftReservation(tx: Prisma.TransactionCli
 export async function applyStorefrontTransition(
   tx: Prisma.TransactionClient, order: any, target: OrderStatus, notifications?: NotificationsService,
 ): Promise<Prisma.OrderUpdateInput> {
+  if (order.fulfillmentManaged) {
+    if (target === OrderStatus.REFUNDED && target !== order.status) throw new ConflictException('Возврат оформляется документом приёмки и отдельной финансовой операцией');
+    if (target === OrderStatus.CANCELLED && target !== order.status) throw new ConflictException('Отмените неотгруженные позиции через документ отмены остатка');
+    const adjusted = order.items?.some((item: any) => item.cancelledQuantity > 0 || item.returnedQuantity > 0);
+    if (adjusted && [OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(target as any) && target !== order.status) throw new ConflictException('Используйте документы отмены остатка и приёмки возврата');
+    if (adjusted && order.source === 'WEB' && target === OrderStatus.DELIVERED && target !== order.status) throw new ConflictException('До закрытия заказа сайта нужна сверка расчётов по отменам и возвратам');
+    if ([OrderStatus.SHIPPED, OrderStatus.DELIVERED].includes(target as any) && order.reservationState !== 'CONSUMED') throw new ConflictException('Проведите отгрузку всех позиций через задание на сборку');
+    if ([OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(target as any) && order.items?.some((item: any) => item.shippedQuantity > 0)) throw new ConflictException('Есть отгруженные позиции. Требуется оформление возврата');
+  }
   if(order.source==='B2B')return applyB2BStockTransition(tx,order,target);
   if (order.source !== 'WEB' || !order.reservationState || order.reservationState === 'LEGACY') return {};
   const terminal: OrderStatus[] = [OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.DELIVERED];

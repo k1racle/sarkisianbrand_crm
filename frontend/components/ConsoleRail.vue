@@ -58,7 +58,7 @@ onBeforeUnmount(() => { if (chatPoll) clearInterval(chatPoll); });
 
 <template>
   <nav class="wn-rail-dock ui-mobile-dock" aria-label="Быстрая навигация рабочего пространства">
-    <NuxtLink to="/workspace" aria-label="Рабочий стол" :class="{ active: route.path === '/workspace' }" :aria-current="route.path === '/workspace' ? 'page' : undefined"><LayoutDashboard :size="22" /><span>Стол</span></NuxtLink>
+    <NuxtLink to="/admin-workspace/dashboard" aria-label="Рабочий стол" :class="{ active: route.path === '/admin-workspace/dashboard' }" :aria-current="route.path === '/admin-workspace/dashboard' ? 'page' : undefined"><LayoutDashboard :size="22" /><span>Стол</span></NuxtLink>
     <button type="button" aria-label="Найти раздел" :aria-expanded="paletteOpen" :class="{ active: paletteOpen }" @click="paletteOpen = true"><Search :size="22" /><span>Поиск</span></button>
     <button type="button" aria-label="Открыть чат" :aria-expanded="chatOpen" :class="{ active: chatOpen }" @click="toggleChat"><MessageCircle :size="22" /><span>Чат</span><small v-if="unread" class="ui-mobile-unread" :aria-label="`${unread} непрочитанных сообщений`">{{ unread > 99 ? '99+' : unread }}</small></button>
     <button type="button" aria-label="Открыть профиль" :aria-expanded="profileOpen" :class="{ active: profileOpen }" @click="openProfile"><Users :size="22" /><span>Профиль</span></button>
@@ -67,12 +67,11 @@ onBeforeUnmount(() => { if (chatPoll) clearInterval(chatPoll); });
   <div v-if="mobileOpen" class="wn-rail-backdrop" @click="closeMobile" />
   <aside id="workspace-navigation-rail" ref="rail" class="console-rail wn-rail studio-rail" :class="{ 'wn-rail--open': mobileOpen, 'studio-rail--collapsed': railCollapsed }" :role="mobileOpen ? 'dialog' : undefined" :aria-modal="mobileOpen ? true : undefined" aria-label="Разделы рабочего пространства" @keydown="mobileKeys">
     <div class="wn-rail-head">
-      <NuxtLink to="/workspace" class="console-rail-brand"><img src="/sarkisian-logo.png" alt="SARKISIAN" /></NuxtLink>
+      <NuxtLink to="/admin-workspace/dashboard" class="console-rail-brand"><img src="/sarkisian-logo.png" alt="SARKISIAN" /></NuxtLink>
       <button type="button" class="studio-rail-toggle" :aria-label="railCollapsed ? 'Развернуть боковую панель' : 'Свернуть боковую панель'" :title="railCollapsed ? 'Развернуть боковую панель' : 'Свернуть боковую панель'" :aria-expanded="!railCollapsed" aria-controls="workspace-navigation-links" @click="toggleRail"><component :is="railCollapsed ? PanelLeftOpen : PanelLeftClose" :size="20" /></button>
       <button type="button" class="wn-mobile-close" aria-label="Закрыть разделы" @click="closeMobile"><X :size="22" /></button>
     </div>
     <nav id="workspace-navigation-links" aria-label="Основная навигация" @click="closeActiveLink">
-      <NuxtLink to="/workspace" class="studio-home-link" aria-label="Рабочий стол" title="Рабочий стол" :class="{ active: active?.id === 'workspace' }" :aria-current="active?.id === 'workspace' ? 'page' : undefined"><LayoutDashboard :size="18" /><span>Рабочий стол</span></NuxtLink>
       <NuxtLink v-if="shopOverview && selectedArea?.id === 'site'" :to="shopOverview.to" :aria-label="shopOverview.label" :title="shopOverview.label" :class="{ active: active?.id === shopOverview.id }" :aria-current="active?.id === shopOverview.id ? 'page' : undefined"><BarChart3 :size="18" /><span>{{ shopOverview.label }}</span></NuxtLink>
       <section v-if="favorites.length" class="wn-nav-group wn-favorites-group"><button type="button" class="studio-favorites-reveal" aria-label="Показать избранное" title="Избранное" @click="revealFavorites"><Star :size="18" /></button><h2><Star :size="16" /> Избранное</h2><NuxtLink v-for="item in favorites" :key="item.id" :to="item.to" :class="{ active: active?.id === item.id }" :aria-current="active?.id === item.id ? 'page' : undefined"><span>{{ item.label }}</span></NuxtLink></section>
       <section v-for="group in visibleGroups" :key="group.id" class="wn-nav-group">

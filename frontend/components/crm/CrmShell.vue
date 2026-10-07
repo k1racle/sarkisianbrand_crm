@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ArrowUpRight, ChevronRight, LayoutGrid, LogOut, Menu, MessageCircle, Search, Star, UserRound, WifiOff, X } from '@lucide/vue';
+import { ChevronRight, LogOut, Menu, MessageCircle, Search, Star, UserRound, WifiOff, X } from '@lucide/vue';
 const route = useRoute();
 const router = useRouter();
 const { user, token, endSession } = useWorkspaceSession();
 const { items, groups, active, favorites, home, search, toggleFavorite } = useCrmNavigation();
 const access = useWorkspaceAccess();
-const siteNavigation = useWorkspaceNavigation();
-const siteEntry = computed(() => siteNavigation.leaves.value.find(item => ['catalog', 'site', 'media'].includes(item.groupId)));
 const { unread, toggleChat, isOpen: chatOpen, connectRealtime, refreshUnread, disconnectRealtime } = usePlatformChat();
 const { openProfile } = useUserProfilePanel();
 const { online } = useCrmPwa();
@@ -78,7 +76,7 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll); window.removeEventListene
         </section>
         <p v-if="!items.length" class="crm-menu-empty">Для вашей роли пока нет доступных разделов CRM.</p>
       </nav>
-      <footer class="crm-sidebar-footer"><NuxtLink v-if="siteEntry" :to="siteEntry.to"><LayoutGrid :size="18" />Админка сайта<ArrowUpRight :size="16" /></NuxtLink><button type="button" @click="openProfile"><UserRound :size="18" /><span>{{ fullName }}</span></button><button type="button" :disabled="signingOut" @click="signOut"><LogOut :size="18" />Выйти из CRM</button></footer>
+      <footer class="crm-sidebar-footer"><button class="crm-sidebar-profile" type="button" :title="fullName" @click="openProfile"><UserRound :size="18" /><span>{{ fullName }}</span></button><button class="crm-sidebar-signout" type="button" aria-label="Выйти из CRM" title="Выйти из CRM" :disabled="signingOut" @click="signOut"><LogOut :size="18" /></button></footer>
     </aside>
     <div class="workspace-frame crm-frame" :inert="menuOpen || searchOpen || undefined">
       <header class="crm-topbar">

@@ -32,3 +32,9 @@ export class PreviewAccessProfilesDto {
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20) @ArrayUnique((item: PreviewProfileRefDto) => item?.id)
   @ValidateNested({ each: true }) @Type(() => PreviewProfileRefDto) profiles!: PreviewProfileRefDto[];
 }
+export class AssignAccessProfilesDto extends PreviewAccessProfilesDto {
+  @IsInt() @Min(1) expectedAccessVersion!: number;
+}
+export class ResetAccessProfilesDto {
+  @IsInt() @Min(1) expectedAccessVersion!: number;
+}

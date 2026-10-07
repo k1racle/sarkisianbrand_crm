@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ArrowRight, RefreshCw, X } from '@lucide/vue';
+import { requestKey as createRequestKey } from '~/shared/request-key';
+import { ArrowRight, Download, RefreshCw, X } from '@lucide/vue';
 import { workTimeDuration } from '~/shared/crm-work-time';
 import { sheetPerson, sheetIssueLabels, sheetStatus, sheetAction, sheetEvent, type SheetAction, type SheetList, type SheetDetail } from '~/shared/crm-timesheet';
 const props=defineProps<{visible:boolean}>(), emit=defineEmits<{correction:[id:string,employeeId:string]}>();
 const {token,user}=useWorkspaceSession(),config=useRuntimeConfig();
 const month=ref(new Intl.DateTimeFormat('sv-SE',{timeZone:user.value?.timezone||'Europe/Moscow'}).format(new Date()).slice(0,7)),departmentId=ref(''),search=ref(''),attention=ref(false);
-const data=ref<SheetList|null>(null),options=ref<{departments:{id:string;name:string;archivedAt:string|null}[]}|null>(null),loading=ref(false),error=ref('');
+const data=ref<SheetList|null>(null),options=ref<{departments:{id:string;name:string;archivedAt:string|null}[];canExport:boolean}|null>(null),loading=ref(false),error=ref('');
+const exporting=ref(false),exportError=ref('');
+let appliedQuery:Record<string,unknown>|null=null,exportController:AbortController|null=null;
 const opened=ref(false),detail=ref<SheetDetail|null>(null),detailLoading=ref(false),detailError=ref(''),target=ref<{id:string;month:string;revision?:number}|null>(null);
 const action=ref<SheetAction>('REVIEW'),reason=ref(''),saving=ref(false),actionError=ref(''),notice=ref('');
 const pending=ref<{month:string;action:SheetAction;revision:number;reason:string;requestKey:string}|null>(null);
@@ -20,13 +23,25 @@ function close(){if(saving.value)return;opened.value=false;detail.value=null;det
 const {panel,keyboard}=useCatalogDialog(computed(()=>opened.value),close);
 async function load(page=1){
   if(!props.visible)return;
-  const current=++version,identity=token.value;loading.value=true;data.value=null;error.value='';close();
+  const current=++version,identity=token.value;loading.value=true;data.value=null;error.value='';exportError.value='';close();
   const query={month:month.value,...(departmentId.value?{departmentId:departmentId.value}:{}),...(search.value.trim()?{search:search.value.trim()}:{}),view:attention.value?'ATTENTION':'ALL',page};
   try{
     const [result,choices]=await Promise.all([request<SheetList>('',query),request<any>('/options')]);
-    if(alive&&current===version&&identity===token.value){data.value=result;options.value=choices;}
+    if(alive&&current===version&&identity===token.value){data.value=result;options.value=choices;appliedQuery=query;}
   }catch(e){if(alive&&current===version&&identity===token.value)error.value=message(e);}
   finally{if(alive&&current===version&&identity===token.value)loading.value=false;}
+}
+async function exportExcel(){
+  if(exporting.value||!data.value||!appliedQuery||!options.value?.canExport)return;
+  const identity=token.value,query={...appliedQuery},controller=new AbortController();exportController=controller;exporting.value=true;exportError.value='';
+  try{
+    const blob=await $fetch<Blob>('/crm/work-time/timesheet/export',{baseURL:config.public.apiBase,headers:{Authorization:`Bearer ${identity}`},query,responseType:'blob',signal:controller.signal,timeout:60000,retry:0});
+    if(!alive||identity!==token.value||controller.signal.aborted)return;
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`timesheet-${query.month}.xlsx`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e:any){
+    if(e?.data instanceof Blob){try{e.data=JSON.parse(await e.data.text());}catch{}}
+    if(alive&&identity===token.value&&!controller.signal.aborted)exportError.value=e?.data?.message||'Не удалось выгрузить табель. Повторите попытку.';
+  }finally{if(exportController===controller){exporting.value=false;exportController=null;}}
 }
 async function open(id:string,reportMonth=data.value?.month,revision?:number){
   if(!reportMonth)return;
@@ -38,7 +53,7 @@ async function open(id:string,reportMonth=data.value?.month,revision?:number){
 async function decide(){
   if(!target.value||!detail.value?.workflow||saving.value)return;
   const current=detailVersion,identity=token.value,destination={...target.value};saving.value=true;actionError.value='';notice.value='';
-  pending.value??={month:destination.month,action:action.value,revision:detail.value.workflow.revision,reason:reason.value.trim(),requestKey:crypto.randomUUID()};
+  pending.value??={month:destination.month,action:action.value,revision:detail.value.workflow.revision,reason:reason.value.trim(),requestKey:createRequestKey()};
   try{
     await $fetch('/crm/work-time/timesheet/'+destination.id+'/actions',{baseURL:config.public.apiBase,headers:{Authorization:`Bearer ${identity}`},method:'POST',body:pending.value,timeout:35000,retry:0});
     if(!alive||identity!==token.value||current!==detailVersion)return;
@@ -47,7 +62,7 @@ async function decide(){
   finally{if(alive&&identity===token.value)saving.value=false;}
 }
 function correction(id:string){const employee=detail.value?.employee.id;if(!employee)return;close();emit('correction',id,employee);}
-function reset(){++version;saving.value=false;close();data.value=null;options.value=null;loading.value=false;error.value='';notice.value='';}
+function reset(){++version;exportController?.abort();exportController=null;exporting.value=false;exportError.value='';appliedQuery=null;saving.value=false;close();data.value=null;options.value=null;loading.value=false;error.value='';notice.value='';}
 watch(()=>props.visible,visible=>{reset();if(visible)load();});
 watch(token,()=>{reset();departmentId.value='';search.value='';attention.value=false;if(props.visible)load();});
 onMounted(()=>{if(props.visible)load();});onUnmounted(()=>{alive=false;reset();});
@@ -59,9 +74,12 @@ onMounted(()=>{if(props.visible)load();});onUnmounted(()=>{alive=false;reset();}
       <label>Отдел<select v-model="departmentId" class="crm-input" aria-label="Отдел" @change="load()"><option value="">Все доступные</option><option v-for="row in options?.departments||[]" :key="row.id" :value="row.id">{{row.name}}{{row.archivedAt?' · архив':''}}</option></select></label>
       <label>Сотрудник<input v-model="search" class="crm-input" maxlength="80" placeholder="Имя или фамилия" /></label>
       <button class="crm-button crm-button--refresh" :disabled="loading"><RefreshCw :size="18" />Обновить табель</button>
+      <button v-if="options?.canExport" type="button" class="crm-button" :disabled="loading||exporting||!data" @click="exportExcel"><Download :size="18" />{{exporting?'Готовим Excel…':'Скачать Excel'}}</button>
     </form>
     <label class="crm-toggle-row"><span>Только требующие проверки</span><input v-model="attention" class="crm-check" type="checkbox" @change="load()" /></label>
     <p v-if="loading" role="status">Рассчитываем табель по всей выбранной команде…</p><p v-if="error" role="alert">{{error}}</p><p v-if="notice" role="status">{{notice}}</p>
+    <p v-if="exportError" role="alert">{{exportError}}</p>
+    <p v-if="data&&options?.canExport" class="crm-inline-note">Excel содержит всю выборку последнего обновления, включая остальные страницы. Открытые табели пересчитываются при скачивании.</p>
     <section v-if="data" class="crm-surface" aria-label="Табель команды">
       <header class="crm-panel-header"><div><p>ПЛАН И ФАКТ · {{data.month}}</p><h2>Табель команды</h2></div><span class="crm-badge">Проверка и закрытие месяца</span></header>
       <div class="crm-register crm-page-content--stack">

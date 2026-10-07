@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
-import { effectivePermissions } from '../auth/effective-permissions';
+import { employeeAccess } from '../auth/employee-access';
 import { CancelMeetingDto, CreateMeetingDto, MeetingFieldsDto, MeetingListDto, UpdateMeetingDto } from './meeting.dto';
 import { canManageMeeting, companyMeetings, MeetingActor, meetingVisibility, validateMeetingTimes } from './meeting-policy';
 
@@ -16,13 +16,13 @@ export class MeetingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async actor(db: Prisma.TransactionClient, id: string): Promise<MeetingActor> {
-    const user = await db.user.findUnique({ where: { id }, select: { id: true, role: true, isActive: true, departmentId: true } });
+    const user = await db.user.findUnique({ where: { id }, select: { id: true, role: true, accessProfileMode: true, isActive: true, departmentId: true } });
     if (!user?.isActive || !internalWorkspaceRoles.includes(user.role)) throw new ForbiddenException('Учётная запись сотрудника недоступна');
     const [roles, overrides] = await Promise.all([
       db.rolePermission.findMany({ where: { role: user.role }, select: { permission: { select: { key: true } } } }),
       db.userPermission.findMany({ where: { userId: id }, select: { effect: true, permission: { select: { key: true } } } }),
     ]);
-    const permissions = new Set(effectivePermissions(roles, overrides).permissions);
+    const permissions = new Set((await employeeAccess(db, user, roles, overrides)).permissions);
     if (!permissions.has('meetings.read')) throw new ForbiddenException('Нет доступа к встречам');
     return { ...user, permissions };
   }
