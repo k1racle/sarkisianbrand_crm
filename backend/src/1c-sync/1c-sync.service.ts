@@ -13,6 +13,8 @@ import { OneCFinanceService } from './one-c-finance.service';
 import { settlementBasis } from './finance-policy';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { OneCStockService } from './one-c-stock.service';
+import { OneCStockSnapshotsDto } from './dto/stock.dto';
 
 @Injectable()
 export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy {
@@ -116,6 +118,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
   }
 
   async verifyInboundSecret(value?: string) { return this.client.verifyInboundSecret(value); }
+  importStock(dto: OneCStockSnapshotsDto) { return new OneCStockService(this.prisma).receive(dto); }
   async importFinance(dto: OneCFinanceDto) {
     const value = plainToInstance(OneCFinanceDto, dto);
     if ((await validate(value, { whitelist: true, forbidNonWhitelisted: true })).length) throw new BadRequestException('Некорректный формат расчётов 1С');

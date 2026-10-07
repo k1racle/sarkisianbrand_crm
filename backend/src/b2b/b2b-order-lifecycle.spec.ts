@@ -8,13 +8,13 @@ jest.mock('../1c-sync/1c-sync.service',()=>({OneCSyncService:class{}}));
 describe('B2B inventory: memory-only transactions; no 1C/database',()=>{
  function fixture(canOrder=true){
   const state={stock:10,reserved:3};const writes:any[]=[];
-  const tx:any={$queryRaw:jest.fn(async(_sql:any,quantity:number)=>{if(state.stock-state.reserved<quantity)return [];state.reserved+=quantity;return [{id:'v'}];}),order:{create:jest.fn(async({data}:any)=>{writes.push(data);return {id:'order',...data,items:data.items.create};})}};
+  const tx:any={$queryRaw:jest.fn(async(sql:any,quantity:number)=>{if(sql[0].startsWith('SELECT'))return [{id:'v'}];if(state.stock-state.reserved<quantity)return [];state.reserved+=quantity;return [{id:'v'}];}),order:{create:jest.fn(async({data}:any)=>{writes.push(data);return {id:'order',...data,items:data.items.create};})}};
   const prisma:any={organizationMember:{findFirst:jest.fn().mockResolvedValue({organizationId:'org',customerId:'customer',canOrder,organization:{discountTier:10},user:{firstName:'Test',email:'mock@example.invalid'}})},productVariant:{findMany:jest.fn().mockResolvedValue([{id:'v',sku:'sku',price:100,name:'15g',product:{nameRu:'Gel'}}])},$transaction:jest.fn(async(f:any)=>{const before={...state};try{return await f(tx)}catch(e){Object.assign(state,before);throw e;}})};
   const oneC:any={enqueueOrder:jest.fn().mockResolvedValue({})};return {state,tx,prisma,writes,oneC,service:new B2BService(prisma,oneC,{} as any)};
  }
  it('reserves available stock only, merges duplicate variants and marks lifecycle ACTIVE',async()=>{
   const f=fixture();await f.service.createOrder('u',{items:[{variantId:'v',quantity:2},{variantId:'v',quantity:3}]});
-  expect(f.state).toEqual({stock:10,reserved:8});expect(f.tx.$queryRaw).toHaveBeenCalledTimes(1);
+  expect(f.state).toEqual({stock:10,reserved:8});expect(f.tx.$queryRaw).toHaveBeenCalledTimes(2);
   expect(f.writes[0]).toMatchObject({source:'B2B',reservationState:'ACTIVE',finalAmount:450});expect(f.writes[0].items.create).toHaveLength(1);
   expect(f.prisma.productVariant.findMany.mock.calls[0][0].where.product).toEqual({isActive:true,productType:'PHYSICAL'});
   expect(f.oneC.enqueueOrder).toHaveBeenCalledWith('order','u');

@@ -9,6 +9,7 @@ import { StorefrontPricingService } from './storefront-pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { moneyMinor } from '../common/storefront-utils';
 import { pricedCart } from '../common/product-merchandising';
+import { salesQuantity, salesStockInclude, salesVariant } from '../common/sales-stock';
 import { DEFAULT_LOYALTY_SETTINGS, loyaltyCreditMetadata, loyaltyWriteOffMetadata, maintainAccount } from '../loyalty/loyalty-core.helpers';
 import { GiftCardsService } from '../gift-cards/gift-cards.service';
 import { giftCodeHash } from '../gift-cards/gift-cards.helpers';
@@ -34,7 +35,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   async quote(session: string, dto: CheckoutDto, actor?: Actor) {
     this.validateSession(session);
     if (actor?.role === 'CUSTOMER_B2C') await this.prisma.$transaction(async tx => {
-      const cart = await tx.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: { include: { product: true } } } } } });
+      const cart = await tx.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: { include: { product: true, channelStocks:salesStockInclude } } } } } });
       if (cart?.userId !== actor.sub || this.digitalBasket(cart)) return;
       const settings = await tx.loyaltyProgramSetting.findUnique({ where: { id: 'default' } }) || DEFAULT_LOYALTY_SETTINGS;
       await maintainAccount(tx, actor.sub, settings);
@@ -65,7 +66,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       }
       let loyaltyEntries: any[] = [];
       if (actor?.sub && actor.role === 'CUSTOMER_B2C') {
-        const cart = await tx.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: { include: { product: true } } } } } });
+        const cart = await tx.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: { include: { product: true, channelStocks:salesStockInclude } } } } } });
         if (cart?.userId === actor.sub && !this.digitalBasket(cart)) {
           const settings = await tx.loyaltyProgramSetting.findUnique({ where: { id: 'default' } }) || DEFAULT_LOYALTY_SETTINGS;
           loyaltyEntries = (await maintainAccount(tx, actor.sub, settings)).entries;
@@ -105,9 +106,11 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       const cart = price.cart;
       for (const item of [...cart.items].sort((a, b) => a.variantId.localeCompare(b.variantId))) {
         if (item.variant.product.productType === 'GIFT_CARD') continue;
+        await tx.$queryRaw`SELECT id FROM "ProductVariant" WHERE id=${item.variantId} FOR UPDATE`;
         const rows = await tx.$queryRaw<{ id: string }[]>`
           UPDATE "ProductVariant" SET reserved = reserved + ${item.quantity}
-          WHERE id = ${item.variantId} AND "isActive" = true AND stock - reserved >= ${item.quantity} RETURNING id`;
+          WHERE id = ${item.variantId} AND "isActive" = true AND stock - reserved >= ${item.quantity}
+          AND inventory_sale_quantity(id,'WEB',stock,reserved) >= ${item.quantity} RETURNING id`;
         if (rows.length !== 1) throw new ConflictException('Товар «' + item.variant.product.nameRu + '» закончился. Обновите корзину');
       }
       let order = await tx.order.create({ data: {
@@ -225,7 +228,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     if (order.userId !== actor.sub) throw new NotFoundException('Заказ не найден');
     return this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${'cart-user:' + actor.sub}))`;
-      const repeatInclude = { items: { include: { variant: { include: { product: true } } } } };
+      const repeatInclude = { items: { include: { variant: { include: { product: true, channelStocks:salesStockInclude } } } } };
       let cart = await tx.cart.findUnique({ where: { sessionId: session }, include: repeatInclude });
       if (cart?.userId && cart.userId !== actor.sub) throw new NotFoundException('Корзина не найдена');
       const owned = await tx.cart.findUnique({ where: { userId: actor.sub }, include: repeatInclude });
@@ -241,12 +244,12 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       let added = 0;
       for (const item of order.items) {
         if (!item.variantId) { unavailable.push({ productName: item.productName, reason: 'Товар удалён из каталога' }); continue; }
-        const variant = await tx.productVariant.findUnique({ where: { id: item.variantId }, include: { product: true } });
+        const variant = await tx.productVariant.findUnique({ where: { id: item.variantId }, include: { product: true, channelStocks:salesStockInclude } });
         if (variant && (variant.product.productType || 'PHYSICAL') !== (item.productType || 'PHYSICAL')) {
           unavailable.push({ productName: item.productName, reason: 'Тип товара изменился. Выберите товар заново в каталоге' }); continue;
         }
         const current = await tx.cartItem.findUnique({ where: { cartId_variantId: { cartId: cart.id, variantId: item.variantId } } });
-        const available = variant?.isActive && variant.product.isActive ? variant.product.productType === 'GIFT_CARD' ? 99 - (current?.quantity || 0) : Math.max(0, variant.stock - variant.reserved - (current?.quantity || 0)) : 0;
+        const available = variant?.isActive && variant.product.isActive ? variant.product.productType === 'GIFT_CARD' ? 99 - (current?.quantity || 0) : Math.max(0, salesQuantity(variant,'WEB') - (current?.quantity || 0)) : 0;
         const quantity = Math.max(0, Math.min(item.quantity, available, 99 - (current?.quantity || 0)));
         if (quantity > 0) {
           await tx.cartItem.upsert({ where: { cartId_variantId: { cartId: cart.id, variantId: item.variantId } },
@@ -257,12 +260,12 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       }
       const rawUpdated = await tx.cart.findUniqueOrThrow({
         where: {id:cart.id},
-        include: {items: {include: {variant: {include: {product: {include: {images:true}}}}}}},
+        include: {items: {include: {variant: {include: {channelStocks:salesStockInclude,product: {include: {images:true}}}}}}},
       });
       const updated=pricedCart(rawUpdated);
       const total = updated.items.reduce((sum, item) => sum + moneyMinor(item.variant.price) * item.quantity, 0) / 100;
       await tx.cart.update({ where: { id: cart.id }, data: { total } });
-      return { cart: { ...updated, total }, added, unavailable };
+      return { cart: { ...updated, items:updated.items.map(item=>({...item,variant:item.variant.product.productType==='GIFT_CARD'?item.variant:salesVariant(item.variant,'WEB')})), total }, added, unavailable };
     }, { timeout: 30_000 });
   }
   private async release(tx: Prisma.TransactionClient, order: any, comment: string) {

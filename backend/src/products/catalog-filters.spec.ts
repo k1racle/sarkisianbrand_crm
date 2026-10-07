@@ -19,7 +19,7 @@ describe('Server-side catalog filtering', () => {
     expect(args.where.AND[0].OR[0].variants.some.OR[0].AND[1].salePrice).toEqual({ gte: 800, lte: 1500 });
     expect(args.where.AND[1].OR).toEqual([
       { productType: 'GIFT_CARD', variants: { some: { isActive: true } } },
-      { variants: { some: { isActive: true, stock: { gt: 'reserved-field-reference' } } } },
+      { variants: { some: { isActive: true, stock: { gt: 'reserved-field-reference' }, channelStocks:{some:{channel:'WEB',quantity:{gt:0}}} } } },
     ]);
     expect(args.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'asc' }]);
     expect(args.skip).toBe(24);
@@ -43,7 +43,7 @@ describe('Server-side catalog filtering', () => {
         $queryRaw: jest.fn().mockResolvedValue(ranked),
         product: {
           count: jest.fn().mockResolvedValue(55),
-          findMany: jest.fn().mockResolvedValue([{ id: 'next-sold', nameRu: 'Second' }, { id: 'most-sold', nameRu: 'First' }]),
+          findMany: jest.fn().mockResolvedValue([{ id: 'next-sold', nameRu: 'Second', variants: [] }, { id: 'most-sold', nameRu: 'First', variants: [] }]),
         },
       };
       const prisma = {
@@ -94,7 +94,9 @@ describe('Server-side catalog filtering', () => {
       expect(sql.text).toContain('p."basePrice" >=');
       expect(sql.text).toContain('p."basePrice" <=');
       expect(sql.text).toContain('available."isActive" = true');
-      expect(sql.text).toContain("p.\"productType\" = 'GIFT_CARD' OR available.stock > available.reserved");
+      expect(sql.text).toContain("p.\"productType\" = 'GIFT_CARD' OR (available.stock > available.reserved");
+      expect(sql.text).toContain('"InventoryChannelStock" cs');
+      expect(sql.text).toContain("cs.channel='WEB' AND cs.quantity>0");
       expect(sql.values).toEqual(expect.arrayContaining(['gels', 'cutters', 'repair', 'care', 'clear', 'shimmer', '%needle%', 0, 1500]));
       const where = f.tx.product.count.mock.calls[0][0].where;
       expect(where.categories.some.category.slug.in).toEqual(['gels', 'cutters']);

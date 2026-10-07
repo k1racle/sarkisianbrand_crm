@@ -6,6 +6,8 @@ import { OmsService } from './oms.service';
 import { OneCSyncModule } from '../1c-sync/1c-sync.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CrmReadAccess } from '../crm/read-access';
+import { StockRulesController } from './stock-rules.controller';
+import { StockRulesService } from './stock-rules.service';
 
-@Module({ imports: [AuthModule, OneCSyncModule, NotificationsModule], controllers: [OmsController], providers: [OmsService, CrmReadAccess, RolesGuard], exports: [OmsService] })
+@Module({ imports: [AuthModule, OneCSyncModule, NotificationsModule], controllers: [OmsController, StockRulesController], providers: [OmsService, StockRulesService, CrmReadAccess, RolesGuard], exports: [OmsService] })
 export class OmsModule {}

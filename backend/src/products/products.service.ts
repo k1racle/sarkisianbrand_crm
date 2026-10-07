@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { salesProduct, salesQuantity, salesStockInclude } from '../common/sales-stock';
 import { readFile } from 'fs/promises';
 import { basename, extname, resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
@@ -61,7 +62,7 @@ export class ProductsService {
       ...(features.length ? { features: { hasSome: features } } : {}),
       ...((hasPrice||query?.inStock==='true')?{AND:[...(hasPrice?[priceWhere]:[]),...(query?.inStock === 'true' ? [{ OR: [
         { productType: 'GIFT_CARD', variants: { some: { isActive: true } } },
-        { variants: { some: { isActive: true, stock: { gt: this.prisma.productVariant.fields.reserved } } } },
+        { variants: { some: { isActive: true, stock: { gt: this.prisma.productVariant.fields.reserved }, channelStocks: { some: { channel: 'WEB', quantity: { gt: 0 } } } } } },
       ] }] : [])]}:{}),
     };
     const orderBy: Prisma.ProductOrderByWithRelationInput[] = query?.sort === 'price-asc' ? [{ basePrice: 'asc' }, { id: 'asc' }]
@@ -95,7 +96,7 @@ export class ProductsService {
       if (query.inStock === 'true') predicates.push(Prisma.sql`EXISTS (
         SELECT 1 FROM "ProductVariant" available WHERE available."productId" = p.id
           AND available."isActive" = true
-          AND (p."productType" = 'GIFT_CARD' OR available.stock > available.reserved)
+          AND (p."productType" = 'GIFT_CARD' OR (available.stock > available.reserved AND EXISTS (SELECT 1 FROM "InventoryChannelStock" cs WHERE cs."variantId"=available.id AND cs.channel='WEB' AND cs.quantity>0)))
       )`);
 
       return this.prisma.$transaction(async tx => {
@@ -110,21 +111,21 @@ export class ProductsService {
         `);
         const products = ranked.length ? await tx.product.findMany({
           where: { AND: [where, { id: { in: ranked.map(item => item.id) } }] },
-          include: { images: true, variants: true, categories: { include: { category: true } } },
+          include: { images: true, variants: { include: { channelStocks: salesStockInclude } }, categories: { include: { category: true } } },
         }) : [];
         const byId = new Map(products.map(item => [item.id, item]));
         const items = ranked.flatMap(({ id }) => {
           const item = byId.get(id);
           return item ? [item] : [];
         });
-        return { items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+        return { items: items.map(item => salesProduct(item)), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     }
     const [items, total] = await this.prisma.$transaction([
-      this.prisma.product.findMany({ where, include: { images: true, variants: true, categories: { include: { category: true } } }, skip: (page - 1) * limit, take: limit, orderBy }),
+      this.prisma.product.findMany({ where, include: { images: true, variants: { include: { channelStocks: salesStockInclude } }, categories: { include: { category: true } } }, skip: (page - 1) * limit, take: limit, orderBy }),
       this.prisma.product.count({ where }),
     ]);
-    return { items, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    return { items: items.map(item => salesProduct(item)), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
   }
 
   async catalogFilters() {
@@ -138,9 +139,9 @@ export class ProductsService {
   }
 
   async findBySlug(slug: string) {
-    const product = await this.prisma.product.findFirst({ where: { slug, isActive: true }, include: { images: true, variants: true, categories: { include: { category: true } }, seo: true } });
+    const product = await this.prisma.product.findFirst({ where: { slug, isActive: true }, include: { images: true, variants: { include: { channelStocks: salesStockInclude } }, categories: { include: { category: true } }, seo: true } });
     if (!product) throw new NotFoundException('Товар не найден');
-    return product;
+    return salesProduct(product);
   }
 
   async cartRecommendations(excludedIds: string[] = []) {
@@ -151,21 +152,21 @@ export class ProductsService {
       LEFT JOIN (${purchasedUnits90Days}) sales ON sales."productId" = p.id
       WHERE p."isActive" = true
         AND EXISTS (SELECT 1 FROM "ProductVariant" available WHERE available."productId" = p.id
-          AND available."isActive" = true AND available.stock > available.reserved)
+          AND available."isActive" = true AND (available.stock > available.reserved AND EXISTS (SELECT 1 FROM "InventoryChannelStock" cs WHERE cs."variantId"=available.id AND cs.channel='WEB' AND cs.quantity>0)))
         ${excluded.length ? Prisma.sql`AND p.id NOT IN (${Prisma.join(excluded)})` : Prisma.empty}
       ORDER BY COALESCE(sales.units, 0) DESC, p."createdAt" DESC, p.id ASC LIMIT 8
     `);
     if (!ranked.length) return { items: [] };
     const items = await this.prisma.product.findMany({
       where: { id: { in: ranked.map(item => item.id) }, isActive: true },
-      include: { images: true, variants: true, categories: { include: { category: true } } },
+      include: { images: true, variants: { include: { channelStocks: salesStockInclude } }, categories: { include: { category: true } } },
     });
     const byId = new Map(items.map(item => [item.id, item]));
     return { items: ranked.flatMap(({ id }) => {
       const item = byId.get(id);
       if (!item) return [];
-      const variants = item.variants.filter(variant => variant.isActive && variant.stock > variant.reserved);
-      return variants.length ? [{ ...item, variants }] : [];
+      const variants = item.variants.filter(variant => variant.isActive && salesQuantity(variant,'WEB') > 0);
+      return variants.length ? [salesProduct({ ...item, variants })] : [];
     }) };
   }
 

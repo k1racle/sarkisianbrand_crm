@@ -8,6 +8,7 @@ import { CompanyScope, CompanyScopeGuard } from '../common/guards/company-scope.
 import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
 import { OneCSyncService } from './1c-sync.service';
 import { OneCFinanceDto } from './dto/finance.dto';
+import { OneCStockSnapshotsDto } from './dto/stock.dto';
 
 @ApiTags('1c-sync')
 @Controller('1c-sync')
@@ -46,6 +47,12 @@ export class OneCSyncController {
 @Controller('1c-webhook')
 export class OneCWebhookController {
   constructor(private readonly sync: OneCSyncService) {}
+  @Post('stock-snapshots')
+  @ApiOperation({ summary: 'Версионные физические остатки 1С для сверки без изменения склада CRM' })
+  async stockSnapshots(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCStockSnapshotsDto) {
+    if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');
+    return this.sync.importStock(dto);
+  }
   @Post('order-finance')
   async orderFinance(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCFinanceDto) {
     if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');

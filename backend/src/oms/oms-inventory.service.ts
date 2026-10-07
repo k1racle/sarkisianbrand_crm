@@ -5,6 +5,7 @@ import { CrmReadAccess } from '../crm/read-access';
 import { OperationalContext, withOperationalAccess } from '../common/operational-access';
 import { InventoryPageDto, InventoryQueryDto } from './dto/inventory.dto';
 import { orderAccessWhere } from './oms-read.service';
+import { loadStockComparison, stockSnapshotSelect, stockSnapshotSummary } from '../1c-sync/stock-reconciliation';
 
 // An expired reservation still holds inventory until its release is actually committed.
 export const reservedOrders: Prisma.OrderWhereInput = { reservationState: 'ACTIVE', status: { notIn: ['CANCELLED','REFUNDED','DELIVERED','SHIPPED'] } };
@@ -19,6 +20,8 @@ export function stockQuantities(stock: number, reserved: number, allocated: numb
 }
 const variantSelect = {
  id: true, sku: true, name: true, options: true, price: true, stock: true, reserved: true, damagedStock: true, isActive: true,
+ oneCStock: { select: stockSnapshotSelect },
+ channelStocks: { select: {channel:true,quantity:true,blocked:true,revision:true,changedAt:true} },
  product: { select: { id: true, nameRu: true, sku: true, vendorCode: true, currency: true, isActive: true, externalId: true,
   images: { select: { url: true, alt: true }, orderBy: { sortOrder: 'asc' as const }, take: 1 },
   categories: { select: { category: { select: { id: true, nameRu: true } } } } } },
@@ -46,7 +49,7 @@ export class OmsInventoryService {
   const all = pendingQuantities(allocated), permitted = pendingQuantities(visible);
   return { id: variant.id, sku: variant.sku, name: variant.product.nameRu, variantName: variant.name, options: variant.options, productId: variant.product.id, productSku: variant.product.sku, vendorCode: variant.product.vendorCode,
    image: variant.product.images[0] || null, categories: variant.product.categories.map((item: any) => item.category), active: variant.isActive && variant.product.isActive,
-   price: variant.price, currency: variant.product.currency, externalId: variant.product.externalId,
+   price: variant.price, currency: variant.product.currency, externalId: variant.product.externalId, oneCStock: stockSnapshotSummary(variant), channelStocks:variant.channelStocks||[],
    stock: variant.stock, reserved: variant.reserved, damaged: variant.damagedStock, ...stockQuantities(variant.stock, variant.reserved, all.remaining),
    allocated: all.remaining, visibleReserved: permitted.remaining, toShip: permitted.remaining, picked: permitted.picked, toPick: permitted.toPick };
  }
@@ -84,8 +87,9 @@ export class OmsInventoryService {
   const organizations = await db.organization.findMany({ where: { AND: [ctx.visible.organizations, { id: { in: orders.map(row => row.organizationId).filter((value): value is string => !!value) } }] }, select: { id: true, name: true } });
   const totals = pending.reduce((sum, item) => ({ remaining: sum.remaining + item.remaining, picked: sum.picked + item.picked }), { remaining: 0, picked: 0 });
   const item = this.row(variant, allocated._sum, { quantity: totals.remaining, pickedQuantity: totals.picked });
+  const reconciliation = await loadStockComparison(db, variant);
   const now = new Date();
-  return { item, orders: orders.map(order => ({ id: order.id, orderNumber: order.orderNumber, source: order.source, status: order.status, createdAt: order.createdAt, deliveryDate: order.deliveryDate,
+  return { item, reconciliation, orders: orders.map(order => ({ id: order.id, orderNumber: order.orderNumber, source: order.source, status: order.status, createdAt: order.createdAt, deliveryDate: order.deliveryDate,
    destination: organizations.find(org => org.id === order.organizationId)?.name || order.buyerName || 'Получатель не указан',
    shippingAddress: order.shippingAddress, shippingProvider: order.shippingProvider, manager: [order.manager?.firstName, order.manager?.lastName].filter(Boolean).join(' ') || null,
    fulfillmentManaged: order.fulfillmentManaged, reservationExpiresAt: order.reservationExpiresAt, reservationExpired: !!order.reservationExpiresAt && order.reservationExpiresAt <= now,

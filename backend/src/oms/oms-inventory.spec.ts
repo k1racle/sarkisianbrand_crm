@@ -42,6 +42,7 @@ function fixture(scope = 'OWN') {
   },
   order: { findMany: jest.fn(async ({ where, select, skip, take }) => orders.filter(row => matches(row, where)).slice(skip, skip + take).map(row => project(row, select))) },
   organization: { findMany: jest.fn(async () => []) },
+  oneCStockSnapshot: { findUnique: jest.fn(async () => null) },
  };
  db.$transaction = jest.fn(async fn => fn(db));
  const scoped = operationAccess(scope), access: any = { resolve: jest.fn((tx, actor, permission) => permission === 'inventory.read' ? { company: () => true } : scoped.resolve(tx, actor, permission)) };

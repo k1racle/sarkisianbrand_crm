@@ -40,3 +40,28 @@ html[data-crm-ui] .crm-inventory-photo {max-width:100%;width:240px;height:240px;
  html[data-crm-ui] .crm-inventory-kpis > article {padding:14px!important;}
  html[data-crm-ui] .crm-inventory-detail-metrics {grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+@layer crm-elements {
+ html[data-crm-ui] .crm-inventory-sync-hint {display:block!important;font-style:normal!important;font-size:11px!important;color:var(--crm-muted)!important;line-height:1.4!important;}
+ html[data-crm-ui] .crm-stock-status {display:flex!important;align-items:flex-start!important;gap:12px!important;padding:16px!important;border:1px solid var(--crm-line)!important;border-radius:var(--crm-radius-control)!important;background:var(--crm-bg)!important;}
+ html[data-crm-ui] .crm-stock-status > svg {flex:none!important;color:var(--crm-accent)!important;}
+ html[data-crm-ui] .crm-stock-status > div {min-width:0!important;}
+ html[data-crm-ui] .crm-stock-status h3 {margin:0 0 8px!important;}
+ html[data-crm-ui] .crm-stock-status p {margin:0!important;line-height:1.6!important;}
+ html[data-crm-ui] .crm-stock-status[data-state="MATCHED"] {background:#edf8f2!important;border-color:#bfe6d0!important;}
+ html[data-crm-ui] .crm-stock-status[data-state="DIFFERENCE"] {background:#fff2ee!important;border-color:#f1c5b8!important;}
+ html[data-crm-ui] .crm-stock-snapshot-meta {display:grid!important;gap:6px!important;}
+ html[data-crm-ui] .crm-stock-comparison {border:1px solid var(--crm-line)!important;border-radius:var(--crm-radius-control)!important;overflow:hidden!important;}
+ html[data-crm-ui] .crm-stock-comparison > div {display:grid!important;grid-template-columns:minmax(0,1fr) 90px 130px!important;align-items:center!important;gap:12px!important;padding:14px!important;border-bottom:1px solid var(--crm-line)!important;}
+ html[data-crm-ui] .crm-stock-comparison > div:last-child {border-bottom:0!important;}
+ html[data-crm-ui] .crm-stock-comparison span {min-width:0!important;}
+ html[data-crm-ui] .crm-stock-comparison strong {text-align:right!important;}
+ html[data-crm-ui] .crm-stock-comparison small {display:block!important;color:var(--crm-muted)!important;margin-top:4px!important;}
+ html[data-crm-ui] .crm-stock-comparison-head,html[data-crm-ui] .crm-stock-difference {background:var(--crm-bg)!important;}
+ html[data-crm-ui] .crm-stock-pending {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;}
+ html[data-crm-ui] .crm-stock-pending > span {display:grid!important;gap:6px!important;min-width:0!important;}
+ @media(max-width:600px){
+  html[data-crm-ui] .crm-stock-comparison > div {grid-template-columns:minmax(0,1fr) 54px 88px!important;gap:6px!important;padding:10px!important;font-size:12px!important;}
+  html[data-crm-ui] .crm-stock-comparison-head strong {font-size:10px!important;}
+  html[data-crm-ui] .crm-stock-pending {grid-template-columns:minmax(0,1fr)!important;}
+ }
+}

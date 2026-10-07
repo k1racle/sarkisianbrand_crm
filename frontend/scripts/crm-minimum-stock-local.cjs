@@ -1,0 +1,30 @@
+// Browser acceptance: real login/empty screen; controlled API evidence for populated states and editor writes.
+const {chromium}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs');
+const base=process.env.LOCAL_SITE_URL,ev=JSON.parse(fs.readFileSync('/evidence/minimum-stock-acceptance.json'));
+(async()=>{const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']}),p=await browser.newPage({viewport:{width:1880,height:1000}}),errors=[];p.on('pageerror',e=>errors.push(e.message));try{
+ await p.goto(base+'/crm/login');await p.locator('input[type=email]').fill(process.env.LOCAL_ADMIN_EMAIL);await p.locator('input[type=password]').fill(process.env.LOCAL_ADMIN_PASSWORD);await p.locator('button[type=submit]').click();await p.waitForURL(u=>['/crm','/crm/'].includes(u.pathname));await p.goto(base+'/crm/inventory');
+ await p.getByRole('tab',{name:'Минимальный запас',exact:true}).click();await p.getByRole('button',{name:'Новый сценарий',exact:true}).waitFor();assert.equal(await p.locator('#inventory-page-stock-panel').isVisible(),false);
+ let canManage=true,writes=[];const model=JSON.parse(JSON.stringify(ev));
+ const target={id:ev.variantId,label:ev.detail.item.name+' · '+ev.detail.item.sku};
+ await p.route('**/api/v1/inventory-settings**',async route=>{
+  const req=route.request(),url=new URL(req.url());let result;
+  if(req.method()!=='GET'){const body=req.postDataJSON();writes.push({path:url.pathname,body});if(url.pathname.endsWith('/groups')){result={id:'12345678-1234-4234-8234-123456789012',...body};}else{const old=model.rules.find(r=>url.pathname.endsWith(r.id));if(old)Object.assign(old,body);result=old||{...body,id:'12345678-1234-4234-8234-123456789013'};}return route.fulfill({status:req.method()==='POST'?201:200,contentType:'application/json',body:JSON.stringify(result)});}
+  if(url.pathname.endsWith('/targets'))result=[target];else result={...model,canManage};return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
+ });
+ await p.route('**/api/v1/oms/inventory**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(new URL(route.request().url()).pathname.endsWith(ev.variantId)?ev.detail:ev.list)}));
+ await p.getByRole('button',{name:'Обновить сценарии',exact:true}).click();await p.locator('.crm-stock-rule').first().waitFor();
+ async function bounds(){assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page overflow');const bad=await p.locator('.crm-stock-rule,.crm-stock-rule-form input,.crm-stock-rule-form select,.crm-detail-footer').evaluateAll(els=>els.filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect()).filter(b=>b.left< -1||b.right>innerWidth+1).length);assert.equal(bad,0,'clipped controls');}
+ for(const width of [1880,1366,390]){
+  await p.setViewportSize({width,height:1000});await bounds();await p.screenshot({path:`/evidence/minimum-stock-list-${width}.png`});
+  await p.getByRole('button',{name:'Новый сценарий',exact:true}).click();await p.getByRole('dialog').waitFor();await p.getByRole('button',{name:target.label,exact:true}).click();await p.getByLabel('Название',{exact:true}).fill('Защита запаса');
+  await p.getByLabel('Порог, шт.',{exact:true}).fill('7');await p.getByRole('button',{name:'Только маркетплейсы',exact:true}).click();assert.equal(await p.getByRole('checkbox',{name:'Сайт',exact:true}).isChecked(),false);
+  await p.getByLabel('После пополнения',{exact:true}).selectOption({label:'Вручную, когда остаток выше порога'});await bounds();await p.screenshot({path:`/evidence/minimum-stock-editor-${width}.png`});
+  await p.getByRole('button',{name:'Сохранить',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});const last=writes.at(-1).body;assert.equal(last.threshold,7);assert.equal(last.autoResume,false);assert.deepEqual(last.channels,['OZON','WILDBERRIES','YANDEX_MARKET','MEGAMARKET']);assert.equal(last.targetId,ev.variantId);
+ }
+ await p.setViewportSize({width:1366,height:1000});await p.getByRole('button',{name:/Изменить сценарий:/}).first().click();await p.getByLabel('Название',{exact:true}).fill('Изменено');
+ p.once('dialog',d=>d.dismiss());await p.keyboard.press('Escape');assert(await p.getByRole('dialog').isVisible());p.once('dialog',d=>d.accept());await p.keyboard.press('Escape');await p.getByRole('dialog').waitFor({state:'hidden'});
+ await p.getByRole('button',{name:'Товарные группы',exact:true}).click();await p.getByRole('button',{name:'Новая группа',exact:true}).click();await p.getByLabel('Название',{exact:true}).fill('Бестселлеры');await p.getByRole('button',{name:target.label,exact:true}).click();await p.getByRole('button',{name:'Сохранить',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});assert.deepEqual(writes.at(-1).body.productIds,[ev.variantId]);
+ await p.getByRole('tab',{name:'Остатки и резервы',exact:true}).click();await p.getByRole('button',{name:'Обновить',exact:true}).click();await p.getByRole('button',{name:'Резервы: '+ev.detail.item.name+', '+ev.detail.item.sku,exact:true}).click();await p.getByRole('tab',{name:'Продажи',exact:true}).click();assert.equal(await p.locator('.crm-channel-stock').count(),6);await p.getByRole('button',{name:'Закрыть товар',exact:true}).click();
+ canManage=false;await p.getByRole('tab',{name:'Минимальный запас',exact:true}).click();await p.locator('.crm-stock-rule').first().waitFor();assert.equal(await p.getByRole('button',{name:'Новый сценарий',exact:true}).count(),0);assert.equal(await p.getByRole('button',{name:/Изменить сценарий:/}).count(),0);
+ assert.deepEqual(errors,[]);console.log('PASS browser minimum stock: real empty screen, populated API evidence, desktop/laptop/mobile bounds, editor target/channel/threshold/manual resume payload, dirty-close guard, groups, six channel quantities and read-only controls. External calls absent.');
+ }catch(e){console.error(errors);await p.screenshot({path:'/evidence/minimum-stock-failure.png'});throw e;}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,3 +1,4 @@
+import { salesQuantity, salesStockInclude } from '../common/sales-stock';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,10 +31,10 @@ export class ShippingService {
     if (dto.provider === 'YANDEX_DELIVERY') return { ...unavailableShipping('YANDEX_DELIVERY', 'Яндекс Доставка пока не подключена. Стоимость будет подтверждена до оплаты'), canPay: false };
     if (!session || !/^[A-Za-z0-9_-]{16,128}$/.test(session) || session === 'anonymous-session') throw new BadRequestException('Необходимо передать идентификатор корзины');
     if (!dto.city.trim() || (dto.deliveryMethod === 'COURIER' && (!dto.street?.trim() || !dto.house?.trim()))) throw new BadRequestException('Укажите город и адрес доставки');
-    const cart = await this.prisma.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: true } } } });
+    const cart = await this.prisma.cart.findUnique({ where: { sessionId: session }, include: { items: { include: { variant: { include: { channelStocks:salesStockInclude } } } } } });
     if (cart?.userId && cart.userId !== userId) throw new ForbiddenException('Нет доступа к корзине');
     if (!cart?.items.length) throw new BadRequestException('Корзина пуста');
-    if (cart.items.some(item => !item.variant.isActive || item.variant.stock - item.variant.reserved < item.quantity)) throw new BadRequestException('Некоторые товары недоступны в указанном количестве');
+    if (cart.items.some(item => !item.variant.isActive || salesQuantity(item.variant,'WEB') < item.quantity)) throw new BadRequestException('Некоторые товары недоступны в указанном количестве');
     if (dto.provider === 'OZON_DELIVERY') return { ...unavailableShipping('OZON_DELIVERY', 'Доставка Ozon пока не подключена. Стоимость будет подтверждена до оплаты'), canPay: false };
     const capability = await this.cdek.capabilities();
     if (!capability.available) return { ...unavailableShipping('CDEK', capability.message), canPay: false };
@@ -67,7 +68,7 @@ export class ShippingService {
   }
 
   async calculate(orderNumber: string, dto: ShippingAddressDto) {
-    const order = await this.prisma.order.findUnique({ where: { orderNumber }, include: { items: { include: { variant: true } } } });
+    const order = await this.prisma.order.findUnique({ where: { orderNumber }, include: { items: { include: { variant: { include: { channelStocks:salesStockInclude } } } } } });
     if (!order) throw new NotFoundException('Заказ не найден');
     const weight = this.weight(order.items);
     if (weight === null) return unavailableShipping('CDEK', 'У товаров не заполнен вес. Стоимость доставки будет подтверждена до оплаты');

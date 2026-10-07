@@ -5,6 +5,7 @@ import { hashCartSession, hashShippingDestination, moneyMinor } from '../common/
 import { PrismaService } from '../prisma/prisma.service';
 import { replayLoyaltyLedger } from '../loyalty/loyalty-core.helpers';
 import { giftCodeHash, giftMoneyMinor, giftNominal, giftValidityDays } from '../gift-cards/gift-cards.helpers';
+import { salesQuantity, salesStockInclude } from '../common/sales-stock';
 import { pricedCart } from '../common/product-merchandising';
 
 const DEFAULT_SETTINGS = {
@@ -26,7 +27,7 @@ export class StorefrontPricingService {
       where: { sessionId },
       include: {
         user: { include: { customer: true, b2bProfile: true, organizationMemberships: { where: { isActive: true }, take: 1 } } },
-        items: { include: { variant: { include: { product: true } } } },
+        items: { include: { variant: { include: { product: true, channelStocks: salesStockInclude } } } },
       },
     });
     const cart=rawCart?pricedCart(rawCart):null;
@@ -57,7 +58,7 @@ export class StorefrontPricingService {
         if (unitMinor <= 0 || BigInt(unitMinor) !== BigInt(nominal) * 100n) {
           throw new BadRequestException('У подарочного сертификата некорректно настроены номинал, цена или срок действия');
         }
-      } else if (!Number.isSafeInteger(variant.stock) || !Number.isSafeInteger(variant.reserved) || variant.reserved < 0 || variant.stock - variant.reserved < quantity) {
+      } else if (!Number.isSafeInteger(variant.stock) || !Number.isSafeInteger(variant.reserved) || variant.reserved < 0 || salesQuantity(variant,'WEB') < quantity) {
         throw new BadRequestException(`Недостаточно товара: ${variant.product.nameRu}`);
       }
       subtotalMinor = this.safe(BigInt(subtotalMinor) + BigInt(unitMinor) * BigInt(quantity));
