@@ -12,7 +12,8 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
     await expect(applyStorefrontTransition(tx, { source, fulfillmentManaged: true, status: 'ASSEMBLING', items: [] }, OrderStatus.CANCELLED)).rejects.toBeInstanceOf(ConflictException);
   });
   it('does not close an adjusted WEB order before finance reconciliation', async () => {
-    await expect(applyStorefrontTransition({} as any, { source: 'WEB', fulfillmentManaged: true, status: 'SHIPPED', reservationState: 'CONSUMED', items: [{ cancelledQuantity: 1 }] }, OrderStatus.DELIVERED)).rejects.toBeInstanceOf(ConflictException);
+    const tx: any = { oneCOrderFinance: { findUnique: async () => null }, orderExecution: { findUnique: async () => ({ settlementReviewRequired: true }) } };
+    await expect(applyStorefrontTransition(tx, { source: 'WEB', fulfillmentManaged: true, status: 'SHIPPED', reservationState: 'CONSUMED', items: [{ cancelledQuantity: 1 }] }, OrderStatus.DELIVERED)).rejects.toBeInstanceOf(ConflictException);
   });
   function fixture(paid = false) {
     const order: any = { id: 'mock-order', orderNumber: 'MOCK-ORDER', source: 'WEB', status: paid ? OrderStatus.PAID : OrderStatus.NEW,

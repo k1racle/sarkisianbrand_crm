@@ -17,6 +17,8 @@ import { OneCSyncService } from '../1c-sync/1c-sync.service';
 import { applyStorefrontTransition } from '../common/storefront-order-transition';
 import { CrmReadAccess } from '../crm/read-access';
 import { OmsReadService, orderAccessWhere, orderSelect } from './oms-read.service';
+import { OmsInventoryService } from './oms-inventory.service';
+import { InventoryPageDto, InventoryQueryDto } from './dto/inventory.dto';
 import { OperationalContext, withOperationalAccess } from '../common/operational-access';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -43,6 +45,8 @@ export class OmsService {
     @Optional() private readonly notifications?: NotificationsService, private readonly access: CrmReadAccess = new CrmReadAccess()) {}
 
   private get reads() { return new OmsReadService(this.prisma, this.access); }
+  inventory(actor: string, query: InventoryQueryDto) { return new OmsInventoryService(this.prisma, this.access).list(actor, query); }
+  inventoryPosition(actor: string, id: string, query: InventoryPageDto) { return new OmsInventoryService(this.prisma, this.access).detail(actor, id, query); }
   finance(actor: string, id: string) { return new OmsFinanceService(this.prisma, this.access).get(actor, id); }
   receivables(actor: string, dto: ReceivablesQueryDto) { return new OmsFinanceService(this.prisma, this.access).list(actor, dto); }
   postFinance(_actor: string, _id: string, _dto: OrderFinanceDto) { throw new GoneException('Финансовый учёт ведётся в 1С. В CRM доступны только данные 1С и запросы на обработку.'); }

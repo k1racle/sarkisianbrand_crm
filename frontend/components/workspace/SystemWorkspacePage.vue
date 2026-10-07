@@ -77,6 +77,7 @@ const resourceLabels: Record<string, string> = {
   crm: "CRM",
   marketplaces: "Маркетплейсы",
   oms: "Заказы",
+  inventory: "Товары и остатки",
   helpdesk: "Helpdesk",
   "system-settings": "Настройки экосистемы",
   auth: "Авторизация",

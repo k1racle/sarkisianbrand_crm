@@ -55,6 +55,7 @@ async function execute(kind: 'CONFIRM' | 'PICK' | 'SHIP') {
       <div class="crm-item-card crm-stack crm-execution-card"><strong>Задание от {{ new Date(order.execution.confirmedAt).toLocaleString('ru-RU') }}</strong><p>Оплата: {{ order.execution.paymentTerms }}</p><p>Доставка: {{ order.execution.deliveryTerms }}</p></div>
       <p role="status">Заказано: {{ totals.ordered }} · Собрано: {{ totals.picked }} · Отгружено: {{ totals.shipped }} · Осталось отгрузить: {{ totals.ordered - totals.shipped - totals.cancelled }}</p>
       <p v-if="totals.cancelled || totals.returned">Отменено: {{ totals.cancelled }} · Возвращено: {{ totals.returned }} · Из них повреждено: {{ totals.damaged }}</p>
+      <p v-if="order.closure?.required" role="status">{{ order.closure.reason }}</p>
       <div v-for="item in order.items" :key="item.id" class="crm-item-card crm-stack crm-execution-card">
         <strong>{{ item.productName }} · {{ item.variantName }}</strong>
         <p>Заказано {{ item.quantity }} · Собрано {{ item.pickedQuantity }} · Отгружено {{ item.shippedQuantity }} · Отменено {{ item.cancelledQuantity }} · Возвращено {{ item.returnedQuantity }}</p>
@@ -74,7 +75,7 @@ async function execute(kind: 'CONFIRM' | 'PICK' | 'SHIP') {
         <strong>{{ operationNames[operation.kind] }} · {{ new Date(operation.createdAt).toLocaleString('ru-RU') }}</strong>
         <small>{{ operation.actorName }} · № {{ operation.id }}</small>
         <p v-for="line in operation.lines" :key="line.itemId">{{ line.productName }} × {{ line.quantity }}<span v-if="line.damagedQuantity"> · Повреждено {{ line.damagedQuantity }}</span></p>
-        <p v-if="operation.reason">Причина: {{ operation.reason }}</p><p v-if="operation.settlementStatus === 'REVIEW_REQUIRED'">Финансовый результат проверяйте во вкладке «Расчёты 1С».</p>
+        <p v-if="operation.reason">Причина: {{ operation.reason }}</p><p v-if="operation.settlementStatus === 'REVIEW_REQUIRED'">Ожидает сверки в 1С.</p><p v-else-if="operation.settlementStatus === 'RECONCILED'">Сверено в 1С.</p><p v-else-if="operation.settlementStatus === 'REJECTED'">Сверка отклонена в 1С. Причина — во вкладке «Расчёты 1С».</p>
         <p v-if="operation.trackingNumber">Трек: {{ operation.trackingNumber }}</p>
       </div>
       <p v-if="order.executionOperations.length === 100">Показаны последние 100 документов.</p>

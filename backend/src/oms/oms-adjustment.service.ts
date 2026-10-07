@@ -65,6 +65,8 @@ export class OmsAdjustmentService {
       const operation = await tx.orderExecutionOperation.create({ data: { orderId: id, requestKey: dto.requestKey, requestHash, kind: dto.kind, actorId: actor, actorName, lines, reason: dto.reason.trim(), settlementStatus: 'REVIEW_REQUIRED' } });
       await tx.orderExecution.update({ where: { orderId: id }, data: { version: { increment: 1 }, settlementReviewRequired: true } });
       await tx.order.update({ where: { id }, data: { status, reservationState, isSynced1C: false } });
+      // A pending reward based on the original order must not be released after an adjustment.
+      if (order.source === 'WEB') await tx.partnerReward.updateMany({ where: { orderId: id, status: 'PENDING' }, data: { readyAt: null } });
       // Original price, payments and shipment facts remain intact; finance must reconcile separately.
       await tx.orderStatusHistory.create({ data: { orderId: id, fromStatus: order.status, toStatus: status, changedBy: actor, comment: `${cancel ? 'Отмена неотгруженного остатка' : 'Приёмка возврата'}: ${lines.map(l => `${l.productName} × ${l.quantity}${l.damagedQuantity ? ` (повреждено ${l.damagedQuantity})` : ''}`).join('; ')}. Причина: ${dto.reason.trim()}. Выполнил: ${actorName}. Расчёты требуют проверки` } });
       await tx.auditLog.create({ data: { actorId: actor, resource: 'oms', resourceId: id, action: `ORDER_EXECUTION_${dto.kind}`, payload: { operationId: operation.id, lines, reason: dto.reason.trim() } } });

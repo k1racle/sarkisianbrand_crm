@@ -457,6 +457,18 @@ function shiftMonth(n: number) {
     1,
   );
 }
+let notificationTaskVersion = 0;
+watch(() => route.query.task, async id => {
+  const version = ++notificationTaskVersion, identity = token.value;
+  if (typeof id !== 'string' || !id || !closeTask()) return;
+  try {
+    const task = await $fetch<any>(`/crm/tasks/${encodeURIComponent(id)}`, { baseURL: config.public.apiBase, headers: headers.value });
+    if (version !== notificationTaskVersion || identity !== token.value) return;
+    pipelineId.value = task.pipelineId; await load();
+    if (version === notificationTaskVersion && identity === token.value) openTask(task);
+  } catch (e) { if (version === notificationTaskVersion && identity === token.value) failure(e); }
+});
+onBeforeUnmount(() => { ++notificationTaskVersion; });
 onMounted(async () => {
   if (route.query.task) {
     try { const task = await $fetch<any>(`/crm/tasks/${encodeURIComponent(String(route.query.task))}`, { baseURL: config.public.apiBase, headers: headers.value }); pipelineId.value = task.pipelineId; }

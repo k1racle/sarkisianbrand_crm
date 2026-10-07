@@ -3,6 +3,7 @@ import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } fro
 const trim=({value}:any)=>typeof value==='string'?value.trim():value;
 export class KnowledgeQueryDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(100) search?:string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(80) category?:string;
   @IsOptional() @IsIn(['PUBLISHED','DRAFT','ARCHIVED','ALL']) status='PUBLISHED';
   @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(10000) page=1;
 }

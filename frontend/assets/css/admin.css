@@ -3,9 +3,14 @@
  * never inside Vue components. Dynamic business colors/progress remain bindings.
  */
 @import "./crm-elements.css";
+@import "./crm-messenger.css";
+@import "./crm-notifications.css";
+@import "./crm-knowledge.css";
+@import "./crm-directory.css";
 @import "./crm-shell.css";
 @import "./crm-work.css";
 @import "./crm-content.css";
+@import "./crm-inventory.css";
 @import "./admin-components.css";
 @import "./admin-legacy.css";
 @import "./ecosystem-glass.css";

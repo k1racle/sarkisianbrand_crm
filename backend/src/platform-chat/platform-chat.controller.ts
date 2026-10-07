@@ -3,17 +3,13 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { StaffGuard } from '../auth/staff.guard';
 import { CreatePlatformChannelDto, CreatePlatformMessageDto, OpenDirectChatDto, PlatformMessagesQueryDto } from './dto/platform-chat.dto';
 import { PlatformChatService } from './platform-chat.service';
 
-const roles = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'CURATOR', 'WAREHOUSE'];
-
 @ApiTags('platform-chat')
 @Controller('platform-chat')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(...roles)
+@UseGuards(JwtAuthGuard, StaffGuard)
 export class PlatformChatController {
   constructor(private readonly chat: PlatformChatService) {}
 

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PaymentCalendarModule } from './payment-calendar/payment-calendar.module';
 import { WorkScheduleModule } from './work-schedule/work-schedule.module';
 import { WorkTimeModule } from './work-time/work-time.module';
+import { StaffNotificationsModule } from './staff-notifications/staff-notifications.module';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ProductsModule } from './products/products.module';
@@ -90,6 +91,7 @@ import { MeetingsModule } from './meetings/meetings.module';
     PaymentCalendarModule,
     WorkScheduleModule,
     WorkTimeModule,
+    StaffNotificationsModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })

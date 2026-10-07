@@ -5,10 +5,45 @@ import { KnowledgeCreateDto, KnowledgeQueryDto } from './knowledge.dto';
 const dto={title:'Инструкция',category:'Заказы',body:'Проверить заказ перед передачей на сборку.'};
 function fixture(){
   const actor={role:'IT_SUPPORT',isActive:true},permissions=['helpdesk.read','knowledge.write'];
-  const db={user:{findUnique:jest.fn(async()=>actor)},rolePermission:{findMany:jest.fn(async()=>permissions.map(key=>({permission:{key}})))},userPermission:{findMany:jest.fn(async()=>[] as any[])},crmKnowledgeArticle:{count:jest.fn(async()=>21),findMany:jest.fn(async(args:any)=>[]),findFirst:jest.fn(async(args:any)=>null as any),create:jest.fn(async({data}:any)=>({id:'article',version:1,status:'DRAFT',...data})),updateMany:jest.fn(async(args:any)=>({count:1})),findUniqueOrThrow:jest.fn(async()=>({id:'article',version:2}))},auditLog:{create:jest.fn(async(args:any)=>({}))}};
+  const db={user:{findUnique:jest.fn(async()=>actor)},rolePermission:{findMany:jest.fn(async()=>permissions.map(key=>({permission:{key}})))},userPermission:{findMany:jest.fn(async()=>[] as any[])},crmKnowledgeArticle:{groupBy:jest.fn(async(args:any)=>[] as any[]),count:jest.fn(async()=>21),findMany:jest.fn(async(args:any)=>[]),findFirst:jest.fn(async(args:any)=>null as any),create:jest.fn(async({data}:any)=>({id:'article',version:1,status:'DRAFT',...data})),updateMany:jest.fn(async(args:any)=>({count:1})),findUniqueOrThrow:jest.fn(async()=>({id:'article',version:2}))},auditLog:{create:jest.fn(async(args:any)=>({}))}};
   return {actor,permissions,db,service:new KnowledgeService({$transaction:async run=>run(db)} as any)};
 }
 describe('Knowledge base access and editing',()=>{
+  it('filters the complete registry by category and keeps cross-page section counts',async()=>{
+    const {service,db}=fixture();
+    db.crmKnowledgeArticle.groupBy.mockResolvedValue([{category:'Команда',_count:{_all:21}},{category:'Заказы',_count:{_all:8}}]);
+    const result=await service.list('actor',{status:'PUBLISHED',category:'Команда',page:2});
+    expect(db.crmKnowledgeArticle.count).toHaveBeenCalledWith({where:{status:'PUBLISHED',category:'Команда'}});
+    expect(db.crmKnowledgeArticle.findMany).toHaveBeenCalledWith(expect.objectContaining({where:{status:'PUBLISHED',category:'Команда'},skip:20,take:20}));
+    expect(db.crmKnowledgeArticle.groupBy).toHaveBeenCalledWith(expect.objectContaining({where:{status:'PUBLISHED'},by:['category']}));
+    expect(result.categories).toEqual([{name:'Команда',count:21},{name:'Заказы',count:8}]);
+  });
+  it('does not leak draft categories or snippets to readers and applies search to counts',async()=>{
+    const {service,permissions,db}=fixture();permissions.pop();
+    await service.list('actor',{status:'PUBLISHED',search:'вход',category:'Команда',page:1});
+    const where=db.crmKnowledgeArticle.groupBy.mock.calls[0][0].where;
+    expect(where.status).toBe('PUBLISHED');expect(where.category).toBeUndefined();
+    expect(where.OR).toHaveLength(3);expect(where.OR[0]).toEqual({title:{contains:'вход',mode:'insensitive'}});
+    db.crmKnowledgeArticle.groupBy.mockClear();
+    await expect(service.list('actor',{status:'DRAFT',page:1})).rejects.toThrow('Черновики');
+    expect(db.crmKnowledgeArticle.groupBy).not.toHaveBeenCalled();
+  });
+  it('returns compact plain-text excerpts without the full article body',async()=>{
+    const {service,db}=fixture();
+    db.crmKnowledgeArticle.findMany.mockResolvedValue([
+      {id:'one',body:'  Первая строка.\n\n  Вторая строка.  '},
+      {id:'two',body:'Длинная инструкция. '.repeat(40)},
+    ] as never);
+    const result=await service.list('actor',{status:'PUBLISHED',page:1});
+    expect(result.items[0]).toEqual({id:'one',excerpt:'Первая строка. Вторая строка.'});
+    expect(result.items[1].excerpt).toHaveLength(181);expect(result.items[1].excerpt.endsWith('…')).toBe(true);
+    expect(result.items.every(item=>!('body' in item))).toBe(true);
+  });
+  it('trims and validates the category filter',async()=>{
+    const query=plainToInstance(KnowledgeQueryDto,{category:' Команда ',page:1});
+    expect(query.category).toBe('Команда');expect(await validate(query)).toHaveLength(0);
+    expect((await validate(plainToInstance(KnowledgeQueryDto,{category:'x'.repeat(81)}))).length).toBeGreaterThan(0);
+  });
   it('allows readers only published search results and bounds pages',async()=>{
     const {service,permissions,db}=fixture();permissions.pop();const result=await service.list('actor',{status:'PUBLISHED',search:'сборка',page:100});
     expect(result).toMatchObject({page:2,pages:2,canWrite:false});expect(db.crmKnowledgeArticle.findMany.mock.calls[0][0]).toMatchObject({where:{status:'PUBLISHED'},skip:20,take:20});

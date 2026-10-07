@@ -6,8 +6,8 @@ import { OperationalContext, withOperationalAccess } from '../common/operational
 import { orderAccessWhere } from './oms-read.service';
 import { ReceivablesQueryDto } from './dto/order-finance.dto';
 import { CreateOneCRequestDto } from '../1c-sync/dto/finance.dto';
-import { oneCFinanceState, settlementBasis } from '../1c-sync/finance-policy';
-const include = { items: true, oneCFinance: true, oneCRequests: { orderBy: [{ createdAt: 'desc' as const }, { id: 'asc' as const }] }, executionOperations: true, _count: { select: { financeEntries: true } } };
+import { oneCClosureState, oneCFinanceState, settlementBasis } from '../1c-sync/finance-policy';
+const include = { items: true, execution: true, oneCFinance: true, oneCRequests: { orderBy: [{ createdAt: 'desc' as const }, { id: 'asc' as const }] }, executionOperations: true, _count: { select: { financeEntries: true } } };
 export class OmsFinanceService {
  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
  private run<T>(actor: string, write: boolean, fn: (ctx: OperationalContext) => Promise<T>) {
@@ -20,11 +20,11 @@ export class OmsFinanceService {
  private view(order: any) {
   const snapshot = order.oneCFinance, state = oneCFinanceState(order);
   return { id: order.id, orderNumber: order.orderNumber, source: 'ONE_C', updatedAt: order.updatedAt, ...state,
-   legacyEntries: order._count.financeEntries, currency: order.currency,
-   snapshot: snapshot ? { revision: snapshot.revision, asOf: snapshot.asOf, validUntil: snapshot.validUntil, receivedAt: snapshot.receivedAt, total: snapshot.total, paid: snapshot.paid, refunded: snapshot.refunded, debt: snapshot.debt, refundDue: snapshot.refundDue, paymentDueAt: snapshot.paymentDueAt, documents: snapshot.documents } : null,
+   legacyEntries: order._count.financeEntries, currency: order.currency, closure: oneCClosureState(order),
+   snapshot: snapshot ? { revision: snapshot.revision, asOf: snapshot.asOf, validUntil: snapshot.validUntil, receivedAt: snapshot.receivedAt, total: snapshot.total, paid: snapshot.paid, refunded: snapshot.refunded, debt: snapshot.debt, refundDue: snapshot.refundDue, paymentDueAt: snapshot.paymentDueAt, documents: snapshot.documents, closeReason: snapshot.closeReason, adjustments: snapshot.adjustments } : null,
    overdue: state.state === 'CURRENT' && Number(snapshot?.debt) > 0 && !!snapshot?.paymentDueAt && snapshot.paymentDueAt.getTime() < Date.now(),
    requests: order.oneCRequests.map((r: any) => ({ id: r.id, kind: r.kind, comment: r.comment, status: r.status, responseMessage: r.responseMessage, externalDocumentId: r.externalDocumentId, actorName: r.actorName, createdAt: r.createdAt, updatedAt: r.updatedAt })),
-   operations: order.executionOperations.filter((op: any) => ['RETURN','CANCEL_REMAINDER'].includes(op.kind)).map((op: any) => ({ id: op.id, kind: op.kind, reason: op.reason, createdAt: op.createdAt })) };
+   operations: order.executionOperations.filter((op: any) => ['RETURN','CANCEL_REMAINDER'].includes(op.kind)).map((op: any) => ({ id: op.id, kind: op.kind, reason: op.reason, createdAt: op.createdAt, settlementStatus: op.settlementStatus })) };
  }
  get(actor: string, id: string) { return this.run(actor, false, async ctx => {
   const order = await ctx.db.order.findFirst({ where: { AND: [orderAccessWhere(ctx), { id }] }, include });

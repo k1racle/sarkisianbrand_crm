@@ -7,6 +7,7 @@ export type WorkspaceLeaf = {
   roles: readonly string[];
   keywords?: string;
   permission?: string;
+  requires?: readonly string[];
 };
 export type WorkspaceGroup = {
   id: string;
@@ -47,6 +48,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'web-dashboard', label: 'Обзор магазина', to: '/admin-workspace/dashboard', permission: 'admin.read', roles: CATALOG },
   ] },
   { id: 'sales', label: 'Продажи', description: 'Заказы интернет-магазина.', icon: 'ShoppingBag', items: [
+    { id: 'inventory', label: 'Товары и остатки', to: '/crm/inventory', permission: 'inventory.read', requires: ['oms.read'], roles: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'], keywords: 'склад товары артикул sku наличие остатки резервы отгрузить' },
     { id: 'b2b-orders', label: 'Заказы B2B', to: '/crm/b2b-orders', permission: 'oms.read', roles: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'], keywords: 'опт компании поставки заказы' },
     { id: 'order-fulfillment', label: 'Сборка и отгрузка', to: '/crm/fulfillment', permission: 'oms.read', roles: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE'], keywords: 'склад сборка отгрузка исполнение' },
     { id: 'web-orders', label: 'Заказы интернет-магазина', to: '/admin-workspace/orders', permission: 'web_orders.read', roles: WEB, keywords: 'web продажи оплата доставка' },
@@ -136,7 +138,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
 export function buildWorkspaceNavigation(role?: string | null, can: (permission?: string) => boolean = () => true): WorkspaceGroup[] {
   if (!role || !INTERNAL.includes(role)) return [];
   const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
-  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission)).map(item => {
+  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission) && (item.requires || []).every(key => can(key))).map(item => {
     const destination = CRM_DESTINATIONS.find(destination => destination.id === item.id);
     return { ...item, label: destination?.label || item.label, keywords: `${item.keywords || ''} ${item.label} ${destination?.group || ''}`, to: destination?.path || item.to };
   }) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));

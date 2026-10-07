@@ -12,6 +12,7 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 import { AssignOrderManagerDto, MapMarketplaceItemDto, OrderManagerSearchDto, ResolveMarketplaceImportDto, UpdateOmsOrderDto } from './dto/oms.dto';
 import { OmsService } from './oms.service';
 import { OmsOrderListDto } from './dto/order-list.dto';
+import { InventoryPageDto, InventoryQueryDto } from './dto/inventory.dto';
 
 @ApiTags('oms')
 @ApiBearerAuth()
@@ -20,6 +21,8 @@ import { OmsOrderListDto } from './dto/order-list.dto';
 @Roles('ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'WAREHOUSE')
 export class OmsController {
   constructor(private readonly oms: OmsService) {}
+  @Get('inventory') @Header('Cache-Control', 'private, no-store') @Permissions('inventory.read', 'oms.read') inventory(@Req() req: any, @Query() query: InventoryQueryDto) { return this.oms.inventory(req.user.sub, query); }
+  @Get('inventory/:id') @Header('Cache-Control', 'private, no-store') @Permissions('inventory.read', 'oms.read') inventoryPosition(@Req() req: any, @Param('id') id: string, @Query() query: InventoryPageDto) { return this.oms.inventoryPosition(req.user.sub, id, query); }
   @Post('orders/:id/1c-requests') @Permissions('oms.read', 'oms.write', 'order_finance.read', 'order_finance.write') requestOneC(@Req() req: any, @Param('id') id: string, @Body() dto: CreateOneCRequestDto) { return this.oms.requestOneC(req.user.sub, id, dto); }
   @Get('receivables') @Header('Cache-Control', 'private, no-store') @Permissions('oms.read', 'order_finance.read') receivables(@Req() req: any, @Query() dto: ReceivablesQueryDto) { return this.oms.receivables(req.user.sub, dto); }
   @Get('orders/:id/finance') @Header('Cache-Control', 'private, no-store') @Permissions('oms.read', 'order_finance.read') finance(@Req() req: any, @Param('id') id: string) { return this.oms.finance(req.user.sub, id); }

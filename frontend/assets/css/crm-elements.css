@@ -65,6 +65,13 @@
  html[data-crm-ui] .crm-button.crm-button--danger:hover:not(:disabled) {background:var(--crm-danger-bg)!important;}
  html[data-crm-ui] .crm-button.crm-button--icon {padding:10px!important;min-width:44px!important;flex-shrink:0!important;}
  html[data-crm-ui] .crm-button.crm-button--row {justify-content:flex-start!important;text-align:left!important;border:0!important;background:transparent!important;}
+ html[data-crm-ui] .platform-chat .entity-picker {grid-template-rows:auto auto auto minmax(0,1fr)!important;}
+ html[data-crm-ui] .platform-chat .entity-picker > div {min-height:0;}
+ html[data-crm-ui] .crm-button.crm-chat-entity {display:grid!important;grid-template-columns:30px minmax(0,1fr) 18px!important;justify-content:stretch!important;text-align:left!important;width:100%!important;}
+ html[data-crm-ui] .crm-chat-entity > span {min-width:0;text-align:left;overflow-wrap:anywhere;}
+ html[data-crm-ui] .platform-chat .channels .chat-dialog-meta {display:grid;gap:6px;justify-items:end;align-self:start;}
+ html[data-crm-ui] .platform-chat .channels .chat-dialog-meta time {white-space:nowrap;}
+ html[data-crm-ui] .platform-chat .channels nav b {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
  html[data-crm-ui] .crm-button.crm-button--text {border:0!important;background:transparent!important;color:var(--crm-accent-ink)!important;padding:8px!important;}
  html[data-crm-ui] .crm-button:disabled {opacity:.5!important;cursor:not-allowed!important;}
  html[data-crm-ui] .crm-button:is(.active,[aria-pressed=true],[aria-selected=true],[aria-current=page]) {background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;border-color:var(--crm-accent)!important;}
@@ -93,6 +100,7 @@
  html[data-crm-ui] .crm-input-group {display:flex!important;align-items:center!important;gap:10px!important;min-height:44px!important;height:auto!important;border:1px solid var(--crm-line)!important;border-radius:var(--crm-radius-control)!important;background:var(--crm-surface)!important;padding:0 12px!important;min-width:0!important;}
  html[data-crm-ui] .crm-input-group > svg {position:static!important;transform:none!important;flex-shrink:0!important;color:var(--crm-muted)!important;}
  html[data-crm-ui] .crm-input-group .crm-input {border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;padding:10px 0!important;flex:1!important;width:100%!important;}
+ html[data-crm-ui] .sb-promo-search > .crm-input {min-height:42px!important;}
  html[data-crm-ui] .crm-input-group:focus-within {outline:2px solid var(--crm-accent)!important;outline-offset:2px!important;}
  html[data-crm-ui] .crm-input-group input:focus-visible {outline:0!important;}
  /* Toolbars and boards use the same white panel as My Day. */

@@ -40,7 +40,7 @@
   box-shadow:none!important;
 }
 .workspace-frame.workspace-frame.workspace-frame textarea { min-height:112px!important; }
-.workspace-frame.workspace-frame.workspace-frame :is(.filters,.registry-actions,.accounts-tools,.sb-promo-filters) {
+.workspace-frame.workspace-frame.workspace-frame :is(.filters,.registry-actions,.accounts-tools) {
   display:flex;
   flex-direction:row;
   flex-wrap:wrap;

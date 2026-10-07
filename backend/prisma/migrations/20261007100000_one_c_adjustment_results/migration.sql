@@ -1,0 +1,4 @@
+ALTER TABLE "OneCOrderFinance"
+ ADD COLUMN "closeAllowed" BOOLEAN NOT NULL DEFAULT false,
+ ADD COLUMN "closeReason" TEXT NOT NULL DEFAULT '',
+ ADD COLUMN "adjustments" JSONB NOT NULL DEFAULT '[]';

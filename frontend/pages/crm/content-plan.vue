@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { Archive, CalendarDays, Check, ChevronLeft, ChevronRight, Clapperboard, Copy, ExternalLink, Kanban, List, MessageSquare, Plus, RefreshCw, Search, X } from '@lucide/vue';
+import { Archive, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, ExternalLink, Kanban, Lightbulb, List, MessageSquare, Plus, RefreshCw, Search, UserRound, X } from '@lucide/vue';
 import { contentPlatforms as platforms, contentFormats as formats, contentStages as stages, contentLocal, contentInstant } from '~/shared/content-plan';
 useHead({title:'Контент-план — SARKISIAN CRM'});
 const config=useRuntimeConfig(),route=useRoute(),{token,user}=useWorkspaceSession(),{can}=useWorkspaceAccess();
 const writable=computed(()=>can('content_plan.write'));
 const request=<T=any>(path='',options:any={})=>$fetch<T>(`/crm/content-plan${path}`,{baseURL:config.public.apiBase,...options,headers:{Authorization:`Bearer ${token.value}`},retry:0});
 const items=ref<any[]>([]),team=ref<any[]>([]),total=ref(0),loading=ref(false),busy=ref(false),error=ref(''),notice=ref('');
-const view=ref('list'),search=ref(''),platform=ref(''),status=ref(''),assignee=ref(''),archived=ref(false),period=ref('month'),date=ref(new Date().toISOString().slice(0,10)),zone=ref('Europe/Moscow');
+const zone=ref('Europe/Moscow');
+const view=ref('calendar'),search=ref(''),platform=ref(''),status=ref(''),assignee=ref(''),archived=ref(false),period=ref('month'),date=ref(contentLocal(new Date().toISOString(),zone.value).slice(0,10));
 const opened=ref(false),selected=ref<any>(null),baseline=ref(''),formError=ref(''),comments=ref<any[]>([]),comment=ref(''),commentsMore=ref(false),attachmentBusy=ref(false);
 const blank=()=>({title:'',platform:'INSTAGRAM',format:'REELS',assignedToId:user.value?.id||'',campaign:'',brief:'',script:'',caption:'',cta:'',scheduledAt:'',timezone:zone.value,status:'IDEA',publishedUrl:''});
 const draft=reactive(blank());const dirty=computed(()=>opened.value&&(JSON.stringify(draft)!==baseline.value||!!comment.value.trim()));
@@ -23,10 +24,25 @@ const bounds=computed(()=>{const start=new Date(date.value+'T12:00:00Z');if(peri
 const days=computed(()=>{const result:string[]=[];const d=new Date(bounds.value.from+'T12:00:00Z');while(d.toISOString().slice(0,10)<bounds.value.to){result.push(d.toISOString().slice(0,10));d.setUTCDate(d.getUTCDate()+1);}return result;});
 const heading=computed(()=>new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date.value+'T12:00:00Z')));
 const planned=computed(()=>items.value.filter(x=>x.scheduledAt)),unscheduled=computed(()=>items.value.filter(x=>!x.scheduledAt));
+const hasFilters=computed(()=>Boolean(search.value||platform.value||status.value||assignee.value));
+function resetFilters(){search.value='';platform.value='';status.value='';assignee.value='';}
+const humanDay=(value:string)=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
+const periodHeading=computed(()=>period.value==='month'?heading.value:humanDay(bounds.value.from)+' — '+humanDay(days.value.at(-1)!));
+const calendarCells=computed(()=>{
+ const leading=period.value==='month'?(new Date(bounds.value.from+'T12:00:00Z').getUTCDay()+6)%7:0;
+ const cells:(string|null)[]=[...Array(leading).fill(null),...days.value];
+ while(cells.length%7)cells.push(null);
+ return cells;
+});
+const focusedDay=ref(date.value);
+watch(bounds,value=>{if(focusedDay.value<value.from||focusedDay.value>=value.to)focusedDay.value=today.value>=value.from&&today.value<value.to?today.value:value.from;});
+const focusedItems=computed(()=>planned.value.filter(row=>dayKey(row)===focusedDay.value));
+const plannedGroups=computed(()=>[...new Set(planned.value.map(dayKey))].sort().map(day=>({day,items:planned.value.filter(row=>dayKey(row)===day).sort((a,b)=>a.scheduledAt.localeCompare(b.scheduledAt))})));
+function goToday(){date.value=today.value;focusedDay.value=today.value;}
 const late=(row:any)=>row.status!=='PUBLISHED'&&row.scheduledAt&&new Date(row.scheduledAt).getTime()<Date.now();
 let sequence=0,timer:ReturnType<typeof setTimeout>|undefined;
 async function load(more=false){const seq=++sequence;loading.value=true;error.value='';try{const result=await request<any>('',{query:{from:contentInstant(bounds.value.from+'T00:00',zone.value),to:contentInstant(bounds.value.to+'T00:00',zone.value),search:search.value||undefined,platform:platform.value||undefined,status:status.value||undefined,assignedToId:assignee.value||undefined,archived:String(archived.value),offset:more?items.value.length:0}});if(seq!==sequence)return;items.value=more?[...items.value,...result.items]:result.items;total.value=result.total;}catch(e){if(seq===sequence)error.value=message(e);}finally{if(seq===sequence)loading.value=false;}}
-watch([platform,status,assignee,archived,date,period,zone],()=>load());watch(search,()=>{clearTimeout(timer);timer=setTimeout(()=>load(),300);});
+watch([search,platform,status,assignee,archived,date,period,zone],(next,previous)=>{clearTimeout(timer);++sequence;if(next[0]!==previous[0])timer=setTimeout(()=>load(),300);else void load();});
 function shift(direction:number){const d=new Date(date.value+'T12:00:00Z');if(period.value==='month'){d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+direction);}else d.setUTCDate(d.getUTCDate()+7*direction);date.value=d.toISOString().slice(0,10);}
 function setForm(row:any){Object.assign(draft,blank(),row?{title:row.task.title,platform:row.platform,format:row.format,assignedToId:row.task.assignedToId,campaign:row.campaign,brief:row.brief,script:row.script,caption:row.caption,cta:row.cta,scheduledAt:contentLocal(row.scheduledAt,row.timezone),timezone:row.timezone,status:row.status,publishedUrl:row.publishedUrl}:{});baseline.value=JSON.stringify(draft);}
 async function open(row:any=null,day=''){if(!discard())return;selected.value=row;setForm(row);if(day){draft.scheduledAt=day+'T12:00';baseline.value=JSON.stringify(draft);}formError.value='';comment.value='';comments.value=[];opened.value=true;if(row)await loadComments();}
@@ -41,7 +57,7 @@ function variant(){if(!discard()||!selected.value?.id)return;const source=select
 async function addComment(){if(busy.value||!comment.value.trim()||!selected.value?.id)return;busy.value=true;try{const row=await request<any>(`/${selected.value.id}/comments`,{method:'POST',body:{body:comment.value}});comments.value=[row,...comments.value];comment.value='';}catch(e){formError.value=message(e);}finally{busy.value=false;}}
 async function move(id:string,next:string){const row=items.value.find(x=>x.id===id);if(!row||busy.value||!writable.value||archived.value)return;busy.value=true;error.value='';try{await request(`/${id}`,{method:'PATCH',body:{version:row.version,status:next}});await load();}catch(e){error.value=message(e);}finally{busy.value=false;}}
 const drag=useCrmCardDrag((id,next)=>move(id,next));
-async function moveDay(e:DragEvent,day:string){e.preventDefault();const id=e.dataTransfer?.getData('text/plain'),row=items.value.find(x=>x.id===id);if(!row||busy.value||!writable.value)return;busy.value=true;try{await request(`/${row.id}`,{method:'PATCH',body:{version:row.version,scheduledAt:contentInstant(day+'T'+(contentLocal(row.scheduledAt,zone.value).slice(11)||'12:00'),zone.value)}});await load();}catch(err){error.value=message(err);}finally{busy.value=false;}}
+async function moveDay(e:DragEvent,day:string){e.preventDefault();const id=e.dataTransfer?.getData('text/plain'),row=items.value.find(x=>x.id===id);if(!row||busy.value||!writable.value||archived.value)return;busy.value=true;try{await request(`/${row.id}`,{method:'PATCH',body:{version:row.version,scheduledAt:contentInstant(day+'T'+(contentLocal(row.scheduledAt,zone.value).slice(11)||'12:00'),zone.value)}});await load();}catch(err){error.value=message(err);}finally{busy.value=false;}}
 async function fresh(){if(!discard())return;try{const row=await request<any>(`/${selected.value.id}`);selected.value=row;setForm(row);formError.value='';await loadComments();}catch(e){formError.value=message(e);}}
 async function attachmentsChanged(){const id=selected.value?.id;if(!id)return;try{const row=await request<any>(`/${id}`);if(selected.value?.id!==id)return;selected.value=row;if(row.status==='REVIEW'&&draft.status!=='REVIEW'){draft.status='REVIEW';notice.value='Материалы изменились. Публикацию нужно согласовать повторно.';}await load();}catch(e){formError.value=message(e);}}
 onMounted(async()=>{window.addEventListener('beforeunload',beforeUnload);await load();try{team.value=await request<any[]>('/team');if(typeof route.query.id==='string')await open(await request('/'+route.query.id));}catch(e){error.value=message(e);}});
@@ -51,24 +67,83 @@ onBeforeUnmount(()=>{sequence++;clearTimeout(timer);window.removeEventListener('
  <main class="crm-work-page crm-content-page crm-standard">
   <header class="crm-work-header crm-page-header"><div><h1>Контент-план</h1><p class="crm-muted">От идеи до публикации: сценарии, материалы и работа SMM-команды</p></div><div class="crm-work-actions"><button class="crm-work-button crm-button crm-button--refresh" :disabled="loading" @click="load()"><RefreshCw :size="18" />Обновить</button><button v-if="writable" class="crm-primary-button crm-button crm-button--primary" @click="open()"><Plus :size="18" />Новая публикация</button></div></header>
   <p v-if="error" role="alert" class="crm-work-error">{{ error }}</p><p v-if="notice" role="status" class="crm-content-notice">{{ notice }}</p>
-  <section class="crm-content-toolbar crm-surface" aria-label="Фильтры контент-плана">
-   <label class="crm-content-search crm-input-group"><Search :size="18" /><input class="crm-input" v-model="search" type="search" placeholder="Найти публикацию" aria-label="Поиск публикаций" /></label>
-   <select class="crm-input" v-model="platform" aria-label="Площадка"><option value="">Все площадки</option><option v-for="(name,key) in platforms" :key="key" :value="key">{{ name }}</option></select>
-   <select class="crm-input" v-model="status" aria-label="Этап"><option value="">Все этапы</option><option v-for="(name,key) in stages" :key="key" :value="key">{{ name }}</option></select>
-   <select class="crm-input" v-model="assignee" aria-label="Ответственный"><option value="">Вся команда</option><option v-for="p in team" :key="p.id" :value="p.id">{{ person(p) }}</option></select>
-   <label class="crm-content-archive crm-toggle-row"><input class="crm-check" v-model="archived" type="checkbox" />Архив</label>
+  <section class="crm-content-workbar crm-surface" aria-label="Управление контент-планом">
+    <div class="crm-content-navigation">
+      <div class="crm-content-date-controls">
+        <div class="crm-content-period-picker"><button class="crm-button crm-button--icon" aria-label="Предыдущий период" @click="shift(-1)"><ChevronLeft :size="18" /></button><strong>{{ periodHeading }}</strong><button class="crm-button crm-button--icon" aria-label="Следующий период" @click="shift(1)"><ChevronRight :size="18" /></button></div>
+        <button class="crm-button" @click="goToday">Сегодня</button>
+        <select class="crm-input" v-model="period" aria-label="Период"><option value="month">Месяц</option><option value="week">Неделя</option></select>
+      </div>
+      <div class="crm-content-view-switch" role="group" aria-label="Вид контент-плана">
+        <button class="crm-button" :aria-pressed="view==='calendar'" @click="view='calendar'"><CalendarDays :size="18" /><span>Календарь</span></button>
+        <button class="crm-button" :aria-pressed="view==='list'" @click="view='list'"><List :size="18" /><span>Список</span></button>
+        <button class="crm-button" :aria-pressed="view==='board'" @click="view='board'"><Kanban :size="18" /><span>Доска</span></button>
+      </div>
+    </div>
+    <div class="crm-content-filterbar" aria-label="Фильтры контент-плана">
+      <div class="crm-input-group crm-content-filter-search"><Search :size="18" aria-hidden="true" /><input class="crm-input" v-model="search" type="search" placeholder="Тема, текст или кампания" aria-label="Поиск публикаций" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск" @click="search=''"><X :size="16" /></button></div>
+      <select class="crm-input" v-model="platform" aria-label="Площадка"><option value="">Все площадки</option><option v-for="(name,key) in platforms" :key="key" :value="key">{{ name }}</option></select>
+      <select class="crm-input" v-model="status" aria-label="Этап"><option value="">Все этапы</option><option v-for="(name,key) in stages" :key="key" :value="key">{{ name }}</option></select>
+      <select class="crm-input" v-model="assignee" aria-label="Ответственный"><option value="">Вся команда</option><option v-for="p in team" :key="p.id" :value="p.id">{{ person(p) }}</option></select>
+      <button class="crm-button" :aria-pressed="archived" @click="archived=!archived"><Archive :size="16" />Архив</button>
+    </div>
+    <div v-if="hasFilters||archived" class="crm-content-filter-state"><small>{{ archived?'Показаны архивные публикации':'Применены фильтры' }}</small><button v-if="hasFilters" class="crm-button crm-button--text" @click="resetFilters"><X :size="15" />Сбросить фильтры</button><button v-if="archived" class="crm-button crm-button--text" @click="archived=false">Вернуться к плану</button></div>
   </section>
-  <div class="crm-content-controls"><div class="crm-work-actions"><button class="crm-icon-button crm-button crm-button--icon" aria-label="Предыдущий период" @click="shift(-1)"><ChevronLeft :size="20" /></button><strong>{{ heading }}</strong><button class="crm-icon-button crm-button crm-button--icon" aria-label="Следующий период" @click="shift(1)"><ChevronRight :size="20" /></button><button class="crm-work-button crm-button" @click="date=today">Сегодня</button><select class="crm-input" v-model="period" aria-label="Период"><option value="month">Месяц</option><option value="week">Неделя</option></select></div><div class="crm-content-views" aria-label="Вид контент-плана"><button class="crm-button" :aria-pressed="view==='list'" @click="view='list'"><List :size="18" />Список</button><button class="crm-button" :aria-pressed="view==='calendar'" @click="view='calendar'"><CalendarDays :size="18" />Календарь</button><button class="crm-button" :aria-pressed="view==='board'" @click="view='board'"><Kanban :size="18" />Этапы</button></div></div>
-  <p class="crm-muted crm-content-period">{{ bounds.from }} — {{ days.at(-1) }} · Время: {{ zone }} · Найдено {{ total }}. Публикации без даты показаны отдельно.</p>
-  <p v-if="loading" role="status">Загружаем контент-план…</p>
-  <div v-if="!loading&&!items.length" class="crm-content-empty crm-surface"><Clapperboard :size="32" /><h2>{{ archived?'Архив пуст':'Здесь начинается следующая публикация' }}</h2><p>{{ search||platform||status||assignee?'По выбранным фильтрам публикаций нет. Измените условия поиска.':'Добавьте тему, выберите площадку и время. Сценарий и материалы можно подготовить позже.' }}</p><button v-if="writable&&!archived" class="crm-work-button crm-button" @click="open()"><Plus :size="16" />Добавить идею</button></div>
-  <div v-else-if="view==='board'" class="crm-content-board crm-board"><section class="crm-board-column crm-surface" v-for="(name,key) in stages" :key="key" :data-crm-drop="key" @dragover.prevent @drop.prevent="move(drag.active.value || $event.dataTransfer?.getData('text/plain') || '', String(key)); drag.finish()"><header><h2>{{ name }}</h2><small>{{ items.filter(x=>x.status===key).length }}</small></header><article role="button" tabindex="0" @keydown.enter="open(row)" @keydown.space.prevent="open(row)" v-for="row in items.filter(x=>x.status===key)" :key="row.id" class="crm-publication crm-item-card" :draggable="writable&&!archived" :data-crm-card="row.id" @dragstart="drag.start($event,row.id)" @dragend="drag.finish" @touchstart="drag.touchStart($event,row.id)" @click="drag.allowClick()&&open(row)"><small>{{ platforms[row.platform] }} · {{ formats[row.format] }}</small><strong>{{ row.task.title }}</strong><time :class="{'crm-content-late':late(row)}">{{ row.scheduledAt?contentLocal(row.scheduledAt,zone).replace('T',' · '):'Без даты' }}</time><small>{{ person(row.task.assignedTo) }}</small></article></section></div>
-  <div v-else-if="view==='calendar'" class="crm-content-calendar" :class="{'is-week':period==='week'}"><section v-for="day in days" :key="day" class="crm-content-day crm-item-card" :class="{'is-today':day===today}" @dragover.prevent @drop="moveDay($event,day)"><header><strong>{{ new Date(day+'T12:00:00Z').toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',timeZone:'UTC'}) }}</strong><button v-if="writable&&!archived" class="crm-icon-button crm-button crm-button--icon" :aria-label="`Добавить публикацию на ${day}`" @click="open(null,day)"><Plus :size="16" /></button></header><button v-for="row in planned.filter(x=>dayKey(x)===day)" :key="row.id" :draggable="writable&&!archived" class="crm-publication crm-button crm-card-action crm-item-card" @dragstart="$event.dataTransfer?.setData('text/plain',row.id)" @click="open(row)"><small>{{ contentLocal(row.scheduledAt,zone).slice(11) }} · {{ formats[row.format] }}</small><strong>{{ row.task.title }}</strong><small>{{ platforms[row.platform] }}</small><span class="crm-content-status crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span></button><small v-if="!planned.some(x=>dayKey(x)===day)" class="crm-muted">Нет публикаций</small></section></div>
-  <section v-else class="crm-content-list"><button v-for="row in planned" :key="row.id" class="crm-publication crm-button crm-card-action crm-item-card" @click="open(row)"><div><small>{{ platforms[row.platform] }} · {{ formats[row.format] }}</small><strong>{{ row.task.title }}</strong><small>{{ row.campaign || person(row.task.assignedTo) }}</small></div><time :class="{'crm-content-late':late(row)}">{{ contentLocal(row.scheduledAt,zone).replace('T',' · ') }}</time><span class="crm-content-status crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span></button></section>
-  <section v-if="unscheduled.length&&view!=='board'" class="crm-content-unscheduled"><h2>Идеи без даты · {{ unscheduled.length }}</h2><div class="crm-content-list"><button v-for="row in unscheduled" :key="row.id" class="crm-publication crm-button crm-card-action crm-item-card" @click="open(row)"><div><small>{{ platforms[row.platform] }} · {{ formats[row.format] }}</small><strong>{{ row.task.title }}</strong></div><span class="crm-content-status crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span></button></div></section>
-  <button v-if="items.length<total" :disabled="loading" class="crm-work-button crm-button" @click="load(true)">Показать ещё · {{ total-items.length }}</button>
-  <p class="crm-muted crm-content-footnote">Это план работы команды. Автоматическая публикация в соцсети не подключена. После размещения добавьте ссылку и отметьте «Опубликовано».</p>
-  <Teleport to="body"><div v-if="opened" class="crm-work-overlay admin-dialog-backdrop crm-detail-backdrop" @click.self="close"><section ref="panel" class="admin-dialog admin-dialog--drawer crm-detail-card crm-content-editor" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка публикации" @keydown="keyboard">
+
+  <div class="crm-content-result-bar"><span role="status">{{ loading?'Обновляем план…':'Найдено: '+total }}</span><small>Время публикаций · {{ zone }}</small></div>
+  <div v-if="view==='board'" class="crm-content-board crm-board" :aria-busy="loading">
+    <section class="crm-board-column crm-surface" v-for="(name,key) in stages" :key="key" :data-crm-drop="key" @dragover.prevent @drop.prevent="move(drag.active.value || $event.dataTransfer?.getData('text/plain') || '', String(key)); drag.finish()">
+      <header><h2>{{ name }}</h2><small>{{ items.filter(x=>x.status===key).length }}</small></header>
+      <article role="button" tabindex="0" @keydown.enter="open(row)" @keydown.space.prevent="open(row)" v-for="row in items.filter(x=>x.status===key)" :key="row.id" class="crm-publication crm-item-card" :draggable="writable&&!archived" :data-crm-card="row.id" @dragstart="drag.start($event,row.id)" @dragend="drag.finish" @touchstart="drag.touchStart($event,row.id)" @click="drag.allowClick()&&open(row)">
+        <small>{{ platforms[row.platform] }} · {{ formats[row.format] }}</small><strong>{{ row.task.title }}</strong><time :class="{'crm-content-late':late(row)}">{{ row.scheduledAt?humanDay(dayKey(row))+' · '+contentLocal(row.scheduledAt,zone).slice(11):'Без даты' }}</time><small>{{ person(row.task.assignedTo) }}</small>
+      </article>
+      <p v-if="!items.some(x=>x.status===key)" class="crm-content-column-empty">Пока нет публикаций</p>
+    </section>
+  </div>
+
+  <div v-else class="crm-content-planner" :aria-busy="loading">
+    <section class="crm-surface crm-content-schedule" :aria-label="view==='calendar'?'Календарь публикаций':'Запланированные публикации'">
+      <header class="crm-content-section-heading"><div><h2>{{ archived?'Архив по датам':'План публикаций' }}</h2><small>{{ humanDay(bounds.from) }} — {{ humanDay(days.at(-1)!) }} · С датой: {{ planned.length }}{{ items.length<total?' в загруженной части':'' }}</small></div><CalendarDays :size="20" /></header>
+      <template v-if="view==='calendar'">
+        <div class="crm-content-weekdays" aria-hidden="true"><span v-for="day in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']" :key="day">{{ day }}</span></div>
+        <div class="crm-content-month-grid">
+          <template v-for="(day,index) in calendarCells" :key="day||'blank-'+index">
+            <section v-if="day" class="crm-content-date-cell" :class="{'is-today':day===today,'is-selected':day===focusedDay}" @dragover.prevent @drop="moveDay($event,day)">
+              <header><span class="crm-content-desktop-day">{{ Number(day.slice(-2)) }}</span><button class="crm-content-day-number" :aria-label="'Публикации на '+humanDay(day)" :aria-pressed="focusedDay===day" @click="focusedDay=day">{{ Number(day.slice(-2)) }}</button><button v-if="writable&&!archived" class="crm-button crm-button--icon crm-content-day-add" :aria-label="'Добавить публикацию на '+day" @click="open(null,day)"><Plus :size="15" /></button></header>
+              <span v-if="planned.some(x=>dayKey(x)===day)" class="crm-content-day-count">{{ planned.filter(x=>dayKey(x)===day).length }}</span>
+              <button v-for="row in planned.filter(x=>dayKey(x)===day)" :key="row.id" :draggable="writable&&!archived" class="crm-publication crm-button crm-card-action crm-item-card crm-content-calendar-entry" :title="row.task.title" @dragstart="$event.dataTransfer?.setData('text/plain',row.id)" @click="open(row)">
+                <small :class="{'crm-content-late':late(row)}">{{ contentLocal(row.scheduledAt,zone).slice(11) }} · {{ platforms[row.platform] }}</small><strong>{{ row.task.title }}</strong><span class="crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span>
+              </button>
+            </section>
+            <div v-else class="crm-content-date-placeholder" aria-hidden="true" />
+          </template>
+        </div>
+        <section class="crm-content-day-agenda" aria-label="Публикации выбранного дня">
+          <header><strong>{{ humanDay(focusedDay) }}</strong><button v-if="writable&&!archived" class="crm-button crm-button--icon" :aria-label="'Добавить публикацию на '+focusedDay" @click="open(null,focusedDay)"><Plus :size="16" /></button></header>
+          <button v-for="row in focusedItems" :key="row.id" class="crm-publication crm-button crm-card-action crm-item-card" @click="open(row)"><small>{{ contentLocal(row.scheduledAt,zone).slice(11) }} · {{ platforms[row.platform] }}</small><strong>{{ row.task.title }}</strong><span class="crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span></button>
+          <p v-if="!focusedItems.length">На этот день публикаций нет.</p>
+        </section>
+      </template>
+      <template v-else>
+        <div v-for="group in plannedGroups" :key="group.day" class="crm-content-date-group"><h3>{{ humanDay(group.day) }} <span>{{ group.items.length }}</span></h3>
+          <button v-for="row in group.items" :key="row.id" class="crm-publication crm-button crm-card-action crm-item-card crm-content-list-entry" @click="open(row)"><time :class="{'crm-content-late':late(row)}">{{ contentLocal(row.scheduledAt,zone).slice(11) }}</time><span class="crm-content-entry-title"><strong>{{ row.task.title }}</strong><small>{{ platforms[row.platform] }} · {{ formats[row.format] }}<template v-if="row.campaign"> · {{ row.campaign }}</template></small><small class="crm-content-entry-person"><UserRound :size="14" />{{ person(row.task.assignedTo) }}</small></span><span class="crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span><ChevronRight :size="16" /></button>
+        </div>
+        <div v-if="!loading&&!planned.length" class="crm-content-empty">
+          <CalendarDays :size="28" /><h2>{{ hasFilters?'Публикации не найдены':archived?'Архив за этот период пуст':'Период пока свободен' }}</h2><p>{{ hasFilters?'Измените условия поиска или сбросьте фильтры.':unscheduled.length?'Идеи без даты находятся рядом. Откройте идею и назначьте время публикации.':'Добавьте публикацию на нужный день или начните с идеи без даты.' }}</p><button v-if="hasFilters" class="crm-button" @click="resetFilters">Сбросить фильтры</button><button v-else-if="writable&&!archived" class="crm-button" @click="open(null,focusedDay)"><Plus :size="16" />Запланировать публикацию</button>
+        </div>
+      </template>
+    </section>
+    <aside class="crm-content-ideas crm-surface" aria-label="Идеи без даты">
+      <header class="crm-content-section-heading"><div><h2>Идеи без даты <span>{{ unscheduled.length }}</span></h2><small>Назначьте день, когда материал будет готов</small></div><Lightbulb :size="20" /></header>
+      <div class="crm-content-idea-list">
+        <button v-for="row in unscheduled" :key="row.id" class="crm-publication crm-button crm-card-action crm-item-card crm-content-idea" @click="open(row)"><small>{{ platforms[row.platform] }} · {{ formats[row.format] }}</small><strong>{{ row.task.title }}</strong><span class="crm-badge" :data-stage="row.status">{{ stages[row.status] }}</span><small class="crm-content-entry-person"><UserRound :size="14" />{{ person(row.task.assignedTo) }}</small></button>
+        <div v-if="!loading&&!unscheduled.length" class="crm-content-ideas-empty"><Lightbulb :size="26" /><strong>{{ archived?'Нет идей в архиве':'Место для новых идей' }}</strong><p>{{ hasFilters?'По этим фильтрам идей без даты нет.':'Сохраните тему сейчас. Сценарий, материалы и дату можно добавить позже.' }}</p></div>
+        <button v-if="writable&&!archived" class="crm-button crm-content-add-idea" @click="open()"><Plus :size="16" />Добавить идею</button>
+      </div>
+    </aside>
+  </div>
+  <button v-if="items.length<total" :disabled="loading" class="crm-work-button crm-button crm-content-load-more" @click="load(true)">Показать ещё · {{ total-items.length }}</button>
+  <p class="crm-muted crm-content-footnote">Публикации размещаются вручную. После размещения добавьте ссылку в карточку и выберите этап «Опубликовано».</p>  <Teleport to="body"><div v-if="opened" class="crm-work-overlay admin-dialog-backdrop crm-detail-backdrop" @click.self="close"><section ref="panel" class="admin-dialog admin-dialog--drawer crm-detail-card crm-content-editor" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка публикации" @keydown="keyboard">
    <header class="crm-work-header"><div><h2>{{ selected?.id?'Публикация':selected?.sourceId?'Версия для другой площадки':'Новая публикация' }}</h2><p class="crm-muted">{{ selected?.archivedAt?'В архиве':selected?.approvedAt?'Сценарий и текст согласованы':'Подготовка и согласование материала' }}</p></div><button class="crm-icon-button crm-button crm-button--icon" aria-label="Закрыть публикацию" @click="close"><X :size="20" /></button></header>
    <div class="admin-dialog-body crm-detail-body">
    <p v-if="formError" class="crm-work-error" role="alert">{{ formError }}<button v-if="selected?.id" class="crm-work-button crm-button" @click="fresh">Перезагрузить карточку</button></p>

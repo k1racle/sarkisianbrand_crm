@@ -1,0 +1,86 @@
+/* Knowledge base: persistent sections, compact search and readable articles. */
+@layer crm-elements {
+ html[data-crm-ui] .crm-knowledge-layout {display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:start;}
+ html[data-crm-ui] .crm-knowledge-content {display:grid;gap:16px;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-sections {padding:16px!important;min-width:0;position:sticky;top:88px;}
+ html[data-crm-ui] .crm-knowledge-sections-heading {display:flex;gap:10px;align-items:center;padding:4px 8px 16px;color:var(--crm-accent-ink);}
+ html[data-crm-ui] .crm-knowledge-section-list {display:grid;gap:4px;max-height:55vh;overflow-y:auto;}
+ html[data-crm-ui] .crm-knowledge-section-list > button {display:grid!important;grid-template-columns:18px minmax(0,1fr) auto!important;gap:10px!important;align-items:center!important;width:100%!important;min-height:44px!important;height:auto!important;padding:10px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:var(--crm-ink)!important;text-align:left!important;cursor:pointer;box-shadow:none!important;}
+ html[data-crm-ui] .crm-knowledge-section-list > button > span {overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-knowledge-section-list > button > svg {color:var(--crm-muted);}
+ html[data-crm-ui] .crm-knowledge-section-list > button:hover, html[data-crm-ui] .crm-knowledge-section-list > button[aria-current] {background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;}
+ html[data-crm-ui] .crm-knowledge-section-list > button[aria-current] > svg {color:var(--crm-accent-ink);}
+ html[data-crm-ui] .crm-knowledge-sections-note {font-size:var(--crm-type-caption)!important;margin:16px 8px 4px;line-height:1.6!important;}
+ html[data-crm-ui] .crm-knowledge-mobile-sections {display:none!important;}
+ html[data-crm-ui] .crm-knowledge-toolbar {display:flex!important;align-items:center!important;gap:12px!important;padding:12px!important;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-search {flex:1;min-width:0;margin:0!important;}
+ html[data-crm-ui] .crm-knowledge-search > input {min-height:42px!important;}
+ html[data-crm-ui] .crm-knowledge-search > input::-webkit-search-cancel-button {display:none;}
+ html[data-crm-ui] .crm-knowledge-clear {display:grid!important;place-items:center!important;background:none!important;border:0!important;box-shadow:none!important;color:var(--crm-muted)!important;flex:none;width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;cursor:pointer;}
+ html[data-crm-ui] .crm-knowledge-toolbar > select {flex:0 0 200px;width:200px!important;height:44px!important;}
+ html[data-crm-ui] .crm-knowledge-toolbar > button {flex:none;}
+ html[data-crm-ui] .crm-knowledge-list-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+ html[data-crm-ui] .crm-knowledge-list-heading h2 {margin:6px 0!important;}
+ html[data-crm-ui] .crm-knowledge-list-heading > span {color:var(--crm-muted);font-size:var(--crm-type-caption)!important;}
+ html[data-crm-ui] .crm-knowledge-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+ html[data-crm-ui] .crm-knowledge-card {display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:12px!important;width:100%!important;height:auto!important;min-width:0!important;min-height:208px!important;padding:20px!important;text-align:left!important;cursor:pointer;white-space:normal!important;}
+ html[data-crm-ui] .crm-knowledge-card:hover:not(:disabled) {border-color:var(--crm-hover-border)!important;background:var(--crm-hover-bg)!important;}
+ html[data-crm-ui] .crm-knowledge-card:focus-visible, html[data-crm-ui] .crm-knowledge-section-list > button:focus-visible, html[data-crm-ui] .crm-knowledge-clear:focus-visible {outline:2px solid var(--crm-accent)!important;outline-offset:2px!important;}
+ html[data-crm-ui] .crm-knowledge-card-top {display:flex;align-items:center;gap:10px;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-card-icon {display:grid;place-items:center;flex:none;width:36px;height:36px;background:var(--crm-tint);color:var(--crm-accent-ink);border-radius:10px;}
+ html[data-crm-ui] .crm-knowledge-category {flex:1;min-width:0;overflow-wrap:anywhere;font-size:var(--crm-type-caption)!important;}
+ html[data-crm-ui] .crm-knowledge-card > strong {font-size:16px!important;line-height:1.45!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-knowledge-excerpt {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.65!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-knowledge-card-bottom {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:8px;}
+ html[data-crm-ui] .crm-knowledge-card-bottom > svg {color:var(--crm-accent-ink);flex:none;}
+ html[data-crm-ui] .crm-knowledge-pagination {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:20px;}
+ html[data-crm-ui] .crm-knowledge-pagination > div {display:flex;gap:8px;}
+ html[data-crm-ui] .crm-knowledge-empty {display:grid;justify-items:center;gap:16px;text-align:center;padding:48px 24px!important;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-empty > svg {color:var(--crm-muted);}
+ html[data-crm-ui] .crm-knowledge-empty :is(h2,p) {margin:0!important;}
+ html[data-crm-ui] .crm-knowledge-back {display:flex;align-items:center;gap:16px;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-back > span {overflow-wrap:anywhere;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-knowledge-back > button {flex:none;}
+ html[data-crm-ui] .crm-knowledge-notice {display:flex;align-items:center;gap:12px;padding:16px!important;margin:0!important;}
+ html[data-crm-ui] .crm-knowledge-notice > svg {flex:none;color:var(--crm-accent-ink);}
+ html[data-crm-ui] .crm-knowledge-reader {padding:28px 32px 48px!important;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-reader-tools {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:28px;}
+ html[data-crm-ui] .crm-knowledge-prose {max-width:800px;margin:auto;}
+ html[data-crm-ui] .crm-knowledge-prose > h2 {font-size:26px!important;line-height:1.35!important;overflow-wrap:anywhere;margin:0 0 16px!important;}
+ html[data-crm-ui] .crm-knowledge-prose > h2:focus {outline:none;}
+ html[data-crm-ui] .crm-knowledge-reader-meta {display:flex;gap:8px 20px;flex-wrap:wrap;margin-bottom:28px;}
+ html[data-crm-ui] .crm-knowledge-reader-meta > span {display:flex;align-items:center;gap:6px;color:var(--crm-muted);font-size:var(--crm-type-caption)!important;}
+ html[data-crm-ui] .crm-knowledge-text {white-space:normal;}
+ html[data-crm-ui] .crm-knowledge .crm-knowledge-text > p {white-space:pre-wrap;overflow-wrap:anywhere;color:var(--crm-ink)!important;font-size:15px!important;line-height:1.85!important;margin:0 0 20px!important;}
+ html[data-crm-ui] .crm-knowledge-editor {min-width:0;padding:24px!important;}
+ html[data-crm-ui] .crm-knowledge-editor > fieldset {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;border:0;padding:0;margin:0 0 20px;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-editor label {display:grid;gap:8px;min-width:0;}
+ html[data-crm-ui] .crm-knowledge-field-wide {grid-column:1/-1;}
+ html[data-crm-ui] .crm-knowledge-editor .crm-input {width:100%!important;}
+ html[data-crm-ui] .crm-knowledge-editor textarea {min-height:320px!important;resize:vertical;line-height:1.75!important;}
+ html[data-crm-ui] .crm-knowledge-draft-note {display:flex;align-items:center;align-self:end;gap:8px;min-height:44px;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-knowledge-draft-note > svg {flex:none;}
+ html[data-crm-ui] .crm-knowledge-editor-footer {display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;padding-top:20px;border-top:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-knowledge-editor-footer > span {flex:1;min-width:160px;color:var(--crm-muted);font-size:var(--crm-type-caption)!important;}
+ @media(max-width:1200px) {
+  html[data-crm-ui] .crm-knowledge-layout {grid-template-columns:210px minmax(0,1fr);gap:16px;}
+  html[data-crm-ui] .crm-knowledge-grid {grid-template-columns:minmax(0,1fr);}
+ }
+ @media(max-width:767px) {
+  html[data-crm-ui] .crm-knowledge-layout {grid-template-columns:minmax(0,1fr);gap:16px;}
+  html[data-crm-ui] .crm-knowledge-sections {position:static;padding:12px!important;}
+  html[data-crm-ui] :is(.crm-knowledge-section-list,.crm-knowledge-sections-note,.crm-knowledge-sections-heading) {display:none!important;}
+  html[data-crm-ui] .crm-knowledge-mobile-sections {display:block!important;width:100%!important;}
+  html[data-crm-ui] .crm-knowledge-toolbar {flex-wrap:wrap!important;}
+  html[data-crm-ui] .crm-knowledge-search {flex-basis:100%;}
+  html[data-crm-ui] .crm-knowledge-toolbar > select {flex:1;min-width:0!important;width:auto!important;}
+  html[data-crm-ui] .crm-knowledge-toolbar > button {margin-left:auto;}
+  html[data-crm-ui] .crm-knowledge-card {min-height:192px!important;padding:16px!important;}
+  html[data-crm-ui] .crm-knowledge-reader {padding:20px 16px 28px!important;}
+  html[data-crm-ui] .crm-knowledge-prose > h2 {font-size:22px!important;}
+  html[data-crm-ui] .crm-knowledge-reader-tools {margin-bottom:24px;}
+  html[data-crm-ui] .crm-knowledge-editor {padding:16px!important;}
+  html[data-crm-ui] .crm-knowledge-editor > fieldset {grid-template-columns:minmax(0,1fr);}
+  html[data-crm-ui] .crm-knowledge-editor-footer > span {flex-basis:100%;}
+ }
+}

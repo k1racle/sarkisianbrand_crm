@@ -5,6 +5,7 @@ import { loyaltyCreditMetadata } from '../loyalty/loyalty-core.helpers';
 import { moneyMinor } from './storefront-utils';
 import { applyB2BStockTransition } from '../b2b/b2b-order-lifecycle';
 import { partnerOrderDelivered } from '../partners/partner-lifecycle';
+import { isOrderAdjusted, oneCClosureState } from '../1c-sync/finance-policy';
 
 /** Order must be locked first. Releases only unspent certificate reservations,
  * using a conditional redemption claim so concurrent/replayed releases cannot
@@ -47,7 +48,12 @@ export async function applyStorefrontTransition(
     if (target === OrderStatus.CANCELLED && target !== order.status) throw new ConflictException('Отмените неотгруженные позиции через документ отмены остатка');
     const adjusted = order.items?.some((item: any) => item.cancelledQuantity > 0 || item.returnedQuantity > 0);
     if (adjusted && [OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(target as any) && target !== order.status) throw new ConflictException('Используйте документы отмены остатка и приёмки возврата');
-    if (adjusted && order.source === 'WEB' && target === OrderStatus.DELIVERED && target !== order.status) throw new ConflictException('До закрытия заказа сайта нужна сверка расчётов по отменам и возвратам');
+    if (adjusted && target === OrderStatus.DELIVERED && target !== order.status) {
+      const oneCFinance = await tx.oneCOrderFinance.findUnique({ where: { orderId: order.id } });
+      const execution = await tx.orderExecution.findUnique({ where: { orderId: order.id } });
+      const closure = oneCClosureState({ ...order, oneCFinance, execution });
+      if (!closure.allowed) throw new ConflictException(closure.reason);
+    }
     if ([OrderStatus.SHIPPED, OrderStatus.DELIVERED].includes(target as any) && order.reservationState !== 'CONSUMED') throw new ConflictException('Проведите отгрузку всех позиций через задание на сборку');
     if ([OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(target as any) && order.items?.some((item: any) => item.shippedQuantity > 0)) throw new ConflictException('Есть отгруженные позиции. Требуется оформление возврата');
   }
@@ -71,7 +77,7 @@ export async function applyStorefrontTransition(
   }
   const rank: Partial<Record<OrderStatus, number>> = { NEW: 0, CONFIRMED: 1, PAYMENT_WAITING: 1, PAID: 2, ASSEMBLING: 3, SHIPPED: 4, DELIVERED: 5 };
   if (target !== OrderStatus.CANCELLED && (rank[target] ?? -1) < (rank[order.status as OrderStatus] ?? -1)) throw new ConflictException('Заказ не может вернуться на предыдущий этап');
-  if(target===OrderStatus.DELIVERED)await partnerOrderDelivered(tx,order);
+  if(target===OrderStatus.DELIVERED && !isOrderAdjusted(order))await partnerOrderDelivered(tx,order);
   if (order.reservationState === 'CONSUMED') {
     if (!([OrderStatus.SHIPPED, OrderStatus.DELIVERED] as OrderStatus[]).includes(target)) throw new ConflictException('Товары уже отгружены');
     return {};

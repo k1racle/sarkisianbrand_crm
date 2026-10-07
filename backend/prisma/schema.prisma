@@ -272,6 +272,8 @@ model CrmDepartment {
 }
 
 model User {
+  crmNotificationReads CrmNotificationRead[]
+  crmNotificationPreferences CrmNotificationPreference?
   accessProfileMode Boolean @default(false)
   accessVersion Int @default(1)
   accessAssignments CrmAccessAssignment[]
@@ -1434,6 +1436,7 @@ model CartItem {
 }
 
 model Order {
+  crmNotificationEvents CrmNotificationEvent[]
   oneCFinance OneCOrderFinance?
   oneCRequests OneCOrderRequest[]
   financeVersion Int @default(1)
@@ -1886,6 +1889,7 @@ model OrderItem {
   price       Decimal @db.Decimal(15, 2)
   quantity    Int
   total       Decimal @db.Decimal(15, 2)
+  @@index([variantId, orderId])
 }
 
 model OrderExecution {
@@ -1997,6 +2001,9 @@ model OneCOrderFinance {
   releaseAllowed Boolean
   releaseReason String
   documents Json
+  closeAllowed Boolean @default(false)
+  closeReason String @default("")
+  adjustments Json @default("[]")
 }
 
 model OneCOrderRequest {
@@ -2172,6 +2179,7 @@ model CrmTaskPipeline {
 }
 
 model Task {
+  crmNotificationEvents CrmNotificationEvent[]
   pipelineId String @default("00000000-0000-4000-8000-000000000001")
   pipeline CrmTaskPipeline @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
   id          String  @id @default(uuid())
@@ -2280,6 +2288,7 @@ model CrmTaskTemplate {
 }
 
 model CrmTaskReminder {
+  crmNotificationEvents CrmNotificationEvent[]
   id          String    @id @default(uuid())
   taskId      String
   task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -2401,6 +2410,7 @@ model CrmChatMember {
 }
 
 model CrmChatMessage {
+  crmNotificationEvents CrmNotificationEvent[]
   id          String                   @id @default(uuid())
   channelId   String
   channel     CrmChatChannel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
@@ -2440,6 +2450,7 @@ model PlatformChatAttachment {
 // ===================== HELPDESK =====================
 
 model HelpdeskTicket {
+  crmNotificationEvents CrmNotificationEvent[]
   id          String         @id @default(uuid())
   number      String         @unique
   subject     String
@@ -2614,6 +2625,7 @@ model ContactFormSetting {
 }
 
 model ContactMessage {
+  crmNotificationEvents CrmNotificationEvent[]
   id                 String    @id @default(uuid())
   name               String
   phone              String
@@ -2718,4 +2730,54 @@ model CrmKnowledgeArticle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([status, updatedAt])
+}
+
+// Transactional source events; visible content is resolved with current record permissions.
+model CrmNotificationEvent {
+  id String @id @default(dbgenerated("(gen_random_uuid())::text"))
+  sourceKey String @unique
+  kind String
+  category String
+  actorId String?
+  recipientId String?
+  occurredAt DateTime @default(now())
+  taskId String?
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  orderId String?
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketId String?
+  ticket HelpdeskTicket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  messageId String?
+  message CrmChatMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact ContactMessage? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  reminderId String?
+  reminder CrmTaskReminder? @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  reads CrmNotificationRead[]
+
+  @@index([occurredAt, id])
+  @@index([category, occurredAt])
+  @@index([recipientId, occurredAt])
+  @@index([taskId])
+  @@index([orderId])
+  @@index([ticketId])
+  @@index([messageId])
+  @@index([contactId])
+  @@index([reminderId])
+}
+
+model CrmNotificationRead {
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId String
+  event CrmNotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  readAt DateTime @default(now())
+  @@id([userId, eventId])
+  @@index([eventId])
+}
+
+model CrmNotificationPreference {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  popupsEnabled Boolean @default(true)
 }

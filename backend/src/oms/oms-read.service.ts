@@ -5,6 +5,7 @@ import { OperationalContext, withOperationalAccess } from '../common/operational
 import { PrismaService } from '../prisma/prisma.service';
 import { OmsOrderListDto } from './dto/order-list.dto';
 import { marketplaceLines } from './marketplace-lines';
+import { oneCClosureState } from '../1c-sync/finance-policy';
 
 export const marketplaceSources: OrderSource[] = ['WILDBERRIES', 'OZON', 'YANDEX_MARKET', 'MEGAMARKET'];
 export function orderAccessWhere(ctx: OperationalContext, domain = 'oms'): Prisma.OrderWhereInput {
@@ -23,9 +24,10 @@ export function orderSelect(ctx: OperationalContext, detail = false): Prisma.Ord
     marketplaceImportIssue: true, isSynced1C: true, oneCSyncAt: true,
     execution: { select: { version: true, confirmedAt: true, paymentTerms: true, deliveryTerms: true, settlementReviewRequired: true } },
     user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
-    items: { select: { id: true, productName: true, variantName: true, price: true, quantity: true, total: true, externalSku: true, offerId: true, variantId: true, variant: { select: { sku: true } }, pickedQuantity: true, shippedQuantity: true, cancelledQuantity: true, returnedQuantity: true, damagedReturnedQuantity: true } },
+    items: { select: { id: true, productType: true, productName: true, variantName: true, price: true, quantity: true, total: true, externalSku: true, offerId: true, variantId: true, variant: { select: { sku: true } }, pickedQuantity: true, shippedQuantity: true, cancelledQuantity: true, returnedQuantity: true, damagedReturnedQuantity: true } },
     history: { select: { id: true, fromStatus: true, toStatus: true, comment: true, createdAt: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: detail ? 100 : 5 },
     ...(detail ? {
+      oneCFinance: { select: { basisHash: true, validUntil: true, closeAllowed: true, refundDue: true } },
       marketplaceStaging: { select: { status: true, totalAmount: true, updatedAt: true, items: true, buyerName: true, buyerEmail: true, buyerPhone: true, deliveryDate: true } },
       executionOperations: { select: { id: true, kind: true, actorName: true, lines: true, trackingNumber: true, createdAt: true, reason: true, settlementStatus: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100 },
       payments: { select: { id: true, amount: true, currency: true, provider: true, status: true, createdAt: true } },
@@ -51,14 +53,14 @@ export class OmsReadService {
     ]);
     return rows.map(row => {
       const customer = customers.find(item => item.id === row.customerId) || null, organization = organizations.find(item => item.id === row.organizationId) || null;
-      const { marketplaceStaging, ...safe } = row;
+      const { marketplaceStaging, oneCFinance, ...safe } = row;
       let marketplaceIncoming: any = null;
       if (marketplaceStaging) {
         let items: ReturnType<typeof marketplaceLines> = [];
         try { items = marketplaceLines(marketplaceStaging.items); } catch { /* Historic invalid input remains unavailable for automatic adoption. */ }
         marketplaceIncoming = { status: marketplaceStaging.status, totalAmount: marketplaceStaging.totalAmount, updatedAt: marketplaceStaging.updatedAt, buyerName: marketplaceStaging.buyerName, buyerEmail: marketplaceStaging.buyerEmail, buyerPhone: marketplaceStaging.buyerPhone, deliveryDate: marketplaceStaging.deliveryDate, items };
       }
-      return { ...safe, marketplaceIncoming, customer, organization, customerId: customer?.id || null, organizationId: organization?.id || null, canWrite: writable.some(item => item.id === row.id) };
+      return { ...safe, ...(oneCFinance !== undefined ? { closure: oneCClosureState(row) } : {}), marketplaceIncoming, customer, organization, customerId: customer?.id || null, organizationId: organization?.id || null, canWrite: writable.some(item => item.id === row.id) };
     });
   }
   private filter(ctx: OperationalContext, source?: OrderSource, status?: OrderStatus, search?: string): Prisma.OrderWhereInput {

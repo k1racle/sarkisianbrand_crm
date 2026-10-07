@@ -25,6 +25,7 @@ export class AdminContactMessagesController {
 
   @Get() @Permissions('crm.read') list(@Query('page') page?: string, @Query('unread') unread?: string) { return this.messages.list(page, unread); }
   @Get('settings') @Permissions('crm.read') settings() { return this.messages.settings(); }
+  @Get(':id') @Permissions('crm.read') detail(@Param('id') id: string) { return this.messages.detail(id); }
   @Patch('settings') @Roles('ADMIN', 'SUPERVISOR') @Permissions('crm.write') updateSettings(@Body() dto: UpdateContactFormSettingDto) { return this.messages.updateSettings(dto); }
   @Patch(':id/read') @Permissions('crm.write') markRead(@Param('id') id: string) { return this.messages.markRead(id); }
 }

@@ -84,7 +84,18 @@ function openQueue(queue:string){const query={...route.query,queue};delete query
 function resetFilters(){search.value='';statusFilter.value='';sourceFilter.value='';const query={...route.query};delete query.queue;delete query.section;return navigateTo({path:ticketsPath.value,query});}
 onBeforeRouteLeave(() => !actionBusy.value && (!comment.value.trim() || window.confirm('Уйти без отправки комментария?')));
 function ticketMenu(event:MouseEvent,ticket:any){openContextMenu(event,ticket.number,[{label:'Открыть заявку',icon:'open',action:()=>openTicket(ticket)},{label:'Копировать номер',icon:'copy',action:()=>copyText(ticket.number,'Номер заявки скопирован')},...(canWriteTicket(ticket) && !['OPEN','RESOLVED','CLOSED'].includes(ticket.status)?[{label:'Взять в работу',icon:'status' as const,separator:true,disabled:actionBusy.value,action:()=>updateTicket(ticket,'status','OPEN')}]:[]),...(canWriteTicket(ticket) && !['RESOLVED','CLOSED'].includes(ticket.status)?[{label:'Отметить решённой',icon:'status' as const,disabled:actionBusy.value,action:()=>updateTicket(ticket,'status','RESOLVED')}]:[])],requester(ticket));}
-onMounted(load);
+let targetVersion = 0;
+async function openRequestedTicket() {
+  const id = route.query.ticket, identity = token.value, version = ++targetVersion;
+  if (typeof id !== 'string' || !id || !identity) return;
+  try {
+    const ticket = await $fetch<any>(`/helpdesk/tickets/${encodeURIComponent(id)}`, { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${identity}` } });
+    if (version === targetVersion && identity === token.value) openTicket(ticket);
+  } catch (e) { if (version === targetVersion && identity === token.value) { if (closeTicket()) fail(e); } }
+}
+watch(() => route.query.ticket, openRequestedTicket);
+onBeforeUnmount(() => { ++targetVersion; });
+onMounted(async () => { await load(); await openRequestedTicket(); });
 </script>
 
 <template><CrmKnowledgeBase v-if="section === 'knowledge'" /><main v-else data-v-ui-9200e9d7b7db class="helpdesk-page crm-standard"><header data-v-ui-9200e9d7b7db class="hd-header crm-page-header"><div data-v-ui-9200e9d7b7db><p data-v-ui-9200e9d7b7db class="eyebrow">IT HELPDESK / ЕДИНАЯ ПОДДЕРЖКА</p><h1 data-v-ui-9200e9d7b7db>{{ section === 'tickets' ? 'Все заявки' : section === 'queues' ? 'Очереди поддержки' : section === 'knowledge' ? 'База знаний' : 'Центр поддержки' }}</h1><span data-v-ui-9200e9d7b7db>Сотрудники, B2C и B2B · единая очередь обращений</span></div><div data-v-ui-9200e9d7b7db><button data-v-ui-9200e9d7b7db class="outline crm-button crm-button--refresh" :disabled="loading || actionBusy" @click="load"><RefreshCw data-v-ui-9200e9d7b7db :size="16" :class="{spin:loading}" /> Обновить</button><button data-v-ui-9200e9d7b7db class="primary crm-button crm-button--primary" :disabled="actionBusy" v-if="canCreate" @click="createOpen=true"><Plus data-v-ui-9200e9d7b7db :size="16" /> Новая заявка</button></div></header><p data-v-ui-9200e9d7b7db v-if="error" class="operation-error" role="alert">{{ error }}</p><WorkspaceLoading v-if="!dashboard && loading" label="Загружаем обращения" /><div data-v-ui-9200e9d7b7db v-else-if="error && !dashboard" class="state-error"><AlertCircle data-v-ui-9200e9d7b7db :size="22" /><span data-v-ui-9200e9d7b7db>{{ error }}</span><button class="crm-button" data-v-ui-9200e9d7b7db @click="load">Повторить</button></div><div data-v-ui-9200e9d7b7db v-else class="hd-body crm-page-content">

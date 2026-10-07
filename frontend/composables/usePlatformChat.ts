@@ -9,14 +9,16 @@ export function usePlatformChat() {
   const session = useWorkspaceSession();
   const { token } = session;
   const isOpen = useState<boolean>('platform-chat-open', () => false);
+  const activeChannelId = useState<string>('platform-chat-active-channel', () => '');
+  const requestedChannelId = useState<string>('platform-chat-requested-channel', () => '');
   const unread = useState<number>('platform-chat-unread', () => 0);
   const connected = useState<boolean>('platform-chat-connected', () => false);
   const lastMessage = useState<any>('platform-chat-last-message', () => null);
   const lastChannel = useState<any>('platform-chat-last-channel', () => null);
   const lastReminder = useState<any>('platform-chat-last-reminder', () => null);
 
-  function openChat() { isOpen.value = true; }
-  function closeChat() { isOpen.value = false; }
+  function openChat(channelId?: string) { if (channelId) requestedChannelId.value = channelId; isOpen.value = true; }
+  function closeChat() { isOpen.value = false; requestedChannelId.value = ''; }
   function toggleChat() { isOpen.value = !isOpen.value; }
   async function refreshUnread() {
     const version = ++unreadVersion, identity = token.value;
@@ -66,8 +68,9 @@ export function usePlatformChat() {
     ++unreadVersion;
     realtime?.disconnect(); realtime = null; realtimeToken = '';
     connected.value = false; isOpen.value = false; unread.value = 0;
+    activeChannelId.value = ''; requestedChannelId.value = '';
     lastMessage.value = null; lastChannel.value = null; lastReminder.value = null;
   }
 
-  return { isOpen, unread, connected, lastMessage, lastChannel, lastReminder, openChat, closeChat, toggleChat, refreshUnread, connectRealtime, joinRealtimeChannel, disconnectRealtime };
+  return { isOpen, activeChannelId, requestedChannelId, unread, connected, lastMessage, lastChannel, lastReminder, openChat, closeChat, toggleChat, refreshUnread, connectRealtime, joinRealtimeChannel, disconnectRealtime };
 }

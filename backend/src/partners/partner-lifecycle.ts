@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { moneyMinor } from '../common/storefront-utils';
+import { isOrderAdjusted } from '../1c-sync/finance-policy';
 export const partnerHash=(value:string)=>createHash('sha256').update(value).digest('hex');
 export function rewardValue(baseAmount:unknown,percent:unknown,kind:string){
  const base=moneyMinor(baseAmount),basis=moneyMinor(percent);
@@ -63,7 +64,7 @@ export async function partnerBusinessActivated(tx:Prisma.TransactionClient,organ
  await tx.partnerReward.upsert({where:{registrationId:organization.id},update:{},create:{registrationId:organization.id,participantId:r.participantId,amount:r.amount,unit:r.unit,readyAt:new Date(activatedAt.getTime()+r.holdDays*86400000)}});
 }
 export async function partnerOrderDelivered(tx:Prisma.TransactionClient,order:any){
- if(!order.partnerCode||order.source!=='WEB'||order.paymentStatus!=='SUCCEEDED')return;
+ if(!order.partnerCode||order.source!=='WEB'||order.paymentStatus!=='SUCCEEDED'||isOrderAdjusted(order))return;
  const a=await tx.partnerAttribution.findUnique({where:{orderId:order.id}});if(!a)return;
  await tx.partnerReward.updateMany({where:{orderId:order.id,status:'PENDING',readyAt:null},data:{readyAt:new Date(Date.now()+a.holdDays*86400000)}});
 }

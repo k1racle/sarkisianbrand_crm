@@ -85,4 +85,10 @@ export class ContactMessagesService {
     }
     return this.prisma.contactMessage.findUnique({ where: { id } });
   }
+
+  async detail(id: string) {
+    const row = await this.prisma.contactMessage.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Сообщение не найдено.');
+    return row;
+  }
 }

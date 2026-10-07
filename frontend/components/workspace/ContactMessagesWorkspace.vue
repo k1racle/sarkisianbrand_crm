@@ -2,6 +2,7 @@
 import { ArrowLeft, Check, Inbox, Mail, RefreshCw, Save } from '@lucide/vue';
 
 const config = useRuntimeConfig();
+const route = useRoute();
 const { token, user } = useWorkspaceSession();
 const access = useWorkspaceAccess();
 const canEditSettings = computed(() => ['ADMIN', 'SUPERVISOR'].includes(user.value?.role || '') && access.can('crm.write'));
@@ -74,7 +75,16 @@ async function open(item: any) {
 
 watch([page, unreadOnly], () => { selected.value = null; void load(); });
 watch(token, () => { data.value = null; settings.value = null; selected.value = null; recipient.value = ''; if (token.value) void load(); });
-onMounted(load);
+let targetVersion = 0;
+async function openRequestedMessage() {
+  const id = route.query.message, identity = token.value, version = ++targetVersion;
+  if (typeof id !== 'string' || !id || !identity) return;
+  try { const item = await api('/' + encodeURIComponent(id)); if (version === targetVersion && identity === token.value) await open(item); }
+  catch (e) { if (version === targetVersion && identity === token.value) { selected.value = null; error.value = message(e); } }
+}
+watch(() => route.query.message, openRequestedMessage);
+onBeforeUnmount(() => { ++targetVersion; });
+onMounted(async () => { await load(); await openRequestedMessage(); });
 </script>
 
 <template>

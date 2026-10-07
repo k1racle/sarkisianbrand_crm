@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { moneyMinor } from '../common/storefront-utils';
 import { DEFAULT_LOYALTY_SETTINGS, loyaltyCreditMetadata, loyaltyLevel, maintainAccount } from '../loyalty/loyalty-core.helpers';
 import { partnerBusinessActivated, partnerHash } from './partner-lifecycle';
+import { isOrderAdjusted } from '../1c-sync/finance-policy';
 import { PartnerInviteDto, PartnerJoinDto, PartnerParticipantDto, PartnerPayoutDecisionDto, PartnerPayoutRequestDto, PartnerSettingsDto, PartnerTrackDto, PartnerVerificationDto } from './partners.dto';
 
 export function partnerKind(value:string){if(!['REFERRAL','BLOGGER'].includes(value))throw new BadRequestException('Неизвестная программа');return value;}
@@ -103,13 +104,14 @@ export class PartnersService implements OnModuleInit,OnModuleDestroy {
  });}
  async settle(actorId?:string,automatic=false){
   if(this.processing)return {processed:0};this.processing=true;let processed=0;
-  try{const candidates=await this.prisma.partnerReward.findMany({where:{status:'PENDING',readyAt:{lte:new Date()},participant:{status:'ACTIVE',acceptedTermsAt:{not:null},user:{role:'CUSTOMER_B2C',isActive:true}},OR:[{order:{source:'WEB',organizationId:null,currency:'RUB',status:'DELIVERED',paymentStatus:'SUCCEEDED',payments:{some:{status:'SUCCEEDED'}}}},{registration:{verifiedAt:{not:null},verifiedBy:{not:null},organization:{status:'ACTIVE'}}}]},orderBy:{readyAt:'asc'},take:100});
+  try{const candidates=await this.prisma.partnerReward.findMany({where:{status:'PENDING',readyAt:{lte:new Date()},participant:{status:'ACTIVE',acceptedTermsAt:{not:null},user:{role:'CUSTOMER_B2C',isActive:true}},OR:[{order:{source:'WEB',organizationId:null,currency:'RUB',status:'DELIVERED',paymentStatus:'SUCCEEDED',items:{none:{OR:[{cancelledQuantity:{gt:0}},{returnedQuantity:{gt:0}}]}},payments:{some:{status:'SUCCEEDED'}}}},{registration:{verifiedAt:{not:null},verifiedBy:{not:null},organization:{status:'ACTIVE'}}}]},orderBy:{readyAt:'asc'},take:100});
    for(const candidate of candidates){processed+=await this.prisma.$transaction(async tx=>{
     if(candidate.orderId)await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${candidate.orderId} FOR UPDATE`;
     else await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${candidate.registrationId} FOR UPDATE`;
     const p=await this.lock(tx,candidate.participantId);
-    const r=await tx.partnerReward.findUniqueOrThrow({where:{id:candidate.id},include:{order:{include:{payments:true}},registration:{include:{organization:true}}}});
+    const r=await tx.partnerReward.findUniqueOrThrow({where:{id:candidate.id},include:{order:{include:{payments:true,items:true}},registration:{include:{organization:true}}}});
     if(r.status!=='PENDING'||!r.readyAt||r.readyAt>new Date())return 0;
+    if(r.order&&isOrderAdjusted(r.order))return 0;
     const s=await this.settings(p.kind,tx);
     if(!s.isEnabled||(automatic&&!s.autoSettlement)||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.user.isActive||p.user.role!=='CUSTOMER_B2C')return 0;
     if(r.order&&(r.order.source!=='WEB'||r.order.organizationId||r.order.currency!=='RUB'||r.order.status!=='DELIVERED'||r.order.paymentStatus!=='SUCCEEDED'||!r.order.payments.some(payment=>payment.status==='SUCCEEDED')))return 0;

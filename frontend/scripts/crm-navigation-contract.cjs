@@ -15,7 +15,7 @@ const checks = [];
 function check(name, run) { run(); checks.push(name); }
 check('nine-approved-groups-including-finance', () => {
   assert.deepEqual(plain(h.crmNavigationGroups(all).map(g => g.label)), ['Мой день', 'Клиенты и продажи', 'Заказы и исполнение', 'Финансы', 'Команда', 'Маркетинг и партнёры', 'Поддержка', 'Аналитика', 'Настройки CRM']);
-  assert.equal(all.length, 50);
+  assert.deepEqual(plain(all.map(item=>item.id).sort()),plain(h.CRM_DESTINATIONS.map(item=>item.id).sort()));
   assert.equal(new Set(all.map(i => i.id)).size, all.length);
   assert.equal(new Set(all.map(i => i.to)).size, all.length);
 });
@@ -39,6 +39,13 @@ check('finance-is-permission-gated-and-searchable',()=>{
   assert.equal(all.find(item=>item.id==='payment-calendar').group,'Финансы');
   assert.ok(h.searchCrmNavigation(all,'сервер подписка').some(item=>item.id==='payment-calendar'));
   assert.ok(!h.crmNavigationGroups(itemsFor('ADMIN',p=>p!=='payment_calendar.read')).some(group=>group.label==='Финансы'));
+});
+check('inventory-needs-stock-and-order-read-permissions',()=>{
+  for(const role of ['ADMIN','WAREHOUSE','MANAGER_B2B','MANAGER_SALES','MARKETPLACE_MANAGER','EXECUTIVE','SUPERVISOR']) assert.ok(itemsFor(role).some(item=>item.id==='inventory'));
+  for(const denied of ['inventory.read','oms.read']) assert.ok(!itemsFor('MANAGER_B2B',p=>p!==denied).some(item=>item.id==='inventory'));
+  assert.ok(!itemsFor('CONTENT_MANAGER').some(item=>item.id==='inventory'));
+  assert.ok(h.searchCrmNavigation(all,'резервы').some(item=>item.id==='inventory'));
+  assert.equal(all.find(item=>item.id==='inventory').to,'/crm/inventory');
 });
 check('roles-and-explicit-deny-are-not-expanded-by-grouping', () => {
   for (const role of ['ADMIN','CONTENT_MANAGER','MANAGER_B2B','MANAGER_SALES','MARKETPLACE_MANAGER','SUPERVISOR','EXECUTIVE','IT_SUPPORT','CURATOR','WAREHOUSE']) {
@@ -85,4 +92,4 @@ check('shared-recipes-and-native-summary-keyboard', () => {
   assert.ok(read('composables/useCatalogDialog.ts').includes('a[href],summary,'));
   assert.ok(!parse(read('components/crm/CrmSectionNavigation.vue')).descriptor.styles.length);
 });
-console.log(`CRM navigation contract PASS: ${checks.length} checks, 9 groups, 50 destinations, roles/DENY, legacy fallback, program search, SFC/CSS compile.`);
+console.log(`CRM navigation contract PASS: ${checks.length} checks, 9 groups, ${all.length} destinations, roles/DENY, legacy fallback, program search, SFC/CSS compile.`);

@@ -15,3 +15,14 @@ export function requireOneCRelease(order: any) {
  const state = oneCFinanceState(order);
  if (!state.releaseAllowed) throw new ConflictException(state.reason);
 }
+export const isOrderAdjusted = (order: any) => order.items?.some((item: any) => item.cancelledQuantity > 0 || item.returnedQuantity > 0) === true;
+
+/** Safe operational decision. Financial reasons/documents stay behind finance.read. */
+export function oneCClosureState(order: any, now = new Date()) {
+ if (!isOrderAdjusted(order)) return { required: false, allowed: true, reason: '' };
+ const state = oneCFinanceState(order, now);
+ if (state.state !== 'CURRENT') return { required: true, allowed: false, reason: state.reason };
+ if (order.execution?.settlementReviewRequired !== false) return { required: true, allowed: false, reason: 'Нужна сверка всех документов отмены и возврата в 1С' };
+ if (!order.oneCFinance.closeAllowed || Number(order.oneCFinance.refundDue) !== 0) return { required: true, allowed: false, reason: '1С ещё не разрешила закрытие расчётов по отменам и возвратам' };
+ return { required: true, allowed: true, reason: 'Отмены и возвраты сверены; закрытие разрешено 1С' };
+}

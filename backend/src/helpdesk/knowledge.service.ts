@@ -18,10 +18,15 @@ export class KnowledgeService {
   list(actorId:string,query:KnowledgeQueryDto){return this.prisma.$transaction(async db=>{
     const access=await this.access(db,actorId);
     if(!access.canWrite&&query.status!=='PUBLISHED')throw new ForbiddenException('Черновики и архив доступны редакторам');
-    const where:Prisma.CrmKnowledgeArticleWhereInput={...(query.status==='ALL'?{}:{status:query.status}),...(query.search?{OR:['title','category','body'].map(field=>({[field]:{contains:query.search,mode:Prisma.QueryMode.insensitive}}))}:{})};
+    const baseWhere:Prisma.CrmKnowledgeArticleWhereInput={...(query.status==='ALL'?{}:{status:query.status}),...(query.search?{OR:['title','category','body'].map(field=>({[field]:{contains:query.search,mode:Prisma.QueryMode.insensitive}}))}:{})};
+    const where:Prisma.CrmKnowledgeArticleWhereInput={...baseWhere,...(query.category?{category:query.category}:{})};
     const total=await db.crmKnowledgeArticle.count({where}),pages=Math.max(1,Math.ceil(total/20)),page=Math.min(query.page,pages);
-    const items=await db.crmKnowledgeArticle.findMany({where,select:{id:true,title:true,category:true,status:true,version:true,updatedAt:true},orderBy:[{updatedAt:'desc'},{id:'asc'}],skip:(page-1)*20,take:20});
-    return {items,total,page,pages,...access};
+    const rows=await db.crmKnowledgeArticle.findMany({where,select:{id:true,title:true,category:true,body:true,status:true,version:true,updatedAt:true},orderBy:[{updatedAt:'desc'},{id:'asc'}],skip:(page-1)*20,take:20});
+    // Facets cover every matching page, without restricting the other sections.
+    const groups=await db.crmKnowledgeArticle.groupBy({by:['category'],where:baseWhere,_count:{_all:true},orderBy:{category:'asc'}});
+    const items=rows.map(({body,...article})=>{const text=body.replace(/\s+/g,' ').trim();return {...article,excerpt:text.length>180?text.slice(0,180)+'…':text};});
+    const categories=groups.map(group=>({name:group.category,count:group._count._all}));
+    return {items,categories,total,page,pages,...access};
   },{isolationLevel:Prisma.TransactionIsolationLevel.RepeatableRead});}
   detail(actorId:string,id:string){return this.prisma.$transaction(async db=>{
     const access=await this.access(db,actorId),article=await db.crmKnowledgeArticle.findFirst({where:{id,...(!access.canWrite?{status:'PUBLISHED'}:{})}});
