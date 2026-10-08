@@ -49,6 +49,7 @@
   .studio-orders,.accounts-card,.commands-panel,.command-settings .activity-panel,.trash-types,.queue-grid > article,
   .crm-drive-item:not(.selected),.crm-drive-picker,.crm-file-preview,.crm-upload-queue,.crm-content-views,.crm-content-day,
   .crm-stock-rule-targets > button:not([aria-pressed="true"]),
+  .partner-onboarding,
   .crm-notifications-panel,.crm-notification-toasts > article,.crm-notification-read,
   .crm-main .panel,.crm-main .kpis article:not(.accent):not(.danger),.crm-main .head-actions .light,
   .context-notice,.reminder-center,.account-drawer,.trash-drawer,.integration-drawer,.order-drawer,.editor-drawer,.new-drawer,
@@ -103,6 +104,12 @@
  html[data-crm-ui][data-crm-theme="dark"] .command-settings .access-state {color:var(--crm-muted)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .command-settings .enabled {color:var(--crm-success)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .integration-copy .card-title em {color:var(--crm-muted)!important;background:var(--crm-bg)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.partner-launch-row,.partner-example,.partner-invite-link) {background:var(--crm-bg)!important;color:var(--crm-ink)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .partner-example {color:var(--crm-muted)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .partner-notice {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .partner-save-state {color:var(--crm-success)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .partner-save-state[data-dirty=true] {color:var(--crm-warning)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.partner-program-summary dl > div,.partner-save-state,.partner-pagination,.partner-table th,.partner-table td) {border-color:var(--crm-line)!important;}
  html[data-crm-ui][data-crm-theme="dark"] :is(.crm-button--primary,.crm-primary-button):hover:not(:disabled) {background:var(--crm-accent-hover)!important;color:var(--crm-on-accent)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-main :is(.task-copy small,.task-date:not(.late),.task-date:not(.late) b,.task-date:not(.late) small,.activity-list small,.activity-list time,.stage-value small,.quick-grid small) {color:var(--crm-muted)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-main :is(.panel header,.task-list > button,.activity-list > button) {border-color:var(--crm-line)!important;}

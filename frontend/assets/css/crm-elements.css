@@ -203,7 +203,7 @@
  @media(prefers-reduced-motion:reduce){html[data-crm-ui] input[type=checkbox]::before,html[data-crm-ui] input[type=checkbox]::after {transition:none!important;}}
  /* Semantic states are explicit exceptions, not arbitrary page palettes. */
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is(.error,.operation-error,.load-error,.crm-work-error,.negative,.crm-content-late,time.late) {color:var(--crm-danger)!important;}
- html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is(.positive,.success,.partner-status:not(.is-off),.crm-content-notice) {color:var(--crm-success)!important;}
+ html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is(.positive,.success,.crm-content-notice) {color:var(--crm-success)!important;}
  html[data-crm-ui] :is(.crm-standard thead,.crm-standard thead th,.crm-table-head) {background:var(--crm-bg)!important;color:var(--crm-muted)!important;background-image:none!important;border-color:var(--crm-line)!important;}
  html[data-crm-ui] .crm-table-row {display:grid!important;gap:16px!important;align-items:center!important;justify-content:normal!important;text-align:left!important;padding:16px!important;width:100%!important;min-width:0!important;border:0!important;border-bottom:1px solid var(--crm-line)!important;border-radius:0!important;background:var(--crm-surface)!important;color:var(--crm-ink)!important;box-shadow:none!important;}
  html[data-crm-ui] .crm-table-head {padding:16px!important;gap:16px!important;border-radius:0!important;}
@@ -248,8 +248,8 @@
  html[data-crm-ui] .crm-matrix-note {margin:0;padding:16px;color:var(--crm-muted);font-size:var(--crm-type-caption);}
  @media(min-width:640px){html[data-crm-ui] .crm-matrix-table {--crm-matrix-first-column:240px;}}
  html[data-crm-ui] .crm-badge {display:inline-flex!important;align-items:center!important;justify-self:start!important;width:fit-content!important;max-width:100%!important;gap:4px!important;padding:4px 8px!important;border:0!important;border-radius:6px!important;font-size:var(--crm-type-caption)!important;font-weight:var(--brand-weight-body)!important;background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;}
- html[data-crm-ui] .crm-badge:is([data-stage=PUBLISHED],[data-status=ACTIVE],[data-status=PAID]) {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;}
- html[data-crm-ui] .crm-badge:is([data-stage=REVIEW],[data-status=PENDING],[data-status=REQUESTED]) {background:var(--crm-warning-bg)!important;color:var(--crm-warning)!important;}
+ html[data-crm-ui] .crm-badge:is([data-stage=PUBLISHED],[data-status=ACTIVE],[data-status=APPROVED],[data-status=PAID]) {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;}
+ html[data-crm-ui] .crm-badge:is([data-stage=REVIEW],[data-status=PENDING],[data-status=INVITED],[data-status=REQUESTED]) {background:var(--crm-warning-bg)!important;color:var(--crm-warning)!important;}
  html[data-crm-ui] .crm-badge:is([data-status=SUSPENDED],[data-status=REJECTED],[data-status=CANCELLED]) {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
  html[data-crm-ui] .crm-badge--danger {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
  html[data-crm-ui] :is(.crm-standard,.admin-dialog) :is([role=alert],.partner-alert) {color:var(--crm-danger)!important;background:var(--crm-danger-bg)!important;border:1px solid var(--crm-danger)!important;border-radius:10px!important;padding:12px 16px!important;}
