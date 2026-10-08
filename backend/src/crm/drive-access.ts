@@ -13,7 +13,10 @@ function origins(policy: CrmReadPolicy, write = false): Prisma.CrmDriveRestricti
   if (policy.allowed(crm)) tasks.push(policy.tasks(crm));
   if (policy.allowed(content)) tasks.push(policy.tasks(content));
   return { OR: [
-    { originKind: 'TASK', task: { is: { OR: tasks } } },
+    // Prisma removes empty objects inside OR. A company-wide task scope is {},
+    // so OR:[{}, publicationScope] would wrongly admit only publications (and
+    // OR:[{}] would admit nothing). Require the durable parent to exist instead.
+    { originKind: 'TASK', task: policy.company(crm) ? { isNot: null } : { is: { OR: tasks } } },
     { originKind: 'LEAD', lead: { is: policy.leads(crm) } },
   ] };
 }

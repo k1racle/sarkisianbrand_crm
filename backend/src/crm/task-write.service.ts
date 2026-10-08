@@ -7,6 +7,8 @@ import { customerVisibility } from '../customer360/customer-access';
 import { CrmService } from './crm.service';
 import { CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, UpdateTaskDto } from './dto/crm.dto';
 import { DEFAULT_TASK_PIPELINE, taskPipelineScope } from './task-pipelines.service';
+import { addTaskParticipants, taskParticipants, taskPeople, taskPerson, taskPersonName } from './task-collaboration';
+import { recordCrmChange } from './history';
 
 type Context = { db: Prisma.TransactionClient; read: CrmReadPolicy; write: CrmReadPolicy; core: CrmService; reader: CrmReadService };
 
@@ -81,6 +83,7 @@ export class CrmTaskWriteService {
     }
     if (dto.pipelineId) await this.pipeline(ctx, dto.pipelineId);
     const task = await ctx.core.createTask(dto, actorId, true);
+    if (dto.participantIds?.length) await addTaskParticipants(ctx.db, this.access, task.id, actorId, dto.participantIds);
     await this.task(ctx, task.id); // Verify effective ownership after defaults, not a client-provided owner.
     return ctx.reader.task(actorId, task.id);
   }
@@ -123,8 +126,47 @@ export class CrmTaskWriteService {
   }
   comment(actorId: string, id: string, dto: CreateTaskCommentDto, permission = 'crm.write') {
     return this.run(actorId, async ctx => {
-      await this.task(ctx, id); return ctx.core.addTaskComment(id, dto, actorId);
+      await this.task(ctx, id);
+      const mentionIds = [...new Set(dto.mentionIds || [])];
+      if (mentionIds.length > 20) throw new BadRequestException('Можно упомянуть не более 20 сотрудников');
+      const mentions: { id: string; name: string }[] = [];
+      if (mentionIds.length) {
+        if (permission !== 'crm.write') throw new BadRequestException('Упоминания доступны в карточке задачи');
+        for (const userId of mentionIds) {
+          const user = await ctx.db.user.findUnique({ where: { id: userId }, select: taskPerson });
+          if (!user || !dto.body.includes('@' + taskPersonName(user))) throw new BadRequestException('Выберите сотрудника для упоминания заново');
+          mentions.push({ id: userId, name: taskPersonName(user) });
+        }
+        // Sharing and the comment commit atomically. A mention sends one alert, not an extra invitation.
+        await addTaskParticipants(ctx.db, this.access, id, actorId, mentionIds, false);
+      }
+      const comment = await ctx.core.addTaskComment(id, dto, actorId, mentions);
+      return { ...comment, participants: await ctx.db.crmTaskParticipant.findMany({ where: { taskId: id }, ...taskParticipants }) };
     }, permission);
+  }
+  people(actorId: string, query = '', taskId?: string) {
+    return this.run(actorId, async ctx => {
+      if (taskId) await this.task(ctx, taskId);
+      return taskPeople(ctx.db, this.access, query, taskId);
+    });
+  }
+  addParticipant(actorId: string, id: string, userId: string) {
+    return this.run(actorId, async ctx => {
+      await this.task(ctx, id);
+      return addTaskParticipants(ctx.db, this.access, id, actorId, [userId]);
+    });
+  }
+  removeParticipant(actorId: string, id: string, userId: string) {
+    return this.run(actorId, async ctx => {
+      await this.task(ctx, id);
+      const before = await ctx.db.crmTaskParticipant.findMany({ where: { taskId: id }, ...taskParticipants });
+      await ctx.db.crmTaskParticipant.deleteMany({ where: { taskId: id, userId } });
+      // Do not let this mutation remove the caller's own remaining write scope.
+      await this.task(ctx, id);
+      const after = before.filter(row => row.userId !== userId);
+      await recordCrmChange(ctx.db, actorId, 'crm.task', id, { participants: before.map(row => taskPersonName(row.user)) }, { participants: after.map(row => taskPersonName(row.user)) }, ['participants'], 'Удалён участник');
+      return after;
+    });
   }
   fromTemplate(actorId: string, id: string, dto: CreateTaskFromTemplateDto) {
     return this.run(actorId, async ctx => {

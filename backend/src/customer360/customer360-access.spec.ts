@@ -9,6 +9,9 @@ import { CrmLeadWriteService } from '../crm/lead-write.service';
 import { CrmTaskWriteService } from '../crm/task-write.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { CreateCustomerDto } from './dto/customer360.dto';
 
 const actor = { id: 'employee', role: 'MANAGER_SALES', isActive: true, departmentId: 'sales' };
 const departments = [{ id: 'sales', parentId: null, archivedAt: null }, { id: 'branch', parentId: 'sales', archivedAt: null }, { id: 'other', parentId: null, archivedAt: null }];
@@ -31,6 +34,7 @@ function matches(row: any, where: any): boolean {
     if (key === 'is') return row != null && matches(row, value);
     if (key === 'some') return (row || []).some(v => matches(v, value));
     if (key === 'contains') return String(row || '').toLowerCase().includes(value.toLowerCase());
+    if (key === 'equals') return where.mode === 'insensitive' ? String(row || '').toLowerCase() === value.toLowerCase() : row === value;
     if (key === 'mode') return true;
     if (key === 'gte') return row >= value;
     return matches(row?.[key], value);
@@ -66,6 +70,41 @@ function fixture(scope = 'DEPARTMENT', writeScope = 'OWN', extras: [string, stri
 }
 
 describe('Customer 360 scoped operations', () => {
+  it('creates a manual contact attributed to the actor without creating a login', async () => {
+    const f = fixture('OWN', 'OWN');
+    const row = await f.service.createCustomer(actor.id, { firstName: ' Анна ', email: ' NEW@EXAMPLE.TEST ', phone: '8 (999) 123-45-67' });
+    expect(row).toMatchObject({ firstName: 'Анна', email: 'new@example.test', segment: 'B2C', source: 'MANUAL', accountManagerId: actor.id, createdById: actor.id, canWrite: true });
+    expect(f.tables.customer.find(row => row.id === 'created')).toMatchObject({ normalizedEmail: 'new@example.test', normalizedPhone: '79991234567' });
+    expect(f.db.user.create).not.toHaveBeenCalled();
+    expect(f.db.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ actorId: actor.id, resource: 'customer360.customer', action: 'Создан клиент' }) }));
+  });
+  it('rejects empty contacts, invalid phone, unavailable assignee and denied creation', async () => {
+    const f = fixture('OWN', 'OWN');
+    for (const dto of [{ firstName: ' ' , email: 'new@example.test' }, { firstName: 'Анна' }, { firstName: 'Анна', phone: '123' }, { firstName: 'Анна', phone: 'call me later' }]) await expect(f.service.createCustomer(actor.id, dto)).rejects.toMatchObject({ status: 400 });
+    for (const accountManagerId of [null, 'foreign-user']) await expect(f.service.createCustomer(actor.id, { firstName: 'Анна', email: 'new@example.test', accountManagerId })).rejects.toMatchObject({ status: 403 });
+    expect(f.db.customer.create).not.toHaveBeenCalled();
+    const denied = fixture('COMPANY', 'COMPANY', [], ['customers.write']);
+    await expect(denied.service.createCustomer(actor.id, { firstName: 'Анна', email: 'new@example.test' })).rejects.toMatchObject({ status: 403 });
+  });
+  it('detects email case and phone formatting duplicates without disclosing inaccessible contacts', async () => {
+    const f = fixture('OWN', 'OWN');
+    f.tables.customer[0].normalizedPhone = '89991234567';
+    await expect(f.service.createCustomer(actor.id, { firstName: 'Повтор', phone: '+7 (999) 123-45-67' })).rejects.toMatchObject({ response: { code: 'CUSTOMER_EXISTS', existingCustomerId: 'own' } });
+    await expect(f.service.createCustomer(actor.id, { firstName: 'Повтор', email: 'OWN@EXAMPLE.TEST' })).rejects.toMatchObject({ response: { code: 'CUSTOMER_EXISTS', existingCustomerId: 'own' } });
+    for (const email of ['foreign@example.test', 'trashed@example.test']) {
+      try { await f.service.createCustomer(actor.id, { firstName: 'Повтор', email }); throw new Error('Expected conflict'); }
+      catch (error) { expect(error.getStatus()).toBe(409); expect(error.getResponse()).not.toHaveProperty('existingCustomerId'); }
+    }
+    expect(f.db.customer.create).not.toHaveBeenCalled();
+  });
+  it('validates and trims create fields and rejects unknown payload fields', async () => {
+    const valid = plainToInstance(CreateCustomerDto, { firstName: ' Анна ', email: ' user@example.test ', phone: ' ' });
+    expect(await validate(valid, { whitelist: true, forbidNonWhitelisted: true })).toEqual([]);
+    expect(valid).toMatchObject({ firstName: 'Анна', email: 'user@example.test', phone: undefined });
+    for (const extra of [{ firstName: ' ' }, { email: 'invalid' }, { firstName: 'x'.repeat(101) }, { segment: 'unknown' }, { userId: 'injected' }, { createdById: 'injected' }]) {
+      expect((await validate(plainToInstance(CreateCustomerDto, { firstName: 'Анна', email: 'new@example.test', ...extra }), { whitelist: true, forbidNonWhitelisted: true })).length).toBeGreaterThan(0);
+    }
+  });
   it('rejects null values for required organization and membership fields', async () => {
     const f = fixture('COMPANY', 'COMPANY');
     for (const key of ['status', 'discountTier', 'creditLimit']) await expect(f.service.createOrganization(actor.id, { name: 'New', [key]: null } as any)).rejects.toMatchObject({ status: 400 });
@@ -94,6 +133,14 @@ describe('Customer 360 scoped operations', () => {
     expect(await f.service.customers(actor.id, 'Secret Company')).toEqual([]);
     expect((await f.service.customer(actor.id, row.id)).organizationMemberships).toEqual([]);
     expect((await f.service.dashboard(actor.id)).b2bCustomers).toBe(0);
+  });
+  it('finds full names and formatted telephone numbers within the readable scope', async () => {
+    const f = fixture('OWN', 'OWN');
+    Object.assign(f.tables.customer[0], { firstName: 'Анна', lastName: 'Волкова', phone: '+7 (999) 123-45-67', normalizedPhone: '79991234567' });
+    for (const search of ['Анна Волкова', 'волкова анна', '8 (999) 123-45-67', '79991234567', '999 123']) expect((await f.service.customers(actor.id, search)).map(row => row.id)).toEqual(['own']);
+    Object.assign(f.tables.customer[3], { firstName: 'Hidden', lastName: 'Customer', normalizedPhone: '79991112233' });
+    expect(await f.service.customers(actor.id, 'Hidden Customer')).toEqual([]);
+    expect(await f.service.customers(actor.id, '79991112233')).toEqual([]);
   });
   it('read-wide does not widen per-record editing or mutations', async () => {
     const f = fixture('COMPANY', 'OWN');
@@ -213,9 +260,10 @@ describe('Customer 360 scoped operations', () => {
     expect(sql).toContain('ON DELETE SET NULL'); expect(sql).not.toMatch(/UPDATE "Customer"|UPDATE "Organization"|DELETE FROM|DROP TABLE/);
   });
   it('controller forwards the authenticated actor on every operation', async () => {
-    const service: any = Object.fromEntries(['dashboard', 'team', 'customers', 'customer', 'updateCustomer', 'organizations', 'organization', 'createOrganization', 'updateOrganization', 'addMember'].map(key => [key, jest.fn()]));
+    const service: any = Object.fromEntries(['dashboard', 'team', 'customers', 'customer', 'createCustomer', 'updateCustomer', 'organizations', 'organization', 'createOrganization', 'updateOrganization', 'addMember'].map(key => [key, jest.fn()]));
     const c = new Customer360Controller(service), req = { user: { sub: actor.id } };
     c.dashboard(req); c.team(req); c.listCustomers(req, 'q'); c.customer('id', req); c.updateCustomer('id', {}, req); c.listOrganizations(req); c.organization('id', req); c.createOrganization({ name: 'new' }, req); c.updateOrganization('id', {}, req); c.addMember('id', { userId: 'external' }, req);
+    c.createCustomer({ firstName: 'Анна', email: 'new@example.test' }, req);
     for (const method of Object.values(service) as jest.Mock[]) expect(method.mock.calls[0][0]).toBe(actor.id);
   });
 });

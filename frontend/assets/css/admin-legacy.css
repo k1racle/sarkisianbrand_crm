@@ -1,6 +1,6 @@
 :where(.workspace-frame, .admin-dialog) .admin-page {
   min-height: 100vh;
-  background: #f8f7f7;
+  background: var(--brand-bg);
 }
 :where(.workspace-frame, .admin-dialog) .admin-header {
   height: 80px;
@@ -219,7 +219,7 @@
   padding: 20px 5% !important;
   box-sizing: border-box !important;
   background: #fff !important;
-  border-bottom: 1px solid #e2e4e8 !important;
+  border-bottom: 1px solid var(--brand-gray) !important;
 }
 .workspace-topbar h1,
 .crm-header h1 {
@@ -242,7 +242,7 @@
 .crm-grid article {
   background: #fff !important;
   padding: 26px !important;
-  border: 1px solid #e5e6e8 !important;
+  border: 1px solid var(--brand-gray) !important;
   border-radius: 0 !important;
 }
 .workspace-kpis,
@@ -252,7 +252,7 @@
 .workspace-kpis article,
 .crm-kpis article {
   padding: 22px !important;
-  border: 1px solid #e5e6e8 !important;
+  border: 1px solid var(--brand-gray) !important;
   border-radius: 0 !important;
   background: #fff !important;
 }
@@ -281,5 +281,5 @@
 .crm-sidebar nav a.active svg,
 .workspace-sidebar nav button:hover svg,
 .crm-sidebar nav a:hover svg {
-  color: #f8604a !important;
+  color: var(--brand-action) !important;
 }

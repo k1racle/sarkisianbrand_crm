@@ -8,6 +8,7 @@ export type WorkspaceLeaf = {
   keywords?: string;
   permission?: string;
   requires?: readonly string[];
+  anyOf?: readonly string[];
 };
 export type WorkspaceGroup = {
   id: string;
@@ -26,7 +27,7 @@ export const WORKSPACE_AREAS = [
 ] as const;
 
 const INTERNAL = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'CURATOR', 'WAREHOUSE'];
-const WEB = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'];
+const WEB = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE'];
 const CATALOG = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'];
 const CRM = ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'];
 const CRM_READ = [...CRM, 'EXECUTIVE'];
@@ -40,8 +41,7 @@ const ADMIN = ['ADMIN'];
 /** One registry for rail, toolbar, command search, breadcrumbs and the workspace hub.
  * site-content is the only coordinated new section: parent wires its actual editor.
  * No hypothetical warehouse/refund routes are exposed.
- * Workspace/promotions/gift-cards stay role-only: their current endpoints
- * declare no distinct permission; never invent permission keys for these routes.
+ * Every protected data section uses the same permission keys as its API.
  */
 export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
   { id: 'dashboard', label: 'Рабочий стол', description: 'Быстрые переходы и обзор интернет-магазина.', icon: 'LayoutDashboard', items: [
@@ -71,7 +71,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'crm-chat', label: 'Чат команды', to: '/crm/chat', roles: INTERNAL, keywords: 'общение сообщения переписка сотрудники' },
     { id: 'crm-meetings', label: 'Встречи', to: '/crm/meetings', permission: 'meetings.read', roles: INTERNAL, keywords: 'планёрки собеседования расписание видеовстречи' },
     { id: 'payment-calendar', label: 'Календарь платежей', to: '/crm/payment-calendar', permission: 'payment_calendar.read', roles: INTERNAL, keywords: 'финансы расходы связь интернет сервер подписка сумма оплата периодичность' },
-    { id: 'content-plan', label: 'Контент-план', to: '/crm/content-plan', permission: 'content_plan.read', roles: [...CRM, 'CONTENT_MANAGER'], keywords: 'smm смм контент календарь рилс reels shorts шортс сценарий публикации' },
+    { id: 'content-plan', label: 'Контент-план', to: '/crm/content-plan', permission: 'content_plan.read', roles: [...CRM_READ, 'CONTENT_MANAGER'], keywords: 'smm смм контент календарь рилс reels shorts шортс сценарий публикации' },
   ] },
   { id: 'loyalty', label: 'Бонусная программа', description: 'Правила клуба и бонусные счета клиентов.', icon: 'Award', items: [
     { id: 'loyalty-settings', label: 'Настройки программы', to: '/admin-workspace/loyalty-settings', permission: 'loyalty.read', roles: MARKETING, keywords: 'клуб баллы правила sarkisian club начисления' },
@@ -92,8 +92,8 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
   ] },
   { id: 'marketing', label: 'Маркетинг', description: 'Промокоды и подарочные карты.', icon: 'Megaphone', items: [
     { id: 'contact-messages', label: 'Сообщения с сайта', to: '/admin-workspace/contact-messages', permission: 'crm.read', roles: MARKETING, keywords: 'контакты форма обратной связи письма обращения' },
-    { id: 'promotions', label: 'Промокоды', to: '/admin-workspace/promotions', roles: MARKETING, keywords: 'скидки акции' },
-    { id: 'gift-cards', label: 'Подарочные карты', to: '/admin-workspace/gift-cards', roles: MARKETING, keywords: 'сертификаты номиналы' },
+    { id: 'promotions', label: 'Промокоды', to: '/admin-workspace/promotions', permission: 'promotions.read', roles: MARKETING, keywords: 'скидки акции' },
+    { id: 'gift-cards', label: 'Подарочные карты', to: '/admin-workspace/gift-cards', anyOf: ['gift_card_product.read', 'gift_cards.read'], roles: MARKETING, keywords: 'сертификаты номиналы' },
   ] },
   { id: 'site', label: 'Сайт', description: 'Витрина, содержание страниц и навигация магазина.', icon: 'Palette', items: [
     { id: 'appearance', label: 'Витрина и баннеры', to: '/admin-workspace/appearance', permission: 'catalog.read', roles: SITE, keywords: 'главная фото категории соцсети меню' },
@@ -138,7 +138,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
 export function buildWorkspaceNavigation(role?: string | null, can: (permission?: string) => boolean = () => true): WorkspaceGroup[] {
   if (!role || !INTERNAL.includes(role)) return [];
   const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
-  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission) && (item.requires || []).every(key => can(key))).map(item => {
+  return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission) && (item.requires || []).every(key => can(key)) && (!item.anyOf?.length || item.anyOf.some(key => can(key)))).map(item => {
     const destination = CRM_DESTINATIONS.find(destination => destination.id === item.id);
     return { ...item, label: destination?.label || item.label, keywords: `${item.keywords || ''} ${item.label} ${destination?.group || ''}`, to: destination?.path || item.to };
   }) })).filter(group => group.items.length).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));

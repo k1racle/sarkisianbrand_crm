@@ -5,7 +5,7 @@ import { CrmReadAccess, CrmReadPolicy } from '../crm/read-access';
 // Explicit contracts only. Registering a handler alone never grants replay authority.
 export const jobPolicies: Record<string, { permissions: string[]; system?: 'ORDER_EXPORT' | 'VERIFIED_BOT' }> = {
   '1C_PRODUCTS_IMPORT': { permissions: ['integrations.write', 'catalog.read', 'catalog.write'] },
-  '1C_FULL_EXCHANGE': { permissions: ['integrations.write', 'catalog.read', 'catalog.write', 'customers.read', 'customers.write', 'oms.read', 'oms.write', 'web_orders.read', 'web_orders.manage', 'marketplace.read', 'marketplace.write'] },
+  '1C_FULL_EXCHANGE': { permissions: ['integrations.write', 'catalog.read', 'catalog.write', 'customers.read', 'customers.write', 'oms.read', 'oms.write', 'web_orders.read', 'web_orders.write', 'marketplace.read', 'marketplace.write'] },
   'MARKETPLACE_ORDERS_IMPORT': { permissions: ['marketplace.read', 'marketplace.write', 'customers.read', 'customers.write'] },
   '1C_ORDER_EXPORT': { permissions: ['integrations.write', 'oms.read', 'web_orders.read', 'marketplace.read', 'customers.read'], system: 'ORDER_EXPORT' },
   'BOT_WEBHOOK_PROCESS': { permissions: ['integrations.write'], system: 'VERIFIED_BOT' },

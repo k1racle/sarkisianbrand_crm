@@ -21,8 +21,8 @@
 }
 
 :root {
-  --sb-font: Montserrat, Arial, sans-serif;
-  --sb-font-editorial: Georgia, serif;
+  --sb-font: var(--brand-font-body);
+  --sb-font-editorial: var(--brand-font-body);
   --sb-type-micro: .625rem;
   --sb-type-caption: .75rem;
   --sb-type-small: .875rem;
@@ -34,7 +34,7 @@
   --sb-type-section: clamp(1.75rem, 2.6vw, 2.5rem);
   --sb-type-page: clamp(2rem, 3.2vw, 3rem);
   --sb-type-display: clamp(2rem, 4.2vw, 3.5rem);
-  --sb-weight-regular: 400;
+  --sb-weight-regular: var(--brand-weight-body);
   --sb-weight-medium: 500;
   --sb-weight-semibold: 600;
   --sb-weight-bold: 700;

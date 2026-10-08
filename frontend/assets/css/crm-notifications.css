@@ -1,6 +1,6 @@
 @layer crm-elements {
- html[data-crm-ui] .crm-notifications-backdrop {position:fixed;inset:0;z-index:1300;background:#27253830;display:flex;justify-content:flex-end;padding:82px 20px 20px;}
- html[data-crm-ui] .crm-notifications-panel {display:flex;flex-direction:column;width:460px;max-width:100%;min-height:0;background:#fff;border:1px solid var(--crm-line);border-radius:18px;box-shadow:0 12px 50px #27253826;overflow:hidden;outline:none;}
+ html[data-crm-ui] .crm-notifications-backdrop {position:fixed;inset:0;z-index:1300;background:#3c3c3b30;display:flex;justify-content:flex-end;padding:82px 20px 20px;}
+ html[data-crm-ui] .crm-notifications-panel {display:flex;flex-direction:column;width:460px;max-width:100%;min-height:0;background:#fff;border:1px solid var(--crm-line);border-radius:18px;box-shadow:0 12px 50px #3c3c3b26;overflow:hidden;outline:none;}
  html[data-crm-ui] .crm-notifications-panel > header {display:flex;align-items:center;justify-content:space-between;padding:20px;gap:12px;}
  html[data-crm-ui] .crm-notifications-panel h2 {margin:0!important;display:flex;align-items:center;gap:8px;font-size:20px!important;color:var(--crm-ink)!important;}
  html[data-crm-ui] .crm-notifications-panel h2 > span {font-size:12px!important;color:var(--crm-accent);background:var(--crm-tint);padding:4px 8px;border-radius:16px;}
@@ -33,12 +33,12 @@
  html[data-crm-ui] .crm-notifications-panel footer button > span:first-of-type {display:grid;gap:3px;flex:1;font-size:12px!important;}
  html[data-crm-ui] .crm-notifications-panel footer b {font-size:12px!important;}
  html[data-crm-ui] .crm-notifications-panel footer small {display:block;margin-top:10px;color:var(--crm-muted);font-size:11px!important;line-height:1.5;}
- html[data-crm-ui] .crm-notification-switch {width:34px;height:20px;padding:3px;background:#b8b5c6;border-radius:20px;}
+ html[data-crm-ui] .crm-notification-switch {width:34px;height:20px;padding:3px;background:var(--brand-gray);border-radius:20px;}
  html[data-crm-ui] .crm-notification-switch::after {content:'';display:block;width:14px;height:14px;border-radius:50%;background:#fff;}
  html[data-crm-ui] .crm-notification-switch.active {background:var(--crm-accent);}
  html[data-crm-ui] .crm-notification-switch.active::after {transform:translateX(14px);}
  html[data-crm-ui] .crm-notification-toasts {position:fixed;right:22px;bottom:22px;z-index:1600;width:370px;max-width:calc(100vw - 32px);display:grid;gap:10px;pointer-events:none;}
- html[data-crm-ui] .crm-notification-toasts > article {position:relative;border:1px solid var(--crm-line);border-left:3px solid var(--crm-accent);border-radius:14px;background:#fff;box-shadow:0 6px 32px #27253824;pointer-events:auto;}
+ html[data-crm-ui] .crm-notification-toasts > article {position:relative;border:1px solid var(--crm-line);border-left:3px solid var(--crm-accent);border-radius:14px;background:#fff;box-shadow:0 6px 32px #3c3c3b24;pointer-events:auto;}
  html[data-crm-ui] .crm-notification-toasts .crm-notification-open {padding:16px 38px 16px 14px;}
  html[data-crm-ui] .crm-notification-toasts .crm-notification-open span > span {display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
  html[data-crm-ui] .crm-notification-dismiss {position:absolute;top:9px;right:7px;display:grid;place-items:center;width:28px;height:28px;border:0;background:transparent;color:var(--crm-muted);border-radius:50%;cursor:pointer;}

@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ContentCreateDto, ContentListDto, ContentUpdateDto } from './content.dto';
 import { CrmReadAccess, CrmReadPolicy } from './read-access';
 import { driveWhere } from './drive-access';
-export const contentRoles: UserRole[] = ['ADMIN','SUPERVISOR','CONTENT_MANAGER','MANAGER_SALES','MANAGER_B2B'];
+export const contentRoles: UserRole[] = ['ADMIN','SUPERVISOR','EXECUTIVE','CONTENT_MANAGER','MANAGER_SALES','MANAGER_B2B'];
 const person = { id:true, firstName:true, lastName:true, email:true } as const;
 const include = (read: CrmReadPolicy) => ({ task:{ select:{ id:true,title:true,status:true,progress:true,dueDate:true,assignedToId:true,assignedTo:{select:person}, _count:{select:{comments:true,files:{where:{node:{AND:[driveWhere(read,'TEAM'),{deletedAt:null}]}}},children:{where:read.tasks()}}} } } });
 export function contentTimezone(value:string) { try { new Intl.DateTimeFormat('ru',{timeZone:value}).format();return value; } catch { throw new BadRequestException('Укажите существующий часовой пояс'); } }

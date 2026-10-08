@@ -23,7 +23,11 @@ export function notificationVisibility(actor: { id: string; role: string; access
       { category: 'CHAT', message: { deletedAt: null, authorId: { not: id }, channel: { isArchived: false,
         AND: [{ OR: [{ type: 'TEAM' }, { createdById: id }, { members: { some: { userId: id } } }] }, { members: { none: { userId: id, isMuted: true } } }] } } },
       { kind: { in: ['TASK_CREATED', 'TASK_ASSIGNED'] }, task: { AND: [task, { assignedToId: id }] } },
-      { kind: { in: ['TASK_COMMENT', 'TASK_STATUS'] }, task: { AND: [task, { OR: [{ assignedToId: id }, { createdById: id }] }] } },
+      { kind: { in: ['TASK_COMMENT', 'TASK_STATUS', 'TASK_MENTION', 'TASK_PARTICIPANT_ADDED'] }, AND: [
+        { task: { AND: [task, { OR: [{ assignedToId: id }, { createdById: id }, { participants: { some: { userId: id } } }] }] } },
+        // Legacy broadcast comments predate membership: don't show them as new to invitees.
+        { OR: [{ recipientId: id }, { kind: 'TASK_STATUS' }, { task: { OR: [{ assignedToId: id }, { createdById: id }] } }] },
+      ] },
       { kind: 'TASK_REMINDER', reminder: { recipientId: id, dismissedAt: null, task: { AND: [task, { status: { notIn: ['DONE', 'CANCELLED'] } }] } } },
       { category: 'ORDER', order: orderRoles.includes(actor.role) ? orderScopeWhere(decisions, 'oms.read') : { id: { in: [] } } },
       { kind: { in: ['TICKET_CREATED', 'TICKET_ASSIGNED'] }, ticket },
@@ -34,6 +38,7 @@ export function notificationVisibility(actor: { id: string; role: string; access
 }
 
 const titles: Record<string, string> = {
+  TASK_MENTION: 'Вас упомянули в задаче', TASK_PARTICIPANT_ADDED: 'Вас добавили в задачу',
   CHAT_MESSAGE: 'Новое сообщение', TASK_CREATED: 'Новая задача', TASK_ASSIGNED: 'Вам назначена задача', TASK_COMMENT: 'Комментарий к задаче', TASK_STATUS: 'Изменён статус задачи', TASK_REMINDER: 'Напоминание о задаче',
   ORDER_CREATED: 'Новый заказ', ORDER_ASSIGNED: 'Вам назначен заказ', ORDER_STATUS: 'Изменён статус заказа', TICKET_CREATED: 'Новое обращение', TICKET_ASSIGNED: 'Вам назначено обращение', TICKET_COMMENT: 'Ответ в обращении', CONTACT_CREATED: 'Сообщение с сайта',
 };
@@ -50,6 +55,7 @@ export function notificationView(row: any) {
   let title = titles[row.kind] || 'Уведомление', body = '', url = '', channelId: string | undefined;
   const task = row.task || row.reminder?.task;
   if (task) { body = task.title; url = '/crm/tasks?task=' + encodeURIComponent(task.id); }
+  if (row.kind === 'TASK_MENTION' || row.kind === 'TASK_COMMENT') url += '&tab=comments&notification=' + encodeURIComponent(row.id);
   if (row.order) { body = row.order.orderNumber + ' · ' + ({ WEB: 'Сайт', B2B: 'B2B', WILDBERRIES: 'Wildberries', OZON: 'Ozon', YANDEX_MARKET: 'Яндекс Маркет', MEGAMARKET: 'Мегамаркет' }[row.order.source] || row.order.source); url = '/crm/fulfillment?order=' + encodeURIComponent(row.order.id); }
   if (row.ticket) { body = row.ticket.number + ' · ' + row.ticket.subject; url = '/crm/support/tickets?ticket=' + encodeURIComponent(row.ticket.id); }
   if (row.contact) { body = row.contact.name; url = '/crm/messages?message=' + encodeURIComponent(row.contact.id); }

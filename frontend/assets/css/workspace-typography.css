@@ -13,26 +13,26 @@
     --sb-text:var(--ui-ink)!important;
     --sb-muted:var(--ui-muted)!important;
     --sb-font:var(--ws-font)!important;
-    --sb-weight-regular:400!important;
+    --sb-weight-regular:var(--brand-weight-body)!important;
     --sb-weight-semibold:600!important;
   }
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login,.workspace-sort-ghost) {
-    --ws-font:Montserrat,Arial,sans-serif;
+    --ws-font:var(--brand-font-body);
     --ws-type-heading:20px;
     --ws-type-body:14px;
     --ws-type-caption:12px;
-    --ws-weight-body:400;
+    --ws-weight-body:var(--brand-weight-body);
     --ws-weight-emphasis:600;
     --admin-font:var(--ws-font); --sb-font:var(--ws-font);
     --admin-body:var(--ws-type-body); --admin-small:var(--ws-type-body); --admin-caption:var(--ws-type-caption);
     --admin-page:var(--ws-type-heading); --admin-section:var(--ws-type-heading); --admin-title:var(--ws-type-body);
     font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important;
-    font-weight:400!important; font-style:normal!important; line-height:1.5!important;
+    font-weight:var(--brand-weight-body)!important; font-style:normal!important; line-height:1.5!important;
     letter-spacing:0!important; font-synthesis:none; -webkit-font-smoothing:antialiased;
   }
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :where(*) {
     font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important;
-    font-weight:400!important; font-style:normal!important; line-height:1.5!important;
+    font-weight:var(--brand-weight-body)!important; font-style:normal!important; line-height:1.5!important;
     letter-spacing:0!important; text-transform:none!important;
   }
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :is(h1,h2) {
@@ -54,7 +54,7 @@
     font-size:inherit!important; font-weight:inherit!important; line-height:inherit!important;
   }
   :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.admin-dialog,.workspace-login) :is(input,textarea)::placeholder {
-    font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important; font-weight:400!important;
+    font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important; font-weight:var(--brand-weight-body)!important;
     font-style:normal!important; letter-spacing:0!important;
   }
   .wn-rail-dock span { font-size:var(--ws-type-caption)!important; }
@@ -81,7 +81,7 @@
   .workspace-context,
   .workspace-context :is(button, strong, small, span) {
     font-size:var(--ws-type-caption)!important;
-    font-weight:400!important;
+    font-weight:var(--brand-weight-body)!important;
     line-height:1.5!important;
   }
   .workspace-context header strong { font-weight:600!important; }

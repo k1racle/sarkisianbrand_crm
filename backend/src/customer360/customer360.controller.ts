@@ -6,7 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { Customer360Service } from './customer360.service';
-import { AddOrganizationMemberDto, CreateOrganizationDto, UpdateCustomerDto, UpdateOrganizationDto } from './dto/customer360.dto';
+import { AddOrganizationMemberDto, CreateCustomerDto, CreateOrganizationDto, UpdateCustomerDto, UpdateOrganizationDto } from './dto/customer360.dto';
 
 @ApiTags('customer-360')
 @ApiBearerAuth()
@@ -20,6 +20,8 @@ export class Customer360Controller {
   @Get('team') @Header('Cache-Control', 'private, no-store') @Permissions('customers.read') team(@Req() req: any) { return this.customers.team(req.user.sub); }
   @Permissions('customers.read')
   @Get('customers') @Header('Cache-Control', 'private, no-store') listCustomers(@Req() req: any, @Query('search') search?: string, @Query('status', new ParseEnumPipe(CustomerStatus, { optional: true })) status?: CustomerStatus, @Query('segment') segment?: string) { return this.customers.customers(req.user.sub, search, status, segment); }
+  @Permissions('customers.write')
+  @Post('customers') createCustomer(@Body() dto: CreateCustomerDto, @Req() req: any) { return this.customers.createCustomer(req.user.sub, dto); }
   @Permissions('customers.read')
   @Get('customers/:id') @Header('Cache-Control', 'private, no-store') customer(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) { return this.customers.customer(req.user.sub, id); }
   @Permissions('customers.write')

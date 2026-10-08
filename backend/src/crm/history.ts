@@ -1,5 +1,5 @@
 // Store only explicitly allowlisted business fields; never request bodies or credentials.
-export const taskHistoryFields=['title','description','pipelineId','status','priority','progress','assignedToId','parentId','leadId','startDate','dueDate','labels','estimateMinutes'];
+export const taskHistoryFields=['title','description','pipelineId','status','priority','progress','assignedToId','parentId','leadId','startDate','dueDate','labels','estimateMinutes','participants'];
 export const leadHistoryFields=['title','contactName','contactPhone','contactEmail','status','stageId','managerId','amount','probability','expectedCloseAt','nextContactAt','lostReason','tags'];
 function value(v:any){return v===undefined||v===null?null:v instanceof Date?v.toISOString():typeof v==='object'&&!Array.isArray(v)?String(v):v;}
 export async function recordCrmChange(db:any,actorId:string|undefined,resource:'crm.task'|'crm.lead',resourceId:string,before:any,after:any,fields:string[],action='Изменено'){

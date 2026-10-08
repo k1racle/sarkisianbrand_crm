@@ -1,5 +1,5 @@
 import { LeadStatus, TaskStatus } from '@prisma/client';
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class CreatePipelineDto {
   @IsString() @MaxLength(120) name!: string;
@@ -108,6 +108,7 @@ export class CreateInteractionDto {
 }
 
 export class CreateTaskDto {
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ArrayUnique() @IsUUID('all', { each: true }) participantIds?: string[];
   @IsOptional() @IsUUID() pipelineId?: string;
   @IsString() @MaxLength(200) title!: string;
   @IsOptional() @IsString() description?: string;
@@ -151,7 +152,15 @@ export class UpdateTaskDto {
   @IsOptional() @IsInt() @Min(0) reminderBeforeMinutes?: number;
 }
 
-export class CreateTaskCommentDto { @IsString() @MaxLength(10000) body!: string; }
+export class CreateTaskCommentDto {
+  @IsString() @MaxLength(10000) body!: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @ArrayUnique() @IsUUID('all', { each: true }) mentionIds?: string[];
+}
+export class AddTaskParticipantDto { @IsUUID() userId!: string; }
+export class TaskPeopleQueryDto {
+  @IsOptional() @IsString() @MaxLength(100) q?: string;
+  @IsOptional() @IsUUID() taskId?: string;
+}
 export class MoveTaskDto {
   @IsEnum(TaskStatus) status!: TaskStatus;
   @IsOptional() @IsUUID() beforeId?: string;

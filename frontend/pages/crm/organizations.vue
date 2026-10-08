@@ -1,15 +1,14 @@
 <script setup lang="ts">
 useHead({ title: 'Организации — SARKISIAN CRM' });
-import { Building2, ChevronLeft, ChevronRight, CircleCheck, Plus, RefreshCw, Search, ShoppingBag, UserRound, Users, X } from '@lucide/vue';
+import { Building2, ChevronLeft, ChevronRight, Plus, RefreshCw, Search, ShoppingBag, SlidersHorizontal, UserPlus, UserRound, Users, X } from '@lucide/vue';
 const config = useRuntimeConfig();
 const { token, user } = useWorkspaceSession();
 const { openContextMenu, copyText } = useContextMenu();
 const organizations = ref<any[]>([]);
-const createOpen = ref(false);
 const loading = ref(false);
 const error = ref('');
 const { actionBusy, runOperation } = useWorkspaceOperation(error);
-const { selected, setEntity, closeEditor, markSaved, entityPanel, entityKeys } = useWorkspaceEntityDraft<any>(actionBusy);
+const { selected, draftDirty, setEntity, closeEditor, markSaved, entityPanel, entityKeys } = useWorkspaceEntityDraft<any>(actionBusy);
 const access = useWorkspaceAccess();
 const canEdit = computed(() => access.can('customers.write'));
 const pageLoaded = ref(false);
@@ -18,35 +17,53 @@ const status = ref('');
 const notice = ref('');
 const managers = ref<any[]>([]);
 const statusFilters = [{ value: '', label: 'Все организации' }, { value: 'ACTIVE', label: 'Активные' }, { value: 'PROSPECT', label: 'Потенциальные' }, { value: 'ON_HOLD', label: 'Приостановленные' }, { value: 'ARCHIVED', label: 'Архив' }];
-const hasFilters = computed(() => Boolean(search.value || status.value));
+const assignment = ref('');
+const sort = ref('updated');
+const filtersExpanded = ref(false);
+const creating = computed(() => Boolean(selected.value && !selected.value.id));
+const organizationTab = ref('profile');
+const organizationTabs = computed(() => [{ value: 'profile', label: 'Основное' }, { value: 'details', label: 'Реквизиты' }, ...(!creating.value ? [{ value: 'members', label: 'Представители' }, { value: 'orders', label: 'Заказы' }] : [])]);
+const hasFilters = computed(() => Boolean(search.value || status.value || assignment.value));
+const extraFilterCount = computed(() => Number(Boolean(status.value)) + Number(Boolean(assignment.value)) + Number(sort.value !== 'updated'));
+const filteredOrganizations = computed(() => organizations.value.filter(item => !assignment.value || (assignment.value === 'mine' ? Boolean(user.value?.id) && item.accountManagerId === user.value.id : !item.accountManagerId)).sort((a, b) => {
+  if (sort.value === 'name') return a.name.localeCompare(b.name, 'ru');
+  if (sort.value === 'orders') return (b._count?.orders || 0) - (a._count?.orders || 0) || a.name.localeCompare(b.name, 'ru');
+  return new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
+}));
 const page = ref(1);
 const pageSize = 25;
-const pageCount = computed(() => Math.max(1, Math.ceil(organizations.value.length / pageSize)));
-const visibleOrganizations = computed(() => organizations.value.slice((page.value - 1) * pageSize, page.value * pageSize));
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredOrganizations.value.length / pageSize)));
+const visibleOrganizations = computed(() => filteredOrganizations.value.slice((page.value - 1) * pageSize, page.value * pageSize));
 const managerName = (item: any) => [item.accountManager?.firstName, item.accountManager?.lastName].filter(Boolean).join(' ') || item.accountManager?.email || 'Не назначен';
-function resetFilters() { search.value = ''; status.value = ''; }
+function resetFilters() { search.value = ''; status.value = ''; assignment.value = ''; }
+function openRow(event: MouseEvent, item: any) { if (!(event.target as HTMLElement).closest('a,button,input,select')) void openOrganization(item); }
+function tabKeys(event: KeyboardEvent) {
+  const tabs = organizationTabs.value;
+  const index = tabs.findIndex(tab => tab.value === organizationTab.value);
+  const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
+  if (next < 0) return;
+  event.preventDefault(); organizationTab.value = tabs[next].value;
+  nextTick(() => document.getElementById('organization-tab-' + organizationTab.value)?.focus());
+}
+function revealInvalid(event: Event) {
+  event.preventDefault();
+  const input = event.target as HTMLInputElement;
+  const panel = input.closest<HTMLElement>('[role="tabpanel"]');
+  if (panel) organizationTab.value = panel.id.replace('organization-panel-', '');
+  const section = input.closest('details');
+  if (section) section.open = true;
+  error.value = 'Проверьте поле «' + (input.closest('label')?.firstChild?.textContent?.trim() || 'Значение') + '»';
+  nextTick(() => input.focus());
+}
 const canWriteRecord = (record: any) => canEdit.value && record?.canWrite === true;
-const canEditSelected = computed(() => canWriteRecord(selected.value));
+const canEditSelected = computed(() => creating.value ? canEdit.value : canWriteRecord(selected.value));
 async function loadManagers() { managers.value = canEdit.value ? await $fetch<any[]>('/customer-360/team', { baseURL: config.public.apiBase, headers: headers.value }) : []; }
-const form = reactive({ name: '', legalName: '', inn: '', kpp: '', legalAddress: '', status: 'PROSPECT', discountTier: 0, creditLimit: 0 });
 let searchTimer: ReturnType<typeof setTimeout>;
 let loadVersion = 0;
-const emptyForm = JSON.stringify(form);
-const createDirty = computed(() => createOpen.value && JSON.stringify(form) !== emptyForm);
-function closeCreate() { if (actionBusy.value || (createDirty.value && !window.confirm('Закрыть форму без сохранения организации?'))) return false; createOpen.value = false; Object.assign(form, JSON.parse(emptyForm)); return true; }
-onBeforeRouteLeave(() => !actionBusy.value && (!createDirty.value || window.confirm('Есть несохранённая организация. Покинуть страницу?')));
-const { panel: createPanel, keyboard: createKeys } = useCatalogDialog(computed(() => createOpen.value), closeCreate);
 const headers = computed(() => ({ Authorization: `Bearer ${token.value}` }));
 const statusLabels: Record<string, string> = { PROSPECT: 'Потенциальный клиент', ACTIVE: 'Активна', ON_HOLD: 'Приостановлена', ARCHIVED: 'В архиве' };
 const memberLabels: Record<string, string> = { OWNER: 'Владелец', BUYER: 'Закупщик', ACCOUNTANT: 'Бухгалтер', EMPLOYEE: 'Сотрудник' };
 const orderLabels: Record<string, string> = { NEW: 'Новый', CONFIRMED: 'Подтверждён', PAYMENT_WAITING: 'Ожидает оплату', PAID: 'Оплачен', ASSEMBLING: 'Собирается', SHIPPED: 'Отправлен', DELIVERED: 'Доставлен', CANCELLED: 'Отменён', REFUNDED: 'Возврат' };
-const totals = computed(() => ({ active: organizations.value.filter(item => item.status === 'ACTIVE').length, people: organizations.value.reduce((sum, item) => sum + Number(item._count?.members || 0), 0), orders: organizations.value.reduce((sum, item) => sum + Number(item._count?.orders || 0), 0) }));
-const summary = computed(() => [
-  { label: 'Организации', value: organizations.value.length, icon: Building2 },
-  { label: 'Активные', value: totals.value.active, icon: CircleCheck },
-  { label: 'Представители', value: totals.value.people, icon: Users },
-  { label: 'Заказы B2B', value: totals.value.orders, icon: ShoppingBag },
-]);
 
 async function load() {
   const version = ++loadVersion;
@@ -57,21 +74,28 @@ async function load() {
   catch (reason:any) { if (version === loadVersion) error.value = typeof reason?.data?.message === 'string' ? reason.data.message : 'Не удалось загрузить организации. Повторите попытку.'; }
   finally { if (version === loadVersion) loading.value = false; }
 }
-async function openOrganization(item: any) { if (!closeEditor()) return; await runOperation(async () => { const [row] = await Promise.all([$fetch(`/customer-360/organizations/${item.id}`, { baseURL: config.public.apiBase, headers: headers.value }), loadManagers()]); setEntity(row); }); }
-async function createOrganization() {
-  if (!canEdit.value) return;
+async function openOrganization(item: any, tab = 'profile', focusManager = false) {
+  if (!closeEditor()) return;
+  await runOperation(async () => { const [row] = await Promise.all([$fetch(`/customer-360/organizations/${item.id}`, { baseURL: config.public.apiBase, headers: headers.value }), loadManagers()]); organizationTab.value = tab; setEntity(row); });
+  if (focusManager && selected.value) { await nextTick(); entityPanel.value?.querySelector<HTMLSelectElement>('.crm-field select')?.focus(); }
+}
+async function openNewOrganization() {
+  if (!canEdit.value || !closeEditor()) return;
   await runOperation(async () => {
-  await $fetch('/customer-360/organizations', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: { ...form, legalName: form.legalName || undefined, inn: form.inn || undefined, kpp: form.kpp || undefined, legalAddress: form.legalAddress || undefined, discountTier: Number(form.discountTier), creditLimit: Number(form.creditLimit) } });
-  Object.assign(form, { name: '', legalName: '', inn: '', kpp: '', legalAddress: '', status: 'PROSPECT', discountTier: 0, creditLimit: 0 });
-  createOpen.value = false; notice.value = 'Организация создана'; await load(); setTimeout(() => notice.value = '', 2200);
+    await loadManagers(); organizationTab.value = 'profile';
+    setEntity({ name: '', legalName: '', inn: '', kpp: '', legalAddress: '', status: 'PROSPECT', discountTier: 0, creditLimit: 0, accountManagerId: user.value?.id });
   });
+  await nextTick(); entityPanel.value?.querySelector<HTMLInputElement>('input[name="organizationName"]')?.focus();
 }
 async function saveOrganization() {
   if (!selected.value || !canEditSelected.value) return;
+  if (!selected.value.name?.trim()) { organizationTab.value = 'profile'; error.value = 'Укажите название организации'; await nextTick(); entityPanel.value?.querySelector<HTMLInputElement>('input[name="organizationName"]')?.focus(); return; }
+  const isNew = creating.value;
   await runOperation(async () => {
-  const saved = await $fetch<any>(`/customer-360/organizations/${selected.value.id}`, { baseURL: config.public.apiBase, method: 'PATCH', headers: headers.value, body: { name: selected.value.name, legalName: selected.value.legalName || undefined, inn: selected.value.inn || undefined, kpp: selected.value.kpp || undefined, legalAddress: selected.value.legalAddress || undefined, status: selected.value.status, discountTier: Number(selected.value.discountTier), creditLimit: Number(selected.value.creditLimit), accountManagerId: selected.value.accountManagerId } });
+  const saved = await $fetch<any>(isNew ? '/customer-360/organizations' : `/customer-360/organizations/${selected.value.id}`, { baseURL: config.public.apiBase, method: isNew ? 'POST' : 'PATCH', headers: headers.value, body: { name: selected.value.name.trim(), legalName: selected.value.legalName || undefined, inn: selected.value.inn || undefined, kpp: selected.value.kpp || undefined, legalAddress: selected.value.legalAddress || undefined, status: selected.value.status, discountTier: Number(selected.value.discountTier), creditLimit: Number(selected.value.creditLimit), accountManagerId: selected.value.accountManagerId } });
   markSaved(saved);
-  notice.value = 'Организация сохранена'; await load(); setTimeout(() => notice.value = '', 2200);
+  if (isNew) { resetFilters(); sort.value = 'updated'; page.value = 1; await nextTick(); clearTimeout(searchTimer); }
+  notice.value = isNew ? 'Организация создана' : 'Организация сохранена'; await load(); setTimeout(() => notice.value = '', 2200);
   });
 }
 async function archiveOrganization(item:any){if (!canWriteRecord(item)) return; await runOperation(async () => {await $fetch(`/customer-360/organizations/${item.id}`,{baseURL:config.public.apiBase,method:'PATCH',headers:headers.value,body:{status:'ARCHIVED'}});notice.value='Организация перемещена в архив';await load();setTimeout(()=>notice.value='',2200)});}
@@ -82,65 +106,107 @@ watch([search, status], (next, previous) => {
   if (next[0] !== previous[0]) searchTimer = setTimeout(load, 300);
   else void load();
 });
+watch([assignment, sort], () => { page.value = 1; });
+watch(() => [selected.value?.name, selected.value?.inn, selected.value?.kpp, selected.value?.discountTier, selected.value?.creditLimit, selected.value?.accountManagerId], () => { if (!actionBusy.value) error.value = ''; });
 onBeforeUnmount(() => { ++loadVersion; clearTimeout(searchTimer); });
 onMounted(load);
 </script>
 
 <template>
-<main data-v-ui-62f6efe9efa8 class="org-page crm-standard crm-directory">
-  <header class="crm-page-header">
-    <div><h1>Организации</h1><span>Компании, представители и ответственные менеджеры</span></div>
-    <div class="crm-directory-header-actions"><button class="crm-button crm-button--refresh" :disabled="loading" @click="load"><RefreshCw :size="16" :class="{ spin: loading }" /> Обновить</button><button class="crm-button crm-button--primary" :disabled="actionBusy || !canEdit" @click="createOpen = true"><Plus :size="16" /> Новая организация</button></div>
-  </header>
-  <p v-if="error" class="operation-error" role="alert">{{ error }}</p>
-  <WorkspaceLoading v-if="loading && !pageLoaded" label="Загружаем организации" />
-  <div v-else-if="pageLoaded" class="crm-page-content crm-directory-content">
-    <section class="crm-directory-summary" aria-label="Сводка по организациям в текущей выборке">
-      <article v-for="metric in summary" :key="metric.label" class="crm-surface crm-directory-metric">
-        <span class="crm-directory-metric-icon"><component :is="metric.icon" :size="20" /></span>
-        <span class="crm-directory-metric-label">{{ metric.label }}</span><strong>{{ metric.value }}</strong>
-      </article>
-    </section>
-    <section class="crm-surface crm-directory-register" aria-label="Список организаций" :aria-busy="loading">
-      <div class="crm-directory-register-heading"><h2>Реестр организаций <span>{{ organizations.length }}</span></h2><small>Показатели по текущей выборке</small></div>
-      <nav class="crm-directory-tabs" aria-label="Статусы организаций">
-        <button v-for="filter in statusFilters" :key="filter.value" class="crm-button" :aria-pressed="status === filter.value" @click="status = filter.value">{{ filter.label }}</button>
-      </nav>
-      <div class="crm-directory-toolbar">
-        <div class="crm-input-group crm-directory-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск организаций" placeholder="Название, юридическое лицо или ИНН" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск" @click="search = ''"><X :size="16" /></button></div>
-        <button v-if="hasFilters" class="crm-button crm-button--text" @click="resetFilters"><X :size="16" /> Сбросить</button>
+  <main class="org-page crm-standard crm-directory crm-organizations-page">
+    <header class="crm-page-header">
+      <div><h1>Организации <span v-if="pageLoaded" class="crm-org-count">{{ filteredOrganizations.length }}</span></h1><span>Компании, представители и история работы</span></div>
+      <div class="crm-org-header-actions">
+        <button class="crm-button crm-button--icon" :disabled="loading" aria-label="Обновить" title="Обновить список" @click="load"><RefreshCw :size="18" :class="{ spin: loading }" /></button>
+        <button v-if="canEdit" class="crm-button crm-button--primary crm-org-add" :disabled="actionBusy" @click="openNewOrganization"><Plus :size="18" /> Добавить организацию</button>
       </div>
-      <div v-if="organizations.length" class="crm-directory-columns crm-directory-columns--organizations" aria-hidden="true"><span>Организация</span><span>Реквизиты</span><span>Ответственный менеджер</span><span>Работа с компанией</span><span /></div>
-      <div class="crm-directory-rows">
-        <button v-for="item in visibleOrganizations" :key="item.id" class="org-row crm-button crm-card-action crm-directory-row crm-directory-row--organization" :disabled="actionBusy" @click="openOrganization(item)" @contextmenu.prevent="organizationMenu($event, item)">
-          <span class="crm-directory-identity">
-            <span class="crm-directory-avatar crm-directory-avatar--organization"><Building2 :size="22" /></span>
-            <span class="crm-directory-stack"><strong>{{ item.name }}</strong><small v-if="item.legalName">{{ item.legalName }}</small><span class="crm-directory-status" :data-status="item.status">{{ statusLabels[item.status] || item.status }}</span></span>
-          </span>
-          <span class="crm-directory-stack"><span>ИНН <b>{{ item.inn || 'не указан' }}</b></span><small>КПП {{ item.kpp || 'не указан' }}</small></span>
-          <span class="crm-directory-stack">
-            <span class="crm-directory-icon-line" :class="{ 'crm-directory-unassigned': !item.accountManager }"><UserRound :size="16" aria-hidden="true" /><span>{{ managerName(item) }}</span></span>
-            <small>{{ item.accountManager?.email || 'Назначьте в карточке организации' }}</small>
-          </span>
-          <span class="crm-directory-stack crm-directory-activity"><b>Заказы: {{ item._count?.orders || 0 }}</b><small>Представители: {{ item._count?.members || 0 }} · Скидка: {{ item.discountTier || 0 }}%</small></span>
-          <ChevronRight class="crm-directory-open" :size="18" aria-hidden="true" />
-        </button>
+    </header>
+    <p v-if="error && !selected" class="operation-error" role="alert">{{ error }}</p>
+    <WorkspaceLoading v-if="loading && !pageLoaded" label="Загружаем организации" />
+    <div v-else-if="pageLoaded" class="crm-page-content crm-directory-content">
+      <section class="crm-surface crm-org-register" :class="{ 'is-filters-open': filtersExpanded }" aria-label="Список организаций" :aria-busy="loading">
+        <nav class="crm-org-statuses" aria-label="Статусы организаций">
+          <button v-for="filter in statusFilters" :key="filter.value" :aria-pressed="status === filter.value" @click="status = filter.value">{{ filter.label }}</button>
+        </nav>
+        <div class="crm-org-tools">
+          <div class="crm-input-group crm-org-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск организаций" placeholder="Название или ИНН…" title="Поиск по названию, юридическому лицу или ИНН" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск" @click="search = ''"><X :size="16" /></button></div>
+          <button class="crm-button crm-button--icon crm-org-filter-toggle" :aria-expanded="filtersExpanded" :aria-label="'Фильтры и сортировка' + (extraFilterCount ? ': ' + extraFilterCount : '')" aria-controls="organization-status organization-owner organization-sort" @click="filtersExpanded = !filtersExpanded"><SlidersHorizontal :size="18" /><span v-if="extraFilterCount">{{ extraFilterCount }}</span></button>
+          <select id="organization-status" v-model="status" class="crm-input crm-org-status-select crm-org-extra-filter" aria-label="Статус организации"><option v-for="filter in statusFilters" :key="filter.value" :value="filter.value">{{ filter.label }}</option></select>
+          <select id="organization-owner" v-model="assignment" class="crm-input crm-org-extra-filter" aria-label="Ответственный менеджер"><option value="">Все ответственные</option><option value="mine">Мои организации</option><option value="unassigned">Без менеджера</option></select>
+          <select id="organization-sort" v-model="sort" class="crm-input crm-org-extra-filter" aria-label="Сортировка организаций"><option value="updated">Последние изменения</option><option value="name">По названию: А–Я</option><option value="orders">Больше заказов</option></select>
+        </div>
+        <div v-if="hasFilters" class="crm-org-filter-summary"><span role="status">Найдено: {{ filteredOrganizations.length }}<template v-if="status"> · {{ statusFilters.find(filter => filter.value === status)?.label }}</template></span><button class="crm-button crm-button--text" @click="resetFilters"><X :size="14" /> Сбросить фильтры</button></div>
+        <div v-if="filteredOrganizations.length" class="crm-org-columns" aria-hidden="true"><span>Организация</span><span>Реквизиты</span><span>Ответственный</span><span>История</span></div>
+        <div class="crm-org-rows">
+          <article v-for="item in visibleOrganizations" :key="item.id" class="org-row crm-org-row" :aria-label="item.name" @click="openRow($event, item)" @contextmenu.prevent="organizationMenu($event, item)">
+            <div class="crm-org-person">
+              <span class="crm-directory-avatar crm-directory-avatar--organization" aria-hidden="true"><Building2 :size="21" /></span>
+              <div class="crm-org-stack"><button class="crm-org-name" :disabled="actionBusy" :aria-label="'Открыть организацию: ' + item.name" @click="openOrganization(item)"><strong>{{ item.name }}</strong></button><small v-if="item.legalName">{{ item.legalName }}</small><span class="crm-directory-status" :data-status="item.status">{{ statusLabels[item.status] || item.status }}</span></div>
+            </div>
+            <div class="crm-org-stack crm-org-requisites"><span><span class="crm-org-label">ИНН</span> {{ item.inn || 'не указан' }}</span><small v-if="item.kpp">КПП {{ item.kpp }}</small></div>
+            <div class="crm-org-owner">
+              <button v-if="canWriteRecord(item)" class="crm-org-assign" :disabled="actionBusy" @click="openOrganization(item, 'profile', true)"><UserRound v-if="item.accountManager" :size="16" /><UserPlus v-else :size="16" /><span>{{ item.accountManager ? managerName(item) : 'Назначить менеджера' }}</span></button>
+              <span v-else class="crm-directory-icon-line"><UserRound :size="16" /><span>{{ managerName(item) }}</span></span>
+            </div>
+            <div class="crm-org-history">
+              <button class="crm-org-stat" :disabled="actionBusy" @click="openOrganization(item, 'orders')"><ShoppingBag :size="15" /><span>Заказы</span><strong>{{ item._count?.orders || 0 }}</strong></button>
+              <button class="crm-org-stat" :disabled="actionBusy" @click="openOrganization(item, 'members')"><Users :size="15" /><span>Представители</span><strong>{{ item._count?.members || 0 }}</strong></button>
+            </div>
+          </article>
+        </div>
+        <div v-if="!filteredOrganizations.length && !loading" class="crm-directory-empty">
+          <Search v-if="hasFilters" :size="28" /><Building2 v-else :size="28" />
+          <strong>{{ hasFilters ? 'Организации не найдены' : 'Добавьте первую организацию' }}</strong>
+          <p>{{ hasFilters ? 'Измените поисковый запрос или сбросьте фильтры.' : 'Реквизиты, представители и заказы компании будут собраны в одной карточке.' }}</p>
+          <button v-if="hasFilters" class="crm-button" @click="resetFilters">Сбросить фильтры</button>
+          <button v-else-if="canEdit" class="crm-button crm-button--primary" :disabled="actionBusy" @click="openNewOrganization"><Plus :size="18" /> Добавить организацию</button>
+        </div>
+        <footer class="crm-org-footer">
+          <span role="status"><template v-if="loading">Обновляем список…</template><template v-else-if="pageCount > 1">Показано {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, filteredOrganizations.length) }} из {{ filteredOrganizations.length }}</template><template v-else>Показано: {{ filteredOrganizations.length }}</template></span>
+          <nav v-if="pageCount > 1" class="crm-directory-pagination" aria-label="Страницы организаций"><button class="crm-button crm-button--icon" :disabled="page === 1 || loading" aria-label="Предыдущая страница" @click="page--"><ChevronLeft :size="16" /></button><span>{{ page }} / {{ pageCount }}</span><button class="crm-button crm-button--icon" :disabled="page === pageCount || loading" aria-label="Следующая страница" @click="page++"><ChevronRight :size="16" /></button></nav>
+          <span v-else class="crm-org-list-hint">Нажмите на строку, чтобы открыть карточку</span>
+        </footer>
+      </section>
+    </div>
+    <Teleport to="body">
+      <div v-if="selected" class="crm-detail-backdrop admin-dialog-backdrop" @click.self="closeEditor">
+        <section ref="entityPanel" class="admin-dialog admin-dialog--drawer crm-detail-card crm-org-dialog" role="dialog" aria-modal="true" aria-labelledby="organization-card-title" tabindex="-1" @keydown="entityKeys">
+          <header><div><p class="eyebrow">{{ creating ? 'Клиентская база' : 'Карточка организации' }}</p><h2 id="organization-card-title">{{ creating ? 'Новая организация' : selected.name }}</h2><span v-if="!creating" class="crm-directory-status" :data-status="selected.status">{{ statusLabels[selected.status] }}</span></div><button class="crm-button crm-button--icon" :disabled="actionBusy" aria-label="Закрыть карточку" @click="closeEditor"><X :size="20" /></button></header>
+          <nav class="crm-org-card-tabs" role="tablist" aria-label="Разделы организации" @keydown="tabKeys"><button v-for="tab in organizationTabs" :id="'organization-tab-' + tab.value" :key="tab.value" role="tab" :aria-selected="organizationTab === tab.value" :tabindex="organizationTab === tab.value ? 0 : -1" :aria-controls="'organization-panel-' + tab.value" @click="organizationTab = tab.value">{{ tab.label }}</button></nav>
+          <form id="organization-editor-form" class="crm-detail-body" @submit.prevent="saveOrganization" @invalid.capture="revealInvalid">
+            <p v-if="error" class="operation-error" role="alert">{{ error }}</p>
+            <section id="organization-panel-profile" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-profile" :hidden="organizationTab !== 'profile'">
+              <p v-if="creating" class="crm-org-form-note">Для начала достаточно названия. Реквизиты можно заполнить позже.</p>
+              <fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected">
+                <label class="crm-org-wide">Название компании<input class="crm-input" name="organizationName" v-model="selected.name" placeholder="Например, Студия красоты «Форма»" autocomplete="organization" :required="organizationTab === 'profile'" maxlength="180" /></label>
+                <label>Статус<select class="crm-input" v-model="selected.status"><option value="PROSPECT">Потенциальный клиент</option><option value="ACTIVE">Активна</option><option value="ON_HOLD">Приостановлена</option><option value="ARCHIVED">В архиве</option></select></label>
+                <CrmAccountManagerField v-model="selected.accountManagerId" :people="managers" :current="selected.accountManager" />
+              </fieldset>
+              <details class="crm-org-conditions"><summary>Коммерческие условия</summary><fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected"><label>Скидка, %<input class="crm-input" v-model.number="selected.discountTier" type="number" min="0" max="100" /></label><label>Кредитный лимит, ₽<input class="crm-input" v-model.number="selected.creditLimit" type="number" min="0" /></label></fieldset></details>
+            </section>
+            <section id="organization-panel-details" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-details" :hidden="organizationTab !== 'details'">
+              <fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected">
+                <label class="crm-org-wide">Юридическое название<input class="crm-input" v-model="selected.legalName" placeholder="ООО «Название компании»" /></label>
+                <label>ИНН<input class="crm-input" v-model="selected.inn" inputmode="numeric" placeholder="Не указан" /></label>
+                <label>КПП<input class="crm-input" v-model="selected.kpp" inputmode="numeric" placeholder="Не указан" /></label>
+                <label class="crm-org-wide">Юридический адрес<textarea class="crm-input" v-model="selected.legalAddress" rows="3" placeholder="Индекс, город, улица, дом" /></label>
+              </fieldset>
+            </section>
+            <section v-if="!creating" id="organization-panel-members" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-members" :hidden="organizationTab !== 'members'">
+              <p class="crm-muted">Представители компании и их роли</p>
+              <article v-for="member in selected.members" :key="member.id" class="crm-org-detail-row"><div><strong>{{ [member.user.firstName, member.user.lastName].filter(Boolean).join(' ') || member.user.email }}</strong><a v-if="member.user.email" :href="'mailto:' + member.user.email">{{ member.user.email }}</a></div><div><span>{{ memberLabels[member.role] || member.role }}</span><small>{{ member.jobTitle || (member.canSeeFinance ? 'Видит финансы' : 'Рабочий доступ') }}</small></div></article>
+              <div v-if="!selected.members?.length" class="crm-directory-empty"><Users :size="28" /><p>Представители ещё не добавлены</p></div>
+            </section>
+            <section v-if="!creating" id="organization-panel-orders" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-orders" :hidden="organizationTab !== 'orders'">
+              <p class="crm-muted">Последние доступные заказы компании</p>
+              <article v-for="order in selected.orders" :key="order.id" class="crm-org-detail-row"><div><strong>{{ order.orderNumber }}</strong><small>{{ new Date(order.createdAt).toLocaleDateString('ru-RU') }}</small></div><div><b>{{ Number(order.finalAmount).toLocaleString('ru-RU') }} ₽</b><span>{{ orderLabels[order.status] || order.status }}</span></div></article>
+              <div v-if="!selected.orders?.length" class="crm-directory-empty"><ShoppingBag :size="28" /><p>{{ selected.relatedAccess?.orders === false ? 'Нет доступа к истории заказов' : 'Нет доступных заказов' }}</p></div>
+            </section>
+          </form>
+          <footer class="crm-detail-footer"><button v-if="creating" class="crm-button" :disabled="actionBusy" @click="closeEditor">Отмена</button><span v-else>{{ !canEditSelected ? 'Доступен только просмотр' : draftDirty ? 'Есть несохранённые изменения' : 'Изменения сохранены' }}</span><button class="crm-button crm-button--primary" type="submit" form="organization-editor-form" :disabled="actionBusy || !canEditSelected || (!creating && !draftDirty)">{{ actionBusy ? 'Сохраняем…' : creating ? 'Создать организацию' : 'Сохранить изменения' }}</button></footer>
+        </section>
       </div>
-      <div v-if="!organizations.length && !loading" class="crm-directory-empty">
-        <Search v-if="hasFilters" :size="28" /><Building2 v-else :size="28" />
-        <strong>{{ hasFilters ? 'Организации не найдены' : 'Добавьте первую организацию' }}</strong>
-        <p>{{ hasFilters ? 'Проверьте название, ИНН или выбранный статус.' : 'Соберите реквизиты, представителей и историю заказов в одной карточке.' }}</p>
-        <button v-if="hasFilters" class="crm-button" @click="resetFilters">Сбросить фильтры</button>
-        <button v-else-if="canEdit" class="crm-button crm-button--primary" :disabled="actionBusy" @click="createOpen = true"><Plus :size="16" /> Добавить организацию</button>
-      </div>
-      <footer class="crm-directory-footer">
-        <small role="status"><template v-if="loading">Обновляем список…</template><template v-else-if="organizations.length">Показано {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, organizations.length) }} из {{ organizations.length }}</template><template v-else>Нет записей</template></small>
-        <nav v-if="pageCount > 1" class="crm-directory-pagination" aria-label="Страницы организаций"><button class="crm-button crm-button--icon" :disabled="page === 1 || loading" aria-label="Предыдущая страница" @click="page--"><ChevronLeft :size="16" /></button><span>{{ page }} / {{ pageCount }}</span><button class="crm-button crm-button--icon" :disabled="page === pageCount || loading" aria-label="Следующая страница" @click="page++"><ChevronRight :size="16" /></button></nav>
-        <small v-else class="crm-directory-hint">Нажмите на организацию, чтобы открыть карточку</small>
-      </footer>
-    </section>
-  </div>
-  <aside data-v-ui-62f6efe9efa8 v-if="selected" class="backdrop admin-dialog-backdrop" @click.self="closeEditor"><div data-v-ui-62f6efe9efa8 ref="entityPanel" class="drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" tabindex="-1" @keydown="entityKeys"><header data-v-ui-62f6efe9efa8><div data-v-ui-62f6efe9efa8><p data-v-ui-62f6efe9efa8>КАРТОЧКА B2B</p><h2 data-v-ui-62f6efe9efa8>{{ selected.name }}</h2><span data-v-ui-62f6efe9efa8>{{ selected.inn ? `ИНН ${selected.inn}` : 'Реквизиты заполняются' }}</span></div><button class="crm-button crm-button--icon" data-v-ui-62f6efe9efa8 @click="closeEditor" :disabled="actionBusy" aria-label="Закрыть карточку"><X data-v-ui-62f6efe9efa8 :size="19" /></button></header><div data-v-ui-62f6efe9efa8 class="drawer-body admin-dialog-body"><p data-v-ui-62f6efe9efa8 v-if="error" class="operation-error" role="alert">{{ error }}</p><fieldset data-v-ui-62f6efe9efa8 class="edit-grid ui-fieldset-reset" :disabled="actionBusy || !canEditSelected"><CrmAccountManagerField v-model="selected.accountManagerId" :people="managers" :current="selected.accountManager" /><label data-v-ui-62f6efe9efa8>Название<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="selected.name" /></label><label data-v-ui-62f6efe9efa8>Юридическое название<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="selected.legalName" /></label><label data-v-ui-62f6efe9efa8>ИНН<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="selected.inn" /></label><label data-v-ui-62f6efe9efa8>КПП<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="selected.kpp" /></label><label data-v-ui-62f6efe9efa8>Статус<select class="crm-input" data-v-ui-62f6efe9efa8 v-model="selected.status"><option data-v-ui-62f6efe9efa8 value="PROSPECT">Потенциальный клиент</option><option data-v-ui-62f6efe9efa8 value="ACTIVE">Активна</option><option data-v-ui-62f6efe9efa8 value="ON_HOLD">Приостановлена</option><option data-v-ui-62f6efe9efa8 value="ARCHIVED">В архиве</option></select></label><label data-v-ui-62f6efe9efa8>Скидка, %<input class="crm-input" data-v-ui-62f6efe9efa8 v-model.number="selected.discountTier" type="number" min="0" max="100" /></label><label data-v-ui-62f6efe9efa8>Кредитный лимит, ₽<input class="crm-input" data-v-ui-62f6efe9efa8 v-model.number="selected.creditLimit" type="number" min="0" /></label><label data-v-ui-62f6efe9efa8 class="wide">Юридический адрес<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="selected.legalAddress" /></label><button class="crm-button crm-button--primary" data-v-ui-62f6efe9efa8 @click="saveOrganization" :disabled="actionBusy || !canEditSelected">Сохранить изменения</button></fieldset><section data-v-ui-62f6efe9efa8 class="details"><h3 data-v-ui-62f6efe9efa8><Users data-v-ui-62f6efe9efa8 :size="16" /> Представители</h3><div data-v-ui-62f6efe9efa8 v-for="member in selected.members" :key="member.id" class="detail-row"><span data-v-ui-62f6efe9efa8><strong data-v-ui-62f6efe9efa8>{{ [member.user.firstName,member.user.lastName].filter(Boolean).join(' ') || member.user.email }}</strong><small data-v-ui-62f6efe9efa8>{{ member.user.email }}</small></span><span data-v-ui-62f6efe9efa8><b data-v-ui-62f6efe9efa8>{{ memberLabels[member.role] }}</b><small data-v-ui-62f6efe9efa8>{{ member.jobTitle || (member.canSeeFinance ? 'Видит финансы' : 'Рабочий доступ') }}</small></span></div><p data-v-ui-62f6efe9efa8 v-if="!selected.members?.length" class="empty-small">Представители ещё не добавлены</p></section><section data-v-ui-62f6efe9efa8 class="details"><h3 data-v-ui-62f6efe9efa8><ShoppingBag data-v-ui-62f6efe9efa8 :size="16" /> Последние заказы</h3><div data-v-ui-62f6efe9efa8 v-for="order in selected.orders" :key="order.id" class="detail-row"><span data-v-ui-62f6efe9efa8><strong data-v-ui-62f6efe9efa8>{{ order.orderNumber }}</strong><small data-v-ui-62f6efe9efa8>{{ new Date(order.createdAt).toLocaleDateString('ru-RU') }}</small></span><span data-v-ui-62f6efe9efa8><b data-v-ui-62f6efe9efa8>{{ Number(order.finalAmount).toLocaleString('ru-RU') }} ₽</b><small data-v-ui-62f6efe9efa8>{{ orderLabels[order.status] || order.status }}</small></span></div><p data-v-ui-62f6efe9efa8 v-if="!selected.orders?.length" class="empty-small">{{ selected.relatedAccess?.orders === false ? 'Нет доступа к истории заказов' : 'Нет доступных заказов' }}</p></section></div></div></aside>
-  <aside data-v-ui-62f6efe9efa8 v-if="createOpen" class="backdrop admin-dialog-backdrop" @click.self="closeCreate"><form data-v-ui-62f6efe9efa8 ref="createPanel" role="dialog" aria-modal="true" tabindex="-1" @keydown="createKeys" class="drawer create admin-dialog admin-dialog--drawer" @submit.prevent="createOrganization"><header data-v-ui-62f6efe9efa8><div data-v-ui-62f6efe9efa8><p data-v-ui-62f6efe9efa8>НОВЫЙ B2B-КЛИЕНТ</p><h2 data-v-ui-62f6efe9efa8>Организация</h2><span data-v-ui-62f6efe9efa8>Реквизиты и коммерческие условия</span></div><button class="crm-button crm-button--icon" data-v-ui-62f6efe9efa8 type="button" @click="closeCreate" :disabled="actionBusy" aria-label="Закрыть форму организации"><X data-v-ui-62f6efe9efa8 :size="19" /></button></header><div data-v-ui-62f6efe9efa8 class="drawer-body edit-grid admin-dialog-body"><p data-v-ui-62f6efe9efa8 v-if="error" class="operation-error" role="alert">{{ error }}</p><fieldset data-v-ui-62f6efe9efa8 class="ui-fieldset-reset ui-create-fields" :disabled="actionBusy || !canEdit"><label data-v-ui-62f6efe9efa8>Название<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="form.name" required /></label><label data-v-ui-62f6efe9efa8>Юридическое название<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="form.legalName" /></label><label data-v-ui-62f6efe9efa8>ИНН<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="form.inn" /></label><label data-v-ui-62f6efe9efa8>КПП<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="form.kpp" /></label><label data-v-ui-62f6efe9efa8>Начальный статус<select class="crm-input" data-v-ui-62f6efe9efa8 v-model="form.status"><option data-v-ui-62f6efe9efa8 value="PROSPECT">Потенциальный клиент</option><option data-v-ui-62f6efe9efa8 value="ACTIVE">Активна</option></select></label><label data-v-ui-62f6efe9efa8>Скидка, %<input class="crm-input" data-v-ui-62f6efe9efa8 v-model.number="form.discountTier" type="number" min="0" max="100" /></label><label data-v-ui-62f6efe9efa8>Кредитный лимит, ₽<input class="crm-input" data-v-ui-62f6efe9efa8 v-model.number="form.creditLimit" type="number" min="0" /></label><label data-v-ui-62f6efe9efa8 class="wide">Юридический адрес<input class="crm-input" data-v-ui-62f6efe9efa8 v-model="form.legalAddress" /></label><button class="crm-button" data-v-ui-62f6efe9efa8 type="submit">Создать организацию</button></fieldset></div></form></aside>
-  <div data-v-ui-62f6efe9efa8 v-if="notice" class="toast">{{ notice }}</div>
-</main></template>
+    </Teleport>
+    <div v-if="notice" class="toast" role="status">{{ notice }}</div>
+  </main>
+</template>

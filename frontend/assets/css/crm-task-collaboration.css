@@ -1,0 +1,22 @@
+@layer crm-elements {
+  html[data-crm-ui] .crm-task-participants { display:grid!important;gap:12px!important;min-width:0!important;border-block:1px solid var(--crm-line);padding:18px 0!important; }
+  html[data-crm-ui] .crm-task-participants > header { display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;padding:0!important;background:none!important;border:0!important;min-height:44px!important;height:auto!important; }
+  html[data-crm-ui] .crm-task-participants :is(h3,p) { margin:0!important; }
+  html[data-crm-ui] .crm-task-participants h3 small { color:var(--crm-muted)!important;margin-left:6px; }
+  html[data-crm-ui] :is(.crm-task-participant,.crm-task-person-option) .crm-avatar { display:grid!important;place-items:center!important;flex:0 0 32px!important;width:32px!important;height:32px!important;border-radius:50%!important;background:var(--crm-tint)!important;font-size:12px!important; }
+  html[data-crm-ui] .crm-task-participant-list { display:flex;flex-wrap:wrap;gap:8px;min-width:0; }
+  html[data-crm-ui] .crm-task-participant { display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;padding:4px 4px 4px 8px;border:1px solid var(--crm-line);border-radius:12px; }
+  html[data-crm-ui] .crm-task-participant > span:nth-child(2) { overflow-wrap:anywhere;min-width:0; }
+  html[data-crm-ui] .crm-task-participant .crm-button { border:0!important;background:transparent!important; }
+  html[data-crm-ui] .crm-task-people-picker { display:grid!important;gap:8px;min-width:0;width:100%;padding:12px;background:var(--crm-surface);border:1px solid var(--crm-line);border-radius:12px; }
+  html[data-crm-ui] .crm-task-people-search { display:flex!important;align-items:center;gap:8px;min-width:0; }
+  html[data-crm-ui] .crm-task-people-search .crm-input-group { flex:1; }
+  html[data-crm-ui] .crm-task-people-results { display:grid;gap:4px;max-height:250px;overflow-y:auto;min-width:0; }
+  html[data-crm-ui] .crm-task-people-picker .crm-task-person-option { display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;min-width:0!important;width:100%!important;min-height:56px!important;padding:8px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:var(--crm-ink)!important;text-align:left!important; }
+  html[data-crm-ui] .crm-task-person-option:is(:hover,[aria-selected=true]) { background:var(--crm-tint)!important; }
+  html[data-crm-ui] .crm-task-person-option > span:last-child { display:grid;gap:3px;min-width:0;overflow-wrap:anywhere; }
+  html[data-crm-ui] .crm-task-person-option small { color:var(--crm-muted)!important; }
+  html[data-crm-ui] .crm-task-comment-actions { display:flex!important;flex-wrap:wrap;justify-content:space-between;gap:8px; }
+  html[data-crm-ui] .crm-task-mention-hint { margin:0;color:var(--crm-muted);font-size:12px;overflow-wrap:anywhere; }
+  html[data-crm-ui] .crm-task-mention { font-weight:700;background:var(--crm-tint);border-radius:4px; }
+}

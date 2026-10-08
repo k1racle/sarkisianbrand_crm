@@ -42,6 +42,7 @@ export class AdminController {
   reorderStorefront(@Body() dto: ReorderStorefrontDto) { return this.admin.reorderStorefront(dto); }
 
   @Get('orders/list')
+  @Roles('ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE')
   @Permissions('web_orders.read')
   orderList(@Query() query: AdminListQueryDto) { return this.admin.orderList(query); }
 
@@ -142,10 +143,12 @@ export class AdminController {
   @Permissions('catalog.write')
   bulkProducts(@Body() dto:BulkProductsDto,@Req() req:any){return this.admin.bulkProducts(dto,req.user.sub);}
   @Get('orders')
+  @Roles('ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE')
   @Permissions('web_orders.read')
   orders() { return this.admin.orders(); }
 
   @Patch('orders/:orderNumber/status')
+  @Roles('ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE')
   @Permissions('web_orders.write')
   updateOrderStatus(@Param('orderNumber') orderNumber: string, @Body() dto: UpdateOrderStatusDto, @Req() request: any) { return this.admin.updateOrderStatus(orderNumber, dto, request.user.sub); }
 }

@@ -69,7 +69,9 @@ async function main() {
       await p.getByRole('heading', { name: 'Вы временно не в сети' }).waitFor();
       assert.ok(await p.locator('main img').evaluate(img => img.complete && img.naturalWidth > 0));
       const cache = await p.evaluate(async () => ({ keys: await caches.keys(), urls: (await Promise.all((await caches.keys()).map(async key => (await (await caches.open(key)).keys()).map(req => new URL(req.url).pathname)))).flat() }));
-      assert.ok(cache.keys.includes('sarkisian-crm-public-v4-brand2')); assert.ok(cache.urls.every(url => url.startsWith('/crm/pwa/')));
+      const publicFonts = ['/fonts/mont/Mont-Regular.woff2', '/fonts/mont/Mont-Bold.woff2', '/fonts/montserrat-cyrillic.woff2', '/fonts/montserrat-latin.woff2'];
+      assert.ok(cache.keys.includes('sarkisian-crm-public-v5-monochrome')); assert.ok(cache.urls.every(url => url.startsWith('/crm/pwa/') || publicFonts.includes(url)));
+      assert.ok(publicFonts.every(url => cache.urls.includes(url)), 'Brand fonts work offline');
       await p.screenshot({ path: path.join(output, 'pwa-offline.png') });
       assert.deepEqual(unexpected, []);
     } finally {

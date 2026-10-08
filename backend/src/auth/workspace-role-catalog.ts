@@ -3,7 +3,7 @@ import { UserRole } from '@prisma/client';
 // These describe existing profiles; labels do not silently change their grants.
 export const workspaceRoleCatalog = [
   { id: UserRole.ADMIN, label: 'Администратор CRM', shortLabel: 'Администратор', description: 'Настройки системы, сотрудники и доступ. Также управляет сайтом.' },
-  { id: UserRole.EXECUTIVE, label: 'Высшее руководство', shortLabel: 'Руководство', description: 'Обзор компании и управленческие отчёты. Изменения и финансовые операции требуют отдельных разрешений.' },
+  { id: UserRole.EXECUTIVE, label: 'Высшее руководство', shortLabel: 'Руководство', description: 'Работа с задачами, файлами, клиентами, заказами и поддержкой всей компании; согласование контента и графиков. Администрирование доступа и денежные выплаты — отдельные разрешения.' },
   { id: UserRole.SUPERVISOR, label: 'Руководитель направления', shortLabel: 'Рук. направления', description: 'Действующий широкий операционный профиль. Видимость пока НЕ ограничена своим отделом.' },
   { id: UserRole.MANAGER_SALES, label: 'Специалист интернет-магазина', shortLabel: 'Интернет-магазин', description: 'Покупатели, заказы сайта и розничные продажи.' },
   { id: UserRole.MANAGER_B2B, label: 'Специалист оптовых продаж', shortLabel: 'Оптовые продажи', description: 'Компании, партнёры B2B, оптовые заказы и сделки.' },

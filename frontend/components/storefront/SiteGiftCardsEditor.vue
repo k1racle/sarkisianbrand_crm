@@ -3,7 +3,11 @@ import { Plus, Save, RefreshCw, Shuffle, Pencil, Eye, X, Power, Copy, Gift, Hist
 import { useId } from 'vue';
 
 const props = defineProps<{ apiBase: string; token: string; role?: string }>();
-const canManageCards = computed(() => ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR'].includes(props.role || ''));
+const access = useWorkspaceAccess();
+const canReadProduct = computed(() => access.can('gift_card_product.read'));
+const canWriteProduct = computed(() => canReadProduct.value && access.can('gift_card_product.write'));
+const canReadCards = computed(() => ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR'].includes(props.role || '') && access.can('gift_cards.read'));
+const canManageCards = computed(() => canReadCards.value && access.can('gift_cards.write'));
 type Card = { id: string; maskedCode: string; faceValue: number | string; balance: number | string; reserved: number | string; issuedAt: string; expiresAt: string; isActive: boolean; revision: number; label?: string };
 type ProductDraft = { nameRu: string; descriptionRu: string; denominations: Array<{ key: string; value: string }>; validityDays: string; isActive: boolean; imageUrl: string };
 type GiftTab = 'product' | 'terms' | 'cards';
@@ -87,6 +91,9 @@ function failure(caught: any, fallback: string) {
 }
 async function request<T>(url: string, options: Record<string, any> = {}) {
   if (!props.token) throw new Error('Необходим вход в рабочее пространство');
+  await access.ensure();
+  const productRequest = url === '/gift-cards/product';
+  if (!(productRequest ? canReadProduct.value : canReadCards.value) || (options.method && options.method !== 'GET' && !(productRequest ? canWriteProduct.value : canManageCards.value))) throw new Error('Недостаточно прав для этой операции с подарочными картами.');
   const controller = new AbortController();
   controllers.add(controller);
   try { return await $fetch<T>(url, { baseURL: props.apiBase, headers: { Authorization: `Bearer ${props.token}` }, signal: controller.signal, timeout: 15000, ...options }); }
@@ -94,6 +101,8 @@ async function request<T>(url: string, options: Record<string, any> = {}) {
 }
 async function load(force = false) {
   if (busy.value) return;
+  await access.ensure();
+  if (tab.value !== 'cards' && !canReadProduct.value && canReadCards.value) tab.value = 'cards';
   if (force && tab.value !== 'cards' && productDirty.value && !window.confirm('Загрузить сохранённые настройки и отменить локальные изменения?')) return;
   const version = ++loadVersion;
   const currentTab = tab.value;
@@ -118,7 +127,7 @@ async function load(force = false) {
   finally { if (version === loadVersion) loading.value = false; }
 }
 async function selectTab(value: GiftTab) {
-  if (value === 'cards' && !canManageCards.value) return;
+  if (value === 'cards' ? !canReadCards.value : !canReadProduct.value) return;
   if (busy.value || loading.value || value === tab.value) return;
   if (value !== 'cards' && tab.value !== 'cards') { tab.value = value; return; }
   if (dirty.value && !window.confirm('Перейти в другую вкладку без сохранения изменений?')) return;
@@ -152,6 +161,7 @@ function safeImage(value: string) {
   return path;
 }
 async function saveProduct() {
+  if (!canWriteProduct.value) return;
   if (!product.value || busy.value) return;
   let body: any;
   let invalidTab: GiftTab = 'product', invalidField = '[name="gift-name"]';
@@ -237,7 +247,7 @@ async function saveCard() {
 function clearSecret() { if (secretTimer) clearTimeout(secretTimer); secretTimer = undefined; secret.value = ''; revealedForId.value = ''; }
 function clearHistory() { ++historyVersion; historyCard.value = null; historyItems.value = []; historyLoading.value = false; historyPage.value = 1; historyTotal.value = 0; }
 async function loadHistory(targetPage = 1) {
-  if (!canManageCards.value || dialog.value?.kind !== 'history' || historyLoading.value) return;
+  if (!canReadCards.value || dialog.value?.kind !== 'history' || historyLoading.value) return;
   const cardId = dialog.value.card.id;
   const identity = identityVersion;
   const version = ++historyVersion;
@@ -255,7 +265,7 @@ async function loadHistory(targetPage = 1) {
   finally { if (version === historyVersion && identity === identityVersion) historyLoading.value = false; }
 }
 async function openDialog(kind: 'deactivate' | 'reveal' | 'history', card: Card) {
-  if (!canManageCards.value) return;
+  if (kind === 'history' ? !canReadCards.value : !canManageCards.value) return;
   if (busy.value || dialog.value) return;
   clearSecret(); clearHistory(); error.value = '';
   previousFocus = document.activeElement as HTMLElement; previousOverflow = document.documentElement.style.overflow;
@@ -312,11 +322,11 @@ defineExpose({ load: () => load(true), busy: computed(() => busy.value || loadin
   <section class="sb-gift-admin" aria-label="Управление подарочными картами">
     <div class="sb-gift-workbar">
       <nav class="sb-gift-tabs" aria-label="Разделы подарочных карт">
-        <button type="button" class="crm-button" :class="{ active: tab === 'product' }" :aria-current="tab === 'product' ? 'page' : undefined" :disabled="busy || loading" @click="selectTab('product')"><Palette :size="18" />Оформление</button>
-        <button type="button" class="crm-button" :class="{ active: tab === 'terms' }" :aria-current="tab === 'terms' ? 'page' : undefined" :disabled="busy || loading" @click="selectTab('terms')"><Coins :size="18" />Номиналы и срок</button>
-        <button v-if="canManageCards" type="button" class="crm-button" :class="{ active: tab === 'cards' }" :aria-current="tab === 'cards' ? 'page' : undefined" :disabled="busy || loading" @click="selectTab('cards')"><CreditCard :size="18" />Выданные карты</button>
+        <button v-if="canReadProduct" type="button" class="crm-button" :class="{ active: tab === 'product' }" :aria-current="tab === 'product' ? 'page' : undefined" :disabled="busy || loading" @click="selectTab('product')"><Palette :size="18" />Оформление</button>
+        <button v-if="canReadProduct" type="button" class="crm-button" :class="{ active: tab === 'terms' }" :aria-current="tab === 'terms' ? 'page' : undefined" :disabled="busy || loading" @click="selectTab('terms')"><Coins :size="18" />Номиналы и срок</button>
+        <button v-if="canReadCards" type="button" class="crm-button" :class="{ active: tab === 'cards' }" :aria-current="tab === 'cards' ? 'page' : undefined" :disabled="busy || loading" @click="selectTab('cards')"><CreditCard :size="18" />Выданные карты</button>
       </nav>
-      <div v-if="tab !== 'cards' && product" class="sb-gift-save-actions">
+      <div v-if="tab !== 'cards' && product && canWriteProduct" class="sb-gift-save-actions">
         <span>{{ productDirty ? 'Есть изменения' : 'Изменений нет' }}</span>
         <button type="button" class="crm-button crm-button--icon" aria-label="Отменить изменения настроек" title="Отменить изменения" :disabled="busy || loading || !productDirty" @click="resetProduct"><RotateCcw :size="18" /></button>
         <button type="submit" :form="productFormId" class="crm-button crm-button--primary" :disabled="busy || loading || !productDirty"><Save :size="18" />{{ busy ? 'Сохраняем…' : 'Сохранить настройки' }}</button>
@@ -328,17 +338,17 @@ defineExpose({ load: () => load(true), busy: computed(() => busy.value || loadin
       <div class="sb-gift-settings">
         <section v-if="tab === 'product'" class="sb-gift-panel sb-gift-form sb-gift-product-block crm-surface" aria-label="Настройки товара подарочной карты">
           <header class="sb-gift-form-head"><div><h3>Оформление карты</h3><small>Название, описание и изображение для покупателей</small></div></header>
-          <fieldset :disabled="busy" class="sb-gift-fields">
+          <fieldset :disabled="busy || (tab === 'cards' ? !canManageCards : !canWriteProduct)" class="sb-gift-fields">
             <label class="sb-gift-field sb-gift-wide"><span>Название товара</span><input name="gift-name" class="crm-input" v-model="product.nameRu" maxlength="160" required /></label>
             <label class="sb-gift-field sb-gift-wide"><span>Описание для покупателей</span><textarea class="crm-input" v-model="product.descriptionRu" maxlength="20000" rows="4" /></label>
-            <div class="sb-gift-field sb-gift-wide"><AdminMediaPicker v-model="product.imageUrl" :api-base="apiBase" :token="token" :show-preview="false" :disabled="busy" label="Изображение карты" /><small>Выбранное изображение сразу появится в предпросмотре.</small></div>
+            <div class="sb-gift-field sb-gift-wide"><AdminMediaPicker v-model="product.imageUrl" :api-base="apiBase" :token="token" :show-preview="false" :disabled="busy || !canWriteProduct" label="Изображение карты" /><small>Выбранное изображение сразу появится в предпросмотре.</small></div>
             <label class="sb-gift-checkbox sb-gift-wide crm-toggle-row"><input class="crm-check" v-model="product.isActive" type="checkbox" /><span>Продавать подарочную карту на сайте</span></label>
           </fieldset>
         </section>
         <template v-else>
           <section class="sb-gift-panel sb-gift-form sb-gift-denomination-block crm-surface" aria-label="Номиналы подарочной карты">
             <header class="sb-gift-form-head"><div><h3>Номиналы карты</h3><small>Суммы, которые покупатель сможет выбрать на сайте</small></div><button type="button" data-add-denomination class="crm-button" :disabled="busy || product.denominations.length >= 30" @click="addDenomination()"><Plus :size="18" />Добавить</button></header>
-            <fieldset :disabled="busy" class="sb-gift-denominations">
+            <fieldset :disabled="busy || !canWriteProduct" class="sb-gift-denominations">
               <div v-for="(item, index) in product.denominations" :key="item.key" class="sb-gift-denomination">
                 <label class="sb-gift-field"><span>Номинал {{ index + 1 }}, ₽</span><input :name="'gift-nominal-' + index" class="crm-input" v-model="item.value" type="number" inputmode="numeric" min="1" max="1000000" step="1" placeholder="1000" /></label>
                 <button type="button" class="crm-button crm-button--icon" :aria-label="'Убрать номинал ' + (index + 1)" @click="product.denominations.splice(index, 1)"><X :size="18" /></button>
@@ -349,7 +359,7 @@ defineExpose({ load: () => load(true), busy: computed(() => busy.value || loadin
           </section>
           <section class="sb-gift-panel sb-gift-form sb-gift-validity-block crm-surface" aria-label="Срок действия карты">
             <header class="sb-gift-form-head"><div><h3>Срок действия</h3><small>Отсчитывается с момента выдачи новой карты</small></div></header>
-            <fieldset :disabled="busy" class="sb-gift-fields">
+            <fieldset :disabled="busy || (tab === 'cards' ? !canManageCards : !canWriteProduct)" class="sb-gift-fields">
               <label class="sb-gift-field" :class="{ 'sb-gift-wide': !customValidity }"><span>Срок действия после выдачи</span><select aria-label="Срок действия после выдачи" class="crm-input" :value="customValidity ? 'custom' : validityPreset(product.validityDays)" @change="selectProductValidity(($event.target as HTMLSelectElement).value)"><option value="90">90 дней</option><option value="180">180 дней</option><option value="365">1 год — 365 дней</option><option value="730">2 года — 730 дней</option><option value="custom">Другой срок</option></select></label>
               <label v-if="customValidity" class="sb-gift-field"><span>Срок действия, дней</span><input name="gift-validity" class="crm-input" v-model="product.validityDays" inputmode="numeric" required /></label>
             </fieldset>
@@ -370,13 +380,13 @@ defineExpose({ load: () => load(true), busy: computed(() => busy.value || loadin
       </aside>
     </form>
 
-    <div v-if="tab === 'cards' && canManageCards && !issue && !cardEditor" class="sb-gift-panel sb-gift-list crm-surface"><header class="sb-gift-list-head"><label class="sb-gift-field"><span>Поиск на текущей странице</span><input class="crm-input" v-model="search" type="search" maxlength="160" placeholder="Код или заметка" /></label><button class="sb-gift-button crm-button crm-button--primary" :disabled="busy || loading" @click="openEditor()"><Plus :size="18" /> Выдать карту</button></header>
-      <table v-if="visibleCards.length" class="sb-gift-table"><caption class="sb-gift-sr-only">Выданные карты и их балансы</caption><thead><tr><th>Карта</th><th>Номинал и баланс</th><th>Выдача и срок</th><th>Статус</th><th>Действия</th></tr></thead><tbody><tr v-for="card in visibleCards" :key="card.id"><td data-label="Карта"><div class="sb-gift-cell"><strong>{{ card.maskedCode }}</strong><span v-if="card.label">{{ card.label }}</span><small>Версия {{ card.revision }}</small></div></td><td data-label="Баланс"><div class="sb-gift-cell"><strong>{{ money(card.balance) }}</strong><small>Номинал: {{ money(card.faceValue) }}</small><small>Зарезервировано: {{ money(card.reserved) }}</small></div></td><td data-label="Срок"><div class="sb-gift-cell"><small>Выдана: {{ date(card.issuedAt) }}</small><small>Действует до: {{ date(card.expiresAt) }}</small></div></td><td data-label="Статус"><span class="sb-gift-badge">{{ status(card) }}</span></td><td data-label="Действия"><div class="sb-gift-row-actions"><button class="sb-gift-icon-button crm-button" :disabled="busy" :aria-label="`Редактировать карту ${card.maskedCode}`" title="Редактировать" @click="openEditor(card)"><Pencil :size="18" /></button><button class="sb-gift-icon-button crm-button" :disabled="busy" :aria-label="`Открыть код карты ${card.maskedCode}`" title="Открыть полный код" @click="openDialog('reveal', card)"><Eye :size="18" /></button><button class="sb-gift-button sb-gift-button--white sb-gift-history-button crm-button" :disabled="busy" :aria-label="`История карты ${card.maskedCode}`" @click="openDialog('history', card)"><History :size="18" /> История</button><button v-if="card.isActive" class="sb-gift-icon-button crm-button" :disabled="busy" :aria-label="`Выключить карту ${card.maskedCode}`" title="Выключить с сохранением истории" @click="openDialog('deactivate', card)"><Power :size="18" /></button></div></td></tr></tbody></table>
+    <div v-if="tab === 'cards' && canReadCards && !issue && !cardEditor" class="sb-gift-panel sb-gift-list crm-surface"><header class="sb-gift-list-head"><label class="sb-gift-field"><span>Поиск на текущей странице</span><input class="crm-input" v-model="search" type="search" maxlength="160" placeholder="Код или заметка" /></label><button v-if="canManageCards" class="sb-gift-button crm-button crm-button--primary" :disabled="busy || loading" @click="openEditor()"><Plus :size="18" /> Выдать карту</button></header>
+      <table v-if="visibleCards.length" class="sb-gift-table"><caption class="sb-gift-sr-only">Выданные карты и их балансы</caption><thead><tr><th>Карта</th><th>Номинал и баланс</th><th>Выдача и срок</th><th>Статус</th><th>Действия</th></tr></thead><tbody><tr v-for="card in visibleCards" :key="card.id"><td data-label="Карта"><div class="sb-gift-cell"><strong>{{ card.maskedCode }}</strong><span v-if="card.label">{{ card.label }}</span><small>Версия {{ card.revision }}</small></div></td><td data-label="Баланс"><div class="sb-gift-cell"><strong>{{ money(card.balance) }}</strong><small>Номинал: {{ money(card.faceValue) }}</small><small>Зарезервировано: {{ money(card.reserved) }}</small></div></td><td data-label="Срок"><div class="sb-gift-cell"><small>Выдана: {{ date(card.issuedAt) }}</small><small>Действует до: {{ date(card.expiresAt) }}</small></div></td><td data-label="Статус"><span class="sb-gift-badge">{{ status(card) }}</span></td><td data-label="Действия"><div class="sb-gift-row-actions"><button v-if="canManageCards" class="sb-gift-icon-button crm-button" :disabled="busy" :aria-label="`Редактировать карту ${card.maskedCode}`" title="Редактировать" @click="openEditor(card)"><Pencil :size="18" /></button><button v-if="canManageCards" class="sb-gift-icon-button crm-button" :disabled="busy" :aria-label="`Открыть код карты ${card.maskedCode}`" title="Открыть полный код" @click="openDialog('reveal', card)"><Eye :size="18" /></button><button class="sb-gift-button sb-gift-button--white sb-gift-history-button crm-button" :disabled="busy" :aria-label="`История карты ${card.maskedCode}`" @click="openDialog('history', card)"><History :size="18" /> История</button><button v-if="canManageCards && card.isActive" class="sb-gift-icon-button crm-button" :disabled="busy" :aria-label="`Выключить карту ${card.maskedCode}`" title="Выключить с сохранением истории" @click="openDialog('deactivate', card)"><Power :size="18" /></button></div></td></tr></tbody></table>
       <div v-else-if="!loading" class="sb-gift-empty"><Gift :size="32" /><p>{{ search ? 'На этой странице карты не найдены.' : 'Выданных карт пока нет.' }}</p></div>
       <nav v-if="pageCount > 1" class="sb-gift-actions sb-gift-pagination" aria-label="Страницы выданных карт"><button class="sb-gift-button sb-gift-button--white crm-button" :disabled="busy || loading || page === 1" @click="changePage(page - 1)">Назад</button><span>Страница {{ page }} из {{ pageCount }}</span><button class="sb-gift-button sb-gift-button--white crm-button" :disabled="busy || loading || page >= pageCount" @click="changePage(page + 1)">Далее</button></nav>
     </div>
     <form v-if="tab === 'cards' && canManageCards && (issue || cardEditor)" ref="editorEl" class="sb-gift-panel sb-gift-form crm-surface" novalidate @submit.prevent="saveCard"><header class="sb-gift-form-head"><div><h3>{{ issue ? 'Ручная выдача карты' : `Карта ${cardEditor?.maskedCode}` }}</h3><small>{{ editorDirty ? 'Есть несохранённые изменения' : 'Заполните параметры и сохраните' }}</small></div><button type="button" class="sb-gift-icon-button crm-button crm-button--icon" :disabled="busy" aria-label="Закрыть редактор карты" @click="closeEditor"><ArrowLeft :size="20" /></button></header>
-      <fieldset :disabled="busy" class="sb-gift-fields"><template v-if="issue"><p class="sb-gift-note sb-gift-wide">Ручная выдача создаёт финансовое обязательство компании. Укажите основание; это не тестовый предпросмотр и не продажа с оплатой.</p><label class="sb-gift-field"><span>Номинал, ₽</span><input class="crm-input" v-model="issue.nominal" type="number" inputmode="numeric" min="1" max="1000000" step="1" placeholder="1000" required /></label><label class="sb-gift-field"><span>Срок действия, дней</span><input class="crm-input" v-model="issue.validityDays" inputmode="numeric" required /></label><label class="sb-gift-field sb-gift-wide"><span>Код карты</span><div class="sb-gift-code-input"><input class="crm-input" v-model="issue.code" maxlength="63" spellcheck="false" autocapitalize="characters" placeholder="Сгенерируется при выдаче" /><button type="button" class="sb-gift-button sb-gift-button--white crm-button" @click="generate"><Shuffle :size="18" /> Сгенерировать</button></div><small>Генерация кода сама по себе не выдаёт карту. Код скрывается после сохранения.</small></label><label class="sb-gift-field sb-gift-wide"><span>Заметка</span><input class="crm-input" v-model="issue.label" maxlength="160" placeholder="Получатель или назначение" /></label><label class="sb-gift-field sb-gift-wide"><span>Причина ручной выдачи</span><textarea class="crm-input" v-model="issue.reason" rows="3" maxlength="500" placeholder="Например, компенсация по согласованию руководителя" required /><small>Обязательное поле для финансовой истории.</small></label></template>
+      <fieldset :disabled="busy || (tab === 'cards' ? !canManageCards : !canWriteProduct)" class="sb-gift-fields"><template v-if="issue"><p class="sb-gift-note sb-gift-wide">Ручная выдача создаёт финансовое обязательство компании. Укажите основание; это не тестовый предпросмотр и не продажа с оплатой.</p><label class="sb-gift-field"><span>Номинал, ₽</span><input class="crm-input" v-model="issue.nominal" type="number" inputmode="numeric" min="1" max="1000000" step="1" placeholder="1000" required /></label><label class="sb-gift-field"><span>Срок действия, дней</span><input class="crm-input" v-model="issue.validityDays" inputmode="numeric" required /></label><label class="sb-gift-field sb-gift-wide"><span>Код карты</span><div class="sb-gift-code-input"><input class="crm-input" v-model="issue.code" maxlength="63" spellcheck="false" autocapitalize="characters" placeholder="Сгенерируется при выдаче" /><button type="button" class="sb-gift-button sb-gift-button--white crm-button" @click="generate"><Shuffle :size="18" /> Сгенерировать</button></div><small>Генерация кода сама по себе не выдаёт карту. Код скрывается после сохранения.</small></label><label class="sb-gift-field sb-gift-wide"><span>Заметка</span><input class="crm-input" v-model="issue.label" maxlength="160" placeholder="Получатель или назначение" /></label><label class="sb-gift-field sb-gift-wide"><span>Причина ручной выдачи</span><textarea class="crm-input" v-model="issue.reason" rows="3" maxlength="500" placeholder="Например, компенсация по согласованию руководителя" required /><small>Обязательное поле для финансовой истории.</small></label></template>
       <template v-else-if="cardEditor"><label class="sb-gift-field sb-gift-wide"><span>Заметка</span><input class="crm-input" v-model="cardEditor.label" maxlength="160" /></label><label class="sb-gift-field"><span>Действует до</span><input class="crm-input" v-model="cardEditor.expiresAt" type="datetime-local" required /></label><label class="sb-gift-checkbox crm-toggle-row"><input class="crm-check" v-model="cardEditor.isActive" type="checkbox" /> Карта включена</label><p class="sb-gift-note sb-gift-wide">Номинал и баланс не редактируются вручную. Финансовая история не удаляется. Изменения проверяются по версии карты.</p></template></fieldset>
       <footer class="sb-gift-actions"><button type="submit" class="sb-gift-button crm-button crm-button--primary" :disabled="busy"><Save :size="18" /> {{ busy ? 'Сохраняем…' : issue ? 'Выдать карту' : 'Сохранить изменения' }}</button><button type="button" class="sb-gift-button sb-gift-button--white crm-button" :disabled="busy" @click="closeEditor"><X :size="18" /> Отмена</button></footer>
     </form>

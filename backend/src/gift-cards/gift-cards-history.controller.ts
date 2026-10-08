@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { GiftCardIdDto, ListGiftCardsDto } from './gift-cards.dto';
 
@@ -16,6 +17,7 @@ export class GiftCardsHistoryController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get(':id/history')
+  @Permissions('gift_cards.read')
   @Header('Cache-Control', 'private, no-store')
   async history(@Param() params: GiftCardIdDto, @Query() query: ListGiftCardsDto = {}) {
     const page = query.page ?? 1;

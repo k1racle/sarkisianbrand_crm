@@ -12,6 +12,7 @@ import {
   List,
   ListChecks,
   MessageSquare,
+  UsersRound,
   Plus,
   RefreshCw,
   Search,
@@ -22,6 +23,7 @@ import {
 } from "@lucide/vue";
 const config = useRuntimeConfig(),
   route = useRoute();
+const router = useRouter();
 const { token } = useWorkspaceSession();
 const { openContextMenu } = useContextMenu();
 const tasks = ref<any[]>([]),
@@ -41,7 +43,7 @@ const tasks = ref<any[]>([]),
 const error = ref("");
 const selectedBaseline = ref("");
 const cardTab = ref('general');
-const {panel:taskPanel,keyboard:taskKeys}=useCatalogDialog(computed(()=>!!selected.value),()=>{closeTask();});
+const {panel:taskPanel,keyboard:taskKeys}=useCatalogDialog(computed(()=>!!selected.value),()=>{closeTask(true);});
 const createBaseline = ref("");
 const subtaskTitle = ref(''), subtaskAssignee = ref(''), attachmentBusy = ref(false), commentLoading = ref(false);
 const { can } = useWorkspaceAccess();
@@ -63,9 +65,10 @@ function openTask(task: any) {
 function canDiscard() {
   return !saving.value && !attachmentBusy.value && (!(dirty.value || createDirty.value || comment.value.trim() || subtaskTitle.value.trim()) || window.confirm("Отменить несохранённые изменения и текст комментария?"));
 }
-function closeTask() {
+function closeTask(clearLink = false) {
   if (!canDiscard()) return false;
   selected.value = null; selectedBaseline.value = ""; comment.value = ""; subtaskTitle.value = '';
+  if (clearLink && route.query.task) void router.replace({ query: { ...route.query, task: undefined, tab: undefined, notification: undefined } });
   return true;
 }
 function closeCreate() {
@@ -83,6 +86,7 @@ onBeforeRouteLeave(() => canDiscard());
 const draft = reactive<any>({
   title: "",
   description: "",
+  participants: [],
   assignedToId: "",
   leadId: "",
   status: "TODO",
@@ -126,7 +130,7 @@ const filtered = computed(() =>
   tasks.value.filter(
     (t) =>
       !search.value ||
-      `${t.title} ${t.description || ""} ${t.assignedTo?.email || ""}`
+      `${t.title} ${t.description || ""} ${person(t.assignedTo)} ${t.assignedTo?.email || ""} ${(t.participants || []).map((row: any) => person(row.user)).join(' ')}`
         .toLowerCase()
         .includes(search.value.toLowerCase()),
   ),
@@ -222,6 +226,7 @@ function openCreate(seed: any = {}) {
     pipelineId: pipelineId.value,
     title: "",
     description: "",
+    participants: [],
     assignedToId: team.value[0]?.id || "",
     leadId: "",
     status: "TODO",
@@ -248,6 +253,8 @@ async function createTask() {
       headers: headers.value,
       body: {
         ...draft,
+        participants: undefined,
+        participantIds: draft.participants.map((row: any) => row.userId),
         assignedToId: draft.assignedToId || undefined,
         leadId: draft.leadId || undefined,
         startDate: draft.startDate
@@ -399,7 +406,15 @@ async function archiveTask(item: any) {
 function requestArchiveTask(item: any) {
   if (writable.value && !saving.value && window.confirm("Перенести задачу в архив?")) void archiveTask(item);
 }
-async function addComment() {
+function updateParticipants(rows: any[]) {
+  if (!selected.value) return;
+  const baseline = JSON.parse(selectedBaseline.value);
+  selected.value.participants = rows; baseline.participants = rows;
+  selectedBaseline.value = JSON.stringify(baseline);
+  const task = tasks.value.find(item => item.id === selected.value.id);
+  if (task) commitTask({ ...task, participants: rows });
+}
+async function addComment(mentionIds: string[] = []) {
   if (!writable.value || !selected.value || !comment.value.trim() || saving.value) return;
   const id = selected.value.id;
   saving.value = true; error.value = "";
@@ -408,9 +423,10 @@ async function addComment() {
     baseURL: config.public.apiBase,
     method: "POST",
     headers: headers.value,
-    body: { body: comment.value },
+    body: { body: comment.value, mentionIds },
   });
     comment.value = "";
+    if (created.participants) updateParticipants(created.participants);
     const task = tasks.value.find(item => item.id === id);
     if (task) commitTask({ ...task, comments: [created, ...(task.comments || [])], _count: { ...task._count, comments: Number(task._count?.comments || 0) + 1 } });
     const baseline = JSON.parse(selectedBaseline.value);
@@ -458,27 +474,30 @@ function shiftMonth(n: number) {
   );
 }
 let notificationTaskVersion = 0;
-watch(() => route.query.task, async id => {
+watch(() => [route.query.task, route.query.tab, route.query.notification], async ([id]) => {
   const version = ++notificationTaskVersion, identity = token.value;
   if (typeof id !== 'string' || !id || !closeTask()) return;
   try {
     const task = await $fetch<any>(`/crm/tasks/${encodeURIComponent(id)}`, { baseURL: config.public.apiBase, headers: headers.value });
     if (version !== notificationTaskVersion || identity !== token.value) return;
     pipelineId.value = task.pipelineId; await load();
-    if (version === notificationTaskVersion && identity === token.value) openTask(task);
+    if (version === notificationTaskVersion && identity === token.value) { openTask(task); if (route.query.tab === 'comments') cardTab.value = 'comments'; }
   } catch (e) { if (version === notificationTaskVersion && identity === token.value) failure(e); }
 });
 onBeforeUnmount(() => { ++notificationTaskVersion; });
 onMounted(async () => {
+  let linkedTask: any = null;
   if (route.query.task) {
-    try { const task = await $fetch<any>(`/crm/tasks/${encodeURIComponent(String(route.query.task))}`, { baseURL: config.public.apiBase, headers: headers.value }); pipelineId.value = task.pipelineId; }
+    try { const task = await $fetch<any>(`/crm/tasks/${encodeURIComponent(String(route.query.task))}`, { baseURL: config.public.apiBase, headers: headers.value }); linkedTask = task; pipelineId.value = task.pipelineId; }
     catch (e) { failure(e); loading.value = false; return; }
   }
   await load();
   if (route.query.lead) openCreate({ leadId: String(route.query.lead) });
   else if (route.query.create) openCreate();
-  else if (route.query.task)
-    openTask(tasks.value.find((item) => item.id === String(route.query.task)));
+  else if (route.query.task) {
+    openTask(linkedTask || tasks.value.find((item) => item.id === String(route.query.task)));
+    if (route.query.tab === 'comments') cardTab.value = 'comments';
+  }
 });
 </script>
 <template>
@@ -516,7 +535,7 @@ onMounted(async () => {
             id="task-query"
             aria-label="Поиск задач"
             v-model="search"
-            placeholder="Найти задачу или ответственного"
+            placeholder="Найти задачу или сотрудника"
         /></label>
         <nav data-v-ui-acc13851dfa0>
           <button class="crm-button" data-v-ui-acc13851dfa0
@@ -589,6 +608,7 @@ onMounted(async () => {
                 >
               </footer>
               <small v-if="t._count?.comments" class="crm-task-summary"><MessageSquare :size="14" />{{ t._count.comments }} комм.</small>
+              <small v-if="t.participants?.length" class="crm-task-summary"><UsersRound :size="14" />Участники: {{ t.participants.length }}</small>
             </div>
             <button v-if="writable" data-v-ui-acc13851dfa0 class="add crm-button" @click="openCreate({ status: col.id })">
               <Plus data-v-ui-acc13851dfa0 :size="13" />Добавить
@@ -668,14 +688,14 @@ onMounted(async () => {
         </div>
       </section></template
     >
-    <aside data-v-ui-acc13851dfa0 v-if="selected" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="closeTask">
+    <aside data-v-ui-acc13851dfa0 v-if="selected" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="closeTask(true)">
       <div data-v-ui-acc13851dfa0 ref="taskPanel" @keydown="taskKeys" tabindex="-1" role="dialog" aria-modal="true" aria-label="Карточка задачи" class="drawer admin-dialog admin-dialog--drawer crm-detail-card">
         <header data-v-ui-acc13851dfa0>
           <div data-v-ui-acc13851dfa0>
             <p data-v-ui-acc13851dfa0>КАРТОЧКА ЗАДАЧИ</p>
             <h2 data-v-ui-acc13851dfa0>{{ selected.title }}</h2>
           </div>
-          <button class="crm-button crm-button--icon" data-v-ui-acc13851dfa0 :disabled="saving" aria-label="Закрыть задачу" @click="closeTask"><X data-v-ui-acc13851dfa0 :size="18" /></button>
+          <button class="crm-button crm-button--icon" data-v-ui-acc13851dfa0 :disabled="saving" aria-label="Закрыть задачу" @click="closeTask(true)"><X data-v-ui-acc13851dfa0 :size="18" /></button>
         </header>
         <CrmCardTabs v-model="cardTab" prefix="task" />
         <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-1 class="body fields admin-dialog-body crm-detail-body" :disabled="saving" >
@@ -712,6 +732,7 @@ onMounted(async () => {
               >Начало<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.startDate" type="date" /></label
             ><label data-v-ui-acc13851dfa0>Срок<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.dueDate" type="date" /></label>
           </div>
+          <CrmTaskParticipants :key="selected.id" :model-value="selected.participants || []" :task-id="selected.id" :writable="writable" :disabled="saving" @update:model-value="updateParticipants" @busy="attachmentBusy = $event" />
           <button v-if="selected.parent" class="crm-work-button crm-button" @click="openTask(tasks.find(t => t.id === selected.parent.id))"><CornerDownRight :size="16" />{{ selected.parent.title }}</button>
           <label data-v-ui-acc13851dfa0
             >Прогресс — {{ selected.progress }}%<input data-v-ui-acc13851dfa0
@@ -725,7 +746,7 @@ onMounted(async () => {
           <section v-show="cardTab==='subtasks'" id="task-subtasks-panel" role="tabpanel" aria-labelledby="task-subtasks-tab"><CrmSubtasks v-model:title="subtaskTitle" v-model:assignee="subtaskAssignee" :rows="taskChildren" :team="team" :busy="saving" :writable="writable" description="Общий прогресс рассчитывается по подзадачам. Завершите их перед закрытием задачи." @create="addSubtask" @toggle="toggleSubtask" @open="openTask" /></section>
           <section v-show="cardTab==='files'" id="task-files-panel" role="tabpanel" aria-labelledby="task-files-tab"><CrmTaskFiles :key="selected.id" :task-id="selected.id" @busy="attachmentBusy = $event" /></section>
           <section v-show="cardTab==='comments'" id="task-comments-panel" role="tabpanel" aria-labelledby="task-comments-tab">
-            <CrmCardComments v-model="comment" :entries="selected.comments || []" :total="selected._count?.comments || 0" :busy="saving" :writable="writable" @send="addComment">
+            <CrmCardComments :key="selected.id" v-model="comment" :task-id="selected.id" :entries="selected.comments || []" :total="selected._count?.comments || 0" :busy="saving || attachmentBusy" :writable="writable" @send="addComment">
               <button v-if="(selected.comments?.length || 0) < (selected._count?.comments || 0)" class="crm-button" :disabled="commentLoading" @click="moreComments">{{ commentLoading ? 'Загружаем…' : 'Ранее написанные комментарии' }}</button>
             </CrmCardComments>
           </section>
@@ -733,7 +754,7 @@ onMounted(async () => {
         </fieldset>
         <footer class="crm-detail-footer">
           <button v-if="writable" type="button" class="crm-button crm-button--danger" :disabled="saving || attachmentBusy" @click="requestArchiveTask(selected)"><Trash2 :size="18" />В архив</button>
-          <button type="button" class="crm-button" :disabled="saving || attachmentBusy" @click="closeTask">Отмена</button>
+          <button type="button" class="crm-button" :disabled="saving || attachmentBusy" @click="closeTask(true)">Отмена</button>
           <button v-if="writable" type="button" class="crm-button crm-button--primary" :disabled="saving || attachmentBusy || !dirty" @click="saveSelected">{{ saving ? 'Сохраняем…' : 'Сохранить изменения' }}</button>
         </footer>
       </div>
@@ -776,6 +797,7 @@ onMounted(async () => {
               </option>
             </select></label
           >
+          <CrmTaskParticipants v-model="draft.participants" :writable="writable" :disabled="saving" />
           <div data-v-ui-acc13851dfa0 class="two">
             <label data-v-ui-acc13851dfa0
               >Начало<input class="crm-input" data-v-ui-acc13851dfa0

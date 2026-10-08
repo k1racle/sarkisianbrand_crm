@@ -1,5 +1,5 @@
 // UI availability only. The API verifies the channel, payment and reservation again.
-export const WEB_ORDER_OPERATOR_ROLES = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'];
+export const WEB_ORDER_OPERATOR_ROLES = ['ADMIN', 'CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE'];
 
 type WebOrderActionState = {
   source?: string;

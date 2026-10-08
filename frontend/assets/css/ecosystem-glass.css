@@ -2,23 +2,23 @@
    Functional boundaries stay separate; surfaces, spacing and motion stay identical. */
 .workspace-frame,
 .b2b-frame {
-  --eco-ink: #171616;
-  --eco-muted: #777470;
-  --eco-line: rgba(28, 27, 26, .10);
+  --eco-ink: var(--brand-graphite);
+  --eco-muted: var(--brand-muted);
+  --eco-line: rgba(60,60,59, .10);
   --eco-glass: rgba(255, 255, 255, .72);
   --eco-glass-strong: rgba(255, 255, 255, .88);
-  --eco-shadow: 0 24px 70px rgba(32, 24, 20, .08), 0 3px 12px rgba(32, 24, 20, .04);
+  --eco-shadow: 0 24px 70px rgba(60,60,59, .08), 0 3px 12px rgba(60,60,59, .04);
   --sb-radius: 18px;
-  --sb-bg: #f5f3f1;
+  --sb-bg: var(--brand-bg);
   --sb-panel: rgba(255, 255, 255, .78);
   --sb-line: var(--eco-line);
   --sb-ink: var(--eco-ink);
   --sb-ink-soft: #292828;
   --sb-muted: var(--eco-muted);
   background:
-    radial-gradient(circle at 3% 8%, rgba(213, 207, 201, .30), transparent 30rem),
-    radial-gradient(circle at 97% 35%, rgba(198, 207, 218, .26), transparent 38rem),
-    linear-gradient(180deg, #faf9f8 0, #f2f0ed 48%, #faf9f8 100%) !important;
+    radial-gradient(circle at 3% 8%, rgba(214,214,214, .30), transparent 30rem),
+    radial-gradient(circle at 97% 35%, rgba(214,214,214, .26), transparent 38rem),
+    linear-gradient(180deg, var(--brand-bg) 0, var(--brand-bg) 48%, var(--brand-bg) 100%) !important;
 }
 
 .workspace-frame > main,
@@ -77,7 +77,7 @@
   border: 1px solid rgba(255, 255, 255, .78) !important;
   border-radius: 20px !important;
   background: linear-gradient(135deg, rgba(255, 255, 255, .86), rgba(255, 255, 255, .64)) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .96), 0 15px 42px rgba(31, 27, 25, .055) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .96), 0 15px 42px rgba(60,60,59, .055) !important;
   -webkit-backdrop-filter: blur(20px) saturate(135%);
   backdrop-filter: blur(20px) saturate(135%);
 }
@@ -112,9 +112,9 @@
 .workspace-frame :is(.primary, .workspace-primary, .loyalty-save, .head-actions a:not(.light), .admin-submit),
 .b2b-frame :is(.primary, .cart-summary footer button) {
   border-radius: 13px !important;
-  background: linear-gradient(145deg, #252424, #111) !important;
+  background: linear-gradient(145deg, #252424, var(--brand-graphite)) !important;
   color: #fff !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 8px 20px rgba(20, 20, 20, .14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 8px 20px rgba(60,60,59, .14) !important;
 }
 
 .workspace-frame :is(button, .head-actions a, .space-card),
@@ -136,8 +136,8 @@
 .workspace-frame :is(.platform-note, .hero-kpis .revenue, .kpis article.accent) {
   border-radius: 22px !important;
   border: 1px solid rgba(255, 255, 255, .10) !important;
-  background: radial-gradient(circle at 5% 0, #35312f, transparent 35%), linear-gradient(145deg, #242323, #111) !important;
-  box-shadow: 0 18px 48px rgba(20, 20, 20, .14) !important;
+  background: radial-gradient(circle at 5% 0, #35312f, transparent 35%), linear-gradient(145deg, #242323, var(--brand-graphite)) !important;
+  box-shadow: 0 18px 48px rgba(60,60,59, .14) !important;
 }
 
 .workspace-frame .kpis article.accent :is(strong, span, small) {
@@ -149,8 +149,8 @@
 .b2b-frame .drawer {
   border-radius: 28px 0 0 28px !important;
   border-left: 1px solid rgba(255, 255, 255, .80) !important;
-  background: linear-gradient(145deg, rgba(255, 255, 255, .95), rgba(248, 246, 244, .90)) !important;
-  box-shadow: -24px 0 70px rgba(23, 20, 18, .14) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .95), rgba(214,214,214, .90)) !important;
+  box-shadow: -24px 0 70px rgba(60,60,59, .14) !important;
   -webkit-backdrop-filter: blur(28px) saturate(140%);
   backdrop-filter: blur(28px) saturate(140%);
 }

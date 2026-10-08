@@ -5,7 +5,7 @@ import { recordCrmChange, taskHistoryFields, leadHistoryFields } from './history
 import { taskStatusWhere } from './task-deadline';
 import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineStageDto, CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, CreateTaskTemplateDto, ReorderPipelineStagesDto, UpdateLeadDto, UpdatePipelineDto, UpdatePipelineStageDto, UpdateTaskDto, UpdateTaskTemplateDto } from './dto/crm.dto';
 
-const crmRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER_B2B, UserRole.MANAGER_SALES, UserRole.SUPERVISOR];
+const crmRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER_B2B, UserRole.MANAGER_SALES, UserRole.SUPERVISOR, UserRole.EXECUTIVE];
 const stages = [
   { name: 'Новые', code: 'NEW', color: '#8b8f98', sortOrder: 10, probability: 10 },
   { name: 'Первичный контакт', code: 'CONTACTED', color: '#4f7dcf', sortOrder: 20, probability: 25 },
@@ -240,10 +240,10 @@ export class CrmService {
     });
   }
 
-  async addTaskComment(id: string, dto: CreateTaskCommentDto, actorId: string) {
+  async addTaskComment(id: string, dto: CreateTaskCommentDto, actorId: string, mentions: { id: string; name: string }[] = []) {
     if (!dto.body.trim()) throw new BadRequestException('Введите текст комментария');
     if (!await this.prisma.task.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Задача не найдена');
-    return this.prisma.crmTaskComment.create({ data: { taskId: id, authorId: actorId, body: dto.body.trim() }, include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
+    return this.prisma.crmTaskComment.create({ data: { taskId: id, authorId: actorId, body: dto.body.trim(), mentions }, include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } } });
   }
 
   async moveTask(id: string, status: TaskStatus, beforeId?: string, actorId?: string) {

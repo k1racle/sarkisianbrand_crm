@@ -322,8 +322,8 @@
   margin: 0;
 }
 :where(.sb-storefront) .brand-note em {
-  font-family: Georgia, serif;
-  color: #fbb1a2;
+  font-family: var(--brand-font-body);
+  color: var(--brand-gray);
   font-weight: 400;
 }
 :where(.sb-storefront) .brand-note > p:last-child {
@@ -683,7 +683,7 @@
 }
 :where(.sb-storefront) .checkout-card {
   align-self: start;
-  background: #f8f7f7;
+  background: var(--brand-bg);
   padding: 28px;
 }
 :where(.sb-storefront) .checkout-card h2 {

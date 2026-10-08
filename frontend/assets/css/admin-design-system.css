@@ -6,13 +6,13 @@
  */
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) {
-  --admin-font: "Montserrat", Arial, sans-serif;
-  --admin-ink: #171616;
-  --admin-muted: #6b6661;
+  --admin-font: var(--brand-font-body);
+  --admin-ink: var(--brand-graphite);
+  --admin-muted: var(--brand-muted);
   --admin-bg: #f5f3f0;
-  --admin-line: rgba(28, 27, 26, .13);
+  --admin-line: rgba(60,60,59, .13);
   --admin-glass: linear-gradient(135deg, rgba(255, 255, 255, .91), rgba(255, 255, 255, .72));
-  --admin-shadow: inset 0 1px 0 rgba(255, 255, 255, .96), 0 16px 44px rgba(31, 27, 25, .055);
+  --admin-shadow: inset 0 1px 0 rgba(255, 255, 255, .96), 0 16px 44px rgba(60,60,59, .055);
   --admin-caption: .75rem;
   --admin-small: .875rem;
   --admin-body: 1rem;
@@ -22,13 +22,13 @@
   --sb-font: var(--admin-font);
   --sb-ink: var(--admin-ink);
   --sb-text: var(--admin-ink);
-  --sb-ink-soft: #302d2b;
+  --sb-ink-soft: var(--brand-graphite);
   --sb-muted: var(--admin-muted);
   --sb-bg: var(--admin-bg);
   --sb-panel: rgba(255, 255, 255, .88);
   --sb-line: var(--admin-line);
   --sb-coral: var(--admin-ink);
-  --sb-coral-soft: #eeeae6;
+  --sb-coral-soft: var(--brand-soft);
   --sb-radius: 20px;
   --eco-ink: var(--admin-ink);
   --eco-muted: var(--admin-muted);
@@ -42,7 +42,7 @@
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) {
-  background: radial-gradient(circle at 5% 5%, rgba(219, 211, 204, .3), transparent 35rem), linear-gradient(180deg, #faf9f7, #f3f0ed 55%, #faf9f7) !important;
+  background: radial-gradient(circle at 5% 5%, rgba(214,214,214, .3), transparent 35rem), linear-gradient(180deg, var(--brand-bg), #f3f0ed 55%, var(--brand-bg)) !important;
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) * {
@@ -162,7 +162,7 @@
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.platform-note, .hero-kpis .revenue, .kpis article.accent, .support-intro) {
-  background: linear-gradient(135deg, #302d2b, #171616) !important;
+  background: linear-gradient(135deg, var(--brand-graphite), var(--brand-graphite)) !important;
   color: #fff !important;
   border-color: rgba(255, 255, 255, .1) !important;
 }
@@ -201,7 +201,7 @@
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, a.primary, a.secondary, a.light, a.outline):hover:not(:disabled) {
   background: #f3f0ed !important;
-  border-color: rgba(28, 27, 26, .24) !important;
+  border-color: rgba(60,60,59, .24) !important;
   transform: none !important;
 }
 
@@ -221,8 +221,8 @@
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.tabs, .category-tabs, .audience-filter, .editor-tabs, .profile-tabs, .trash-types, .account-summary, .toolbar) button.active {
-  background: #171616 !important;
-  border-color: #171616 !important;
+  background: var(--brand-graphite) !important;
+  border-color: var(--brand-graphite) !important;
   color: #fff !important;
 }
 
@@ -267,7 +267,7 @@
   font-size: var(--admin-small) !important;
   font-weight: 400 !important;
   line-height: 1.5 !important;
-  box-shadow: inset 0 1px 2px rgba(28, 27, 26, .025);
+  box-shadow: inset 0 1px 2px rgba(60,60,59, .025);
   outline-offset: 3px;
 }
 
@@ -283,14 +283,14 @@
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(input[type="checkbox"], input[type="radio"]) {
-  accent-color: #171616 !important;
+  accent-color: var(--brand-graphite) !important;
   width: 18px;
   height: 18px;
   flex-shrink: 0;
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) input[type="range"] {
-  accent-color: #171616 !important;
+  accent-color: var(--brand-graphite) !important;
   max-width: 100%;
 }
 
@@ -313,7 +313,7 @@
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(button, a, input, select, textarea):focus-visible {
   outline: 2px solid #38332e !important;
   outline-offset: 3px !important;
-  box-shadow: 0 0 0 5px rgba(56, 51, 46, .1) !important;
+  box-shadow: 0 0 0 5px rgba(60,60,59, .1) !important;
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(input, select, textarea)[aria-invalid="true"] {
@@ -371,7 +371,7 @@
   font-weight: 600 !important;
   line-height: 1.5 !important;
   color: var(--admin-muted) !important;
-  background: rgba(239, 235, 231, .55) !important;
+  background: rgba(214,214,214, .55) !important;
 }
 
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .console-shell.console-shell, .admin-page.admin-page, .site-admin-console.site-admin-console, .crm-shell.crm-shell, .order-drawer.order-drawer, .editor-drawer.editor-drawer, .new-drawer.new-drawer, .platform-chat.platform-chat, .profile-drawer.profile-drawer, .account-drawer.account-drawer, .trash-drawer.trash-drawer, .pipeline-settings.pipeline-settings, .automation-backdrop.automation-backdrop, .integration-drawer.integration-drawer, .workspace-context.workspace-context, .reminder-center.reminder-center, .sb-gift-admin.sb-gift-admin, .sb-promotions-admin.sb-promotions-admin) :is(.order-row, .customer-row, .org-row, .staff-row, .audit-row, .sales-row, .account-row, .trash-row, .ticket-row, .list-row, .admin-product-row) {
@@ -436,8 +436,8 @@
   max-width: 100vw !important;
   border-left: 1px solid rgba(255, 255, 255, .9) !important;
   border-radius: 28px 0 0 28px !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(247, 244, 240, .96)) !important;
-  box-shadow: -20px 0 70px rgba(31, 27, 25, .13) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(214,214,214, .96)) !important;
+  box-shadow: -20px 0 70px rgba(60,60,59, .13) !important;
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
@@ -463,7 +463,7 @@
   height: 58px !important;
   min-height: 58px !important;
   padding: 0 !important;
-  background: #302d2b !important;
+  background: var(--brand-graphite) !important;
   color: #fff !important;
 }
 
@@ -471,9 +471,9 @@
 
 :is(.console-rail.console-rail, .b2b-rail.b2b-rail) {
   --sb-coral: #fff;
-  --sb-ink: #171616;
+  --sb-ink: var(--brand-graphite);
   --sb-muted: #bcb6b0;
-  --sb-font: "Montserrat", Arial, sans-serif;
+  --sb-font: var(--brand-font-body);
   font-family: var(--sb-font) !important;
 }
 
@@ -511,7 +511,7 @@
 }
 
 :is(.console-rail.console-rail, .b2b-rail.b2b-rail) .workspace-menu :is(button, a, strong) {
-  color: #171616 !important;
+  color: var(--brand-graphite) !important;
 }
 
 @media (max-width: 800px) {
@@ -584,7 +584,7 @@
 :is(.new-drawer.new-drawer, .integration-drawer.integration-drawer, .automation-backdrop.automation-backdrop .automation) > header {
   padding: 22px 24px !important;
   min-height: 88px !important;
-  border-bottom: 1px solid rgba(28, 27, 26, .13) !important;
+  border-bottom: 1px solid rgba(60,60,59, .13) !important;
 }
 
 /* QA: one readable caption scale, including dark dashboard surfaces. */
@@ -592,7 +592,7 @@
   font-size: .75rem !important;
   font-weight: 500 !important;
   line-height: 1.5 !important;
-  color: #6b6661 !important;
+  color: var(--brand-muted) !important;
 }
 :is(.workspace-frame.workspace-frame, .b2b-frame.b2b-frame, .admin-page.admin-page, .crm-shell.crm-shell) :is(.hero-kpis article.revenue, .kpis article.accent) > span,
 .workspace-frame.workspace-frame .welcome .kicker {

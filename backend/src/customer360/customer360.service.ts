@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CrmReadAccess, CrmReadPolicy } from '../crm/read-access';
 import { partnerBusinessActivated } from '../partners/partner-lifecycle';
 import { customerVisibility } from './customer-access';
-import { AddOrganizationMemberDto, CreateOrganizationDto, UpdateCustomerDto, UpdateOrganizationDto } from './dto/customer360.dto';
+import { AddOrganizationMemberDto, CreateCustomerDto, CreateOrganizationDto, UpdateCustomerDto, UpdateOrganizationDto } from './dto/customer360.dto';
 
 const person = { id: true, firstName: true, lastName: true, email: true } as const;
 const customerSelect = { id: true, firstName: true, lastName: true, email: true, phone: true, status: true, segment: true, source: true, accountManagerId: true, createdById: true, accountManager: { select: person }, createdAt: true, updatedAt: true } as const;
@@ -86,8 +86,14 @@ export class Customer360Service {
 
   customers(actor: string, search?: string, status?: CustomerStatus, segment?: string) { return this.run(actor, false, async ctx => {
     const query = search?.trim(), links = this.links(ctx);
+    const nameParts = query?.split(/\s+/).slice(0, 6) || [];
+    const digits = query && /^[+\d\s().-]+$/.test(query) ? this.phone(query) : null;
+    const phoneQuery = digits?.length === 11 && digits.startsWith('8') ? '7' + digits.slice(1) : digits;
+    const phoneQueries = phoneQuery && phoneQuery.length >= 3 ? [phoneQuery, ...(phoneQuery.length === 11 && phoneQuery.startsWith('7') ? ['8' + phoneQuery.slice(1)] : [])] : [];
     const rows = await ctx.db.customer.findMany({ where: { AND: [ctx.visible.customers, { ...(status ? { status } : {}), ...(segment ? { segment } : {}), ...(query ? { OR: [
       { firstName: { contains: query, mode: 'insensitive' } }, { lastName: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }, { phone: { contains: query } },
+      ...phoneQueries.map(value => ({ normalizedPhone: { contains: value } })),
+      ...(nameParts.length > 1 ? [{ AND: nameParts.map(part => ({ OR: [{ firstName: { contains: part, mode: 'insensitive' as const } }, { lastName: { contains: part, mode: 'insensitive' as const } }] })) }] : []),
       { organizationMemberships: { some: { AND: [links.memberships, { organization: { name: { contains: query, mode: 'insensitive' } } }] } } },
     ] } : {}) }] }, select: this.customerFields(ctx), orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] });
     const editable = await this.editable(ctx, 'customer', rows.map(row => row.id));
@@ -107,6 +113,32 @@ export class Customer360Service {
     return { ...row, orders, leads, interactions, helpdeskTickets, canWrite: editable.has(id), relatedAccess: this.relatedAccess(ctx) };
   }
   customer(actor: string, id: string) { return this.run(actor, false, ctx => this.customerCard(ctx, id)); }
+
+  createCustomer(actor: string, dto: CreateCustomerDto) { return this.run(actor, true, async ctx => {
+    const firstName = dto.firstName?.trim(), email = this.email(dto.email), phone = dto.phone?.trim() || null;
+    const digits = this.phone(phone);
+    if (!firstName) throw new BadRequestException('Укажите имя клиента');
+    if (!email && !phone) throw new BadRequestException('Укажите телефон или email, чтобы связаться с клиентом');
+    if (phone && (!/^[+\d\s().-]+$/.test(phone) || !digits || digits.length < 7 || digits.length > 15)) throw new BadRequestException('Проверьте телефон: от 7 до 15 цифр');
+    const normalizedPhone = digits?.length === 11 && digits.startsWith('8') ? '7' + digits.slice(1) : digits;
+    const phoneKeys = normalizedPhone ? [normalizedPhone, ...(normalizedPhone.length === 11 && normalizedPhone.startsWith('7') ? ['8' + normalizedPhone.slice(1)] : [])] : [];
+    const accountManagerId = dto.accountManagerId === undefined ? actor : dto.accountManagerId;
+    await this.manager(ctx, accountManagerId);
+    // The enclosing serializable mutation also protects simultaneous manual additions.
+    const duplicate = await ctx.db.customer.findFirst({ where: { OR: [
+      ...(email ? [{ normalizedEmail: email }, { email: { equals: email, mode: 'insensitive' as const } }] : []),
+      ...(normalizedPhone ? [{ normalizedPhone: { in: phoneKeys } }, { phone: { in: [phone!, ...phoneKeys, ...phoneKeys.map(value => '+' + value)] } }] : []),
+    ] }, select: { id: true } });
+    if (duplicate) {
+      const visible = await customerVisibility(ctx.db, ctx.read);
+      const readable = await ctx.db.customer.findFirst({ where: { AND: [{ id: duplicate.id }, visible.customers] }, select: { id: true } });
+      throw new ConflictException({ message: 'Клиент с таким телефоном или email уже есть в базе.', code: 'CUSTOMER_EXISTS', ...(readable ? { existingCustomerId: readable.id } : {}) });
+    }
+    const row = await ctx.db.customer.create({ data: { firstName, lastName: dto.lastName?.trim() || null, email, phone, normalizedEmail: email, normalizedPhone, segment: dto.segment || 'B2C', source: 'MANUAL', status: 'ACTIVE', accountManagerId, createdById: actor }, select: { id: true } });
+    const result = await this.customerCard(ctx, row.id);
+    await this.audit(ctx, 'customer', row.id, 'Создан клиент', null, accountManagerId);
+    return result;
+  }); }
 
   organizations(actor: string, search?: string, status?: OrganizationStatus) { return this.run(actor, false, async ctx => {
     const query = search?.trim();

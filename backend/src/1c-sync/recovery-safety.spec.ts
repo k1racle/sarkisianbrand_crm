@@ -23,6 +23,6 @@ describe('1C recovery boundary (no provider/network)', () => {
   it('alternate HTTP exchange cannot bypass source domain COMPANY permissions', () => {
     expect(Reflect.getMetadata(COMPANY_SCOPE, OneCSyncController)).toEqual(['integrations.read']);
     expect(Reflect.getMetadata(COMPANY_SCOPE, OneCSyncController.prototype.syncProducts)).toEqual(['integrations.write', 'catalog.read', 'catalog.write']);
-    expect(Reflect.getMetadata(COMPANY_SCOPE, OneCSyncController.prototype.exchange)).toEqual(expect.arrayContaining(['customers.write', 'oms.write', 'web_orders.manage', 'marketplace.write']));
+    expect(Reflect.getMetadata(COMPANY_SCOPE, OneCSyncController.prototype.exchange)).toEqual(expect.arrayContaining(['customers.write', 'oms.write', 'web_orders.write', 'marketplace.write']));
   });
 });

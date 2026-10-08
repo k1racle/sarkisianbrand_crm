@@ -21,7 +21,7 @@ function matches(value: any, where: any): boolean {
   const list = (x: any) => Array.isArray(x) ? x : [x];
   return Object.entries(where).every(([key, test]: [string, any]) => {
     if (key === 'AND') return list(test).every(t => matches(value, t));
-    if (key === 'OR') return list(test).some(t => matches(value, t));
+    if (key === 'OR') return list(test).filter(t => Object.keys(t).length > 0).some(t => matches(value, t));
     if (key === 'NOT') return list(test).every(t => !matches(value, t));
     if (key === 'in') return test.includes(value);
     if (key === 'not') return !matches(value, test);
@@ -40,6 +40,13 @@ const origin = (parent: any) => ({ originKind: 'TASK', task: parent, lead: null 
 const file = (origins: any[] = [], patch: any = {}) => ({ id: 'file', kind: 'FILE', name: 'Brief.txt', scope: 'TEAM', ownerId: actor.id, size: 12, parentId: null, deletedAt: null, tasks: [], leads: [], restricted: origins.length > 0, restrictions: origins, storageKey: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', ...patch });
 
 describe('Durable drive policy (generated query semantics)', () => {
+  it.each([['crm.read', 'crm.write'], ['crm.read', 'crm.write', 'content_plan.read', 'content_plan.write']])('company grants keep ordinary task attachments accessible: %j', (...permissions: string[]) => {
+    const read = policy('COMPANY', 'crm.read', 'COMPANY', permissions);
+    const write = policy('COMPANY', 'crm.write', 'COMPANY', permissions);
+    const attached = file([origin({ ...task(), publication: null })]);
+    expect(matches(attached, driveWhere(read, 'TEAM', write))).toBe(true);
+    expect(matches(file([origin(null)]), driveWhere(read, 'TEAM', write))).toBe(false);
+  });
   it.each(['OWN', 'PARTICIPATING', 'DEPARTMENT', 'DEPARTMENT_TREE', 'SELECTED_DEPARTMENTS', 'COMPANY'])('%s protects public, private and multi-parent material', scope => {
     const predicate = driveWhere(policy(scope));
     expect(matches(file(), predicate)).toBe(true);

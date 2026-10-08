@@ -1,4 +1,5 @@
 .git
+TEST_ACCOUNTS.local.txt
 **/node_modules
 **/.output
 **/.nuxt

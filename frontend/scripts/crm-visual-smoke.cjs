@@ -90,10 +90,10 @@ async function main() {
   await page.getByRole("button", { name: "Настроить" }).click();
   await page.locator(".pipeline-settings").waitFor();
   const pipelineRequiredFields = await page
-    .locator('.pipeline-settings fieldset input[type="checkbox"]')
+    .locator('.pipeline-settings .crm-pipeline-required-fields input[type="checkbox"]')
     .count();
   const configurableStages = await page
-    .locator(".pipeline-settings .stages article")
+    .locator(".pipeline-settings .crm-pipeline-stage")
     .count();
   await page.screenshot({
     path: path.join(output, "crm-pipeline-settings.png"),

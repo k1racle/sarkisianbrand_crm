@@ -6,6 +6,7 @@ import { activeTaskStatuses, overdueTasksWhere, taskStatusWhere, withDeadline } 
 import { leadHistoryFields, taskHistoryFields } from './history';
 import { Customer360Service } from '../customer360/customer360.service';
 import { customerVisibility } from '../customer360/customer-access';
+import { taskParticipants } from './task-collaboration';
 
 const person = { id: true, firstName: true, lastName: true, email: true } as const;
 const pipelineInclude = { stages: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] } };
@@ -31,7 +32,7 @@ export class CrmReadService {
       // Readers can see the team relevant to their records. Assignment choices
       // are intersected with write scope when a separate write grant exists.
       const writable = policy.allowed('crm.write') ? await this.access.resolve(db, actorId, 'crm.write') : null;
-      return db.user.findMany({ where: { AND: [{ role: { in: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'] } }, policy.assignees(), ...(writable ? [writable.assignees()] : [])] }, select: { ...person, role: true }, orderBy: [{ firstName: 'asc' }, { email: 'asc' }, { id: 'asc' }] });
+      return db.user.findMany({ where: { AND: [{ role: { in: ['ADMIN', 'MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE'] } }, policy.assignees(), ...(writable ? [writable.assignees()] : [])] }, select: { ...person, role: true }, orderBy: [{ firstName: 'asc' }, { email: 'asc' }, { id: 'asc' }] });
     });
   }
   publicationTask(actorId: string, id: string) {
@@ -42,7 +43,7 @@ export class CrmReadService {
     }, 'content_plan.read');
   }
   private taskInclude(policy: CrmReadPolicy) {
-    return { assignedTo: { select: person }, createdBy: { select: person },
+    return { assignedTo: { select: person }, createdBy: { select: person }, participants: taskParticipants,
       children: { where: { AND: [policy.tasks(), { status: { not: TaskStatus.CANCELLED } }] }, orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }], select: { id: true, title: true, status: true, priority: true, progress: true, dueDate: true, assignedToId: true, assignedTo: { select: person } } },
       reminders: { where: { recipientId: policy.actorId, dismissedAt: null }, orderBy: { remindAt: 'asc' as const } },
       comments: { include: { author: { select: person } }, orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }], take: 10 },

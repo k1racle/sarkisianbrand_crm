@@ -45,25 +45,25 @@
     .workspace-login,
     .b2b-login
   ) {
-    --ui-bg: #f6f6f8;
+    --ui-bg: var(--brand-bg);
     --ui-surface: #fff;
-    --ui-ink: #202127;
-    --ui-muted: #73757f;
+    --ui-ink: var(--brand-graphite);
+    --ui-muted: var(--brand-muted);
     --ui-danger: #b84f41;
     --ui-danger-soft: #fff1ef;
     --ui-success: #238f5d;
     --ui-success-soft: #edf7f1;
-    --ui-on-dark-muted: #c4c4cc;
-    --ui-brand-gradient: radial-gradient(ellipse at 0 0, rgba(157, 145, 132, 0.18), transparent 65%), linear-gradient(145deg, #252321, #151515);
+    --ui-on-dark-muted: var(--brand-gray);
+    --ui-brand-gradient: radial-gradient(ellipse at 0 0, rgba(157, 145, 132, 0.18), transparent 65%), linear-gradient(145deg, var(--brand-graphite), var(--brand-graphite));
     --ui-rail-ink: #fff;
-    --ui-rail-muted: #c4c4cc;
+    --ui-rail-muted: var(--brand-gray);
     --ui-rail-line: #ffffff24;
     --ui-rail-control: #ffffff08;
     --ui-rail-hover: #ffffff12;
     --ui-rail-active: #ffffff20;
-    --ui-line: #e6e7ec;
-    --ui-accent: #77709e;
-    --ui-accent-soft: #eeedf7;
+    --ui-line: var(--brand-gray);
+    --ui-accent: var(--brand-action);
+    --ui-accent-soft: var(--brand-soft);
     --ui-control-radius: 8px;
     --ui-card-radius: 12px;
     --ui-gutter: 24px;
@@ -291,7 +291,7 @@
     border-color: var(--ui-rail-line) !important;
   }
   .studio-rail .studio-area-switch option {
-    background: #252321 !important;
+    background: var(--brand-graphite) !important;
     color: var(--ui-rail-ink) !important;
   }
   .studio-rail :is(.wn-group-items, .rail-user),
@@ -302,7 +302,7 @@
     position: static !important;
     width: 100% !important;
     margin-top: 8px;
-    background: #252321 !important;
+    background: var(--brand-graphite) !important;
     box-shadow: none !important;
   }
   .b2b-rail .company svg {

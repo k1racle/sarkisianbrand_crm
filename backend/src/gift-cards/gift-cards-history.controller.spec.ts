@@ -50,7 +50,11 @@ describe('GiftCardsHistoryController (mock DB only)', () => {
   });
 
   it.each(['ADMIN', 'MANAGER_SALES', 'SUPERVISOR'])('allows role %s through the actual RolesGuard', async role => {
-    const guard = new RolesGuard(new Reflector(), { user: { findUnique: jest.fn().mockResolvedValue({ id: 'mock-staff', role, isActive: true, accessProfileMode: false }) } } as any);
+    const guard = new RolesGuard(new Reflector(), {
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'mock-staff', role, isActive: true, accessProfileMode: false }) },
+      rolePermission: { findMany: jest.fn().mockResolvedValue([{ permission: { key: 'gift_cards.read' } }]) },
+      userPermission: { findMany: jest.fn().mockResolvedValue([]) },
+    } as any);
     const context: any = {
       getClass: () => GiftCardsHistoryController,
       getHandler: () => GiftCardsHistoryController.prototype.history,

@@ -325,6 +325,7 @@ model User {
   managedLeads            Lead[]               @relation("ManagerLeads")
   createdLeads            Lead[]               @relation("CrmLeadCreator")
   taskComments            CrmTaskComment[]
+  taskParticipations      CrmTaskParticipant[]
   crmChannelsCreated      CrmChatChannel[]     @relation("CrmChannelCreator")
   crmChatMemberships      CrmChatMember[]
   crmChatMessages         CrmChatMessage[]     @relation("CrmMessageAuthor")
@@ -2308,6 +2309,7 @@ model Task {
   parent         Task?             @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children       Task[]            @relation("TaskHierarchy")
   comments       CrmTaskComment[]
+  participants   CrmTaskParticipant[]
   files          CrmTaskFile[]
   driveRestrictions CrmDriveRestriction[]
   publication    CrmPublication?
@@ -2397,6 +2399,18 @@ model CrmTaskReminder {
   @@index([recipientId, remindAt, dismissedAt])
 }
 
+model CrmTaskParticipant {
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedById String
+  createdAt DateTime @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId, taskId])
+}
+
 model CrmTaskComment {
   id        String   @id @default(uuid())
   taskId    String
@@ -2404,6 +2418,7 @@ model CrmTaskComment {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
   body      String
+  mentions  Json     @default("[]")
   createdAt DateTime @default(now())
 
   @@index([taskId, createdAt])

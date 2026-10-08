@@ -15,7 +15,7 @@ const showB2B = computed(() => isB2B.value && Boolean(b2bSession.token.value));
 useHead(() => isCrm.value ? {
   htmlAttrs: { lang: 'ru', 'data-crm-ui': 'true' },
   link: [{ rel: 'manifest', href: '/crm/manifest.webmanifest' }, { rel: 'apple-touch-icon', href: '/crm/pwa/icon-180.png?v=brand2' }, { rel: 'icon', type: 'image/svg+xml', href: '/crm/pwa/icon.svg?v=brand2' }],
-  meta: [{ name: 'theme-color', content: '#f6f7fb' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'SARKISIAN CRM' }, { name: 'robots', content: 'noindex, nofollow' }],
+  meta: [{ name: 'theme-color', content: '#3c3c3b' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'SARKISIAN CRM' }, { name: 'robots', content: 'noindex, nofollow' }],
 } : {});
 </script>
 

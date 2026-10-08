@@ -1,7 +1,7 @@
 .sb-storefront .sb-checkout-heading { scroll-margin-top: 120px; }
 .sb-checkout-steps { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--sf-gap); margin-bottom: 32px; }
 .sb-checkout-steps button { display: flex; align-items: center; gap: 12px; text-align: left; min-height: var(--sf-control); padding: 12px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); background: var(--sf-glass); color: var(--sf-muted); font-size: var(--sb-type-small); }
-.sb-checkout-steps i { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(28,27,26,.06); font-size: var(--sb-type-small); font-style: normal; }
+.sb-checkout-steps i { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(60,60,59,.06); font-size: var(--sb-type-small); font-style: normal; }
 .sb-checkout-steps button.active { border-color: var(--sf-black); color: var(--sf-black); }
 .sb-checkout-steps button > span { flex: 1; min-width: 0; }
 .sb-storefront .sb-checkout-steps button > svg { flex: none; width: var(--sf-icon-action); height: var(--sf-icon-action); }
@@ -46,7 +46,7 @@
 .sb-checkout-summary > small { color: var(--sf-muted); font-size: var(--sb-type-caption); }
 .sb-storefront .sb-delivery-providers { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 24px 0 18px; }
 .sb-storefront .sb-delivery-providers button { min-width: 0; min-height: 142px; padding: 16px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); display: grid; align-content: start; gap: 10px; text-align: left; background: var(--sf-glass); color: var(--sf-black); cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
-.sb-storefront .sb-delivery-providers button:hover:not(:disabled) { background: var(--sf-glass-strong); border-color: rgba(28,27,26,.28); }
+.sb-storefront .sb-delivery-providers button:hover:not(:disabled) { background: var(--sf-glass-strong); border-color: rgba(60,60,59,.28); }
 .sb-storefront .sb-delivery-providers button.active { border-color: var(--sf-black); box-shadow: var(--sf-focus-ring); background: #fff; }
 .sb-storefront .sb-delivery-providers button:disabled { opacity: .62; cursor: default; }
 .sb-storefront .sb-delivery-provider__mark { width: 42px; height: 42px; box-sizing: border-box; display: inline-flex; flex: 0 0 42px; align-items: center; justify-content: center; gap: 6px; overflow: hidden; border-radius: 12px; background: #e9e6e3; color: var(--sf-black); }
@@ -54,8 +54,8 @@
 .sb-storefront .sb-delivery-provider__mark > b { display: none; }
 .sb-storefront .sb-delivery-provider__mark.is-CDEK { background: #e8f2e8; color: #278242; }
 .sb-storefront .sb-delivery-provider__mark.is-OZON_DELIVERY { background: #e8f0ff; color: #1769d2; }
-.sb-storefront .sb-delivery-provider__mark.is-YANDEX_DELIVERY { background: #fff3c4; color: #111; }
-.sb-storefront .sb-delivery-provider__logo { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; background: #ffcc00; color: #111; font-size: var(--sb-type-body); font-weight: 800; line-height: 1; }
+.sb-storefront .sb-delivery-provider__mark.is-YANDEX_DELIVERY { background: #fff3c4; color: var(--brand-graphite); }
+.sb-storefront .sb-delivery-provider__logo { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; background: #ffcc00; color: var(--brand-graphite); font-size: var(--sb-type-body); font-weight: 800; line-height: 1; }
 .sb-storefront .sb-delivery-providers strong { font-size: var(--sb-type-small); font-weight: var(--sb-weight-semibold); }
 .sb-storefront .sb-delivery-providers button > span:last-child { color: var(--sf-muted); font-size: var(--sb-type-caption); line-height: 1.45; }
 .sb-storefront .sb-checkout-label { margin: 22px 0 0; color: var(--sf-muted); font-size: var(--sb-type-small); font-weight: var(--sb-weight-semibold); }

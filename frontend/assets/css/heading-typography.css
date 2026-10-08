@@ -1,35 +1,61 @@
-/* Shared heading font for CRM and the public site. Imported first so the
- * intentional !important family survives legacy workspace resets in all dialogs.
- * Sizes, line heights, spacing, body copy and controls keep their existing owners.
- * The supplied static Heavy face is 900, not a variable 400–900 font. */
+/* Shared brand fonts, including teleported dialogs. Imported first so the
+ * intentional !important roles survive legacy workspace resets.
+ * Register the supplied static Regular/Bold files under their CSS style weights. */
 @font-face {
   font-family: Mont;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 400;
   font-display: swap;
-  src: url('/fonts/mont/Mont-HeavyDEMO.otf') format('opentype');
+  src: url('/fonts/mont/Mont-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: Mont;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/mont/Mont-Bold.woff2') format('woff2');
 }
 :root {
   --sb-font-heading: Mont, Montserrat, Arial, sans-serif;
-  --sb-weight-heading: 900;
+  --sb-weight-heading: 700;
 }
 @layer heading-typography {
-  :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6),
+  :is(.sb-storefront, .sb-glass-layer, .workspace-frame, .b2b-frame, .b2b-login, .workspace-login, .admin-dialog) :is(h1, h2, h3, h4, h5, h6),
   html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) {
     font-family: var(--sb-font-heading) !important;
     font-weight: var(--sb-weight-heading) !important;
     font-synthesis: none;
   }
-  :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6) :where(span, em, strong, b, i, a),
+  :is(.sb-storefront, .sb-glass-layer, .workspace-frame, .b2b-frame, .b2b-login, .workspace-login, .admin-dialog) :is(h1, h2, h3, h4, h5, h6) :where(span, em, strong, b, i, a),
   html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) :where(span, em, strong, b, i, a) {
     font-family: inherit !important;
     font-weight: inherit !important;
   }
-  /* A button inside a heading is still a control, not heading text. */
+  /* Controls keep their own role even when nested inside a heading. */
   :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea),
   :is(.sb-storefront, .sb-glass-layer) :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea) *,
   html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea),
   html[data-crm-ui] :is(h1, h2, h3, h4, h5, h6) :is(button, input, select, textarea) * {
-    font-family: var(--sb-font) !important;
+    font-family: var(--brand-font-ui) !important;
+  }
+  :is(.sb-storefront, .sb-glass-layer, .workspace-frame, .b2b-frame, .b2b-login, .b2b-rail, .studio-rail, .workspace-login, .admin-dialog, .workspace-context, .reminder-center) :is(button, input, select, textarea, label, .eyebrow, .kicker),
+  html[data-crm-ui] :is(button, input, select, textarea, label, .eyebrow, .kicker) {
+    font-family: var(--brand-font-ui) !important;
+    font-weight: var(--brand-weight-control) !important;
+  }
+  :is(.sb-storefront, .sb-glass-layer, .workspace-frame, .b2b-frame, .b2b-login, .workspace-login, .admin-dialog) :is(button, label) :where(span, em, small, b, strong),
+  html[data-crm-ui] :is(button, label) :where(span, em, small, b, strong) {
+    font-family: inherit !important;
+    font-weight: inherit !important;
+  }
+  :is(.sb-storefront, .sb-glass-layer) :is(.sb-primary, .sb-secondary, .sb-liquid-primary, .sb-catalog-button, .sb-quick-add, .sb-section-head > a),
+  html[data-crm-ui] :is(kbd, .crm-button, a.primary) {
+    font-family: var(--brand-font-ui) !important;
+    font-weight: var(--brand-weight-control) !important;
+  }
+  /* Emphasis uses the supplied Bold face. */
+  :is(.sb-storefront, .sb-glass-layer, .workspace-frame, .b2b-frame, .b2b-login, .workspace-login, .admin-dialog) :is(strong, b),
+  html[data-crm-ui] :is(strong, b) {
+    font-weight: 700 !important;
   }
 }

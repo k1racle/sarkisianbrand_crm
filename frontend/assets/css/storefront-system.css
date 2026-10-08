@@ -1,20 +1,20 @@
 /* Canonical storefront primitives. Legacy selectors are aliases, not separate variants. */
 :is(.sb-storefront, .sb-glass-layer) {
-  --sf-black: #151515;
-  --sf-action-hover: #292929;
-  --sf-muted: #6b6661;
+  --sf-black: var(--brand-graphite);
+  --sf-action-hover: var(--brand-action-hover);
+  --sf-muted: var(--brand-muted);
   --sf-coral: var(--sf-black);
-  --sf-coral-soft: #e5e1dd;
-  --sf-line: rgba(28, 27, 26, .14);
+  --sf-coral-soft: var(--brand-soft);
+  --sf-line: rgba(60,60,59, .14);
   --sf-on-dark: #fff;
   --sf-muted-on-dark: rgba(255,255,255,.72);
   --sf-glass: rgba(255, 255, 255, .68);
   --sf-glass-strong: rgba(255, 255, 255, .88);
   --sf-glass-border: rgba(255, 255, 255, .85);
   --sf-surface: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.42));
-  --sf-surface-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 16px 40px rgba(28,27,26,.06);
-  --sf-action-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 10px 24px rgba(20,18,17,.14);
-  --sf-focus-ring: 0 0 0 3px rgba(21,21,21,.12);
+  --sf-surface-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 16px 40px rgba(60,60,59,.06);
+  --sf-action-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 10px 24px rgba(60,60,59,.14);
+  --sf-focus-ring: 0 0 0 3px rgba(60,60,59,.12);
   --sf-radius-panel: 24px;
   --sf-radius-control: 14px;
   --sf-radius-compact: 12px;
@@ -96,11 +96,11 @@
 .sb-storefront .sb-club-banner .sb-club-join {
   background: var(--sf-club-material);
   border-color: rgba(255,255,255,.24);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 10px 24px rgba(11,10,22,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 10px 24px rgba(60,60,59,.24);
 }
 .sb-storefront .sb-club-banner .sb-club-join:hover:not(:disabled) {
   background: var(--sf-club-material);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.42), 0 12px 28px rgba(11,10,22,.34);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.42), 0 12px 28px rgba(60,60,59,.34);
 }
 .sb-storefront .sb-club-banner .sb-club-about,
 .sb-storefront .sb-club-banner .sb-club-about:hover {
@@ -227,7 +227,7 @@
 .sb-storefront .sb-footer__socials a:last-child img { width: var(--sf-icon); height: var(--sf-icon); }
 
 /* Tabs, navigation and text actions remain distinct from purchase buttons. */
-:is(.sb-storefront, .sb-glass-layer) :is(.sb-auth-tabs, .sb-drawer-tabs) { padding: 4px; gap: 4px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); background: rgba(235,230,226,.64); }
+:is(.sb-storefront, .sb-glass-layer) :is(.sb-auth-tabs, .sb-drawer-tabs) { padding: 4px; gap: 4px; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); background: rgba(214,214,214,.64); }
 :is(.sb-storefront, .sb-glass-layer) :is(.sb-auth-tabs, .sb-drawer-tabs) button { height: var(--sf-control-compact); border: 0; border-radius: var(--sf-radius-compact); background: transparent; color: var(--sf-muted); font-size: var(--sb-type-small); }
 :is(.sb-storefront, .sb-glass-layer) :is(.sb-auth-tabs, .sb-drawer-tabs) button.active { background: var(--sf-glass-strong); color: var(--sf-black); box-shadow: var(--sf-surface-shadow); }
 :is(.sb-storefront, .sb-glass-layer) .sb-social-buttons button { min-height: var(--sf-control); border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); background: var(--sf-glass); font-size: var(--sb-type-small); color: var(--sf-black); }
@@ -271,7 +271,7 @@
 .sb-storefront .sb-product-card .sb-card-add-mobile { display: none; }
 .sb-glass-layer button.sb-forgot { width: auto; height: auto; min-height: 32px; margin-left: auto; padding: 0; border: 0; border-radius: 0; background: none; color: var(--sf-muted); box-shadow: none; text-decoration: underline; font-size: var(--sb-type-small); }
 .sb-glass-layer .sb-drawer-form .sb-auth-consent { display: flex; align-items: flex-start; gap: 10px; font-size: var(--sb-type-small); line-height: var(--sb-leading-body); }
-.sb-glass-layer .sb-auth-consent input { flex: none; width: 18px; height: 18px; margin: 3px 0 0; accent-color: #171717; }
+.sb-glass-layer .sb-auth-consent input { flex: none; width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--brand-graphite); }
 .sb-glass-layer .sb-auth-consent a { text-decoration: underline; text-underline-offset: 3px; }
 .sb-storefront .sb-product-card { display: flex; flex-direction: column; }
 .sb-storefront .sb-product-card__visual { flex: none; }

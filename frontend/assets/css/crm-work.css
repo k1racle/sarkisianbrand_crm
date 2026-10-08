@@ -5,7 +5,7 @@
   html[data-crm-ui] .crm-app .partner-toggle input:checked + span { background:var(--crm-accent)!important; }
   html[data-crm-ui] .crm-pdf-viewer { display:flex!important; flex-direction:column!important; width:100%!important; height:100%!important; min-height:0!important; gap:8px!important; }
   html[data-crm-ui] .crm-pdf-stage { flex:1!important; overflow:auto!important; min-height:100px!important; padding:6px!important; }
-  html[data-crm-ui] .crm-pdf-stage canvas { display:block!important; max-width:none!important; background:#fff!important; margin:0 auto!important; box-shadow:0 2px 8px #27253815!important; }
+  html[data-crm-ui] .crm-pdf-stage canvas { display:block!important; max-width:none!important; background:#fff!important; margin:0 auto!important; box-shadow:0 2px 8px #3c3c3b15!important; }
   html[data-crm-ui] .crm-pdf-text { max-height:160px!important; overflow:auto!important; }
   html[data-crm-ui] .crm-pdf-text summary { min-height:44px!important; padding:10px!important; cursor:pointer!important; color:var(--crm-accent-ink)!important; }
   html[data-crm-ui] .crm-app input.crm-visually-hidden { display:none!important; }
@@ -103,7 +103,7 @@
   html[data-crm-ui] .crm-preview-body img { max-width:100% !important; max-height:65dvh !important; object-fit:contain !important; }
   html[data-crm-ui] .crm-preview-body iframe { width:100% !important; height:100% !important; border:0 !important; }
   html[data-crm-ui] .crm-preview-body pre { align-self:start !important; justify-self:stretch !important; white-space:pre-wrap !important; overflow-wrap:anywhere !important; margin:0 !important; }
-  html[data-crm-ui] .crm-upload-queue { position:fixed !important; z-index:45 !important; right:16px !important; bottom:calc(90px + env(safe-area-inset-bottom)) !important; width:min(440px,calc(100vw - 32px)) !important; max-height:45dvh !important; overflow:auto !important; background:#fff !important; border:1px solid var(--crm-line) !important; border-radius:16px !important; padding:16px !important; box-shadow:0 12px 36px #27253826 !important; }
+  html[data-crm-ui] .crm-upload-queue { position:fixed !important; z-index:45 !important; right:16px !important; bottom:calc(90px + env(safe-area-inset-bottom)) !important; width:min(440px,calc(100vw - 32px)) !important; max-height:45dvh !important; overflow:auto !important; background:#fff !important; border:1px solid var(--crm-line) !important; border-radius:16px !important; padding:16px !important; box-shadow:0 12px 36px #3c3c3b26 !important; }
   html[data-crm-ui] .crm-upload-row { display:flex !important; gap:12px !important; align-items:center !important; padding:10px 0 !important; border-top:1px solid var(--crm-line) !important; }
   html[data-crm-ui] .crm-upload-row > div { flex:1 !important; min-width:0 !important; display:grid !important; gap:6px !important; }
   html[data-crm-ui] .crm-upload-row strong { overflow-wrap:anywhere !important; }

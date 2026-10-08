@@ -25,10 +25,12 @@ export class OneCSyncController {
   syncProducts(@Body() dto: OneCProductsSyncDto, @Req() request: any) { return this.sync.syncProducts(dto, request.user.sub); }
 
   @Get('logs')
+  @Roles('ADMIN', 'WAREHOUSE', 'SUPERVISOR', 'IT_SUPPORT')
   @Permissions('integrations.read')
   logs() { return this.sync.logs(); }
 
   @Get('status')
+  @Roles('ADMIN', 'WAREHOUSE', 'SUPERVISOR', 'IT_SUPPORT')
   @Permissions('integrations.read')
   status() { return this.sync.status(); }
 
@@ -38,7 +40,7 @@ export class OneCSyncController {
   testConnection() { return this.sync.testConnection(); }
 
   @Post('exchange')
-  @CompanyScope('integrations.write', 'catalog.read', 'catalog.write', 'customers.read', 'customers.write', 'oms.read', 'oms.write', 'web_orders.read', 'web_orders.manage', 'marketplace.read', 'marketplace.write')
+  @CompanyScope('integrations.write', 'catalog.read', 'catalog.write', 'customers.read', 'customers.write', 'oms.read', 'oms.write', 'web_orders.read', 'web_orders.write', 'marketplace.read', 'marketplace.write')
   @Permissions('integrations.write')
   exchange(@Req() request: any) { return this.sync.runFullExchange(request.user.sub); }
 }

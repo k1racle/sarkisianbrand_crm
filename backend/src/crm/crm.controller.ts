@@ -12,7 +12,7 @@ import { CrmTaskWriteService } from './task-write.service';
 import { CrmLeadWriteService } from './lead-write.service';
 import { CrmRemindersService } from './reminders.service';
 import { CrmTaskPipelinesService, CreateTaskPipelineDto, UpdateTaskPipelineDto } from './task-pipelines.service';
-import { MoveTaskDto } from './dto/crm.dto';
+import { AddTaskParticipantDto, MoveTaskDto, TaskPeopleQueryDto } from './dto/crm.dto';
 import { CreateInteractionDto, CreateLeadDto, CreatePipelineDto, CreatePipelineStageDto, CreateTaskCommentDto, CreateTaskDto, CreateTaskFromTemplateDto, CreateTaskTemplateDto, ReorderPipelineStagesDto, UpdateLeadDto, UpdatePipelineDto, UpdatePipelineStageDto, UpdateTaskDto, UpdateTaskTemplateDto } from './dto/crm.dto';
 
 @ApiTags('crm')
@@ -27,6 +27,9 @@ export class CrmController {
 
   @Get('dashboard') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') dashboard(@Req() req: any) { return this.reads.dashboard(req.user.sub); }
   @Get('team') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') team(@Req() req: any) { return this.reads.team(req.user.sub); }
+  @Get('task-people') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') taskPeople(@Req() req: any, @Query() query: TaskPeopleQueryDto) { return this.tasksWrite.people(req.user.sub, query.q, query.taskId); }
+  @Post('tasks/:id/participants') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') addTaskParticipant(@Param('id') id: string, @Body() dto: AddTaskParticipantDto, @Req() req: any) { return this.tasksWrite.addParticipant(req.user.sub, id, dto.userId); }
+  @Delete('tasks/:id/participants/:userId') @Header('Cache-Control', 'private, no-store') @Permissions('crm.write') removeTaskParticipant(@Param('id') id: string, @Param('userId') userId: string, @Req() req: any) { return this.tasksWrite.removeParticipant(req.user.sub, id, userId); }
   @Get('customers') @Header('Cache-Control', 'private, no-store') @Permissions('customers.read') customers(@Req() req: any) { return this.reads.customers(req.user.sub); }
   @Get('pipeline') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') pipeline(@Req() req: any, @Query('pipelineId') pipelineId?: string) { return this.reads.pipeline(req.user.sub, pipelineId); }
   @Get('pipelines') @Header('Cache-Control', 'private, no-store') @Permissions('crm.read') pipelines(@Req() req: any) { return this.reads.pipelines(req.user.sub); }

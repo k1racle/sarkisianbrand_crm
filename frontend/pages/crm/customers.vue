@@ -1,6 +1,6 @@
 <script setup lang="ts">
 useHead({ title: 'Клиенты — SARKISIAN CRM' });
-import { Building2, ChevronLeft, ChevronRight, Headphones, Mail, Phone, RefreshCw, Search, ShoppingBag, UserRound, Users, X } from '@lucide/vue';
+import { Building2, ChevronLeft, ChevronRight, Headphones, Mail, Phone, Plus, RefreshCw, Search, ShoppingBag, SlidersHorizontal, UserPlus, UserRound, Users, X } from '@lucide/vue';
 const config = useRuntimeConfig();
 const route = useRoute();
 const { token, user } = useWorkspaceSession();
@@ -10,7 +10,7 @@ const customers = ref<any[]>([]);
 const loading = ref(false);
 const error = ref('');
 const { actionBusy, runOperation } = useWorkspaceOperation(error);
-const { selected, setEntity, closeEditor, markSaved, entityPanel, entityKeys } = useWorkspaceEntityDraft<any>(actionBusy);
+const { selected, draftDirty, setEntity, closeEditor, markSaved, entityPanel, entityKeys } = useWorkspaceEntityDraft<any>(actionBusy);
 const access = useWorkspaceAccess();
 const canEdit = computed(() => access.can('customers.write'));
 const search = ref('');
@@ -18,23 +18,40 @@ const status = ref('');
 const segment = ref('');
 const notice = ref('');
 const managers = ref<any[]>([]);
-const segmentFilters = [{ value: '', label: 'Все клиенты' }, { value: 'B2C', label: 'Розница · B2C' }, { value: 'B2B', label: 'Партнёры · B2B' }, { value: 'Лид', label: 'Лиды' }];
-const hasFilters = computed(() => Boolean(search.value || status.value || segment.value));
+const assignment = ref('');
+const sort = ref('updated');
+const filtersExpanded = ref(false);
+const duplicateId = ref('');
+const creating = computed(() => Boolean(selected.value && !selected.value.id));
+const extraFilterCount = computed(() => Number(Boolean(status.value)) + Number(Boolean(assignment.value)) + Number(sort.value !== 'updated'));
+const customerTab = ref('profile');
+const customerTabs = [{ value: 'profile', label: 'Профиль' }, { value: 'orders', label: 'Заказы' }, { value: 'support', label: 'Обращения' }];
+const segmentFilters = [{ value: '', label: 'Все клиенты', short: 'Все' }, { value: 'B2C', label: 'Розница · B2C', short: 'B2C' }, { value: 'B2B', label: 'Партнёры · B2B', short: 'B2B' }, { value: 'Лид', label: 'Лиды', short: 'Лиды' }];
+const assignmentFilters = [{ value: '', label: 'Все ответственные' }, { value: 'mine', label: 'Мои клиенты' }, { value: 'unassigned', label: 'Без менеджера' }];
+const hasFilters = computed(() => Boolean(search.value || status.value || segment.value || assignment.value));
+const filteredCustomers = computed(() => customers.value.filter(item => !assignment.value || (assignment.value === 'mine' ? Boolean(user.value?.id) && item.accountManagerId === user.value?.id : !item.accountManagerId)).sort((a, b) => {
+  if (sort.value === 'name') return customerName(a).localeCompare(customerName(b), 'ru');
+  if (sort.value === 'orders') return (b._count?.orders || 0) - (a._count?.orders || 0) || customerName(a).localeCompare(customerName(b), 'ru');
+  return new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
+}));
 const page = ref(1);
 const pageSize = 25;
-const pageCount = computed(() => Math.max(1, Math.ceil(customers.value.length / pageSize)));
-const visibleCustomers = computed(() => customers.value.slice((page.value - 1) * pageSize, page.value * pageSize));
-const summary = computed(() => [
-  { label: 'Всего клиентов', value: dashboard.value?.customers || 0, icon: UserRound },
-  { label: 'Активные', value: dashboard.value?.active || 0, icon: Users },
-  { label: 'Розничные B2C', value: dashboard.value?.b2cCustomers || 0, icon: ShoppingBag },
-  { label: 'Клиенты B2B', value: dashboard.value?.b2bCustomers || 0, icon: Building2 },
-]);
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredCustomers.value.length / pageSize)));
+const visibleCustomers = computed(() => filteredCustomers.value.slice((page.value - 1) * pageSize, page.value * pageSize));
 const customerName = (item: any) => [item.firstName, item.lastName].filter(Boolean).join(' ') || item.email || item.phone || 'Без имени';
 const managerName = (item: any) => [item.accountManager?.firstName, item.accountManager?.lastName].filter(Boolean).join(' ') || item.accountManager?.email || 'Не назначен';
-function resetFilters() { search.value = ''; status.value = ''; segment.value = ''; }
+function resetFilters() { search.value = ''; status.value = ''; segment.value = ''; assignment.value = ''; }
+function openRow(event: MouseEvent, customer: any) { if (!(event.target as HTMLElement).closest('a,button,input,select')) void openCustomer(customer); }
+const phoneHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`;
+function tabKeys(event: KeyboardEvent) {
+  const index = customerTabs.findIndex(tab => tab.value === customerTab.value);
+  const next = event.key === 'ArrowRight' ? (index + 1) % customerTabs.length : event.key === 'ArrowLeft' ? (index + customerTabs.length - 1) % customerTabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? customerTabs.length - 1 : -1;
+  if (next < 0) return;
+  event.preventDefault(); customerTab.value = customerTabs[next].value;
+  nextTick(() => document.getElementById(`customer-tab-${customerTab.value}`)?.focus());
+}
 const canWriteRecord = (record: any) => canEdit.value && record?.canWrite === true;
-const canEditSelected = computed(() => canWriteRecord(selected.value));
+const canEditSelected = computed(() => creating.value ? canEdit.value : canWriteRecord(selected.value));
 async function loadManagers() { managers.value = canEdit.value ? await $fetch<any[]>('/customer-360/team', { baseURL: config.public.apiBase, headers: headers.value }) : []; }
 let searchTimer: ReturnType<typeof setTimeout>;
 let loadVersion = 0;
@@ -62,13 +79,38 @@ async function load() {
   } catch (reason:any) { if (version === loadVersion) error.value = typeof reason?.data?.message === 'string' ? reason.data.message : 'Не удалось загрузить клиентов. Повторите попытку.'; }
   finally { if (version === loadVersion) loading.value = false; }
 }
-async function openCustomer(customer: any) {
+async function openCustomer(customer: any, tab = 'profile', focusManager = false) {
   if (!closeEditor()) return;
-  await runOperation(async () => { const [row] = await Promise.all([$fetch(`/customer-360/customers/${customer.id}`, { baseURL: config.public.apiBase, headers: headers.value }), loadManagers()]); setEntity(row); });
+  duplicateId.value = '';
+  await runOperation(async () => { const [row] = await Promise.all([$fetch(`/customer-360/customers/${customer.id}`, { baseURL: config.public.apiBase, headers: headers.value }), loadManagers()]); customerTab.value = tab; setEntity(row); });
+  if (focusManager && selected.value) { await nextTick(); entityPanel.value?.querySelector<HTMLSelectElement>('.crm-field select')?.focus(); }
+}
+async function openNewCustomer() {
+  if (!canEdit.value || !closeEditor()) return;
+  duplicateId.value = '';
+  await runOperation(async () => {
+    await loadManagers();
+    customerTab.value = 'profile';
+    setEntity({ firstName: '', lastName: '', email: '', phone: '', segment: segment.value || 'B2C', status: 'ACTIVE', accountManagerId: user.value?.id });
+  });
+  await nextTick(); entityPanel.value?.querySelector<HTMLInputElement>('input[name="firstName"]')?.focus();
 }
 async function saveCustomer() {
   if (!selected.value || !canEditSelected.value) return;
   await runOperation(async () => {
+  if (creating.value) {
+    duplicateId.value = '';
+    if (!selected.value.firstName?.trim()) { error.value = 'Укажите имя клиента'; return; }
+    if (!selected.value.phone?.trim() && !selected.value.email?.trim()) { error.value = 'Укажите телефон или email, чтобы связаться с клиентом'; return; }
+    let saved: any;
+    try {
+      saved = await $fetch('/customer-360/customers', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: { firstName: selected.value.firstName.trim(), lastName: selected.value.lastName?.trim() || undefined, email: selected.value.email?.trim() || undefined, phone: selected.value.phone?.trim() || undefined, segment: selected.value.segment, accountManagerId: selected.value.accountManagerId } });
+    } catch (reason: any) { duplicateId.value = reason?.data?.existingCustomerId || ''; throw reason; }
+    markSaved(saved); resetFilters(); sort.value = 'updated'; page.value = 1;
+    await nextTick(); clearTimeout(searchTimer); await load();
+    notice.value = 'Клиент добавлен'; setTimeout(() => notice.value = '', 2200);
+    return;
+  }
   const saved = await $fetch<any>(`/customer-360/customers/${selected.value.id}`, { baseURL: config.public.apiBase, method: 'PATCH', headers: headers.value, body: { firstName: selected.value.firstName || undefined, lastName: selected.value.lastName || undefined, phone: selected.value.phone || undefined, segment: selected.value.segment || undefined, status: selected.value.status, accountManagerId: selected.value.accountManagerId } });
   markSaved(saved);
   notice.value = 'Карточка клиента сохранена';
@@ -83,77 +125,130 @@ watch([search, status, segment], (next, previous) => {
   if (next[0] !== previous[0]) searchTimer = setTimeout(load, 300);
   else void load();
 });
+watch([assignment, sort], () => { page.value = 1; });
+watch(() => [selected.value?.firstName, selected.value?.phone, selected.value?.email], () => {
+  if (creating.value && !actionBusy.value) { duplicateId.value = ''; error.value = ''; }
+});
 onBeforeUnmount(() => { ++loadVersion; clearTimeout(searchTimer); });
 onMounted(async()=>{await load();const id=typeof route.query.customer==='string'?route.query.customer:'';const customer=customers.value.find(item=>item.id===id);if(customer)await openCustomer(customer);});
 </script>
 
 <template>
-  <main data-v-ui-765289f0fbc4 class="customer-page crm-standard crm-directory">
+  <main data-v-ui-765289f0fbc4 class="customer-page crm-standard crm-directory crm-customers-page">
     <header class="crm-page-header">
-      <div><h1>Клиенты</h1><span>Контакты, организации и история работы с клиентами</span></div>
-      <button class="crm-button crm-button--refresh" :disabled="loading" @click="load"><RefreshCw :size="16" :class="{ spin: loading }" /> Обновить</button>
+      <div>
+        <h1>Клиенты <span v-if="dashboard" class="crm-customer-title-count">{{ dashboard.customers }}</span></h1>
+        <span>Контакты, компании и история работы</span>
+      </div>
+      <div class="crm-customer-header-actions">
+        <button class="crm-button crm-button--icon" :disabled="loading" aria-label="Обновить" title="Обновить список" @click="load"><RefreshCw :size="18" :class="{ spin: loading }" /></button>
+        <button v-if="canEdit" class="crm-button crm-button--primary crm-customer-add" :disabled="actionBusy" @click="openNewCustomer"><Plus :size="18" /><span>Добавить клиента</span></button>
+      </div>
     </header>
-    <p v-if="error" class="operation-error" role="alert">{{ error }}</p>
-    <WorkspaceLoading v-if="!dashboard && loading" label="Собираем клиентские данные" />
+    <p v-if="error && !selected" class="operation-error" role="alert">{{ error }}</p>
+    <WorkspaceLoading v-if="!dashboard && loading" label="Загружаем клиентов" />
     <div v-else-if="dashboard" class="crm-page-content crm-directory-content">
-      <section class="crm-directory-summary" aria-label="Сводка по клиентам">
-        <article v-for="metric in summary" :key="metric.label" class="crm-surface crm-directory-metric">
-          <span class="crm-directory-metric-icon"><component :is="metric.icon" :size="20" /></span>
-          <span class="crm-directory-metric-label">{{ metric.label }}</span><strong>{{ metric.value }}</strong>
-        </article>
-      </section>
-      <section class="crm-surface crm-directory-register" aria-label="Список клиентов" :aria-busy="loading">
-        <div class="crm-directory-register-heading"><h2>Клиентская база <span>{{ customers.length }}</span></h2><small>Новых за 30 дней: {{ dashboard.newCustomers || 0 }}</small></div>
-        <nav class="crm-directory-tabs" aria-label="Сегменты клиентов">
-          <button v-for="filter in segmentFilters" :key="filter.value" class="crm-button" :aria-pressed="segment === filter.value" @click="segment = filter.value">{{ filter.label }}</button>
-        </nav>
-        <div class="crm-directory-toolbar">
-          <div class="crm-input-group crm-directory-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск клиентов" placeholder="Имя, email, телефон или организация" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск" @click="search = ''"><X :size="16" /></button></div>
-          <select v-model="status" class="crm-input" aria-label="Статус клиента"><option value="">Все статусы</option><option value="ACTIVE">Активные</option><option value="BLOCKED">Заблокированные</option><option value="ARCHIVED">Архив</option></select>
-          <button v-if="hasFilters" class="crm-button crm-button--text" @click="resetFilters"><X :size="16" /> Сбросить</button>
+      <section class="crm-surface crm-customer-register" :class="{ 'is-filters-open': filtersExpanded }" aria-label="Список клиентов" :aria-busy="loading">
+        <div class="crm-customer-register-head">
+          <nav class="crm-customer-segments" aria-label="Сегменты клиентов">
+            <button v-for="filter in segmentFilters" :key="filter.value" :aria-label="filter.label" :aria-pressed="segment === filter.value" @click="segment = filter.value"><span class="crm-customer-segment-full">{{ filter.label }}</span><span class="crm-customer-segment-short" aria-hidden="true">{{ filter.short }}</span></button>
+          </nav>
+          <span class="crm-customer-new-count"><span class="crm-customer-dot" /> Новых за 30 дней: <strong>{{ dashboard.newCustomers || 0 }}</strong></span>
         </div>
-        <div v-if="customers.length" class="crm-directory-columns" aria-hidden="true"><span>Клиент</span><span>Контакты</span><span>Организация и менеджер</span><span>Активность</span><span /></div>
-        <div class="crm-directory-rows">
-          <button v-for="customer in visibleCustomers" :key="customer.id" class="customer-row crm-button crm-card-action crm-directory-row" :disabled="actionBusy" @click="openCustomer(customer)" @contextmenu.prevent="customerMenu($event, customer)">
-            <span class="crm-directory-identity">
-              <span class="crm-directory-avatar">{{ customerName(customer).slice(0, 1).toUpperCase() }}</span>
-              <span class="crm-directory-stack"><strong>{{ customerName(customer) }}</strong><span class="crm-directory-badges"><span class="crm-directory-status" :data-status="customer.status">{{ statusLabels[customer.status] || customer.status }}</span><span v-if="customer.segment" class="crm-directory-segment">{{ customer.segment }}</span></span></span>
-            </span>
-            <span class="crm-directory-stack crm-directory-contacts">
-              <span class="crm-directory-icon-line"><Mail :size="15" aria-hidden="true" /><span>{{ customer.email || 'Email не указан' }}</span></span>
-              <span class="crm-directory-icon-line"><Phone :size="15" aria-hidden="true" /><span>{{ customer.phone || 'Телефон не указан' }}</span></span>
-            </span>
-            <span class="crm-directory-stack">
-              <span class="crm-directory-icon-line"><Building2 :size="15" aria-hidden="true" /><span>{{ customer.organizationMemberships?.[0]?.organization?.name || 'Без организации' }}<small v-if="customer.organizationMemberships?.length > 1"> +{{ customer.organizationMemberships.length - 1 }}</small></span></span>
-              <span class="crm-directory-icon-line" :class="{ 'crm-directory-unassigned': !customer.accountManager }"><UserRound :size="15" aria-hidden="true" /><span>Менеджер: {{ managerName(customer) }}</span></span>
-            </span>
-            <span class="crm-directory-stack crm-directory-activity">
-              <b>Заказы: {{ customer._count?.orders || 0 }}</b>
-              <small>Обращения: {{ customer._count?.helpdeskTickets || 0 }} · Контакты: {{ customer._count?.interactions || 0 }}</small>
-              <small v-if="customer._count?.leads">Лиды: {{ customer._count.leads }}</small>
-            </span>
-            <ChevronRight class="crm-directory-open" :size="18" aria-hidden="true" />
-          </button>
+        <div class="crm-customer-tools">
+          <div class="crm-input-group crm-customer-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск клиентов" placeholder="Найти клиента…" title="Поиск по имени, телефону, email или компании" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск" @click="search = ''"><X :size="16" /></button></div>
+          <button class="crm-button crm-button--icon crm-customer-filter-toggle" :aria-label="`Фильтры и сортировка${extraFilterCount ? `: ${extraFilterCount}` : ''}`" :aria-expanded="filtersExpanded" aria-controls="customer-status-filter customer-owner-filter customer-sort" @click="filtersExpanded = !filtersExpanded"><SlidersHorizontal :size="18" /><span v-if="extraFilterCount">{{ extraFilterCount }}</span></button>
+          <select id="customer-status-filter" v-model="status" class="crm-input crm-customer-extra-filter" aria-label="Статус клиента"><option value="">Все статусы</option><option value="ACTIVE">Активные</option><option value="BLOCKED">Заблокированные</option><option value="ARCHIVED">В архиве</option></select>
+          <select id="customer-owner-filter" v-model="assignment" class="crm-input crm-customer-extra-filter" aria-label="Ответственный менеджер"><option v-for="filter in assignmentFilters" :key="filter.value" :value="filter.value">{{ filter.label }}</option></select>
+          <select id="customer-sort" v-model="sort" class="crm-input crm-customer-extra-filter" aria-label="Сортировка клиентов"><option value="updated">Последние изменения</option><option value="name">По имени: А–Я</option><option value="orders">Больше заказов</option></select>
         </div>
-        <div v-if="!customers.length && !loading" class="crm-directory-empty">
+        <div v-if="hasFilters" class="crm-customer-filter-summary"><span role="status">Найдено: {{ filteredCustomers.length }}</span><button class="crm-button crm-button--text" @click="resetFilters"><X :size="14" /> Сбросить фильтры</button></div>
+        <div v-if="filteredCustomers.length" class="crm-customer-columns" aria-hidden="true"><span>Клиент</span><span>Контакты</span><span>Компания и ответственный</span><span>История</span></div>
+        <div class="crm-customer-rows">
+          <article v-for="customer in visibleCustomers" :key="customer.id" class="customer-row crm-customer-row" :aria-label="customerName(customer)" @click="openRow($event, customer)" @contextmenu.prevent="customerMenu($event, customer)">
+            <div class="crm-customer-person">
+              <span class="crm-directory-avatar" aria-hidden="true">{{ customerName(customer).slice(0, 1).toUpperCase() }}</span>
+              <div class="crm-customer-person-details">
+                <button class="crm-customer-name" :disabled="actionBusy" :aria-label="`Открыть клиента: ${customerName(customer)}`" @click="openCustomer(customer)"><strong>{{ customerName(customer) }}</strong></button>
+                <div class="crm-directory-badges"><span class="crm-directory-status" :data-status="customer.status">{{ statusLabels[customer.status] || customer.status }}</span><span v-if="customer.segment" class="crm-directory-segment">{{ customer.segment }}</span></div>
+              </div>
+            </div>
+            <div class="crm-customer-contacts">
+              <a v-if="customer.phone" class="crm-customer-contact" :href="phoneHref(customer.phone)" :aria-label="`Позвонить: ${customer.phone}`"><Phone :size="15" aria-hidden="true" /><span>{{ customer.phone }}</span></a>
+              <a v-if="customer.email" class="crm-customer-contact" :href="`mailto:${customer.email}`" :aria-label="`Написать: ${customer.email}`"><Mail :size="15" aria-hidden="true" /><span>{{ customer.email }}</span></a>
+              <span v-if="!customer.phone && !customer.email" class="crm-muted">Контакты не указаны</span>
+            </div>
+            <div class="crm-customer-relations">
+              <span v-if="customer.organizationMemberships?.length" class="crm-directory-icon-line"><Building2 :size="15" aria-hidden="true" /><span>{{ customer.organizationMemberships[0].organization.name }}<small v-if="customer.organizationMemberships.length > 1"> +{{ customer.organizationMemberships.length - 1 }}</small></span></span>
+              <span v-else class="crm-muted crm-customer-private">Частный клиент</span>
+              <span v-if="customer.accountManager" class="crm-directory-icon-line crm-customer-owner"><UserRound :size="15" aria-hidden="true" /><span>{{ managerName(customer) }}</span></span>
+              <button v-else-if="canWriteRecord(customer)" class="crm-customer-assign" :disabled="actionBusy" aria-label="Назначить менеджера" @click="openCustomer(customer, 'profile', true)"><UserPlus :size="15" aria-hidden="true" /> Назначить менеджера</button>
+              <span v-else class="crm-muted">Менеджер не назначен</span>
+            </div>
+            <div class="crm-customer-activity">
+              <button class="crm-customer-stat" :disabled="actionBusy" @click="openCustomer(customer, 'orders')"><ShoppingBag :size="15" aria-hidden="true" /><span>Заказы</span><strong>{{ customer._count?.orders || 0 }}</strong></button>
+              <button class="crm-customer-stat" :disabled="actionBusy" @click="openCustomer(customer, 'support')"><Headphones :size="15" aria-hidden="true" /><span>Обращения</span><strong>{{ customer._count?.helpdeskTickets || 0 }}</strong></button>
+            </div>
+          </article>
+        </div>
+        <div v-if="!filteredCustomers.length && !loading" class="crm-directory-empty">
           <Search v-if="hasFilters" :size="28" /><Users v-else :size="28" />
-          <strong>{{ hasFilters ? 'Клиенты не найдены' : 'Клиентская база пока пуста' }}</strong>
-          <p>{{ hasFilters ? 'Попробуйте другое имя или измените фильтры.' : 'Здесь появятся клиенты сайта и B2B-кабинета.' }}</p>
+          <strong>{{ hasFilters ? 'Клиенты не найдены' : 'Добавьте первого клиента' }}</strong>
+          <p>{{ hasFilters ? 'Попробуйте другой запрос или сбросьте фильтры.' : 'Сохраните контакт, назначьте ответственного и ведите историю работы в одной карточке.' }}</p>
           <button v-if="hasFilters" class="crm-button" @click="resetFilters">Сбросить фильтры</button>
+          <button v-else-if="canEdit" class="crm-button crm-button--primary" @click="openNewCustomer"><Plus :size="18" /> Добавить клиента</button>
         </div>
-        <footer class="crm-directory-footer">
-          <small role="status"><template v-if="loading">Обновляем список…</template><template v-else-if="customers.length">Показано {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, customers.length) }} из {{ customers.length }}</template><template v-else>Нет записей</template></small>
+        <footer v-if="filteredCustomers.length" class="crm-customer-footer">
+          <span>Показано: {{ pageCount > 1 ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filteredCustomers.length)} из ${filteredCustomers.length}` : filteredCustomers.length }}</span>
           <nav v-if="pageCount > 1" class="crm-directory-pagination" aria-label="Страницы клиентов"><button class="crm-button crm-button--icon" :disabled="page === 1 || loading" aria-label="Предыдущая страница" @click="page--"><ChevronLeft :size="16" /></button><span>{{ page }} / {{ pageCount }}</span><button class="crm-button crm-button--icon" :disabled="page === pageCount || loading" aria-label="Следующая страница" @click="page++"><ChevronRight :size="16" /></button></nav>
-          <small v-else class="crm-directory-hint">Нажмите на клиента, чтобы открыть карточку</small>
+          <span class="crm-customer-list-hint">Нажмите на строку, чтобы открыть карточку</span>
         </footer>
       </section>
     </div>
-    <aside data-v-ui-765289f0fbc4 v-if="selected" class="backdrop admin-dialog-backdrop" @click.self="closeEditor"><div data-v-ui-765289f0fbc4 ref="entityPanel" class="drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" tabindex="-1" @keydown="entityKeys"><header data-v-ui-765289f0fbc4><div data-v-ui-765289f0fbc4><p data-v-ui-765289f0fbc4>CUSTOMER 360</p><h2 data-v-ui-765289f0fbc4>{{ [selected.firstName, selected.lastName].filter(Boolean).join(' ') || 'Карточка клиента' }}</h2><span data-v-ui-765289f0fbc4>{{ selected.email || selected.phone || 'Контакты не указаны' }}</span></div><button class="crm-button crm-button--icon" data-v-ui-765289f0fbc4 @click="closeEditor" :disabled="actionBusy" aria-label="Закрыть карточку"><X data-v-ui-765289f0fbc4 :size="19" /></button></header><div data-v-ui-765289f0fbc4 class="drawer-body admin-dialog-body"><p data-v-ui-765289f0fbc4 v-if="error" class="operation-error" role="alert">{{ error }}</p>
-      <fieldset data-v-ui-765289f0fbc4 class="edit-grid ui-fieldset-reset" :disabled="actionBusy || !canEditSelected"><CrmAccountManagerField v-model="selected.accountManagerId" :people="managers" :current="selected.accountManager" /><label data-v-ui-765289f0fbc4>Имя<input class="crm-input" data-v-ui-765289f0fbc4 v-model="selected.firstName" /></label><label data-v-ui-765289f0fbc4>Фамилия<input class="crm-input" data-v-ui-765289f0fbc4 v-model="selected.lastName" /></label><label data-v-ui-765289f0fbc4>Телефон<input class="crm-input" data-v-ui-765289f0fbc4 v-model="selected.phone" /></label><label data-v-ui-765289f0fbc4>Сегмент<input class="crm-input" data-v-ui-765289f0fbc4 v-model="selected.segment" /></label><label data-v-ui-765289f0fbc4>Статус<select class="crm-input" data-v-ui-765289f0fbc4 v-model="selected.status"><option data-v-ui-765289f0fbc4 value="ACTIVE">Активен</option><option data-v-ui-765289f0fbc4 value="BLOCKED">Заблокирован</option><option data-v-ui-765289f0fbc4 value="ARCHIVED">В архиве</option></select></label><button class="crm-button crm-button--primary" data-v-ui-765289f0fbc4 @click="saveCustomer" :disabled="actionBusy || !canEditSelected">Сохранить карточку</button></fieldset>
-      <section data-v-ui-765289f0fbc4 v-if="selected.organizationMemberships?.length" class="details"><h3 data-v-ui-765289f0fbc4><Building2 data-v-ui-765289f0fbc4 :size="16" /> Организации</h3><div data-v-ui-765289f0fbc4 v-for="member in selected.organizationMemberships" :key="member.id" class="detail-row"><span data-v-ui-765289f0fbc4><strong data-v-ui-765289f0fbc4>{{ member.organization.name }}</strong><small data-v-ui-765289f0fbc4>{{ roleLabels[member.role] }}</small></span><em data-v-ui-765289f0fbc4>{{ member.organization.inn ? `ИНН ${member.organization.inn}` : 'ИНН не указан' }}</em></div></section>
-      <section data-v-ui-765289f0fbc4 class="details"><h3 data-v-ui-765289f0fbc4><ShoppingBag data-v-ui-765289f0fbc4 :size="16" /> Последние заказы</h3><div data-v-ui-765289f0fbc4 v-for="order in selected.orders" :key="order.id" class="detail-row"><span data-v-ui-765289f0fbc4><strong data-v-ui-765289f0fbc4>{{ order.externalOrderId || order.orderNumber }}</strong><small data-v-ui-765289f0fbc4>{{ sourceLabels[order.source] || order.source }} · {{ new Date(order.createdAt).toLocaleDateString('ru-RU') }}</small></span><span data-v-ui-765289f0fbc4><b data-v-ui-765289f0fbc4>{{ Number(order.finalAmount).toLocaleString('ru-RU') }} ₽</b><em data-v-ui-765289f0fbc4>{{ orderLabels[order.status] || order.status }}</em></span></div><p data-v-ui-765289f0fbc4 v-if="!selected.orders?.length" class="empty-small">{{ selected.relatedAccess?.orders === false ? 'Нет доступа к истории заказов' : 'Нет доступных заказов' }}</p></section>
-      <section data-v-ui-765289f0fbc4 class="details"><h3 data-v-ui-765289f0fbc4><Headphones data-v-ui-765289f0fbc4 :size="16" /> Обращения</h3><div data-v-ui-765289f0fbc4 v-for="ticket in selected.helpdeskTickets" :key="ticket.id" class="detail-row"><span data-v-ui-765289f0fbc4><strong data-v-ui-765289f0fbc4>{{ ticket.number }}</strong><small data-v-ui-765289f0fbc4>{{ ticket.subject }}</small></span><em data-v-ui-765289f0fbc4>{{ ticketLabels[ticket.status] || ticket.status }}</em></div><p data-v-ui-765289f0fbc4 v-if="!selected.helpdeskTickets?.length" class="empty-small">{{ selected.relatedAccess?.helpdesk === false ? 'Нет доступа к истории обращений' : 'Нет доступных обращений' }}</p></section>
-    </div></div></aside>
-    <div data-v-ui-765289f0fbc4 v-if="notice" class="toast">{{ notice }}</div>
+    <Teleport to="body">
+      <div v-if="selected" class="crm-detail-backdrop admin-dialog-backdrop" @click.self="closeEditor">
+        <section ref="entityPanel" class="admin-dialog admin-dialog--drawer crm-detail-card crm-customer-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-card-title" tabindex="-1" @keydown="entityKeys">
+          <header>
+            <div><p class="eyebrow">{{ creating ? 'Клиентская база' : 'Карточка клиента' }}</p><h2 id="customer-card-title">{{ creating ? 'Новый клиент' : customerName(selected) }}</h2><div v-if="!creating" class="crm-directory-badges"><span class="crm-directory-status" :data-status="selected.status">{{ statusLabels[selected.status] }}</span><span v-if="selected.segment" class="crm-directory-segment">{{ selected.segment }}</span></div></div>
+            <button class="crm-button crm-button--icon" @click="closeEditor" :disabled="actionBusy" aria-label="Закрыть карточку"><X :size="20" /></button>
+          </header>
+          <nav v-if="!creating" class="crm-customer-card-tabs" role="tablist" aria-label="Разделы карточки клиента" @keydown="tabKeys"><button v-for="tab in customerTabs" :id="`customer-tab-${tab.value}`" :key="tab.value" role="tab" :aria-selected="customerTab === tab.value" :tabindex="customerTab === tab.value ? 0 : -1" :aria-controls="`customer-panel-${tab.value}`" @click="customerTab = tab.value">{{ tab.label }}<span v-if="tab.value === 'orders'">{{ selected._count?.orders || 0 }}</span><span v-if="tab.value === 'support'">{{ selected._count?.helpdeskTickets || 0 }}</span></button></nav>
+          <form id="customer-editor-form" class="crm-detail-body" @submit.prevent="saveCustomer">
+            <div v-if="error" class="crm-customer-form-error" role="alert"><p>{{ error }}</p><button v-if="duplicateId" type="button" class="crm-button" @click="openCustomer({ id: duplicateId })">Открыть существующего клиента</button></div>
+            <section id="customer-panel-profile" class="crm-order-tab-panel" :role="creating ? undefined : 'tabpanel'" :aria-labelledby="creating ? undefined : 'customer-tab-profile'" :hidden="customerTab !== 'profile'">
+              <div v-if="!creating && (selected.email || selected.phone)" class="crm-customer-card-contacts"><a v-if="selected.phone" :href="phoneHref(selected.phone)"><Phone :size="17" />{{ selected.phone }}</a><a v-if="selected.email" :href="`mailto:${selected.email}`"><Mail :size="17" />{{ selected.email }}</a></div>
+              <div v-if="creating" class="crm-customer-form-intro"><h3>Контактные данные</h3><p>Укажите имя и хотя бы один способ связи: телефон или email.</p></div>
+              <fieldset class="ui-fieldset-reset crm-customer-fields" :disabled="actionBusy || !canEditSelected">
+                <label>Имя<input class="crm-input" name="firstName" v-model="selected.firstName" :required="creating" maxlength="100" autocomplete="given-name" placeholder="Например, Анна" /></label>
+                <label>Фамилия<input class="crm-input" v-model="selected.lastName" maxlength="100" autocomplete="family-name" placeholder="Необязательно" /></label>
+                <label>Телефон<input class="crm-input" v-model="selected.phone" type="tel" maxlength="40" autocomplete="tel" placeholder="+7 (___) ___-__-__" /></label>
+                <label v-if="creating">Email<input class="crm-input" v-model="selected.email" type="email" maxlength="254" autocomplete="email" placeholder="name@company.ru" /></label>
+                <label>Тип клиента<select class="crm-input" v-model="selected.segment"><option value="B2C">Розничный · B2C</option><option value="B2B">Партнёр · B2B</option><option value="Лид">Лид</option><option v-if="selected.segment && !['B2C', 'B2B', 'Лид'].includes(selected.segment)" :value="selected.segment">{{ selected.segment }}</option><option v-if="!selected.segment" value="">Не указан</option></select></label>
+                <label v-if="!creating">Статус<select class="crm-input" v-model="selected.status"><option value="ACTIVE">Активен</option><option value="BLOCKED">Заблокирован</option><option value="ARCHIVED">В архиве</option></select></label>
+                <CrmAccountManagerField v-model="selected.accountManagerId" :people="managers" :current="selected.accountManager" />
+              </fieldset>
+              <p v-if="creating" class="crm-customer-form-note">Клиент появится в общей базе. Доступ в личный кабинет оформляется отдельно.</p>
+              <section v-if="selected.organizationMemberships?.length" class="crm-customer-card-section"><h3><Building2 :size="18" /> Организации</h3><article v-for="member in selected.organizationMemberships" :key="member.id"><strong>{{ member.organization.name }}</strong><span>{{ roleLabels[member.role] || member.role }}</span><small>{{ member.organization.inn ? `ИНН ${member.organization.inn}` : 'ИНН не указан' }}</small></article></section>
+            </section>
+            <section v-if="!creating" id="customer-panel-orders" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="customer-tab-orders" :hidden="customerTab !== 'orders'">
+              <p class="crm-muted">Последние доступные заказы клиента</p>
+              <article v-for="order in selected.orders" :key="order.id" class="crm-customer-history-row"><div><strong>{{ order.externalOrderId || order.orderNumber }}</strong><small>{{ sourceLabels[order.source] || order.source }} · {{ new Date(order.createdAt).toLocaleDateString('ru-RU') }}</small></div><div><b>{{ Number(order.finalAmount).toLocaleString('ru-RU') }} ₽</b><span>{{ orderLabels[order.status] || order.status }}</span></div></article>
+              <div v-if="!selected.orders?.length" class="crm-directory-empty"><ShoppingBag :size="28" /><p>{{ selected.relatedAccess?.orders === false ? 'Нет доступа к истории заказов' : 'Нет доступных заказов' }}</p></div>
+            </section>
+            <section v-if="!creating" id="customer-panel-support" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="customer-tab-support" :hidden="customerTab !== 'support'">
+              <p class="crm-muted">Последние обращения клиента в поддержку</p>
+              <article v-for="ticket in selected.helpdeskTickets" :key="ticket.id" class="crm-customer-history-row"><div><strong>{{ ticket.number }}</strong><span>{{ ticket.subject }}</span></div><span>{{ ticketLabels[ticket.status] || ticket.status }}</span></article>
+              <div v-if="!selected.helpdeskTickets?.length" class="crm-directory-empty"><Headphones :size="28" /><p>{{ selected.relatedAccess?.helpdesk === false ? 'Нет доступа к истории обращений' : 'Нет доступных обращений' }}</p></div>
+            </section>
+          </form>
+          <footer class="crm-detail-footer">
+            <button v-if="creating" class="crm-button" :disabled="actionBusy" @click="closeEditor">Отмена</button>
+            <span v-else>{{ !canEditSelected ? 'Доступен только просмотр' : draftDirty ? 'Есть несохранённые изменения' : 'Изменения сохранены' }}</span>
+            <button class="crm-button crm-button--primary" type="submit" form="customer-editor-form" :disabled="actionBusy || !canEditSelected || (!creating && !draftDirty)">{{ actionBusy ? 'Сохраняем…' : creating ? 'Создать клиента' : 'Сохранить карточку' }}</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+    <div data-v-ui-765289f0fbc4 v-if="notice" class="toast" role="status">{{ notice }}</div>
   </main>
 </template>

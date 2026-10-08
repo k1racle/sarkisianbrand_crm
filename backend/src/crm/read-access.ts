@@ -10,6 +10,7 @@ export class CrmReadPolicy {
     if (!actorId || decisions.some(item => item.actorId !== actorId) || !this.allowed(permission)) throw new ForbiddenException('Нет доступа к записям CRM');
   }
   allowed(key: string) { return this.decisions.some(item => item.permissionKey === key && item.allowed && !item.denied); }
+  participating(key = this.permission) { return this.decisions.some(item => item.permissionKey === key && item.allowed && !item.denied && item.grants.some(grant => grant.allowed && grant.effectiveScope === 'PARTICIPATING')); }
   company(key: string) { return this.decisions.some(item => item.permissionKey === key && item.allowed && !item.denied && item.grants.some(grant => grant.allowed && grant.effectiveScope === 'COMPANY')); }
   tasks(permission = this.permission): Prisma.TaskWhereInput {
     const scope = taskScopeWhere(this.decisions, permission);

@@ -7,6 +7,10 @@
 @import "./crm-notifications.css";
 @import "./crm-knowledge.css";
 @import "./crm-directory.css";
+@import "./crm-customers.css";
+@import "./crm-organizations.css";
+@import "./crm-pipeline-settings.css";
+@import "./crm-task-collaboration.css";
 @import "./crm-shell.css";
 @import "./crm-work.css";
 @import "./crm-content.css";

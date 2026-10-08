@@ -27,12 +27,12 @@
  html[data-crm-ui] .crm-messenger .channels .chat-dialog-meta em {display:grid!important;place-items:center;min-width:20px;height:20px;padding:0 5px;background:var(--crm-accent)!important;color:#fff!important;border-radius:20px;}
  html[data-crm-ui] .crm-messenger .channels .active .chat-dialog-meta em {background:#fff!important;color:var(--crm-accent)!important;}
  html[data-crm-ui] .crm-messenger .chat-avatar {display:grid!important;place-items:center;flex:none;width:48px!important;height:48px!important;border-radius:50%!important;background:var(--chat-avatar-color,var(--crm-accent))!important;color:#fff!important;font-size:17px!important;font-weight:600!important;line-height:1!important;}
- html[data-crm-ui] .crm-messenger .chat-avatar--0 {--chat-avatar-color:#6389bd;}
- html[data-crm-ui] .crm-messenger .chat-avatar--1 {--chat-avatar-color:#8a73c7;}
- html[data-crm-ui] .crm-messenger .chat-avatar--2 {--chat-avatar-color:#b47c5a;}
- html[data-crm-ui] .crm-messenger .chat-avatar--3 {--chat-avatar-color:#468e80;}
- html[data-crm-ui] .crm-messenger .chat-avatar--4 {--chat-avatar-color:#ac6e97;}
- html[data-crm-ui] .crm-messenger .conversation {display:grid!important;grid-template-rows:76px minmax(0,1fr) auto!important;min-width:0;min-height:0;height:100%;background:#f1eff6;}
+ html[data-crm-ui] .crm-messenger .chat-avatar--0 {--chat-avatar-color:var(--brand-graphite-soft);}
+ html[data-crm-ui] .crm-messenger .chat-avatar--1 {--chat-avatar-color:var(--brand-graphite-soft);}
+ html[data-crm-ui] .crm-messenger .chat-avatar--2 {--chat-avatar-color:var(--brand-graphite-soft);}
+ html[data-crm-ui] .crm-messenger .chat-avatar--3 {--chat-avatar-color:var(--brand-graphite-soft);}
+ html[data-crm-ui] .crm-messenger .chat-avatar--4 {--chat-avatar-color:var(--brand-graphite-soft);}
+ html[data-crm-ui] .crm-messenger .conversation {display:grid!important;grid-template-rows:76px minmax(0,1fr) auto!important;min-width:0;min-height:0;height:100%;background:var(--brand-bg);}
  html[data-crm-ui] .crm-messenger .conversation > header {display:flex!important;align-items:center!important;min-height:0!important;height:76px;padding:12px 20px!important;gap:12px;border-bottom:1px solid var(--crm-line);background:var(--crm-surface);}
  html[data-crm-ui] .crm-messenger .conversation > header > div {display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
  html[data-crm-ui] .crm-messenger .conversation > header > div > span {min-width:0;display:grid;gap:3px;}
@@ -48,8 +48,8 @@
  html[data-crm-ui] .crm-messenger .message {display:flex!important;align-items:flex-end;justify-content:flex-start;gap:8px;width:100%;margin:4px 0 8px;padding:0;}
  html[data-crm-ui] .crm-messenger .message.mine {justify-content:flex-end;}
  html[data-crm-ui] .crm-messenger .message > .chat-avatar {width:30px!important;height:30px!important;font-size:11px!important;}
- html[data-crm-ui] .crm-messenger .message > section {flex:0 1 auto;width:fit-content;max-width:min(80%,580px);min-width:60px;padding:9px 12px 5px!important;margin:0;border:0!important;border-radius:16px 16px 16px 5px!important;background:#fff!important;box-shadow:0 1px 2px #2725380d;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-messenger .message.mine > section {background:#e6dffc!important;border-radius:16px 16px 5px 16px!important;}
+ html[data-crm-ui] .crm-messenger .message > section {flex:0 1 auto;width:fit-content;max-width:min(80%,580px);min-width:60px;padding:9px 12px 5px!important;margin:0;border:0!important;border-radius:16px 16px 16px 5px!important;background:#fff!important;box-shadow:0 1px 2px #3c3c3b0d;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-messenger .message.mine > section {background:var(--brand-soft)!important;border-radius:16px 16px 5px 16px!important;}
  html[data-crm-ui] .crm-messenger .message section > header {display:block;margin:0 0 4px;padding:0;border:0;}
  html[data-crm-ui] .crm-messenger .message section > header b {font-size:12px!important;color:var(--crm-accent-ink)!important;}
  html[data-crm-ui] .crm-messenger .message section > p {margin:0!important;white-space:pre-wrap;line-height:1.55!important;color:var(--crm-ink)!important;}
@@ -61,15 +61,15 @@
  html[data-crm-ui] .crm-messenger .message .attachments :is(img,audio) {max-width:100%;}
  html[data-crm-ui] .crm-messenger .messenger-entity-arrow {transform:rotate(180deg);}
  html[data-crm-ui] .crm-messenger .message-list > .empty {display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:100%;padding:24px;text-align:center;}
- html[data-crm-ui] .crm-messenger .messenger-jump.crm-button {position:absolute;bottom:12px;right:20px;background:#fff!important;box-shadow:0 2px 12px #27253818!important;}
+ html[data-crm-ui] .crm-messenger .messenger-jump.crm-button {position:absolute;bottom:12px;right:20px;background:#fff!important;box-shadow:0 2px 12px #3c3c3b18!important;}
  html[data-crm-ui] .crm-messenger .composer {position:relative;border:0!important;background:transparent!important;padding:10px 22px 18px!important;min-width:0;}
- html[data-crm-ui] .crm-messenger .messenger-compose-row {display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;align-items:end;gap:2px;padding:5px;background:#fff;border-radius:28px;box-shadow:0 1px 5px #2725380c;}
+ html[data-crm-ui] .crm-messenger .messenger-compose-row {display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;align-items:end;gap:2px;padding:5px;background:#fff;border-radius:28px;box-shadow:0 1px 5px #3c3c3b0c;}
  html[data-crm-ui] .crm-messenger .messenger-compose-row textarea.crm-input {height:var(--composer-height,44px)!important;min-height:44px!important;max-height:144px!important;padding:11px 2px!important;border:0!important;border-radius:0!important;background:transparent!important;resize:none!important;font-size:14px!important;line-height:22px!important;overflow:auto!important;}
  html[data-crm-ui] .crm-messenger .messenger-compose-row textarea:focus-visible {outline:0!important;}
- html[data-crm-ui] .crm-messenger .messenger-compose-row:focus-within {box-shadow:0 0 0 1px #c6bdee;}
+ html[data-crm-ui] .crm-messenger .messenger-compose-row:focus-within {box-shadow:0 0 0 1px var(--brand-gray);}
  html[data-crm-ui] .crm-messenger .send.messenger-icon.crm-button {background:var(--crm-accent)!important;color:#fff!important;}
  html[data-crm-ui] .crm-messenger .send.messenger-icon.crm-button:hover {background:var(--crm-accent-hover)!important;color:#fff!important;}
- html[data-crm-ui] .crm-messenger :is(.messenger-attach-menu,.emoji-picker,.entity-picker) {position:absolute!important;left:22px!important;bottom:calc(100% - 4px)!important;top:auto!important;z-index:5;padding:8px;border:1px solid var(--crm-line)!important;border-radius:16px!important;background:#fff;box-shadow:0 8px 30px #27253820!important;overflow:hidden;}
+ html[data-crm-ui] .crm-messenger :is(.messenger-attach-menu,.emoji-picker,.entity-picker) {position:absolute!important;left:22px!important;bottom:calc(100% - 4px)!important;top:auto!important;z-index:5;padding:8px;border:1px solid var(--crm-line)!important;border-radius:16px!important;background:#fff;box-shadow:0 8px 30px #3c3c3b20!important;overflow:hidden;}
  html[data-crm-ui] .crm-messenger .messenger-attach-menu {width:260px;display:grid;gap:4px;}
  html[data-crm-ui] .crm-messenger .messenger-attach-menu > button.crm-button {justify-content:flex-start!important;text-align:left;border:0!important;border-radius:10px!important;}
  html[data-crm-ui] .crm-messenger .messenger-attach-menu > button span {display:grid;gap:3px;}
@@ -83,7 +83,7 @@
  html[data-crm-ui] .crm-messenger .pending {display:flex;gap:6px;overflow:auto;max-height:140px;margin:0 0 10px;}
  html[data-crm-ui] .crm-messenger .pending > span {flex:none;max-width:260px;padding:6px 8px;border:1px solid var(--crm-line);border-radius:12px;background:#fff;}
  html[data-crm-ui] .crm-messenger .pending button.crm-button {width:32px;min-height:32px!important;padding:6px!important;border:0!important;}
- html[data-crm-ui] .crm-messenger .no-channel {position:relative;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f1eff6;min-width:0;text-align:center;padding:24px;}
+ html[data-crm-ui] .crm-messenger .no-channel {position:relative;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--brand-bg);min-width:0;text-align:center;padding:24px;}
  html[data-crm-ui] .crm-messenger .no-channel p {margin:0 0 10px;}
  html[data-crm-ui] .crm-messenger .messenger-empty-close {position:absolute;right:16px;top:16px;}
  html[data-crm-ui] .crm-messenger .messenger-loading {height:100%;display:grid;place-items:center;}

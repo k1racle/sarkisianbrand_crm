@@ -63,7 +63,7 @@
       border-radius: 18px !important;
       background: transparent !important;
       color: var(--ui-ink) !important;
-      font-family: Montserrat, Arial, sans-serif;
+      font-family: var(--brand-font-body);
       text-decoration: none;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
@@ -79,14 +79,14 @@
       background: #2021270b !important;
     }
     .ui-mobile-dock.ui-mobile-dock > .ui-mobile-menu {
-      background: #202127 !important;
+      background: var(--brand-graphite) !important;
       color: #fff !important;
     }
     .ui-mobile-dock.ui-mobile-dock > .ui-mobile-menu:hover {
       background: #34353c !important;
     }
     .ui-mobile-dock.ui-mobile-dock > :is(a, button):focus-visible {
-      outline: 2px solid #77709e !important;
+      outline: 2px solid var(--brand-action) !important;
       outline-offset: 2px !important;
     }
     .ui-mobile-unread {
@@ -97,7 +97,7 @@
       padding: 0 3px;
       border: 2px solid #fff;
       border-radius: 10px;
-      background: #202127;
+      background: var(--brand-graphite);
       color: #fff;
       font: 400 12px/1.5 Montserrat, Arial, sans-serif;
     }

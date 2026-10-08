@@ -3,7 +3,7 @@
   .workspace-frame .banner-admin-card {
     display:grid!important; grid-template-columns:40px 160px minmax(0,1fr) auto!important;
     gap:16px!important; padding:16px!important; align-items:center!important;
-    background:#fff!important; border:1px solid #e6e7ec!important; border-radius:10px!important;
+    background:#fff!important; border:1px solid var(--brand-gray)!important; border-radius:10px!important;
   }
   .workspace-frame .banner-admin-card>.appearance-order-tools { grid-column:1!important; grid-row:1!important; padding:0!important; }
   .workspace-frame .banner-admin-card>.banner-admin-preview { grid-column:2!important; grid-row:1!important; width:160px!important; height:88px!important; min-height:0!important; border-radius:8px!important; }
@@ -37,6 +37,6 @@
 .admin-dialog .banner-admin-fields { border:0; padding:0; margin:0; display:grid; gap:16px; min-width:0; }
 .admin-dialog .banner-editor-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .admin-dialog .banner-active { display:flex!important; align-items:center; justify-content:flex-start; gap:10px; }
-.admin-dialog .banner-editor-preview { overflow:hidden; border:1px solid #e6e7ec; border-radius:8px; background:#f2f2f5; }
+.admin-dialog .banner-editor-preview { overflow:hidden; border:1px solid var(--brand-gray); border-radius:8px; background:#f2f2f5; }
 .admin-dialog .banner-editor-preview img { display:block; width:100%; max-height:200px; object-fit:contain; }
 @media(max-width:720px) { .admin-dialog .banner-editor-grid { grid-template-columns:minmax(0,1fr); } }

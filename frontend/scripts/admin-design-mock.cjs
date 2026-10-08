@@ -52,7 +52,7 @@ const mediaAsset = { id: '123e4567-e89b-42d3-a456-426614174001', url: '/api/v1/m
 const mediaPreview = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 const fixtures = new Map([
   ['/auth/me', user], ['/auth/profile', { ...user, notificationPreferences: { email: true }, sessions: [] }],
-  ['/auth/access', { role: 'ADMIN', permissions: ['admin.read', 'catalog.read', 'catalog.write', 'crm.read', 'web_orders.read', 'web_orders.manage', 'loyalty.read', 'loyalty.write', 'marketplace.read', 'marketplace.configure', 'helpdesk.read', 'media.read', 'system.manage'], denied: [] }],
+  ['/auth/access', { role: 'ADMIN', permissions: ['admin.read', 'catalog.read', 'catalog.write', 'crm.read', 'web_orders.read', 'web_orders.write', 'loyalty.read', 'loyalty.write', 'marketplace.read', 'marketplace.configure', 'helpdesk.read', 'media.read', 'system.manage', 'promotions.read', 'promotions.write', 'gift_card_product.read', 'gift_card_product.write', 'gift_cards.read', 'gift_cards.write'], denied: [] }],
   ['/admin/dashboard', { orders: 1, newOrders: 1, paidOrders: 0, customers: 1, products: 2 }],
   ['/crm/tasks', [{ id: 'mock-task', title: 'Проверить новые заказы', status: 'TODO', dueDate: '2026-09-17T12:00:00Z' }]],
   ['/helpdesk/dashboard', { total: 3, new: 2, overdue: 1, inWork: 1, waiting: 0, resolved: 0 }],

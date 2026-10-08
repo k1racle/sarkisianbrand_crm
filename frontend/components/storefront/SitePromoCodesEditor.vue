@@ -2,6 +2,8 @@
 import { Plus, RefreshCw, Save, Shuffle, Pencil, Trash2, X, Power, Search, Ticket } from '@lucide/vue';
 
 const props = defineProps<{ apiBase: string; token: string; compact?: boolean }>();
+const access = useWorkspaceAccess();
+const writable = computed(() => access.can('promotions.read') && access.can('promotions.write'));
 type Promo = { code: string; title: string; discountType: 'PERCENT' | 'FIXED'; amount: number | string; minimumAmount?: number | string; maximumDiscount?: number | string | null; usageLimit?: number | null; perCustomerLimit?: number | null; isActive: boolean; startsAt?: string | null; endsAt?: string | null; revision: number; usageCount?: number; reservedCount?: number; appliedCount?: number };
 type Draft = { code: string; title: string; discountType: 'PERCENT' | 'FIXED'; amount: string; minimumAmount: string; maximumDiscount: string; usageLimit: string; perCustomerLimit: string; startsAt: string; endsAt: string; isActive: boolean; revision?: number; existing: boolean };
 const items = ref<Promo[]>([]);
@@ -57,6 +59,8 @@ function failure(caught: any, fallback: string) {
 }
 async function request<T>(path: string, options: Record<string, any> = {}) {
   if (!props.token) throw new Error('Войдите в рабочее пространство для управления промокодами.');
+  await access.ensure();
+  if (!access.can('promotions.read') || (options.method && options.method !== 'GET' && !writable.value)) throw new Error('Недостаточно прав для этой операции с промокодами.');
   const controller = new AbortController();
   requests.add(controller);
   try { return await $fetch<T>(path, { baseURL: props.apiBase, headers: { Authorization: `Bearer ${props.token}` }, signal: controller.signal, timeout: 15000, ...options }); }
@@ -196,7 +200,7 @@ onBeforeRouteUpdate(() => !dirty.value || window.confirm('Перейти в др
   <section class="sb-promotions-admin" aria-label="Управление промокодами">
     <header class="sb-promo-panel sb-promo-hero crm-surface" :class="compact ? 'crm-action-bar' : 'crm-surface'">
       <div v-if="!compact"><p class="sb-promo-eyebrow">АКЦИИ САЙТА</p><h2>Промокоды</h2><p>Скидки, сроки и ограничения использования. Все условия проверяются при оформлении заказа.</p></div>
-      <div class="sb-promo-actions"><button class="sb-promo-button sb-promo-button--white crm-button crm-button--refresh" :disabled="busy || loading" @click="load"><RefreshCw :size="18" /> Обновить</button><button class="sb-promo-button crm-button crm-button--primary" :disabled="busy" @click="edit()"><Plus :size="18" /> Новый промокод</button></div>
+      <div class="sb-promo-actions"><button class="sb-promo-button sb-promo-button--white crm-button crm-button--refresh" :disabled="busy || loading" @click="load"><RefreshCw :size="18" /> Обновить</button><button v-if="writable" class="sb-promo-button crm-button crm-button--primary" :disabled="busy" @click="edit()"><Plus :size="18" /> Новый промокод</button></div>
     </header>
     <p v-if="notice" class="sb-promo-notice" role="status">{{ notice }}</p>
     <p v-if="error && !action" class="sb-promo-notice" role="alert">{{ error }}</p>
@@ -209,13 +213,13 @@ onBeforeRouteUpdate(() => !dirty.value || window.confirm('Перейти в др
           <td data-label="Условия"><div class="sb-promo-cell"><strong>{{ item.discountType === 'PERCENT' ? `${Number(item.amount)}%` : money(item.amount) }}</strong><small>Заказ от {{ money(item.minimumAmount) }}</small><small v-if="item.maximumDiscount">Скидка до {{ money(item.maximumDiscount) }}</small><small>На клиента: {{ item.perCustomerLimit || 'без лимита' }}</small></div></td>
           <td data-label="Срок"><div class="sb-promo-cell"><small>Начало: {{ item.startsAt ? displayDate(item.startsAt) : 'сразу после включения' }}</small><small>Окончание: {{ displayDate(item.endsAt) }}</small></div></td>
           <td data-label="Использование"><div class="sb-promo-cell"><strong>Применено: {{ item.appliedCount || 0 }}</strong><small>Зарезервировано: {{ item.reservedCount || 0 }}</small><small>Использований: {{ item.usageCount || 0 }} / {{ item.usageLimit || 'без лимита' }}</small></div></td>
-          <td data-label="Действия"><div class="sb-promo-row-actions"><button class="sb-promo-icon-button crm-button" :disabled="busy" :aria-label="`Редактировать ${item.code}`" title="Редактировать" @click="edit(item)"><Pencil :size="18" /></button><button v-if="item.isActive" class="sb-promo-icon-button crm-button" :disabled="busy" :aria-label="`Выключить ${item.code}`" title="Выключить и сохранить историю" @click="openAction('deactivate', item)"><Power :size="18" /></button><button class="sb-promo-icon-button crm-button" :disabled="busy" :aria-label="`Удалить ${item.code}`" title="Удалить с подтверждением" @click="openAction('delete', item)"><Trash2 :size="18" /></button></div></td>
+          <td data-label="Действия"><div v-if="writable" class="sb-promo-row-actions"><button class="sb-promo-icon-button crm-button" :disabled="busy" :aria-label="`Редактировать ${item.code}`" title="Редактировать" @click="edit(item)"><Pencil :size="18" /></button><button v-if="item.isActive" class="sb-promo-icon-button crm-button" :disabled="busy" :aria-label="`Выключить ${item.code}`" title="Выключить и сохранить историю" @click="openAction('deactivate', item)"><Power :size="18" /></button><button class="sb-promo-icon-button crm-button" :disabled="busy" :aria-label="`Удалить ${item.code}`" title="Удалить с подтверждением" @click="openAction('delete', item)"><Trash2 :size="18" /></button></div></td>
         </tr>
       </tbody></table>
       <div v-else-if="loaded" class="sb-promo-empty"><Ticket :size="32" /><p>{{ search || statusFilter !== 'all' ? 'По выбранным условиям ничего не найдено.' : 'Промокодов пока нет. Создайте первый и задайте условия акции.' }}</p><button v-if="search || statusFilter !== 'all'" class="sb-promo-button sb-promo-button--white crm-button" @click="search = ''; statusFilter = 'all'"><X :size="18" /> Сбросить поиск</button></div>
       <nav v-if="pageCount > 1" class="sb-promo-pagination sb-promo-actions" aria-label="Страницы промокодов"><button class="sb-promo-button sb-promo-button--white crm-button" :disabled="busy || loading || page === 1" @click="changePage(page - 1)">Назад</button><span>Страница {{ page }} из {{ pageCount }}</span><button class="sb-promo-button sb-promo-button--white crm-button" :disabled="busy || loading || page >= pageCount" @click="changePage(page + 1)">Далее</button></nav>
     </div>
-    <form v-if="draft" ref="formEl" class="sb-promo-panel sb-promo-form crm-surface" novalidate @submit.prevent="save">
+    <form v-if="draft && writable" ref="formEl" class="sb-promo-panel sb-promo-form crm-surface" novalidate @submit.prevent="save">
       <header class="sb-promo-form-head"><div><h3>{{ draft.existing ? `Промокод ${draft.code}` : 'Новый промокод' }}</h3><small>{{ dirty ? 'Есть несохранённые изменения' : draft.existing ? `Сохранённая версия ${draft.revision}` : 'Заполните условия и сохраните' }}</small></div><button type="button" class="sb-promo-icon-button crm-button crm-button--icon" :disabled="busy" aria-label="Закрыть редактор" @click="closeEditor"><X :size="20" /></button></header>
       <fieldset :disabled="busy" class="sb-promo-fields">
         <label class="sb-promo-field sb-promo-field--wide"><span>Название акции</span><input class="crm-input" v-model="draft.title" maxlength="160" placeholder="Например, приветственная скидка" required /><small>Внутреннее название для сотрудников.</small></label>
@@ -232,7 +236,7 @@ onBeforeRouteUpdate(() => !dirty.value || window.confirm('Перейти в др
       </fieldset>
       <footer class="sb-promo-actions"><button type="submit" class="sb-promo-button crm-button crm-button--primary" :disabled="busy"><Save :size="18" /> {{ busy ? 'Сохраняем…' : 'Сохранить промокод' }}</button><button type="button" class="sb-promo-button sb-promo-button--white crm-button" :disabled="busy" @click="closeEditor"><X :size="18" /> Отмена</button></footer>
     </form>
-    <Teleport to="body"><Transition name="sb-promo-dialog"><div v-if="action" class="sb-promo-dialog-layer admin-dialog-backdrop" @click.self="closeAction()" @keydown="dialogKeys"><section ref="dialogEl" class="sb-promotions-admin sb-promo-panel sb-promo-dialog admin-dialog admin-dialog--modal crm-surface" role="dialog" aria-modal="true" aria-labelledby="sb-promo-dialog-title" aria-describedby="sb-promo-dialog-description">
+    <Teleport to="body"><Transition name="sb-promo-dialog"><div v-if="action && writable" class="sb-promo-dialog-layer admin-dialog-backdrop" @click.self="closeAction()" @keydown="dialogKeys"><section ref="dialogEl" class="sb-promotions-admin sb-promo-panel sb-promo-dialog admin-dialog admin-dialog--modal crm-surface" role="dialog" aria-modal="true" aria-labelledby="sb-promo-dialog-title" aria-describedby="sb-promo-dialog-description">
       <header class="sb-promo-form-head"><h3 id="sb-promo-dialog-title">{{ action.kind === 'delete' ? 'Удалить промокод?' : 'Выключить промокод?' }}</h3><button class="sb-promo-icon-button crm-button crm-button--icon" :disabled="busy" aria-label="Закрыть подтверждение" @click="closeAction()"><X :size="20" /></button></header>
       <p id="sb-promo-dialog-description">{{ action.kind === 'delete' ? `Промокод ${action.item.code} будет удалён без возможности восстановления. При наличии истории использования сервер запретит удаление.` : `Промокод ${action.item.code} больше не будет доступен для новых применений. История использования сохранится.` }}</p>
       <p v-if="action.kind === 'delete' && uses(action.item)" class="sb-promo-notice">Есть использования или резервы. Рекомендуем выключить промокод вместо удаления.</p>

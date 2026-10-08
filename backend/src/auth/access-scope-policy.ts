@@ -76,7 +76,7 @@ export function taskScopeWhere(decisions: AccessDecision[], permissionKey: strin
   const where: Prisma.TaskWhereInput[] = [];
   for (const grant of grants) {
     if (grant.effectiveScope === 'OWN') where.push({ assignedToId: decision.actorId });
-    else if (grant.effectiveScope === 'PARTICIPATING') where.push({ OR: [{ assignedToId: decision.actorId }, { createdById: decision.actorId }] });
+    else if (grant.effectiveScope === 'PARTICIPATING') where.push({ OR: [{ assignedToId: decision.actorId }, { createdById: decision.actorId }, { participants: { some: { userId: decision.actorId } } }] });
     else if (grant.resolvedDepartmentIds.length) where.push({ assignedTo: { departmentId: { in: grant.resolvedDepartmentIds } } });
   }
   return where.length ? { OR: where } : { id: { in: [] } };

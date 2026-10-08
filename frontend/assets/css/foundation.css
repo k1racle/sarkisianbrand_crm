@@ -1,11 +1,27 @@
 @import "./heading-typography.css";
 
 :root {
-  --black: #1a1919;
+  /* Brandbook HEX values are authoritative; lighter surfaces are neutral tints.
+   * Mont is body/headings; Montserrat Medium is the control/label face. */
+  --brand-graphite: #3c3c3b;
+  --brand-white: #ffffff;
+  --brand-gray: #d6d6d6;
+  --brand-graphite-soft: #555554;
+  --brand-gray-soft: #e5e5e5;
+  --brand-bg: #f5f5f5;
+  --brand-soft: #eeeeee;
+  --brand-muted: #666665;
+  --brand-action: var(--brand-graphite);
+  --brand-action-hover: #292929;
+  --brand-font-body: Mont, Montserrat, Arial, sans-serif;
+  --brand-font-ui: Montserrat, Arial, sans-serif;
+  --brand-weight-body: 400;
+  --brand-weight-control: 500;
+  --black: var(--brand-graphite);
   --muted: #646466;
   --line: #e2e2e2;
-  --soft: #f8f7f7;
-  --coral: #f8604a;
+  --soft: var(--brand-bg);
+  --coral: var(--brand-action);
   --blue: #366eff;
 }
 * {
@@ -15,7 +31,8 @@ body {
   margin: 0;
   background: #fff;
   color: var(--black);
-  font-family: Montserrat, Arial, sans-serif;
+  font-family: var(--brand-font-body);
+  font-weight: var(--brand-weight-body);
   font-size: 14px;
 }
 button,
@@ -30,26 +47,26 @@ a {
   text-decoration: none;
 }
 :root {
-  --sb-ink: #1a1919;
-  --sb-ink-soft: #2b2b2f;
-  --sb-coral: #f8604a;
-  --sb-bg: #f4f5f7;
+  --sb-ink: var(--brand-graphite);
+  --sb-ink-soft: var(--brand-graphite);
+  --sb-coral: var(--brand-action);
+  --sb-bg: var(--brand-bg);
   --sb-panel: #fff;
-  --sb-line: #e2e4e8;
-  --sb-muted: #80838b;
+  --sb-line: var(--brand-gray);
+  --sb-muted: var(--brand-muted);
   --sb-radius: 7px;
   --sb-sidebar-width: 250px;
-  --sb-font: Montserrat, Arial, sans-serif;
+  --sb-font: var(--brand-font-body);
 }
 :root {
-  --sb-text: #1d1e22;
-  --sb-text-soft: #62656d;
-  --sb-coral-soft: #fff0ed;
+  --sb-text: var(--brand-graphite);
+  --sb-text-soft: var(--brand-muted);
+  --sb-coral-soft: var(--brand-soft);
   --sb-success: #279966;
   --sb-warning: #b88121;
   --sb-danger: #c84b3a;
   --sb-focus: #555961;
-  --sb-shadow: 0 18px 50px rgba(16, 17, 19, 0.14);
+  --sb-shadow: 0 18px 50px rgba(60,60,59, 0.14);
   --sb-space-1: 4px;
   --sb-space-2: 8px;
   --sb-space-3: 12px;
@@ -131,8 +148,8 @@ textarea {
     U+2215, U+FEFF, U+FFFD;
 }
 :root {
-  --sb-font: Montserrat, Arial, sans-serif;
-  --sb-font-editorial: Georgia, serif;
+  --sb-font: var(--brand-font-body);
+  --sb-font-editorial: var(--brand-font-body);
   --sb-type-micro: 0.625rem;
   --sb-type-caption: 0.75rem;
   --sb-type-small: 0.875rem;
@@ -144,7 +161,7 @@ textarea {
   --sb-type-section: clamp(1.75rem, 2.6vw, 2.5rem);
   --sb-type-page: clamp(2rem, 3.2vw, 3rem);
   --sb-type-display: clamp(2rem, 4.2vw, 3.5rem);
-  --sb-weight-regular: 400;
+  --sb-weight-regular: var(--brand-weight-body);
   --sb-weight-medium: 500;
   --sb-weight-semibold: 600;
   --sb-weight-bold: 700;

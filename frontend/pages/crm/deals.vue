@@ -23,6 +23,7 @@ const pipeline = ref<any>({ stages: [] }),
   settingsOpen = ref(false),
   team = ref<any[]>([]),
   loading = ref(true),
+  pageLoaded = ref(false),
   saving = ref(false),
   search = ref(""),
   selected = ref<any>(null),
@@ -106,6 +107,7 @@ async function load() {
     error.value = typeof reason?.data?.message === 'string' ? reason.data.message : 'Не удалось загрузить воронку. Повторите попытку.';
   } finally {
     loading.value = false;
+    pageLoaded.value = true;
   }
 }
 async function switchPipeline() {
@@ -283,7 +285,7 @@ onMounted(async () => {
 <template>
   <main data-v-ui-c1ada31b5812 class="pipeline-page crm-standard">
     <WorkspaceLoading
-      v-if="loading"
+      v-if="loading && !pageLoaded"
       label="Загружаем воронку продаж"
     /><template v-else
       ><header data-v-ui-c1ada31b5812 class="page-head crm-page-header">

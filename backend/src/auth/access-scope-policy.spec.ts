@@ -75,7 +75,7 @@ describe('Access profile scopes — per-operation, fail-closed, preview only', (
   });
   it('participation stays attached to the actor, not to the whole foreign department', () => {
     const decisions = resolve([grant('PARTICIPATING')]);
-    expect(taskScopeWhere(decisions, 'crm.read')).toEqual({ OR: [{ OR: [{ assignedToId: actor.id }, { createdById: actor.id }] }] });
+    expect(taskScopeWhere(decisions, 'crm.read')).toEqual({ OR: [{ OR: [{ assignedToId: actor.id }, { createdById: actor.id }, { participants: { some: { userId: actor.id } } }] }] });
     expect(JSON.stringify(leadScopeWhere(decisions, 'crm.read'))).not.toContain('departmentId');
     expect(JSON.stringify(leadScopeWhere(decisions, 'crm.read'))).toContain('CANCELLED');
   });

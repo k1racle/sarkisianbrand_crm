@@ -18,6 +18,7 @@ target/
 *.ts.map
 
 # Environment variables
+/TEST_ACCOUNTS.local.txt
 .env
 .env.local
 *.env

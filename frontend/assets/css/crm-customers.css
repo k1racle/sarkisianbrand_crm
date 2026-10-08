@@ -1,0 +1,125 @@
+/* Customer registry and editor. Deliberately scoped to this screen. */
+@layer crm-elements {
+ html[data-crm-ui] .crm-customers-page .crm-page-header {margin-bottom:24px!important;}
+ html[data-crm-ui] .crm-customers-page h1 {display:flex;align-items:center;gap:10px;}
+ html[data-crm-ui] .crm-customer-title-count {display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 7px;border-radius:8px;background:var(--crm-line);font-size:13px!important;}
+ html[data-crm-ui] .crm-customer-header-actions {display:flex;align-items:center;gap:8px;}
+ html[data-crm-ui] .crm-customer-register {padding:0!important;min-width:0;overflow:hidden;}
+ html[data-crm-ui] .crm-customer-register-head {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-customer-segments {display:flex;align-items:stretch;gap:24px;min-width:0;}
+ /* Override inherited legacy admin button skins, never other CRM pages. */
+ html[data-crm-ui] :is(.crm-customer-name,.crm-customer-assign,.crm-customer-stat,.crm-customer-segments > button) {display:flex;align-items:center;gap:8px;min-height:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--crm-ink)!important;text-align:left!important;font:inherit;line-height:1.5!important;cursor:pointer;}
+ html[data-crm-ui] .crm-customer-segments > button {min-height:58px!important;border-bottom:3px solid transparent!important;padding-top:3px!important;white-space:nowrap;color:var(--crm-muted)!important;}
+ html[data-crm-ui] .crm-customer-segments > button[aria-pressed=true] {border-bottom-color:var(--crm-accent)!important;color:var(--crm-ink)!important;}
+ html[data-crm-ui] .crm-customer-segments > button:hover {color:var(--crm-ink)!important;}
+ html[data-crm-ui] .crm-customer-segment-short {display:none;}
+ html[data-crm-ui] .crm-customer-new-count {display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px!important;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-dot {width:6px;height:6px;border-radius:50%;background:var(--crm-success);}
+ html[data-crm-ui] .crm-customer-tools {display:grid;grid-template-columns:minmax(200px,1fr) 155px 195px 225px;gap:10px;padding:16px 20px;}
+ html[data-crm-ui] .crm-customer-search {min-width:0;}
+ html[data-crm-ui] .crm-customer-search input {min-height:42px!important;}
+ html[data-crm-ui] .crm-customer-tools > select {width:100%;min-width:0;}
+ html[data-crm-ui] .crm-button.crm-customer-filter-toggle {display:none!important;position:relative;}
+ html[data-crm-ui] .crm-button.crm-customer-filter-toggle > span {position:absolute;top:0;right:0;min-width:16px;padding:0 3px;border-radius:20px;background:var(--crm-accent);color:#fff!important;font-size:11px!important;}
+ html[data-crm-ui] .crm-customer-filter-summary {display:flex;align-items:center;gap:12px;padding:0 20px 12px;color:var(--crm-muted);}
+ html[data-crm-ui] :is(.crm-customer-columns,.crm-customer-row) {display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.15fr) minmax(0,1.2fr) minmax(145px,.65fr);align-items:center;gap:20px;padding:16px 20px;min-width:0!important;}
+ html[data-crm-ui] .crm-customer-columns {padding-block:10px;background:var(--crm-bg);border-block:1px solid var(--crm-line);color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-columns > span {font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-row {position:relative;min-height:96px;border-bottom:1px solid var(--crm-line);background:var(--crm-surface);cursor:pointer;transition:background .15s;}
+ html[data-crm-ui] .crm-customer-row:last-child {border-bottom:0;}
+ html[data-crm-ui] .crm-customer-row:hover, html[data-crm-ui] .crm-customer-row:focus-within {background:var(--crm-bg);}
+ html[data-crm-ui] .crm-customer-row > * {min-width:0;}
+ html[data-crm-ui] .crm-customer-person {display:flex;align-items:center;gap:12px;}
+ html[data-crm-ui] .crm-customer-person-details {display:grid;gap:7px;min-width:0;flex:1;}
+ html[data-crm-ui] .crm-customer-name, html[data-crm-ui] .crm-customer-name > strong {white-space:normal!important;max-width:100%;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-name:hover {text-decoration:underline;text-underline-offset:3px;}
+ html[data-crm-ui] .crm-customer-contacts {display:grid;gap:4px;}
+ html[data-crm-ui] .crm-customer-contact {display:flex;align-items:center;gap:8px;min-height:24px;width:fit-content;max-width:100%;color:var(--crm-ink);text-decoration:none;}
+ html[data-crm-ui] .crm-customer-contact > span {min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] :is(.crm-customer-contact,.crm-customer-relations,.crm-customer-stat) svg {flex:none;width:15px!important;height:15px!important;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-contact:hover {text-decoration:underline;text-underline-offset:3px;}
+ html[data-crm-ui] .crm-customer-relations {display:grid;gap:6px;align-content:center;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-relations .crm-directory-icon-line {align-items:flex-start;}
+ html[data-crm-ui] .crm-customer-owner {color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-assign {min-height:26px!important;color:#8a5618!important;white-space:normal;}
+ html[data-crm-ui] .crm-customer-assign svg {color:inherit!important;}
+ html[data-crm-ui] .crm-customer-assign:hover {text-decoration:underline;text-underline-offset:3px;}
+ html[data-crm-ui] .crm-customer-activity {display:grid;gap:4px;}
+ html[data-crm-ui] .crm-customer-stat {width:100%;min-width:0;min-height:28px!important;padding:2px 6px!important;border-radius:6px!important;}
+ html[data-crm-ui] .crm-customer-stat > span {flex:1;}
+ html[data-crm-ui] .crm-customer-stat:hover {background:var(--crm-tint)!important;}
+ html[data-crm-ui] .crm-customer-footer {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-top:1px solid var(--crm-line);color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-footer > span {font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-dialog {height:100dvh!important;max-height:100dvh!important;border-radius:0!important;}
+ html[data-crm-ui] .crm-customer-dialog > header {display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex:none;}
+ html[data-crm-ui] .crm-customer-dialog > header > div {min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-dialog > header h2 {margin:4px 0 10px!important;}
+ html[data-crm-ui] .crm-customer-card-tabs {display:flex;gap:8px;padding:0 var(--crm-detail-gutter);border-bottom:1px solid var(--crm-line);flex:none;}
+ html[data-crm-ui] .crm-customer-card-tabs > button {display:flex;justify-content:center;align-items:center;gap:6px;min-height:48px;flex:1 1 auto;min-width:0;padding:8px 4px!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--crm-muted)!important;font:inherit;cursor:pointer;}
+ html[data-crm-ui] .crm-customer-card-tabs > button[aria-selected=true] {border-bottom-color:var(--crm-accent)!important;color:var(--crm-ink)!important;}
+ html[data-crm-ui] .crm-customer-card-tabs button > span {padding:1px 6px;border-radius:5px;background:var(--crm-tint);}
+ html[data-crm-ui] .crm-customer-card-contacts {display:flex;gap:8px 16px;flex-wrap:wrap;padding:12px 16px;background:var(--crm-bg);border-radius:10px;}
+ html[data-crm-ui] .crm-customer-card-contacts a {display:flex;align-items:center;gap:8px;min-height:36px;overflow-wrap:anywhere;max-width:100%;}
+ html[data-crm-ui] .crm-customer-card-contacts svg {flex:none;}
+ html[data-crm-ui] .crm-customer-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;}
+ html[data-crm-ui] .crm-customer-fields > .crm-field {grid-column:1/-1;}
+ html[data-crm-ui] .crm-customer-form-intro h3 {margin:0 0 8px!important;}
+ html[data-crm-ui] .crm-customer-form-intro p {margin:0;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-form-note {padding:14px 16px;margin:0;border-radius:10px;background:var(--crm-bg);color:var(--crm-muted);font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-form-error {padding:14px 16px;margin-bottom:20px;border:1px solid var(--crm-danger);border-radius:10px;color:var(--crm-danger);background:var(--crm-danger-bg);}
+ html[data-crm-ui] .crm-customer-form-error p {margin:0 0 8px;}
+ html[data-crm-ui] .crm-customer-card-section {display:grid;gap:12px;border-top:1px solid var(--crm-line);padding-top:20px;}
+ html[data-crm-ui] .crm-customer-card-section h3 {display:flex;align-items:center;gap:8px;margin:0!important;}
+ html[data-crm-ui] .crm-customer-card-section article {display:grid;gap:5px;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-history-row {display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:16px 0;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-customer-history-row > div {display:grid;gap:6px;min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-dialog .crm-detail-footer {flex:none;}
+ @container (max-width:1000px) {
+  html[data-crm-ui] .crm-customer-tools {grid-template-columns:minmax(0,1fr) 44px;}
+  html[data-crm-ui] .crm-button.crm-customer-filter-toggle {display:inline-flex!important;}
+  html[data-crm-ui] .crm-customer-register:not(.is-filters-open) .crm-customer-extra-filter {display:none!important;}
+  html[data-crm-ui] .crm-customer-extra-filter {grid-column:1/-1;}
+  html[data-crm-ui] .crm-customer-new-count {display:none;}
+  html[data-crm-ui] .crm-customer-columns {display:none;}
+  html[data-crm-ui] .crm-customer-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;}
+  html[data-crm-ui] .crm-customer-relations {grid-column:1;grid-row:2;}
+  html[data-crm-ui] .crm-customer-activity {grid-column:2;grid-row:2;}
+  html[data-crm-ui] .crm-customer-segment-full {display:none;}
+  html[data-crm-ui] .crm-customer-segment-short {display:inline;}
+  html[data-crm-ui] .crm-customer-list-hint {display:none;}
+ }
+ @container (max-width:600px) {
+  html[data-crm-ui] .crm-customer-register-head {padding-inline:14px;}
+  html[data-crm-ui] .crm-customer-segments {width:100%;justify-content:space-between;gap:8px;}
+  html[data-crm-ui] .crm-customer-segments > button {justify-content:center;min-width:44px;min-height:50px!important;}
+  html[data-crm-ui] .crm-customer-tools {padding:12px;}
+  html[data-crm-ui] .crm-customer-filter-summary {padding:0 12px 10px;}
+  html[data-crm-ui] .crm-customer-filter-summary .crm-button {font-size:12px!important;}
+  html[data-crm-ui] .crm-customer-rows {display:grid;gap:10px;padding:0 12px 12px;}
+  html[data-crm-ui] .crm-customer-row {grid-template-columns:minmax(0,1fr);gap:10px;padding:14px;border:1px solid var(--crm-line)!important;border-radius:12px;}
+  html[data-crm-ui] .crm-customer-person {grid-column:1;grid-row:1;gap:10px;}
+  html[data-crm-ui] .crm-customer-person .crm-directory-avatar {width:34px;height:34px;}
+  html[data-crm-ui] .crm-customer-contacts {grid-column:1/-1;grid-row:2;gap:0;}
+  html[data-crm-ui] .crm-customer-contact {min-height:44px;}
+  html[data-crm-ui] .crm-customer-relations {grid-column:1/-1;grid-row:3;}
+  html[data-crm-ui] .crm-customer-private {display:none;}
+  html[data-crm-ui] .crm-customer-assign {min-height:44px!important;}
+  html[data-crm-ui] .crm-customer-activity {grid-column:1;grid-row:4;display:flex;flex-wrap:wrap;gap:4px 12px;}
+  html[data-crm-ui] .crm-customer-stat {width:auto;min-height:44px!important;padding:0!important;gap:5px;}
+  html[data-crm-ui] .crm-customer-stat > svg {display:none;}
+  html[data-crm-ui] .crm-customer-stat > span {flex:none;font-size:12px!important;}
+  html[data-crm-ui] .crm-customer-stat > strong {font-size:12px!important;}
+  html[data-crm-ui] .crm-customer-footer {flex-wrap:wrap;padding:12px;}
+ }
+ @media (max-width:600px) {
+  html[data-crm-ui] .crm-customers-page .crm-page-header {display:grid!important;grid-template-columns:minmax(0,1fr) 44px;gap:12px!important;margin-bottom:16px!important;}
+  html[data-crm-ui] .crm-customers-page .crm-page-header h1 {margin:0!important;}
+  html[data-crm-ui] .crm-customers-page .crm-page-header > div:first-child > span {display:none;}
+  html[data-crm-ui] .crm-customer-header-actions {display:contents;}
+  html[data-crm-ui] .crm-customer-header-actions > .crm-button--icon {grid-column:2;grid-row:1;}
+  html[data-crm-ui] .crm-customer-add {grid-column:1/-1;width:100%;}
+  html[data-crm-ui] .crm-customer-fields {grid-template-columns:minmax(0,1fr);gap:16px;}
+  html[data-crm-ui] .crm-customer-card-contacts a {min-height:44px;}
+  html[data-crm-ui] .crm-customer-dialog .crm-detail-footer {padding-bottom:calc(12px + env(safe-area-inset-bottom))!important;}
+ }
+}

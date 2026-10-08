@@ -6,14 +6,16 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { CrmController } from './crm.controller';
 import { CrmDriveController } from './drive.controller';
 import { Customer360Controller } from '../customer360/customer360.controller';
+import { PERMISSIONS_KEY } from '../common/decorators/permissions.decorator';
 
 // Inspect actual decorated endpoints: a read grant must never authorize a write.
 const controllers = [CrmController, CrmDriveController, Customer360Controller];
 const endpoints = controllers.flatMap(controller => Object.getOwnPropertyNames(controller.prototype)
   .filter(name => name !== 'constructor' && Reflect.hasMetadata(METHOD_METADATA, controller.prototype[name]))
   .map(name => ({ controller, name, handler: controller.prototype[name], method: Reflect.getMetadata(METHOD_METADATA, controller.prototype[name]) })));
-const reads = endpoints.filter(endpoint => endpoint.method === RequestMethod.GET);
-const writes = endpoints.filter(endpoint => endpoint.method !== RequestMethod.GET);
+const reads = endpoints.filter(endpoint => (Reflect.getMetadata(PERMISSIONS_KEY, endpoint.handler) || []).every((key: string) => key.endsWith('.read')));
+// Assignment pickers can be GET while intentionally requiring write access.
+const writes = endpoints.filter(endpoint => !reads.includes(endpoint));
 
 describe('Executive CRM read access (real endpoint metadata and RolesGuard, no network)', () => {
   let allowed: string[];

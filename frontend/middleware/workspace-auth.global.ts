@@ -49,17 +49,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path === '/workspace-login' && session.token.value && !useState<boolean>('workspace-signing-out', () => false).value) return navigateTo('/admin-workspace/dashboard');
   if (!session.user.value || session.user.value.role === 'ADMIN') return;
   const access: Record<string, string[]> = {
-    '/admin-workspace': ['CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE'],
+    '/admin-workspace': ['CONTENT_MANAGER', 'MANAGER_SALES', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE'],
     '/media-library': ['CONTENT_MANAGER', 'MANAGER_SALES', 'MANAGER_B2B', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'WAREHOUSE', 'CURATOR'],
-    '/crm': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
-    '/crm-pipeline': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
-    '/crm-customers': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
-    '/crm-organizations': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
-    '/crm-tasks': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
-    '/crm-chat': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR'],
-    '/crm-marketplaces': ['MARKETPLACE_MANAGER', 'SUPERVISOR', 'WAREHOUSE'],
+    '/crm': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE'],
+    '/crm-pipeline': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE'],
+    '/crm-customers': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE'],
+    '/crm-organizations': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE'],
+    '/crm-tasks': ['MANAGER_B2B', 'MANAGER_SALES', 'SUPERVISOR', 'EXECUTIVE'],
+    '/crm-chat': ['CONTENT_MANAGER', 'MANAGER_B2B', 'MANAGER_SALES', 'MARKETPLACE_MANAGER', 'SUPERVISOR', 'EXECUTIVE', 'IT_SUPPORT', 'CURATOR', 'WAREHOUSE'],
+    '/crm-marketplaces': ['MARKETPLACE_MANAGER', 'SUPERVISOR', 'WAREHOUSE', 'EXECUTIVE'],
     '/leadership': ['EXECUTIVE', 'SUPERVISOR'],
-    '/helpdesk': ['IT_SUPPORT', 'SUPERVISOR'],
+    '/helpdesk': ['IT_SUPPORT', 'SUPERVISOR', 'EXECUTIVE'],
     '/system-settings': [],
   };
   const family = Object.keys(access).find(path => to.path === path || to.path.startsWith(`${path}/`));

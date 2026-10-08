@@ -6,6 +6,7 @@ import { ShippingService } from './shipping.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissions } from '../common/decorators/permissions.decorator';
 import { CdekProvider } from './cdek.provider';
 
 @ApiTags('shipping')
@@ -32,13 +33,15 @@ export class ShippingController {
 
   @Post('orders/:orderNumber/calculate')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'WAREHOUSE', 'SUPERVISOR')
+  @Roles('ADMIN', 'WAREHOUSE', 'SUPERVISOR', 'EXECUTIVE')
+  @Permissions('web_orders.read', 'web_orders.write')
   @ApiOperation({ summary: 'Рассчитать стоимость доставки' })
   calculate(@Param('orderNumber') orderNumber: string, @Body() dto: ShippingAddressDto) { return this.shipping.calculate(orderNumber, dto); }
 
   @Post('orders/:orderNumber/ship')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'WAREHOUSE', 'SUPERVISOR')
+  @Roles('ADMIN', 'WAREHOUSE', 'SUPERVISOR', 'EXECUTIVE')
+  @Permissions('web_orders.read', 'web_orders.write')
   @ApiOperation({ summary: 'Создать отправление' })
   createShipment(@Param('orderNumber') orderNumber: string, @Body() dto: ShippingAddressDto) { return this.shipping.createShipment(orderNumber, dto); }
 }

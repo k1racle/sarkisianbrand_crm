@@ -20,7 +20,7 @@
 .sb-storefront .sb-business-intro .sb-kicker, .sb-storefront .sb-business-intro > p { margin: 0; }
 .sb-storefront .sb-business-intro > p { font-size: var(--sb-type-caption); }
 .sb-storefront .sb-business-story { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: center; gap: clamp(28px, 5vw, 100px); min-height: 490px; margin-bottom: 22px; padding: clamp(42px, 5vw, 84px); border: 1px solid var(--sf-glass-border); border-radius: 36px; background: #fff; box-shadow: var(--sf-surface-shadow); overflow: hidden; }
-.sb-storefront .sb-business-story--salon { color: #fff; background: radial-gradient(circle at 18% 0,#41403f,transparent 42%),linear-gradient(135deg,#1b1b1b,#2c2b2a 65%,#191919); border-color: #ffffff20; }
+.sb-storefront .sb-business-story--salon { color: #fff; background: radial-gradient(circle at 18% 0,var(--brand-graphite),transparent 42%),linear-gradient(135deg,#1b1b1b,#2c2b2a 65%,#191919); border-color: #ffffff20; }
 .sb-storefront .sb-business-story--salon .sb-business-story__copy { order: 2; }
 .sb-storefront .sb-business-story__eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; font-size: var(--sb-type-caption); font-weight: var(--sb-weight-semibold); letter-spacing: .14em; color: var(--sf-muted); }
 .sb-storefront .sb-business-story--salon .sb-business-story__eyebrow { color: #c5c3c0; }
@@ -58,7 +58,7 @@
 .sb-storefront .sb-business-faq summary svg { flex: none; transition: transform .2s; }
 .sb-storefront .sb-business-faq details[open] summary svg { transform: rotate(180deg); }
 .sb-storefront .sb-business-faq details p { margin: 0 0 20px; max-width: 60ch; color: var(--sf-muted); font-size: var(--sb-type-small); line-height: 1.7; }
-.sb-storefront .sb-business-end { display: flex; justify-content: space-between; align-items: center; gap: 40px; padding: clamp(38px, 5vw, 78px); border-radius: 36px; color: #fff; background: radial-gradient(circle at 90% 0,#41403f,transparent 40%),linear-gradient(125deg,#171717,#292827); }
+.sb-storefront .sb-business-end { display: flex; justify-content: space-between; align-items: center; gap: 40px; padding: clamp(38px, 5vw, 78px); border-radius: 36px; color: #fff; background: radial-gradient(circle at 90% 0,var(--brand-graphite),transparent 40%),linear-gradient(125deg,var(--brand-graphite),var(--brand-graphite)); }
 .sb-storefront .sb-business-end .sb-kicker { margin: 0 0 20px; color: #c7c4c1; }
 .sb-storefront .sb-business-end h2 { margin: 0 0 16px; font-size: var(--sb-type-section); font-weight: var(--sb-weight-medium); letter-spacing: var(--sb-tracking-heading); }
 .sb-storefront .sb-business-end p:not(.sb-kicker) { margin: 0; max-width: 64ch; color: #cbc9c6; font-size: var(--sb-type-small); line-height: 1.65; }

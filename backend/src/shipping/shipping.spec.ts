@@ -87,7 +87,7 @@ describe('Доставка: только локальные проверки', (
   });
   it('оба старых маршрута ограничены сотрудниками склада/руководителем/админом', () => {
     for (const method of ['calculate', 'createShipment']) {
-      expect(Reflect.getMetadata('roles', ShippingController.prototype[method])).toEqual(['ADMIN', 'WAREHOUSE', 'SUPERVISOR']);
+      expect(Reflect.getMetadata('roles', ShippingController.prototype[method])).toEqual(['ADMIN', 'WAREHOUSE', 'SUPERVISOR', 'EXECUTIVE']);
       expect(Reflect.getMetadata('__guards__', ShippingController.prototype[method])).toHaveLength(2);
     }
   });

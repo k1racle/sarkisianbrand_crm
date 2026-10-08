@@ -1,5 +1,5 @@
 .sb-product-placeholder.sb-gift-product-art {
-  background: linear-gradient(125deg, #426d89, #504865 58%, #8b79b5);
+  background: linear-gradient(125deg, #426d89, var(--brand-graphite) 58%, var(--brand-graphite-soft));
   color: #fff;
   padding: 24px;
   text-align: center;
