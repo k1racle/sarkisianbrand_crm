@@ -7,7 +7,8 @@ const source={id:'51000000-0000-4000-8000-000000000001',version:1,status:'FINISH
 async function main(){
  fs.mkdirSync(output,{recursive:true});const browser=await chromium.launch(require('./crm-test-browser.cjs')),checks=[];
  try{for(const width of [390,1440]){
-  const fixture=await isolatedContext(browser,width,false,false,{fixtures:new Map(base),allowFixtureForms:true}),p=fixture.page;
+  const fixtures=new Map(base);fixtures.set('/staff-notifications',{items:[],fresh:[],unreadCount:0,nextCursor:null,through:new Date().toISOString(),popupsEnabled:false});
+  const fixture=await isolatedContext(browser,width,false,false,{fixtures,allowFixtureForms:true}),p=fixture.page;
   let rows=[],lost=false,conflict=false,creates=0,decisions=0;const keys=new Map();
   const proposal={startedAt:'2026-09-01T06:00Z',endedAt:'2026-09-01T15:00Z',timezone:'Europe/Moscow',breaks:[],totals:{workedMs:32400000,breakMs:0}};
   const other={id:'other',sessionId:'team-session',version:1,baseVersion:1,status:'PENDING',reason:'Забыл завершить смену',createdAt:'2026-09-28T10:00Z',employee:{id:'team',firstName:'Анна',lastName:'Тестовая'},proposal,original:source,stale:false,canApprove:true,canReject:true,canCancel:false};
@@ -37,7 +38,7 @@ async function main(){
    if(pathname==='/unclosed')return send({items:[{id:'open',employee:{firstName:'Борис',lastName:'Тестовый'},startedAt:'2026-09-25T06:00Z',timezone:'Europe/Moscow',totals:{workedMs:200000000,breakMs:0}}],page:1,pages:1,total:1});
    if(pathname==='/corrections'){
     const review=url.searchParams.get('scope')==='REVIEW',status=url.searchParams.get('status');
-    const items=rows.filter(r=>(review?r.employee.id!=='mock-admin':r.employee.id==='mock-admin')&&(!status||r.status===status));return send({items,page:1,pages:1,total:items.length});
+    const items=rows.filter(r=>(review?r.employee.id!=='mock-admin':r.employee.id==='mock-admin')&&(!status||r.status===status));return send({items,page:1,pages:1,total:items.length,...(review?{ownPendingTotal:rows.filter(r=>r.employee.id==='mock-admin'&&r.status==='PENDING').length,reviewScope:'COMPANY'}:{})});
    }
    if(pathname.startsWith('/corrections/'))return send(rows.find(r=>r.id===pathname.split('/').pop()));
    if(pathname==='/current')return send({serverTime:'2026-09-28T12:00Z',timezone:'Europe/Moscow',date:'2026-09-28',todayEndsAt:'2026-09-28T21:00Z',today:{workedMs:0,breakMs:0},active:null,canTrack:true});
@@ -67,6 +68,12 @@ async function main(){
    await drawer.getByLabel('Комментарий к решению',{exact:true}).fill('Перепроверю время');await drawer.getByRole('button',{name:'Отозвать заявку',exact:true}).click();await drawer.waitFor({state:'hidden'});
    await p.getByRole('button',{name:'Добавить пропущенный день',exact:true}).click();await drawer.getByLabel('Начало работы',{exact:true}).fill('2026-09-02T09:00');await drawer.getByLabel('Окончание работы',{exact:true}).fill('2026-09-02T18:00');await drawer.getByLabel('Причина исправления',{exact:true}).fill('Не включил счётчик утром');
    await drawer.getByRole('button',{name:'Отправить на проверку',exact:true}).click();await drawer.waitFor({state:'hidden'});assert.equal(creates,2);
+   await p.getByRole('tab',{name:'Проверка команды',exact:true}).click();await p.getByText('Ваши заявки ожидают другого руководителя: 1',{exact:true}).waitFor();
+   await p.getByText('Заявок других сотрудников с выбранным состоянием нет.',{exact:true}).waitFor();
+   await p.screenshot({path:path.join(output,width+'-own-request-explained.png'),fullPage:true});await noOverflow();
+   await p.getByRole('button',{name:'Мои исправления',exact:true}).click();await p.getByRole('button',{name:'Открыть заявку: Не включил счётчик утром',exact:true}).click();
+   await drawer.getByText(/Это ваша заявка/).waitFor();assert.equal(await drawer.getByRole('button',{name:'Принять исправление',exact:true}).count(),0);
+   await drawer.getByRole('button',{name:'Закрыть исправление',exact:true}).click();
    rows.push(JSON.parse(JSON.stringify(other)));await p.getByRole('tab',{name:'Проверка команды',exact:true}).click();await p.getByText('Борис Тестовый',{exact:true}).waitFor();
    await p.getByRole('button',{name:'Открыть заявку: Забыл завершить смену',exact:true}).click();await drawer.getByLabel('Комментарий к решению',{exact:true}).fill('Сверено с руководителем');
    await p.screenshot({path:path.join(output,width+'-review.png')});await noOverflow();

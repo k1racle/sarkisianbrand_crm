@@ -62,7 +62,7 @@ onMounted(() => { load(); loadOptions(); }); watch(token, () => { section.value 
       </section>
       </div>
       <div v-show="['mine','review'].includes(section)" :id="'work-time-' + (section === 'review' ? 'review' : 'mine') + '-panel'" role="tabpanel" :aria-labelledby="'work-time-' + (section === 'review' ? 'review' : 'mine') + '-tab'">
-        <CrmTimeCorrections ref="corrections" :visible="['mine','review'].includes(section)" :scope="section === 'review' ? 'REVIEW' : 'MINE'" :can-create="Boolean(options?.canCreate)" :can-review="Boolean(options?.canReview)" :timezone="options?.timezone || data?.timezone || 'Europe/Moscow'" :month="month" @changed="refreshTime" />
+        <CrmTimeCorrections ref="corrections" :visible="['mine','review'].includes(section)" :scope="section === 'review' ? 'REVIEW' : 'MINE'" :can-create="Boolean(options?.canCreate)" :can-review="Boolean(options?.canReview)" :timezone="options?.timezone || data?.timezone || 'Europe/Moscow'" :month="month" @changed="refreshTime" @show-mine="section = 'mine'" />
       </div>
       <div v-show="section === 'sheet'" id="work-time-sheet-panel" role="tabpanel" aria-labelledby="work-time-sheet-tab"><CrmTimesheet :visible="section === 'sheet'" @correction="openSheetCorrection" /></div>
     </div>

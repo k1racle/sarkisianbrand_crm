@@ -1,0 +1,126 @@
+/* First layer: theme tokens and inherited legacy surfaces win important rules.
+ * All selectors require the CRM route marker; storefront/B2B keep their palette. */
+@layer crm-theme {
+ html[data-crm-ui] {
+  color-scheme:light;
+  --crm-background-image:url('/crm/backgrounds/light.png');
+  --crm-on-accent:#fff;
+  --crm-background-veil:rgb(245 245 245 / .22);
+  --crm-border:var(--crm-line);
+ }
+ html[data-crm-ui][data-crm-theme="dark"] {
+  color-scheme:dark;
+  --crm-background-image:url('/crm/backgrounds/dark.png');
+  --crm-background-veil:rgb(34 36 39 / .32);
+  --brand-graphite:#eeeeec!important; --brand-muted:#b8babd!important; --brand-gray:#4b4d51!important;
+  --brand-bg:#222427!important; --brand-soft:#35373b!important; --brand-gray-soft:#303236!important;
+  --brand-action:#d6d6d6!important; --brand-action-hover:#fff!important;
+  --crm-accent:#d6d6d6!important; --crm-accent-hover:#fff!important; --crm-accent-ink:#eeeeec!important;
+  --crm-surface:#2b2d30!important; --crm-ink:#eeeeec!important; --crm-muted:#b8babd!important;
+  --crm-bg:#222427!important; --crm-line:#4b4d51!important; --crm-tint:#35373b!important;
+  --crm-on-accent:#202124; --crm-hover-bg:#35373b!important; --crm-hover-border:#797b80!important;
+  --crm-success:#86d7ac!important; --crm-success-bg:#203d30!important;
+  --crm-warning:#f2c078!important; --crm-warning-bg:#423522!important;
+  --crm-danger:#ffa2af!important; --crm-danger-bg:#492d34!important;
+  --black:var(--crm-ink)!important; --muted:var(--crm-muted)!important; --line:var(--crm-line)!important; --soft:var(--crm-bg)!important;
+  --sb-ink:var(--crm-ink)!important; --sb-text:var(--crm-ink)!important; --sb-text-soft:var(--crm-muted)!important;
+  --sb-bg:var(--crm-bg)!important; --sb-muted:var(--crm-muted)!important; --sb-panel:var(--crm-surface)!important; --sb-line:var(--crm-line)!important;
+  --sb-success:var(--crm-success); --sb-warning:var(--crm-warning); --sb-danger:var(--crm-danger);
+  --admin-ink:var(--crm-ink); --admin-muted:var(--crm-muted); --admin-bg:var(--crm-bg); --admin-line:var(--crm-line);
+  --sb-focus:#c7c9cd;
+ }
+ html[data-crm-ui] body {
+  color:var(--crm-ink); background-color:var(--crm-bg)!important;
+  background-image:linear-gradient(var(--crm-background-veil),var(--crm-background-veil)),var(--crm-background-image)!important;
+  background-position:center!important; background-size:cover!important;
+  background-repeat:no-repeat!important; background-attachment:fixed!important;
+ }
+ html[data-crm-ui] :is(.crm-app,.crm-app-login,.crm-frame,.crm-frame main,.crm-standard) {background:transparent!important;}
+ html[data-crm-ui] .crm-theme-toggle {flex:none;min-width:44px;min-height:44px;}
+ html[data-crm-ui][data-crm-theme="dark"] * {scrollbar-color:#696c72 transparent;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(
+  .crm-topbar,.crm-mobile-tabs,.crm-section-navigation,.crm-login-card,.crm-search-dialog,.crm-install-dialog,.crm-skip-link,
+  .crm-install-button,.crm-navigation a[aria-current="page"],.platform-chat,.profile-drawer,.workspace-context,
+  .admin-dialog,.admin-dialog > header,.admin-dialog > footer,.admin-dialog-body,.crm-detail-body,
+  .admin-dialog .admin-dialog-head,.admin-dialog .drawer-body,.admin-dialog .drawer-scroll,.admin-dialog .form-scroll,
+  .admin-dialog .profile-content,.admin-dialog .editor-scroll,.admin-dialog .cs-form-grid,
+  .admin-dialog .panel:not([role="alert"]),.admin-dialog fieldset,
+  .admin-dialog .profile-tabs,.admin-dialog .profile-section,.admin-dialog .admin-dialog-tabs,
+  .studio-orders,.accounts-card,.commands-panel,.command-settings .activity-panel,.trash-types,.queue-grid > article,
+  .crm-drive-item:not(.selected),.crm-drive-picker,.crm-file-preview,.crm-upload-queue,.crm-content-views,.crm-content-day,
+  .crm-stock-rule-targets > button:not([aria-pressed="true"]),
+  .crm-notifications-panel,.crm-notification-toasts > article,.crm-notification-read,
+  .crm-main .panel,.crm-main .kpis article:not(.accent):not(.danger),.crm-main .head-actions .light,
+  .context-notice,.reminder-center,.account-drawer,.trash-drawer,.integration-drawer,.order-drawer,.editor-drawer,.new-drawer,
+  .crm-messenger .channels,.crm-messenger .conversation > header,.crm-messenger .message:not(.mine) > section,.crm-messenger .messenger-compose-row,
+  .crm-messenger .messenger-attach-menu,.crm-messenger .emoji-picker,.crm-messenger .entity-picker,
+  .crm-messenger .pending > span,.crm-messenger .entity-picker > header,
+  .crm-messenger .messenger-jump.crm-button,.crm-messenger .message .attachments .entity-card,.crm-messenger .message .attachments .file-card
+ ) {background:var(--crm-surface)!important;color:var(--crm-ink)!important;border-color:var(--crm-line)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-app-sidebar,.crm-brand,.crm-sidebar-footer) {border-color:var(--crm-line)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-app-sidebar {background:#242629!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-brand,.crm-sidebar-footer) {background:#2b2d30!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-messenger .messenger-date > span {background:var(--crm-surface)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-app,.crm-app-login,.admin-dialog,.profile-drawer,.workspace-context) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),select,textarea) {
+  color:var(--crm-ink)!important;background-color:var(--crm-surface)!important;border-color:var(--crm-line)!important;caret-color:var(--crm-ink);
+ }
+ html[data-crm-ui][data-crm-theme="dark"] :is(input,textarea)::placeholder {color:var(--crm-muted)!important;opacity:1;}
+ html[data-crm-ui][data-crm-theme="dark"] option {color:var(--crm-ink);background:var(--crm-surface);}
+ html[data-crm-ui][data-crm-theme="dark"] .admin-dialog {--sb-panel:var(--crm-surface);--admin-glass:var(--crm-surface);}
+ html[data-crm-ui][data-crm-theme="dark"] .admin-dialog label {color:var(--crm-muted)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .admin-dialog :is(.close,.editor-icon-button,.aml-close) {background:var(--crm-surface)!important;color:var(--crm-ink)!important;border-color:var(--crm-line)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-messenger :is(.messenger-search input,.messenger-compose-row textarea) {background:transparent!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-messenger :is(.entity-card > i,.file-card > i,.entity-picker .crm-chat-entity > i) {background:var(--crm-bg)!important;color:var(--crm-ink)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-app,.admin-dialog) .toast {background:var(--crm-tint)!important;color:var(--crm-ink)!important;border:1px solid var(--crm-line)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-app,.admin-dialog) :is(
+  .crm-button--primary,.crm-primary-button,button.primary,a.primary,button.save,button.send,.loyalty-save,
+  .sb-gift-button:not(.sb-gift-button--white),.sb-promo-button:not(.sb-promo-button--white),
+  .crm-messenger .messenger-dialog-row.active,.crm-messenger .send.messenger-icon,
+  .crm-customer-filter-toggle > span,.crm-org-filter-toggle > span,.crm-notification-filters button.active,.tasks-page .comment-box button
+ ) {background:var(--crm-accent)!important;color:var(--crm-on-accent)!important;border-color:var(--crm-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(
+  .crm-button--primary,.crm-primary-button,.crm-messenger .messenger-dialog-row.active,.crm-messenger .send.messenger-icon
+ ) :is(span,b,strong,small,time,svg) {color:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-primary-button {color:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-messenger .active .chat-dialog-meta em {background:#3c3c3b!important;color:#fff!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-messenger .chat-dialog-meta em {color:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-customer-assign {color:var(--crm-warning)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(input[type=checkbox]:checked,input[type=checkbox]:indeterminate)::after,
+ html[data-crm-ui][data-crm-theme="dark"] .crm-notification-switch.active::after {background:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-unread {background:#b43a50!important;color:#fff!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .sb-gift-preview-art {background:linear-gradient(130deg,#3c3c3b,#555554 75%,#555554)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-content-date-cell.is-today .crm-content-desktop-day {color:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.loyalty-row > span:nth-child(4),.field-state,.tasks-page .kanban > article > header > span) {color:var(--crm-muted)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .task-card em {background:var(--crm-tint)!important;color:var(--crm-ink)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .task-card em:is(.high,.urgent,.critical) {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .task-card footer > span {background:var(--crm-tint)!important;color:var(--crm-ink)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .task-card em.low {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.helpdesk-page .red,.queue-health.off,.system-console span.blocked) {color:var(--crm-danger)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .helpdesk-page .text-high {color:var(--crm-warning)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-stock-rules-delivery {background:var(--crm-warning-bg)!important;color:var(--crm-warning)!important;border-color:var(--crm-warning)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-stock-rules-delivery :is(p,svg) {color:inherit!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .system-console span.active {color:var(--crm-success)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .command-settings .access-state {color:var(--crm-muted)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .command-settings .enabled {color:var(--crm-success)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .integration-copy .card-title em {color:var(--crm-muted)!important;background:var(--crm-bg)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-button--primary,.crm-primary-button):hover:not(:disabled) {background:var(--crm-accent-hover)!important;color:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-main :is(.task-copy small,.task-date:not(.late),.task-date:not(.late) b,.task-date:not(.late) small,.activity-list small,.activity-list time,.stage-value small,.quick-grid small) {color:var(--crm-muted)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-main :is(.panel header,.task-list > button,.activity-list > button) {border-color:var(--crm-line)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-main .activity-list > button > i {color:var(--crm-muted)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-main .bar {background:var(--crm-line)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .loyalty-program-preview {background:linear-gradient(135deg,#303134,#555554 55%,#303134)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .loyalty-program-preview :is(p,small,span) {color:#e5e5e5!important;}
+ html[data-crm-ui][data-crm-theme="dark"] .crm-notification-filters button.active {background:var(--crm-accent)!important;color:var(--crm-on-accent)!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.admin-dialog-backdrop,.platform-chat-backdrop,.profile-backdrop,.crm-dialog-backdrop,.crm-menu-backdrop,.crm-notifications-backdrop) {background:rgb(0 0 0 / .64)!important;}
+ @media (max-width:767px) {
+  html[data-crm-ui] body {background-position:right center!important;}
+ }
+ @media (max-width:359px) {
+  html[data-crm-ui] .crm-mobile-brand span {display:none;}
+  html[data-crm-ui] .crm-topbar {gap:4px;padding-inline:8px;}
+  html[data-crm-ui] .crm-topbar-actions {gap:0;}
+ }
+ @media print {
+  html[data-crm-ui] body {background-image:none!important;}
+ }
+}

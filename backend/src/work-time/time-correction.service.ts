@@ -62,7 +62,11 @@ export class TimeCorrectionService {
       const where: Prisma.CrmWorkTimeCorrectionWhereInput = { AND: [query.scope === 'REVIEW' ? { ...this.team(actor), employeeId: { not: id } } : { employeeId: id }, ...(query.status ? [{ status: query.status }] : [])] };
       const total = await db.crmWorkTimeCorrection.count({ where });
       const items = await db.crmWorkTimeCorrection.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 25, skip: (query.page - 1)*25, include });
-      return { items: items.map(row => this.view(actor,row,now)), total, page: query.page, pages: Math.max(1, Math.ceil(total/25)) };
+      // Own requests stay out of the review queue: they require a different reviewer.
+      // Explain their absence without mixing them into the team's total or pagination.
+      const ownPendingTotal = query.scope === 'REVIEW' ? await db.crmWorkTimeCorrection.count({ where: { employeeId: id, status: 'PENDING' } }) : undefined;
+      return { items: items.map(row => this.view(actor,row,now)), total, page: query.page, pages: Math.max(1, Math.ceil(total/25)),
+        ...(query.scope === 'REVIEW' ? { ownPendingTotal, reviewScope: actor.company ? 'COMPANY' : 'DEPARTMENTS' } : {}) };
     }, true);
   }
   async detail(id: string, correctionId: string) { return this.transaction(async db => { const actor = await this.actor(db,id); return this.view(actor,await this.accessible(db,actor,correctionId),await this.now(db)); }, true); }

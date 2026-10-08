@@ -3,10 +3,10 @@ import { requestKey as createRequestKey } from '~/shared/request-key';
 import { Plus, RefreshCw, Trash2, X } from '@lucide/vue';
 import { workTimeDuration, workTimeLocal, type TimeCorrection, type WorkTimeSession } from '~/shared/crm-work-time';
 const props = defineProps<{ visible: boolean; scope: 'MINE' | 'REVIEW'; canCreate: boolean; canReview: boolean; timezone: string; month: string }>();
-const emit = defineEmits<{ changed: [] }>();
-const { token } = useWorkspaceSession(), config = useRuntimeConfig();
+const emit = defineEmits<{ changed: []; showMine: [] }>();
+const { token, user } = useWorkspaceSession(), config = useRuntimeConfig();
 const request = <T,>(path: string, options: any = {}) => $fetch<T>('/crm/work-time' + path, { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${token.value}` }, timeout: 15000, retry: 0, ...options });
-const listing = ref<{ items: TimeCorrection[]; page: number; pages: number; total: number } | null>(null), page = ref(1), status = ref('PENDING'), loading = ref(false), error = ref('');
+const listing = ref<{ items: TimeCorrection[]; page: number; pages: number; total: number; ownPendingTotal?: number; reviewScope?: 'COMPANY' | 'DEPARTMENTS' } | null>(null), page = ref(1), status = ref('PENDING'), loading = ref(false), error = ref('');
 const unclosed = ref<any>(null), unclosedPage = ref(1);
 const opened = ref(false), busy = ref(false), formError = ref(''), selected = ref<TimeCorrection | null>(null), source = ref<WorkTimeSession | null>(null), note = ref('');
 const pending = ref<{ path: string; body: any } | null>(null), requestKey = ref(''), baseline = ref('');
@@ -82,14 +82,19 @@ onUnmounted(() => { alive = false; ++loadVersion; ++openVersion; window.removeEv
 defineExpose({ create, open, refresh: load });
 </script>
 <template>
-  <div v-if="visible" class="crm-page-content--stack">
+  <div v-if="visible" class="crm-page-content--stack crm-time-corrections">
     <section class="crm-surface" :aria-label="scope === 'REVIEW' ? 'Проверка исправлений' : 'Мои исправления'">
       <header class="crm-panel-header"><div><p>{{ scope === 'REVIEW' ? 'ПРОВЕРКА ВРЕМЕНИ' : 'МОИ ЗАЯВКИ' }}</p><h2>{{ scope === 'REVIEW' ? 'Исправления сотрудников' : 'Запросы на исправление' }}</h2></div><button v-if="scope === 'MINE' && canCreate" class="crm-button crm-button--primary" :disabled="busy" @click="create()"><Plus :size="18" />Добавить пропущенный день</button></header>
       <div class="crm-register crm-page-content--stack">
         <p class="crm-inline-note">{{ scope === 'REVIEW' ? 'Сравните исходные и предложенные отметки. Подтвердить свои часы нельзя; при изменении исходной отметки нужна новая заявка.' : 'Часы изменятся только после принятия другим руководителем. Здесь видны заявки за все месяцы. Для изменения существующей отметки откройте её в истории.' }}</p>
+        <aside v-if="scope === 'REVIEW' && listing?.ownPendingTotal" class="crm-time-own-request" role="status">
+          <div><strong>Ваши заявки ожидают другого руководителя: {{ listing.ownPendingTotal }}</strong><p>Они находятся в «Моих исправлениях». Свою заявку нельзя согласовать самостоятельно, поэтому в очередь проверки команды она не входит.</p></div>
+          <button class="crm-button" type="button" @click="emit('showMine')">Мои исправления</button>
+        </aside>
+        <p v-if="scope === 'REVIEW' && listing?.reviewScope" class="crm-inline-note">{{ listing.reviewScope === 'COMPANY' ? 'Здесь заявки остальных сотрудников всей компании.' : 'Здесь заявки сотрудников отделов, которыми вы руководите. Заявки вне этих отделов проверяет высшее руководство или администратор с правом проверки времени.' }}</p>
         <div class="crm-filter-form crm-filter-form--compact"><label>Состояние заявки<select v-model="status" class="crm-input" @change="page = 1; load()"><option value="">Все состояния</option><option v-for="(label,key) in labels" :key="key" :value="key">{{ label }}</option></select></label><button class="crm-button crm-button--refresh" :disabled="loading || busy" @click="load"><RefreshCw :size="18" />Обновить заявки</button></div>
         <p v-if="loading" role="status">Загружаем заявки…</p><p v-if="error" role="alert">{{ error }}</p>
-        <template v-if="listing"><p v-if="!listing.items.length">Заявок с выбранным состоянием пока нет.</p>
+        <template v-if="listing"><p v-if="!listing.items.length">{{ scope === 'REVIEW' ? 'Заявок других сотрудников с выбранным состоянием нет.' : 'Заявок с выбранным состоянием пока нет.' }}</p>
           <article v-for="row in listing.items" :key="row.id" class="crm-item-card crm-record"><span><strong>{{ scope === 'REVIEW' ? person(row.employee) : date(row.proposal.startedAt,row.proposal.timezone) }}</strong><small>{{ row.reason }}</small><small>{{ date(row.proposal.startedAt,row.proposal.timezone) }} — {{ date(row.proposal.endedAt,row.proposal.timezone) }}</small><small v-if="row.stale">Исходная отметка уже изменена</small></span><span class="crm-badge">{{ labels[row.status] }}</span><button class="crm-button" :disabled="busy" :aria-label="'Открыть заявку: ' + row.reason" @click="open(row.id)">Открыть</button></article>
           <div class="crm-action-bar crm-action-bar--spread"><span>Всего заявок: {{ listing.total }} · {{ listing.page }} / {{ listing.pages }}</span><div class="crm-action-bar"><button class="crm-button" :disabled="loading || page <= 1" @click="changePage(-1)">Назад</button><button class="crm-button" :disabled="loading || page >= listing.pages" @click="changePage(1)">Далее</button></div></div>
         </template>
@@ -113,6 +118,7 @@ defineExpose({ create, open, refresh: load });
       </template>
       <template v-else>
         <p><strong>{{ person(selected.employee) }}</strong> · <span class="crm-badge">{{ labels[selected.status] }}</span></p><p>{{ selected.reason }}</p><p class="crm-inline-note">Часовой пояс: {{ selected.proposal.timezone }}</p>
+        <p v-if="selected.status === 'PENDING' && selected.employee.id === user?.id" class="crm-notice" role="status">Это ваша заявка. Её должен проверить другой сотрудник с правом согласования времени: руководитель вашего отдела, высшее руководство или администратор. До согласования часы в табеле остаются прежними.</p>
         <section class="crm-stack" aria-label="Исходные отметки"><h3>Было</h3><template v-if="selected.original"><p>{{ date(selected.original.startedAt,selected.original.timezone) }} — {{ date(selected.original.endedAt,selected.original.timezone) }}</p><p v-for="(pause,index) in selected.original.breaks" :key="index" class="crm-inline-note">Перерыв: {{ date(pause.startedAt,selected.original.timezone) }} — {{ date(pause.endedAt,selected.original.timezone) }}</p></template><p v-else>Отметки нет — запрошен пропущенный день.</p></section>
         <section class="crm-stack" aria-label="Предложенные отметки"><h3>Предложено</h3><p>{{ date(selected.proposal.startedAt,selected.proposal.timezone) }} — {{ date(selected.proposal.endedAt,selected.proposal.timezone) }}</p><p v-for="(pause,index) in selected.proposal.breaks" :key="index" class="crm-inline-note">Перерыв: {{ date(pause.startedAt,selected.proposal.timezone) }} — {{ date(pause.endedAt,selected.proposal.timezone) }}</p><strong>Работа: {{ workTimeDuration(selected.proposal.totals.workedMs) }} · Перерывы: {{ workTimeDuration(selected.proposal.totals.breakMs) }}</strong></section>
         <p v-if="selected.stale" role="alert">После подачи заявки исходная отметка изменилась. Подтвердить прежние значения нельзя: нужна новая заявка.</p>

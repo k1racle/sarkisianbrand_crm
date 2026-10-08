@@ -36,6 +36,8 @@
  html[data-crm-ui] .crm-section-inset {margin:0 var(--workspace-gutter,16px) 16px;min-width:0;}
  html[data-crm-ui] .crm-panel-header {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:16px 20px;border-bottom:1px solid var(--crm-line);}
  html[data-crm-ui] .crm-panel-header :is(h2,p) {margin:0;}
+ html[data-crm-ui] .crm-panel-header .crm-action-bar {align-items:center!important;}
+ html[data-crm-ui] .crm-panel-header .crm-action-bar > h2 {margin:0!important;}
  html[data-crm-ui] .crm-panel-header p {margin-bottom:8px;font-size:var(--crm-type-caption)!important;}
  html[data-crm-ui] .crm-inline-note {margin:0;line-height:1.5;color:var(--crm-muted);font-size:var(--crm-type-caption)!important;}
  html[data-crm-ui] .crm-page-header { display:flex!important; flex-wrap:wrap!important; align-items:center!important; justify-content:space-between!important; gap:16px!important; height:auto!important; min-height:64px!important; margin:0 0 40px!important; padding:0!important; background:none!important; border:0!important; box-shadow:none!important; }
@@ -65,6 +67,12 @@
  html[data-crm-ui] .crm-button.crm-button--danger:hover:not(:disabled) {background:var(--crm-danger-bg)!important;}
  html[data-crm-ui] .crm-button.crm-button--icon {padding:10px!important;min-width:44px!important;flex-shrink:0!important;}
  html[data-crm-ui] .crm-button.crm-button--row {justify-content:flex-start!important;text-align:left!important;border:0!important;background:transparent!important;}
+ html[data-crm-ui] :is(.trash-types,.crm-drive-nav) > .crm-button {justify-content:flex-start!important;text-align:left!important;}
+ html[data-crm-ui] :is(.trash-types,.crm-drive-nav) > .crm-button > svg {flex-shrink:0;}
+ html[data-crm-ui] .tasks-page .calendar > header > .crm-button {width:44px!important;min-width:44px!important;padding:10px!important;}
+ html[data-crm-ui] .tasks-page .calendar-grid > .today > time {background:var(--crm-accent)!important;color:var(--crm-on-accent)!important;border-radius:6px;}
+ html[data-crm-ui] .tasks-page .calendar-grid button.crm-button {display:block!important;justify-content:flex-start!important;text-align:left!important;padding:8px!important;}
+ html[data-crm-ui] .tasks-page .calendar-grid button.crm-button.overdue {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
  html[data-crm-ui] .platform-chat .entity-picker {grid-template-rows:auto auto auto minmax(0,1fr)!important;}
  html[data-crm-ui] .platform-chat .entity-picker > div {min-height:0;}
  html[data-crm-ui] .crm-button.crm-chat-entity {display:grid!important;grid-template-columns:30px minmax(0,1fr) 18px!important;justify-content:stretch!important;text-align:left!important;width:100%!important;}
@@ -239,7 +247,7 @@
  html[data-crm-ui] .crm-matrix-grant[data-granted=true] {color:var(--crm-success);}
  html[data-crm-ui] .crm-matrix-note {margin:0;padding:16px;color:var(--crm-muted);font-size:var(--crm-type-caption);}
  @media(min-width:640px){html[data-crm-ui] .crm-matrix-table {--crm-matrix-first-column:240px;}}
- html[data-crm-ui] .crm-badge {display:inline-flex!important;align-items:center!important;gap:4px!important;padding:4px 8px!important;border:0!important;border-radius:6px!important;font-size:var(--crm-type-caption)!important;font-weight:var(--brand-weight-body)!important;background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;}
+ html[data-crm-ui] .crm-badge {display:inline-flex!important;align-items:center!important;justify-self:start!important;width:fit-content!important;max-width:100%!important;gap:4px!important;padding:4px 8px!important;border:0!important;border-radius:6px!important;font-size:var(--crm-type-caption)!important;font-weight:var(--brand-weight-body)!important;background:var(--crm-tint)!important;color:var(--crm-accent-ink)!important;}
  html[data-crm-ui] .crm-badge:is([data-stage=PUBLISHED],[data-status=ACTIVE],[data-status=PAID]) {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;}
  html[data-crm-ui] .crm-badge:is([data-stage=REVIEW],[data-status=PENDING],[data-status=REQUESTED]) {background:var(--crm-warning-bg)!important;color:var(--crm-warning)!important;}
  html[data-crm-ui] .crm-badge:is([data-status=SUSPENDED],[data-status=REJECTED],[data-status=CANCELLED]) {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}

@@ -1,5 +1,26 @@
 /* Operational screens use the same CRM tokens; never changes storefront/admin. */
 @layer crm-shell {
+  /* Alternate task views share the toolbar edges and theme-aware grid surfaces. */
+  html[data-crm-ui] .tasks-page > :is(.gantt,.calendar,.list).panel {width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box;margin:0 0 24px!important;overflow:auto;overscroll-behavior-x:contain;}
+  html[data-crm-ui] .tasks-page :is(.gantt > header,.gantt-row) {grid-template-columns:240px minmax(0,1fr)!important;min-width:720px;border-color:var(--crm-line)!important;}
+  html[data-crm-ui] .tasks-page .gantt > header {height:auto;min-height:50px;padding:0!important;color:var(--crm-muted)!important;background:var(--crm-bg);}
+  html[data-crm-ui] .tasks-page .gantt > header > :is(span,b) {padding:12px 18px;}
+  html[data-crm-ui] .tasks-page .gantt-row > span {min-width:0;overflow-wrap:anywhere;background:var(--crm-surface);}
+  html[data-crm-ui] .tasks-page .gantt-row > div {overflow:hidden;background-color:var(--crm-surface)!important;background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),var(--crm-line) calc(10% - 1px),var(--crm-line) 10%)!important;}
+  html[data-crm-ui] .tasks-page .gantt-row i {background:var(--crm-accent)!important;color:var(--crm-on-accent)!important;border-radius:4px;}
+  html[data-crm-ui] .tasks-page .gantt-row i.done {background:var(--crm-success-bg)!important;color:var(--crm-success)!important;border:1px solid var(--crm-success);}
+  html[data-crm-ui] .tasks-page .gantt-row i.overdue {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;border:1px solid var(--crm-danger);}
+  html[data-crm-ui] .tasks-page .calendar > header {position:sticky;left:0;min-height:64px;height:auto!important;gap:12px!important;padding:8px;border-color:var(--crm-line)!important;background:var(--crm-surface);}
+  html[data-crm-ui] .tasks-page .calendar > header h2 {margin:0!important;}
+  html[data-crm-ui] .tasks-page :is(.week,.calendar-grid) {grid-template-columns:repeat(7,minmax(0,1fr));min-width:700px;}
+  html[data-crm-ui] .tasks-page .week {background:var(--crm-bg);}
+  html[data-crm-ui] .tasks-page :is(.week b,.calendar-grid article,.list-row) {border-color:var(--crm-line)!important;}
+  html[data-crm-ui] .tasks-page .calendar-grid article {min-width:0;min-height:112px;background:var(--crm-surface);}
+  html[data-crm-ui] .tasks-page .calendar-grid article.outside {background:var(--crm-bg)!important;}
+  html[data-crm-ui] .tasks-page .list-row {min-width:860px;grid-template-columns:minmax(200px,2fr) minmax(160px,1.2fr) minmax(130px,1fr) minmax(100px,.8fr) minmax(100px,.8fr) minmax(75px,.5fr)!important;}
+  html[data-crm-ui] .tasks-page .list-row > * {min-width:0;overflow-wrap:anywhere;}
+  html[data-crm-ui] .tasks-page .list-row:not(.head):hover {background:var(--crm-hover-bg);}
+  html[data-crm-ui] .tasks-page :is(.gantt-row,.list-row):last-child {border-bottom:0;}
   html[data-crm-ui] .crm-subtask-open { justify-content:stretch!important; justify-items:start!important; align-items:center!important; }
   html[data-crm-ui] .crm-app .partner-toggle input { position:absolute!important; opacity:0!important; width:44px!important; height:44px!important; min-width:44px!important; min-height:44px!important; }
   html[data-crm-ui] .crm-app .partner-toggle input:checked + span { background:var(--crm-accent)!important; }
@@ -131,3 +152,10 @@
     html[data-crm-ui] .crm-upload-queue { bottom:24px !important; }
   }
 }
+html[data-crm-ui] .crm-time-own-request { display:flex; align-items:center; gap:16px; padding:16px; border:1px solid var(--crm-border); border-radius:12px; background:var(--crm-bg); }
+html[data-crm-ui] .crm-time-own-request > div { flex:1; min-width:0; }
+html[data-crm-ui] .crm-time-own-request p { margin:6px 0 0; line-height:1.6; color:var(--crm-muted); }
+html[data-crm-ui] .crm-time-own-request > .crm-button { flex:none; }
+html[data-crm-ui] .crm-time-corrections .crm-record > .crm-badge { flex:none; min-width:0; }
+@media (min-width:640px) { html[data-crm-ui] .crm-time-corrections .crm-filter-form--compact { justify-content:start; grid-template-columns:minmax(160px,240px) max-content!important; } }
+@media (max-width:639px) { html[data-crm-ui] .crm-time-own-request { align-items:stretch; flex-direction:column; } }

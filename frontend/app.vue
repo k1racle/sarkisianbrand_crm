@@ -7,16 +7,17 @@ const { railCollapsed } = useWorkspaceLayout();
 const internalRoutes = ['/workspace', '/admin-workspace', '/media-library', '/crm', '/crm-pipeline', '/crm-customers', '/crm-organizations', '/crm-tasks', '/crm-chat', '/crm-marketplaces', '/leadership', '/helpdesk', '/system-settings'];
 const isInternal = computed(() => internalRoutes.some(path => route.path === path || route.path.startsWith(`${path}/`)));
 const isCrm = computed(() => isCrmPath(route.path));
+const { theme } = useCrmTheme();
 const showWorkspace = computed(() => isInternal.value && Boolean(token.value));
 const isStoreWorkspace = computed(() => route.path === '/admin-workspace' || route.path.startsWith('/admin-workspace/'));
 const b2bSession = useB2BSession();
 const isB2B = computed(() => route.path === '/b2b' || route.path.startsWith('/b2b/'));
 const showB2B = computed(() => isB2B.value && Boolean(b2bSession.token.value));
 useHead(() => isCrm.value ? {
-  htmlAttrs: { lang: 'ru', 'data-crm-ui': 'true' },
+  htmlAttrs: { lang: 'ru', 'data-crm-ui': 'true', 'data-crm-theme': theme.value },
   link: [{ rel: 'manifest', href: '/crm/manifest.webmanifest' }, { rel: 'apple-touch-icon', href: '/crm/pwa/icon-180.png?v=brand2' }, { rel: 'icon', type: 'image/svg+xml', href: '/crm/pwa/icon.svg?v=brand2' }],
-  meta: [{ name: 'theme-color', content: '#3c3c3b' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'SARKISIAN CRM' }, { name: 'robots', content: 'noindex, nofollow' }],
-} : {});
+  meta: [{ name: 'theme-color', content: theme.value === 'dark' ? '#252629' : '#ffffff' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'SARKISIAN CRM' }, { name: 'robots', content: 'noindex, nofollow' }],
+} : { htmlAttrs: { 'data-crm-ui': null, 'data-crm-theme': null } });
 </script>
 
 <template>

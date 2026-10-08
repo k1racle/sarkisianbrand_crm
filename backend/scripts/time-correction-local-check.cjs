@@ -4,7 +4,7 @@ const assert = require('node:assert/strict'), { randomUUID } = require('node:cry
 const { TimeCorrectionService } = require('../dist/src/work-time/time-correction.service');
 const { WorkTimeService } = require('../dist/src/work-time/work-time.service');
 const url = new URL(process.env.DATABASE_URL);
-if (!['localhost','127.0.0.1'].includes(url.hostname) || (url.port && url.port !== '5432')) throw Error('Only loopback PostgreSQL is allowed');
+if (!(['localhost','127.0.0.1'].includes(url.hostname) || (url.hostname === 'postgres' && process.env.ALLOW_LOCAL_ACCESS_SMOKE === 'true')) || (url.port && url.port !== '5432')) throw Error('Only local PostgreSQL is allowed; Docker requires ALLOW_LOCAL_ACCESS_SMOKE=true');
 const prisma = new PrismaClient(), ids = Array.from({length:5},()=>randomUUID()), [employee,admin,leader,stranger,outsider] = ids;
 const rollback = new Error('ROLLBACK_TIME_CORRECTIONS'); let checks=0;
 async function main() {
@@ -27,6 +27,7 @@ async function main() {
     const original=await db.crmWorkSession.create({data:{employeeId:employee,departmentId:department.id,timezone:'Europe/Moscow',startedAt:new Date('2026-09-01T06:00:32.123Z'),endedAt:new Date('2026-09-01T16:00Z'),breaks:{create:{startedAt:new Date('2026-09-01T10:00Z'),endedAt:new Date('2026-09-01T11:00Z')}}}});
     const fields={requestKey:randomUUID(),sessionId:original.id,baseVersion:1,timezone:'Europe/Moscow',startLocal:'2026-09-01T09:00',endLocal:'2026-09-01T18:00',reason:'Забыл вовремя завершить',breaks:[{startLocal:'2026-09-01T13:00',endLocal:'2026-09-01T14:00'}]};
     const decision=(action='APPROVE')=>({action,version:1,note:'Проверено по графику',requestKey:randomUUID()});
+    const existingReviewTotal=(await corrections.list(employee,{scope:'REVIEW',status:'PENDING',page:1})).total;
     const request=await corrections.create(employee,fields);
     assert.equal((await db.crmWorkSession.findUnique({where:{id:original.id}})).endedAt.toISOString(),'2026-09-01T16:00:00.000Z');checks++;
     assert.equal((await corrections.create(employee,fields)).id,request.id);checks++;
@@ -38,6 +39,12 @@ async function main() {
     await assert.rejects(corrections.detail(stranger,request.id),/не найдена/);checks++;
     assert.equal((await corrections.list(leader,{scope:'REVIEW',page:1})).total,1);checks++;
     assert.equal((await corrections.list(employee,{scope:'REVIEW',page:1})).items.some(r=>r.id===request.id),false);checks++;
+    const ownQueue=await corrections.list(employee,{scope:'REVIEW',status:'PENDING',page:1});
+    assert.equal(ownQueue.ownPendingTotal,1);assert.equal(ownQueue.total,existingReviewTotal);assert.equal(ownQueue.reviewScope,'COMPANY');checks++;
+    assert.equal((await corrections.list(employee,{scope:'REVIEW',status:'APPROVED',page:2})).ownPendingTotal,1);checks++;
+    const adminQueue=await corrections.list(admin,{scope:'REVIEW',status:'PENDING',page:1});
+    assert.equal(adminQueue.items[0].id,request.id);assert.equal(adminQueue.items[0].canApprove,true);assert.equal(adminQueue.ownPendingTotal,0);checks++;
+    assert.equal((await corrections.list(leader,{scope:'REVIEW',page:1})).reviewScope,'DEPARTMENTS');checks++;
     const accepted=decision(); failAudit=true;
     await assert.rejects(corrections.decide(admin,request.id,accepted),/audit failure/); failAudit=false;
     assert.equal((await db.crmWorkSession.findUnique({where:{id:original.id}})).version,1);

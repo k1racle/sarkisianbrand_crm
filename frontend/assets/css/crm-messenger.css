@@ -73,8 +73,8 @@
  html[data-crm-ui] .crm-messenger .messenger-attach-menu {width:260px;display:grid;gap:4px;}
  html[data-crm-ui] .crm-messenger .messenger-attach-menu > button.crm-button {justify-content:flex-start!important;text-align:left;border:0!important;border-radius:10px!important;}
  html[data-crm-ui] .crm-messenger .messenger-attach-menu > button span {display:grid;gap:3px;}
- html[data-crm-ui] .crm-messenger .emoji-picker {left:auto!important;right:66px;width:286px;max-width:calc(100% - 24px);display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;}
- html[data-crm-ui] .crm-messenger .emoji-picker > button.crm-button {border:0!important;padding:6px!important;font-size:22px!important;}
+ html[data-crm-ui] .crm-messenger .emoji-picker {left:auto!important;right:66px;width:286px!important;max-width:calc(100% - 24px)!important;display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:0;}
+ html[data-crm-ui] .crm-messenger .emoji-picker > button.crm-button {min-width:0!important;min-height:44px!important;border:0!important;padding:6px!important;font-size:22px!important;}
  html[data-crm-ui] .crm-messenger .entity-picker {width:420px!important;max-width:calc(100% - 44px)!important;max-height:min(460px,calc(100dvh - 190px))!important;display:grid;grid-template-rows:auto auto auto minmax(0,1fr)!important;gap:6px;}
  html[data-crm-ui] .crm-messenger .entity-picker > header {padding:0 4px 6px;}
  html[data-crm-ui] .crm-messenger .entity-picker > nav {padding:0;}
@@ -110,5 +110,6 @@
   html[data-crm-ui] .crm-messenger .messenger-compose-row textarea.crm-input {font-size:16px!important;}
   html[data-crm-ui] .crm-messenger :is(.messenger-attach-menu,.entity-picker) {left:8px!important;max-width:calc(100% - 16px)!important;}
   html[data-crm-ui] .crm-messenger .entity-picker {max-height:calc(100dvh - 150px)!important;}
+  html[data-crm-ui] .crm-messenger .emoji-picker {right:8px!important;max-width:calc(100% - 16px)!important;}
  }
 }
