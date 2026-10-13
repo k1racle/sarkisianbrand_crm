@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, LockKeyhole, Sparkles, UserPlus, X } from '@lucide/vue';
+import { ArrowRight, BriefcaseBusiness, ChevronLeft, Eye, EyeOff, X } from '@lucide/vue';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; 'after-leave': [] }>();
@@ -58,20 +58,22 @@ async function social(provider: 'yandex' | 'vk') {
 <template>
   <Teleport to="body">
     <Transition name="sf-drawer" :duration="motionDuration" @after-leave="emit('after-leave')">
-      <div v-if="open" class="sb-glass-layer" @click.self="emit('close')">
-        <aside class="sb-side-drawer sb-auth-drawer" aria-label="Вход и регистрация">
-          <header class="sb-drawer-head">
-            <div>
-              <span><Sparkles :size="13" /> SARKISIAN CLUB</span>
-              <h2>{{ resetting ? 'Восстановить пароль' : mode === 'login' ? 'С возвращением' : 'Новый аккаунт' }}</h2>
-              <p>{{ resetting ? 'Отправим ссылку для смены пароля на ваш email.' : mode === 'login' ? 'Войдите, чтобы продолжить покупки.' : 'Бонусы и история заказов — в одном месте.' }}</p>
-            </div>
-            <button aria-label="Закрыть" @click="emit('close')"><X :size="20" /></button>
+      <div v-if="open" class="sb-glass-layer sd-layer" @click.self="emit('close')">
+        <aside class="sb-side-drawer sb-auth-drawer sd-drawer" role="dialog" aria-modal="true" aria-labelledby="auth-drawer-title">
+          <div class="sd-toolbar">
+            <button type="button" :aria-label="resetting || mode === 'register' ? 'Вернуться ко входу' : 'Вернуться к покупкам'" @click="resetting ? (resetting = false, error = '', socialNotice = '') : mode === 'register' ? mode = 'login' : emit('close')"><ChevronLeft :size="32" :stroke-width="1" /></button>
+            <button type="button" aria-label="Закрыть" @click="emit('close')"><X :size="32" :stroke-width="1.5" /></button>
+          </div>
+          <div class="sd-content sd-auth-content">
+          <header class="sd-heading sd-auth-heading">
+            <span>Личный кабинет</span>
+            <h2 id="auth-drawer-title">{{ resetting ? 'Восстановить пароль' : mode === 'login' ? 'Вход' : 'Регистрация' }}</h2>
+            <p>{{ resetting ? 'Отправим ссылку для смены пароля на ваш email.' : mode === 'login' ? 'Войдите, чтобы продолжить покупки.' : 'Бонусы и история заказов — в одном месте.' }}</p>
           </header>
 
           <div v-if="!resetting" class="sb-drawer-tabs">
-            <button :class="{ active: mode === 'login' }" @click="mode = 'login'">Вход</button>
-            <button :class="{ active: mode === 'register' }" @click="mode = 'register'">Регистрация</button>
+            <button type="button" :class="{ active: mode === 'login' }" :aria-pressed="mode === 'login'" @click="mode = 'login'">Вход</button>
+            <button type="button" :class="{ active: mode === 'register' }" :aria-pressed="mode === 'register'" @click="mode = 'register'">Регистрация</button>
           </div>
 
           <form v-if="resetting" class="sb-drawer-form" @submit.prevent="requestReset">
@@ -96,9 +98,8 @@ async function social(provider: 'yandex' | 'vk') {
             </label>
             <button v-if="mode === 'login'" type="button" class="sb-forgot" @click="resetting = true; error = ''; socialNotice = ''">Забыли пароль?</button>
             <label v-if="mode === 'register'" class="sb-auth-consent"><input v-model="consent" type="checkbox" required /><span>Принимаю <NuxtLink to="/privacy" target="_blank">политику конфиденциальности</NuxtLink> и <NuxtLink to="/oferta" target="_blank">публичную оферту</NuxtLink>.</span></label>
-            <p v-if="error" class="sb-form-error">{{ error }}</p>
+            <p v-if="error" class="sb-form-error" role="alert">{{ error }}</p>
             <button class="sb-liquid-primary" :disabled="busy">
-              <LockKeyhole v-if="mode === 'login'" :size="17" /><UserPlus v-else :size="17" />
               {{ busy ? 'Подождите…' : mode === 'login' ? 'Войти' : 'Создать аккаунт' }}
             </button>
           </form>
@@ -112,6 +113,7 @@ async function social(provider: 'yandex' | 'vk') {
             <span><b>Профессиональный кабинет</b><small>Вход для салонов и B2B-клиентов</small></span>
             <ArrowRight :size="18" />
           </NuxtLink>
+          </div>
         </aside>
       </div>
     </Transition>

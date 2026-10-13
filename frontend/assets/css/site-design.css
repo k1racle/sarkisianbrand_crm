@@ -1,0 +1,87 @@
+/* SARKISIAN storefront design baseline, approved 2026-10-13.
+ * Shared by the homepage and the cart/auth panels, including teleported panels.
+ * New dark storefront pages reuse these tokens and primitives:
+ *   .sb-design-button — native button or link, outlined pill with bottom-up fill;
+ *   .sb-design-frame  — image/card frame with a visible light border.
+ * Existing sh-/sd- selectors below are aliases of the same primitives.
+ * Layout and content remain in page/component CSS. Keep CRM styling separate.
+ * Mont comes from foundation.css; retain native disabled and focus behavior.
+ */
+:where(.sb-storefront, .sb-glass-layer) {
+  --site-bg: #343433;
+  --site-panel: #353535;
+  --site-text: #fff;
+  --site-muted: #d6d6d6;
+  --site-line: rgba(255,255,255,.7);
+  --site-line-hover: rgba(255,255,255,.9);
+  --site-card: #4f4f4f1a;
+  --site-control: #4f4f4f38;
+  --site-fill: #fff0db;
+  --site-radius-pill: 100px;
+  --site-radius-card: 30px;
+  --site-radius-feature: 42px;
+  --site-radius-mobile: 24px;
+  --site-content-width: 1412px;
+  --site-panel-width: 950px;
+  --site-motion-fill: .65s;
+  --site-ease-fill: cubic-bezier(.22,.7,.25,1);
+}
+
+:is(.sb-design-button, .sh-pill) {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 44px;
+  padding: 10px 48px;
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius-pill);
+  background: var(--site-control);
+  color: var(--site-text);
+  font-family: var(--brand-font-body);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+:is(.sb-design-frame, .sh-product-image, .sd-cart-media, .sd-suggestion) {
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-frame-radius, var(--site-radius-card));
+  background: var(--site-card);
+  overflow: hidden;
+}
+
+:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: border-color .3s, color .3s, box-shadow .3s;
+}
+:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button))::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -20% -5%;
+  background: var(--site-fill);
+  border-radius: 48% 52% 0 0 / 20% 24% 0 0;
+  /* No rotation here: a tilted corner protrudes into wide resting buttons. */
+  transform: translateY(105%);
+  transition: transform var(--site-motion-fill) var(--site-ease-fill), border-radius var(--site-motion-fill);
+  pointer-events: none;
+}
+:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)):not(:disabled):is(:hover, :focus-visible) {
+  color: var(--site-button-ink, var(--site-bg));
+  border-color: var(--site-fill);
+}
+:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)):not(:disabled):is(:hover, :focus-visible)::before {
+  transform: translateY(0);
+  border-radius: 0;
+}
+.sb-design-button:focus-visible { outline: 2px solid var(--site-text); outline-offset: 4px; }
+.sb-design-button:disabled { opacity: .5; cursor: not-allowed; }
+
+@media(prefers-reduced-motion:reduce) {
+  :is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)),
+  :is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button))::before { transition: none; }
+}

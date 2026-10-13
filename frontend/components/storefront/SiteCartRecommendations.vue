@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
+defineProps<{ drawer?: boolean }>();
 const config = useRuntimeConfig();
 const { cart } = useStorefront();
 const items = ref<any[]>([]);
@@ -38,7 +39,15 @@ onBeforeUnmount(() => { request++; observer?.disconnect(); });
 </script>
 
 <template>
-  <section v-if="loading || failed || items.length" class="sb-cart-recommendations" aria-label="Вам может понравиться" :aria-busy="loading">
+  <div v-if="drawer && (loading || failed || items.length)" class="sd-recommendations" :aria-busy="loading">
+    <p v-if="failed" class="sd-recommendations-note" role="status">Не удалось загрузить рекомендации. <button type="button" @click="load">Повторить</button></p>
+    <p v-else-if="loading && !items.length" class="sd-recommendations-note" role="status">Подбираем товары…</p>
+    <section v-if="items.length" class="sd-recommendations-more" aria-label="Вам может понравиться">
+      <h3>Вам может понравиться</h3>
+      <div class="sd-recommendations-grid"><SiteCartSuggestion v-for="item in items.slice(0, 3)" :key="item.id" :product="item" /></div>
+    </section>
+  </div>
+  <section v-else-if="!drawer && (loading || failed || items.length)" class="sb-cart-recommendations" aria-label="Вам может понравиться" :aria-busy="loading">
     <header><h2>Вам может понравиться</h2><div v-if="items.length" class="sb-carousel-controls"><button type="button" aria-label="Предыдущие товары" :disabled="atStart" @click="slide(-1)"><ArrowLeft :size="18" /></button><button type="button" aria-label="Следующие товары" :disabled="atEnd" @click="slide(1)"><ArrowRight :size="18" /></button></div></header>
     <p v-if="failed" class="sb-cart-recommendations-note">Не удалось загрузить рекомендации. <button type="button" class="sb-checkout-text" @click="load">Повторить</button></p>
     <p v-else-if="loading && !items.length" class="sb-cart-recommendations-note" role="status">Подбираем товары…</p>
