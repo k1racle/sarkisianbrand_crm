@@ -1,7 +1,13 @@
+<script setup lang="ts">
+defineProps<{ editorial?: boolean }>();
+</script>
+
 <template>
-  <div class="sb-storefront">
-    <SiteHeader />
+  <div class="sb-storefront" :class="{ 'sb-home': editorial }">
+    <SiteHomeEffects v-if="editorial" />
+    <SiteHeader :editorial="editorial" />
     <main><slot /></main>
-    <SiteFooter />
+    <SiteHomeFooter v-if="editorial" />
+    <SiteFooter v-else />
   </div>
 </template>

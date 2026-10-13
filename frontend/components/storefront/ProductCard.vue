@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Check, Heart, ShoppingBag } from '@lucide/vue';
 
-const props = defineProps<{ product: any; badge?: string }>();
+const props = defineProps<{ product: any; badge?: string; editorial?: boolean }>();
+const { t, english, formatPrice } = useHomeLocale();
+const editorialName = computed(() => english.value && props.product.nameEn ? props.product.nameEn : props.product.nameRu);
 import { DEFAULT_PRODUCT_BADGES, storefrontBadges, storefrontVariantPrice } from '~/shared/product-merchandising';
 const {content:storefrontContent}=useStorefrontContent();
 const configuredBadges=computed(()=>storefrontBadges(props.product,storefrontContent.value.settings.productBadges??DEFAULT_PRODUCT_BADGES));
@@ -38,7 +40,21 @@ async function add() {
 </script>
 
 <template>
-  <article class="sb-product-card">
+  <article v-if="editorial" class="sh-product">
+    <NuxtLink :to="storefrontProductLink(product)" class="sh-product-image" :aria-label="editorialName">
+      <img v-if="image && !imageFailed" :src="image" :alt="editorialName" loading="lazy" @error="imageFailed = true" />
+      <span v-else class="sh-product-placeholder">SARKISIAN<small>{{ t(isGiftCard ? 'Подарочная карта' : 'Фото появится позже') }}</small></span>
+    </NuxtLink>
+    <div class="sh-product-copy">
+      <span class="sh-product-label">{{ configuredBadges[0]?.label || ((product.categories?.find((item: any) => item.isPrimary) || product.categories?.[0])?.category?.nameRu) || 'SARKISIAN' }}</span>
+      <h3><NuxtLink :to="storefrontProductLink(product)">{{ editorialName }}</NuxtLink></h3>
+      <span class="sh-product-variant">{{ variant?.name && variant.name !== 'Основной вариант' ? variant.name : t(available ? 'В наличии' : 'Нет в наличии') }}</span>
+      <div class="sh-product-bottom"><span>{{ variants.length > 1 ? `${variants.length} ${english ? 'variants' : 'варианта'}` : 'SARKISIAN' }}</span><span class="sh-product-price"><del v-if="regularPrice > price">{{ formatPrice(regularPrice, product.currency) }}</del>{{ isGiftCard && variants.length > 1 ? t('от ') : '' }}{{ formatPrice(price, product.currency) }}</span></div>
+      <button class="sh-product-buy" :disabled="busy || !available" @click="add"><Check v-if="added" :size="16" /><ShoppingBag v-else :size="16" />{{ t(busy ? 'Добавляем…' : isGiftCard && available ? 'Выбрать номинал' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии') }}</button>
+      <p v-if="error" class="sh-product-error" role="alert">{{ error }}</p>
+    </div>
+  </article>
+  <article v-else class="sb-product-card">
     <NuxtLink :to="storefrontProductLink(product)" class="sb-product-card__visual">
       <div class="sb-product-badges"><span v-for="item in configuredBadges" :key="item.id" class="sb-product-badge" :style="{background:item.color,color:item.textColor}">{{item.label}}</span></div>
       <button class="sb-favorite" :class="{ active: inFavorite }" :aria-label="inFavorite ? 'Убрать из избранного' : 'Добавить в избранное'" @click.prevent="toggleFavorite(product.id)"><Heart :size="19" :fill="inFavorite ? 'currentColor' : 'none'" /></button>

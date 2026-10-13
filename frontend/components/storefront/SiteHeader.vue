@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowRight, ChevronDown, Grid2X2, Heart, Menu, ShoppingBag, UserRound } from '@lucide/vue';
+defineProps<{ editorial?: boolean }>();
 
 const route = useRoute();
 const scrolled = ref(false);
@@ -104,12 +105,13 @@ watch(() => route.fullPath, () => { clubMenuOpen.value = false; });
 </script>
 
 <template>
-  <div class="sb-site-head" :class="{ 'is-scrolled': scrolled }">
-    <div class="sb-announcement">
+  <div class="sb-site-head" :class="{ 'is-scrolled': scrolled, 'sb-home-head': editorial }">
+    <SiteHomeNavigation v-if="editorial" @account="accountAction" @cart="openCart" />
+    <div v-if="!editorial" class="sb-announcement">
       <span>{{ content.settings.announcementText }}</span>
     </div>
 
-    <div class="sb-header-wrap">
+    <div v-if="!editorial" class="sb-header-wrap">
       <header class="sb-header sb-glass-surface">
         <NuxtLink to="/" class="sb-logo" :aria-label="`${siteContent.brand.name} — на главную`"><img :src="storefrontMediaUrl(siteContent.brand.logoUrl)" :alt="siteContent.brand.name" /></NuxtLink>
         <button class="sb-catalog-button" @click="openCatalog"><Menu :size="17" /><span>Каталог</span></button>
@@ -141,7 +143,7 @@ watch(() => route.fullPath, () => { clubMenuOpen.value = false; });
     <SiteMenuDrawer :open="menuOpen" @close="closeAll" @after-leave="afterPanelLeave" />
   </div>
 
-  <nav class="sb-mobile-nav sb-glass-surface" aria-label="Основная навигация">
+  <nav v-if="!editorial" class="sb-mobile-nav sb-glass-surface" aria-label="Основная навигация">
     <button aria-label="Каталог" :aria-expanded="catalogOpen" :class="{ active: catalogOpen || (!panelOpen && route.path === '/catalog') }" @click="openCatalog"><Grid2X2 :size="23" /></button>
     <button aria-label="Личный кабинет" :aria-expanded="authOpen" :class="{ active: authOpen || (!panelOpen && route.path === '/account') }" @click="accountAction"><UserRound :size="23" /></button>
     <button aria-label="Избранное" :aria-expanded="favoritesOpen" :class="{ active: favoritesOpen }" @click="openFavorites"><Heart :size="23" /><b v-if="favoriteIds.length">{{ favoriteIds.length > 99 ? '99+' : favoriteIds.length }}</b></button>
