@@ -21,7 +21,8 @@ const contactEmail = computed(() => structuredContacts.value ? siteContent.value
 </script>
 
 <template>
-  <SiteClubHub v-if="clubHub" :page="page" />
+  <SiteAboutPage v-if="page.slug === 'about'" :page="page" />
+  <SiteClubHub v-else-if="clubHub" :page="page" />
   <SiteBusinessPage v-else-if="page.slug === 'business'" :page="page" />
   <SiteBloggersPage v-else-if="page.slug === 'partnerships'" :page="page" />
   <SiteClubReferralsPage v-else-if="page.slug === 'club-referrals'" :page="page" />

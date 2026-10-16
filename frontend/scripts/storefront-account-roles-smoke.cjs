@@ -4,14 +4,14 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
 const base = process.env.STOREFRONT_URL || 'http://localhost:3001';
-const output = path.resolve(__dirname, '../.screenshots/account-roles');
+const output = process.env.OUTPUT || path.resolve(__dirname, '../.screenshots/account-roles');
 
 async function main() {
   fs.mkdirSync(output, { recursive: true });
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
   const checks = [];
   try {
-    for (const width of [1536, 390]) for (const role of ['ADMIN', 'CUSTOMER_B2B', 'CUSTOMER_B2C']) {
+    for (const width of (process.env.WIDTHS || '1536,390').split(',').map(Number)) for (const role of ['ADMIN', 'CUSTOMER_B2B', 'CUSTOMER_B2C']) {
       const context = await browser.newContext({ viewport: { width, height: 960 }, serviceWorkers: 'block' });
       const errors = [], blocked = [], apiCalls = [];
       const eligible = role === 'CUSTOMER_B2C';
@@ -39,8 +39,9 @@ async function main() {
         }
         const endpoint = url.pathname.replace('/api/v1', '');
         apiCalls.push({ endpoint, method: request.method(), authorization: request.headers().authorization || '', body: request.postData() ? request.postDataJSON() : null });
-        const reply = json => route.fulfill({ json });
-        if (request.method() === 'OPTIONS') return route.fulfill({ status: 204 });
+        const headers = { 'access-control-allow-origin': new URL(base).origin, 'access-control-allow-credentials': 'true', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS' };
+        const reply = json => route.fulfill({ json, headers });
+        if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
         if (request.method() === 'GET') {
           if (endpoint === '/products/storefront-content') return reply({ settings: { announcementText: 'SARKISIAN BRAND' }, banners: [], categories: [], socialLinks: [], menuItems: [] });
           if (endpoint === '/products') return reply({ items: [], total: 0 });
@@ -49,7 +50,7 @@ async function main() {
           if (endpoint === '/storefront/favorites' || endpoint === '/storefront/addresses') return reply([]);
           if (endpoint === '/cart') return reply(cart);
           if (endpoint === '/storefront/orders/ISOLATED-GIFT-PAID') return giftFailure
-            ? route.fulfill({ status: 503, json: { message: 'Изолированная ошибка загрузки' } })
+            ? route.fulfill({ status: 503, headers, json: { message: 'Изолированная ошибка загрузки' } })
             : reply({ orderNumber: cards[0].orderNumber, giftCards: [{ id: cards[0].id, code: fullCode }] });
           if (endpoint === '/storefront/orders/ISOLATED-GIFT-PENDING') return reply({ orderNumber: cards[1].orderNumber, giftCards: [] });
         }
@@ -58,7 +59,7 @@ async function main() {
         if (request.method() === 'PATCH' && endpoint === '/auth/profile') {
           const body = request.postDataJSON();
           assert.deepEqual(body, { notificationPreferences: { email: false } }, 'Notifications must PATCH ONLY email, never city or stale/future channels');
-          if (notificationFailure) return route.fulfill({ status: 503, json: { message: 'Изолированная ошибка сохранения' } });
+          if (notificationFailure) return route.fulfill({ status: 503, headers, json: { message: 'Изолированная ошибка сохранения' } });
           profile.notificationPreferences = { ...profile.notificationPreferences, ...body.notificationPreferences };
           return reply(profile);
         }
@@ -71,9 +72,10 @@ async function main() {
       await page.locator('.sa-ui h1').waitFor();
       assert.equal(await page.locator('.sa-ui [role="alert"]').count(), 0);
       const nav = page.locator('.sb-account-nav');
+      await nav.waitFor();
       assert.equal(await nav.getByRole('button', { name: 'Бонусы', exact: true }).count(), eligible ? 1 : 0);
       assert.equal(await nav.getByRole('button', { name: 'Подарочные карты', exact: true }).count(), 1);
-      if (!eligible) assert(await page.locator('.sa-ui a[href="' + (role === 'CUSTOMER_B2B' ? '/b2b' : '/workspace') + '"]').count());
+      if (!eligible) assert(await page.locator('.sa-ui a[href="' + (role === 'CUSTOMER_B2B' ? '/b2b' : '/crm/') + '"]').count());
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await page.screenshot({ path: path.join(output, role + '-' + width + '.png'), fullPage: true });
       await nav.getByRole('button', { name: 'Подарочные карты', exact: true }).click();
@@ -104,13 +106,14 @@ async function main() {
       await drawer.getByLabel('Код подарочной карты', { exact: true }).waitFor();
       await page.evaluate(() => document.getElementById('__nuxt').__vue_app__.config.globalProperties.$router.push('/'));
       await page.waitForURL(url => url.pathname === '/');
-      await page.locator('.sb-hero').waitFor({ state: 'visible' });
+      await page.locator('.sh-hero').waitFor({ state: 'visible' });
       await page.locator('.sa-ui').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('.sb-storefront .sb-state.is-error, .sb-storefront .sb-site-error').count(), 0, 'Главная открылась с ошибкой после размонтирования кабинета');
       assert.equal(await page.getByLabel('Код подарочной карты', { exact: true }).count(), 0, 'Размонтированный компонент сохраняет код в DOM');
       assert(!(await page.content()).includes(fullCode), 'Код попал в страницу после выхода из кабинета');
       await page.evaluate(() => document.getElementById('__nuxt').__vue_app__.config.globalProperties.$router.push('/account'));
       await page.locator('.sa-ui h1').waitFor();
+      await nav.waitFor();
       await nav.getByRole('button', { name: 'Мои данные', exact: true }).click();
       assert.equal(await page.locator('input[aria-label="Дата рождения"]').count(), eligible ? 1 : 0);
       assert.equal(await page.getByLabel('Город', { exact: true }).count(), 0, 'City remains in profile UI');

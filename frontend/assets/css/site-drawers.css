@@ -1,4 +1,4 @@
-/* Cart and authentication panels, based on the supplied 950px drawer reference. */
+/* Cart, favorites and authentication panels share the 950px drawer design. */
 .sb-glass-layer.sd-layer {
   --sd-bg: var(--site-panel);
   --sd-line: var(--site-line);
@@ -102,6 +102,17 @@
 .sd-cart-footer { margin-top: 64px; }
 .sd-cart-total { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; font-size: 18px; }
 .sd-cart-footer > small { display: block; color: var(--sf-muted); font-size: 12px; margin: 10px 0 24px; }
+.sd-favorite-list .sd-cart-item { max-width: none; }
+.sd-favorite-list .sd-cart-media { align-self: start; }
+.sd-favorite-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-top: auto; padding-top: 8px; }
+.sd-favorite-price strong { font-size: 18px; white-space: nowrap; }
+.sd-favorite-price del { color: var(--site-muted); font-size: 13px; white-space: nowrap; }
+.sd-favorite-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; width: 100%; }
+.sd-layer .sd-favorite-actions .sb-liquid-primary { width: auto; min-width: 160px; padding-inline: 20px; }
+.sd-layer .sd-favorite-actions .sb-liquid-primary:disabled { opacity: .5; cursor: not-allowed; }
+.sd-favorite-actions .sd-remove { flex: none; }
+.sd-favorites-footer { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--site-line); }
+.sd-favorites-error { display: grid; gap: 24px; margin-top: 40px; }
 .sd-auth-content { max-width: 760px; margin-inline: auto; }
 .sd-auth-heading { margin-bottom: 36px; }
 .sd-auth-heading > span { display: block; margin-bottom: 16px; text-transform: uppercase; font-size: 14px; }
@@ -128,6 +139,25 @@
 .sd-layer .sd-drawer .sb-b2b-entry { margin-top: 36px; padding: 20px; border: 1px solid var(--sd-line); border-radius: 22px; background: transparent; color: #fff; box-shadow: none; }
 .sd-layer .sd-drawer .sb-b2b-entry small { color: var(--sf-muted); font-size: 12px; }
 .sd-layer .sd-drawer .sb-b2b-entry:hover { background: #ffffff08; }
+.sd-layer .sb-business-registration-drawer .sd-heading { margin-bottom: 12px; }
+.sd-layer .sb-business-registration-drawer .sd-heading p { max-width: 520px; margin-top: 18px; color: var(--sf-muted); font-size: 14px; line-height: 1.7; }
+.sd-layer .sb-business-registration-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 28px 0 32px; padding: 0; border: 0; background: transparent; }
+.sd-layer .sb-business-registration-tabs [role=tab] { display: flex; align-items: center; justify-content: center; min-height: 48px; border: 1px solid var(--sd-line); border-radius: var(--site-radius-pill); background: transparent; color: var(--sf-muted); font: inherit; cursor: pointer; transition: color .2s ease, background .2s ease, border-color .2s ease; }
+.sd-layer .sb-business-registration-tabs [role=tab].active { border-color: #fff; background: #ffffff12; color: #fff; }
+.sd-layer .sb-business-registration-tabs [role=tab]:hover { color: #fff; }
+.sd-layer .sb-business-registration-auth { display: grid; gap: 14px; margin-top: 0; }
+.sd-layer .sb-business-registration-auth > p,
+.sd-layer .sb-business-registration-success > p,
+.sd-layer .sb-business-registration-note { max-width: 520px; color: var(--sf-muted); font-size: 13px; line-height: 1.7; }
+.sd-layer .sb-business-registration-auth .sb-liquid-primary,
+.sd-layer .sb-business-registration-success .sb-liquid-primary { margin-top: 12px; }
+.sd-layer .sb-business-registration-auth .sb-drawer-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; min-height: 44px; padding: 8px 0; color: #fff; font-size: 13px; }
+.sd-layer .sb-business-registration-form { margin-top: 0; }
+.sd-layer .sb-business-registration-auth .sb-business-registration-form { margin-top: 0; }
+.sd-layer .sb-business-registration-form .sb-auth-row { grid-template-columns: 1fr 1fr; }
+.sd-layer .sb-business-registration-form .sb-business-registration-note { margin: 2px 0; }
+.sd-layer .sb-business-registration-success { display: grid; gap: 18px; margin-top: 38px; }
+.sd-layer .sb-business-registration-success .sb-liquid-primary { width: fit-content; min-width: 260px; }
 @media(max-width:600px) {
   .sd-toolbar { padding: 20px 14px 0; }
   .sd-content { padding-top: 40px; padding-bottom: max(28px,env(safe-area-inset-bottom)); }
@@ -140,6 +170,11 @@
   .sd-layer .sd-drawer .sd-cart-media .sb-quantity { padding-inline: 0; }
   .sd-cart-info > a { font-size: 13px; }
   .sd-cart-info > small { font-size: 11px; }
+  .sd-favorite-price strong { font-size: 16px; }
+  .sd-favorite-actions { flex-direction: column; align-items: stretch; gap: 4px; }
+  .sd-layer .sd-favorite-actions .sb-liquid-primary { width: 100%; min-width: 0; padding-inline: 8px; gap: 6px; font-size: 12px; }
+  .sd-favorite-actions .sd-remove { align-self: flex-start; }
+  .sd-favorites-footer { margin-top: 32px; padding-top: 24px; }
   .sd-cart-item-bottom { align-items: flex-start; flex-direction: column-reverse; gap: 0; }
   .sd-remove { font-size: 11px; }
   .sd-image-placeholder { font-size: 12px; padding: 6px; }
@@ -153,4 +188,6 @@
   .sd-auth-heading > span { font-size: 12px; }
   .sd-layer .sd-drawer .sb-auth-row { grid-template-columns: 1fr; gap: 20px; }
   .sd-layer .sd-drawer .sb-b2b-entry { padding: 16px; gap: 10px; }
+  .sd-layer .sb-business-registration-form .sb-auth-row { grid-template-columns: 1fr; }
+  .sd-layer .sb-business-registration-success .sb-liquid-primary { width: 100%; }
 }

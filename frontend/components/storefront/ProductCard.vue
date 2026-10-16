@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Check, Heart, ShoppingBag } from '@lucide/vue';
+import { ArrowRight, Check, Heart, ShoppingBag } from '@lucide/vue';
+import { catalogVolume } from '~/shared/catalog-volume';
 
-const props = defineProps<{ product: any; badge?: string; editorial?: boolean }>();
+const props = defineProps<{ product: any; badge?: string; editorial?: boolean; catalog?: boolean; volumes?: string[] }>();
 const { t, english, formatPrice } = useHomeLocale();
 const editorialName = computed(() => english.value && props.product.nameEn ? props.product.nameEn : props.product.nameRu);
 import { DEFAULT_PRODUCT_BADGES, storefrontBadges, storefrontVariantPrice } from '~/shared/product-merchandising';
@@ -14,7 +15,7 @@ const error = ref('');
 const imageFailed = ref(false);
 const image = computed(() => storefrontProductImage(props.product));
 watch(image, () => { imageFailed.value = false; });
-const variants = computed(() => (props.product.variants || []).filter((item: any) => item.isActive !== false));
+const variants = computed(() => (props.product.variants || []).filter((item: any) => item.isActive !== false && (!props.volumes?.length || props.volumes.includes(catalogVolume(item, props.product).split(' ')[0]))));
 const isGiftCard = computed(() => props.product.productType === 'GIFT_CARD');
 const variant = computed(() => isGiftCard.value ? [...variants.value].sort((a: any, b: any) => Number(a.price) - Number(b.price))[0] : variants.value.find((item: any) => Number(item.stock) - Number(item.reserved || 0) > 0) || variants.value[0]);
 const available = computed(() => isGiftCard.value && variant.value ? 99 : Math.max(0, Number(variant.value?.stock || 0) - Number(variant.value?.reserved || 0)));
@@ -40,7 +41,22 @@ async function add() {
 </script>
 
 <template>
-  <article v-if="editorial" class="sh-product">
+  <article v-if="catalog" class="sc-product">
+    <div class="sc-product-frame">
+      <NuxtLink :to="storefrontProductLink(product)" class="sc-product-link">
+        <h3>{{ editorialName }}</h3>
+        <div class="sc-product-image">
+          <img v-if="image && !imageFailed" :src="image" :alt="editorialName" loading="lazy" @error="imageFailed = true" />
+          <span v-else class="sc-product-placeholder">SARKISIAN<small>{{ t(isGiftCard ? 'Подарочная карта' : 'Фото появится позже') }}</small></span>
+        </div>
+        <div class="sc-product-meta"><span>{{ catalogVolume(variant, product) || (variant?.name !== 'Основной вариант' ? variant?.name : '') }}</span><span class="sc-product-price"><del v-if="regularPrice > price">{{ formatPrice(regularPrice, product.currency) }}</del><strong>{{ isGiftCard && variants.length > 1 ? t('от ') : '' }}{{ formatPrice(price, product.currency) }}</strong></span></div>
+      </NuxtLink>
+      <button type="button" class="sc-product-favorite" :class="{ 'is-active': inFavorite }" :aria-pressed="inFavorite" :aria-label="t(inFavorite ? 'Убрать из избранного' : 'Добавить в избранное')" @click="toggleFavorite(product.id)"><Heart :fill="inFavorite ? 'currentColor' : 'none'" :stroke-width="1.5" /></button>
+    </div>
+    <div class="sc-product-actions"><button type="button" class="sb-design-button" :disabled="busy || !available" @click="add"><Check v-if="added" :size="16" /><ShoppingBag v-else :size="16" />{{ t(busy ? 'Добавляем…' : isGiftCard && available ? 'Выбрать номинал' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии') }}</button><NuxtLink class="sc-product-arrow" :to="storefrontProductLink(product)" :aria-label="`${t('Подробнее')}: ${editorialName}`"><ArrowRight :stroke-width="1" /></NuxtLink></div>
+    <p v-if="error" class="sc-product-error" role="alert">{{ error }}</p><span class="sb-visually-hidden" role="status">{{ added ? t('Добавлено в корзину') : '' }}</span>
+  </article>
+  <article v-else-if="editorial" class="sh-product">
     <NuxtLink :to="storefrontProductLink(product)" class="sh-product-image" :aria-label="editorialName">
       <img v-if="image && !imageFailed" :src="image" :alt="editorialName" loading="lazy" @error="imageFailed = true" />
       <span v-else class="sh-product-placeholder">SARKISIAN<small>{{ t(isGiftCard ? 'Подарочная карта' : 'Фото появится позже') }}</small></span>

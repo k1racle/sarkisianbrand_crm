@@ -4,6 +4,12 @@ const legacyPhotos: Record<string, string> = {
   '/catalog/freza-almaznaya-shar-40-mm.jpg': '/storefront/products/cutter-ball.jpg',
   '/catalog/gel-muss-kamufliruyushchiy-23.jpg': '/storefront/products/gel-mousse-23.jpg',
   '/catalog/gel-skorostnoy-002-30-ml.jpg': '/storefront/products/speed-gel-002.jpg',
+  '/catalog/gel-skorostnoy-111-30-ml.jpg': '/storefront/products/gel-skorostnoy-111-30-ml.jpg',
+  '/catalog/gel-skorostnoy-011-30-ml.jpg': '/storefront/products/gel-skorostnoy-011-30-ml.jpg',
+  '/catalog/gel-modeliruyushchiy-201-30-ml.jpg': '/storefront/products/gel-modeliruyushchiy-201-30-ml.jpg',
+  '/catalog/gel-skorostnoy-021-shimmer-30-ml.jpg': '/storefront/products/gel-skorostnoy-021-shimmer-30-ml.jpg',
+  '/catalog/nozhnitsy-pro-levsha.jpg': '/storefront/products/nozhnitsy-pro-levsha.jpg',
+  '/catalog/nozhnitsy-pro-pravsha.jpg': '/storefront/products/nozhnitsy-pro-pravsha.jpg',
 };
 export function normalizeMediaImageUrl(value: unknown, apiBase: string, siteUrl = 'http://localhost:3001'): string {
   if (typeof value !== 'string') return '';

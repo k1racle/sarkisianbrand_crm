@@ -63,6 +63,30 @@ describe('Server-side catalog filtering', () => {
       expect(await validate(plainToInstance(CatalogQueryDto, { sort: 'popular', page: '100000', limit: '100' }))).toEqual([]);
     });
 
+    it.each(['new', 'name', 'price-asc', 'popular'])('filters volume before counting and pagination with %s sorting', async sort => {
+      const f = popularSetup();
+      f.tx.$queryRaw.mockResolvedValueOnce([{ total: 2n }] as any).mockResolvedValueOnce([{ id: 'most-sold' }, { id: 'next-sold' }]);
+      const result = await f.service.list({ volume: '15,30', sort, limit: 1, page: 2 } as CatalogQueryDto);
+      expect(result.pagination).toEqual({ total: 2, pages: 2, limit: 1, page: 2 });
+      const count = f.tx.$queryRaw.mock.calls[0][0], ranked = f.tx.$queryRaw.mock.calls[1][0];
+      for (const sql of [count, ranked]) {
+        expect(sql.text).toContain("pv.options->>'volume'");
+        expect(sql.text).toContain('regexp_match');
+        expect(sql.text).toContain('pv."isActive"=true');
+        expect(sql.values).toEqual(expect.arrayContaining([15, 30]));
+      }
+      expect(ranked.values.slice(-2)).toEqual([1, 1]);
+      expect(f.tx.product.count).not.toHaveBeenCalled();
+      expect(f.prisma.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('validates the volume list rather than accepting a SQL or regexp fragment', async () => {
+      for (const volume of ['15|30', '15); SELECT 1', '-1', '15,,30', '15ml', Array(21).fill('15').join(',')]) {
+        expect((await validate(plainToInstance(CatalogQueryDto, { volume }))).length).toBeGreaterThan(0);
+      }
+      expect(await validate(plainToInstance(CatalogQueryDto, { volume: '15,20.5,30' }))).toEqual([]);
+    });
+
     it('orders returned products by purchased units ranking, not ORM return order or badges', async () => {
       const f = popularSetup();
       const result = await f.service.list({ sort: 'popular', page: 2, limit: 24 });

@@ -20,8 +20,11 @@ export async function attachPartner(tx:Prisma.TransactionClient,order:any,token:
  const program=await tx.partnerProgramSetting.findUnique({where:{kind:p.kind}});
  const base=Math.max(0,moneyMinor(order.finalAmount)-moneyMinor(order.shippingCost));
  if(!program?.isEnabled||base<moneyMinor(program.minimumOrderAmount)||base===0)return null;
- if(p.kind==='REFERRAL'&&(await tx.loyaltyProgramSetting.findUnique({where:{id:'default'}}))?.isEnabled===false)return null;
- await tx.partnerAttribution.create({data:{orderId:order.id,participantId:p.id,clickId:click.id,rewardPercent:p.rewardPercent??program.rewardPercent,baseAmount:base/100,holdDays:program.holdDays,firstOrderOnly:program.firstOrderOnly}});
+ if(p.kind==='REFERRAL'&&program.customerRewardMode==='FIXED'&&Number(program.fixedCustomerRewardAmount)<=0)return null;
+ if(p.kind==='REFERRAL'&&program.customerRewardMode==='PERCENT'&&Number(program.rewardPercent)<=0)return null;
+ if(p.kind==='BLOGGER'&&Number(p.rewardPercent??program.rewardPercent)<=0)return null;
+ const rewardMode=p.kind==='BLOGGER'?'PERCENT':program.customerRewardMode;
+ await tx.partnerAttribution.create({data:{orderId:order.id,participantId:p.id,clickId:click.id,rewardPercent:p.kind==='BLOGGER'?(p.rewardPercent??program.rewardPercent):program.rewardPercent,rewardMode,fixedRewardAmount:rewardMode==='FIXED'?program.fixedCustomerRewardAmount:null,baseAmount:base/100,holdDays:program.holdDays,firstOrderOnly:p.kind==='REFERRAL'?rewardMode==='FIXED':program.firstOrderOnly}});
  return p.code;
 }
 /** Owning Order lock is already held. No crediting another user's account here. */
@@ -31,12 +34,20 @@ export async function partnerOrderPaid(tx:Prisma.TransactionClient,order:any){
  const a=await tx.partnerAttribution.findUnique({where:{orderId:order.id},include:{participant:true}});if(!a||a.rejectionReason)return;
  if(a.firstOrderOnly){
   const email=String(order.buyerEmail||'').trim().toLowerCase();
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`partner-first:${email}`}))`;
-  const prior=await tx.order.count({where:{id:{not:order.id},source:'WEB',buyerEmail:{equals:email,mode:'insensitive'},paymentStatus:'SUCCEEDED',status:{notIn:['CANCELLED','REFUNDED']}}});
+  const phoneKey=phone(order.buyerPhone);
+  const identity=order.customerId?`customer:${order.customerId}`:email?`email:${email}`:phoneKey?`phone:${phoneKey}`:'';
+  if(!identity){await tx.partnerAttribution.update({where:{orderId:order.id},data:{rejectionReason:'BUYER_IDENTITY_MISSING'}});return;}
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`partner-first:${identity}`}))`;
+  const identityFilters:any[]=[];
+  if(order.customerId)identityFilters.push({customerId:order.customerId});
+  if(email)identityFilters.push({buyerEmail:{equals:email,mode:'insensitive'}});
+  if(phoneKey&&order.buyerPhone)identityFilters.push({buyerPhone:order.buyerPhone});
+  const prior=await tx.order.count({where:{id:{not:order.id},source:'WEB',paymentStatus:'SUCCEEDED',status:{notIn:['CANCELLED','REFUNDED']},OR:identityFilters}});
   if(prior){await tx.partnerAttribution.update({where:{orderId:order.id},data:{rejectionReason:'FIRST_ORDER_ONLY'}});return;}
  }
- const amount=rewardValue(a.baseAmount,a.rewardPercent,a.participant.kind);if(!amount)return;
- await tx.partnerReward.upsert({where:{orderId:order.id},update:{},create:{orderId:order.id,participantId:a.participantId,amount,unit:a.participant.kind==='REFERRAL'?'BONUS':'RUB'}});
+ const legacyBonus=a.participant.kind==='REFERRAL'&&a.rewardMode==='LEGACY_BONUS';
+ const amount=a.rewardMode==='FIXED'?Number(a.fixedRewardAmount||0):rewardValue(a.baseAmount,a.rewardPercent,legacyBonus?'REFERRAL':'BLOGGER');if(!Number.isFinite(amount)||amount<=0)return;
+ await tx.partnerReward.upsert({where:{orderId:order.id},update:{},create:{orderId:order.id,participantId:a.participantId,amount,unit:legacyBonus?'BONUS':'RUB'}});
 }
 
 /** Only the public self-registration path may attach a new business. Never B2B orders. */
@@ -45,8 +56,8 @@ export async function attachPartnerRegistration(tx:Prisma.TransactionClient,orga
  const click=await tx.partnerClick.findUnique({where:{tokenHash:partnerHash(token)},include:{participant:{include:{user:true}}}});
  if(!click||click.expiresAt<=new Date())return;
  const p=click.participant;
- if(p.kind!=='BLOGGER'||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.user.isActive||p.user.role!=='CUSTOMER_B2C'||p.userId===owner.id||p.user.email.toLowerCase()===owner.email.toLowerCase()||(phone(p.user.phone)&&phone(p.user.phone)===phone(owner.phone)))return;
- const s=await tx.partnerProgramSetting.findUnique({where:{kind:'BLOGGER'}});
+ if(!['BLOGGER','REFERRAL'].includes(p.kind)||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.user.isActive||p.user.role!=='CUSTOMER_B2C'||p.userId===owner.id||p.user.email.toLowerCase()===owner.email.toLowerCase()||(phone(p.user.phone)&&phone(p.user.phone)===phone(owner.phone)))return;
+ const s=await tx.partnerProgramSetting.findUnique({where:{kind:p.kind}});
  if(!s?.isEnabled||Number(s.signupRewardAmount)<=0)return;
  if(await tx.organizationMember.count({where:{userId:owner.id,organizationId:{not:organization.id},role:'OWNER'}}))return;
  const amount=s.signupRewardUnit==='BONUS'?Math.floor(Number(s.signupRewardAmount)):s.signupRewardAmount;

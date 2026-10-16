@@ -8,7 +8,12 @@ assert.equal(resolve('/catalog/gel-muss-kamufliruyushchiy-23.jpg',api),'/storefr
 assert.equal(resolve('/catalog/gel-muss-prozrachnyi-15-gr.jpg',api),'/storefront/products/gel-mousse-clear.jpg');
 assert.equal(resolve('/catalog/gel-skorostnoy-002-30-ml.jpg',api),'/storefront/products/speed-gel-002.jpg');
 assert.equal(resolve('/catalog/freza-almaznaya-shar-40-mm.jpg',api),'/storefront/products/cutter-ball.jpg');
-assert.equal(resolve('/catalog/nozhnitsy-pro-levsha.jpg',api),'','Unavailable photo must not become a broken image');
+assert.equal(resolve('/catalog/nozhnitsy-pro-levsha.jpg',api),'/storefront/products/nozhnitsy-pro-levsha.jpg');
+assert.equal(resolve('/catalog/unavailable-product.jpg',api),'','Unavailable photo must not become a broken image');
+for(const photo of JSON.parse(fs.readFileSync(path.resolve(__dirname,'../public/storefront/products/official-sources.json'),'utf8'))) {
+  assert.equal(resolve(`/catalog/${photo.slug}.jpg`,api),photo.file);
+  assert.ok(fs.statSync(path.resolve(__dirname,'../public'+photo.file)).size>1000);
+}
 assert.equal(normalize('/catalog/nozhnitsy-pro-levsha.jpg',api),'/catalog/nozhnitsy-pro-levsha.jpg','Display fallback never rejects or rewrites a valid saved path');
 assert.equal(resolve('/api/v1/media/files/image.png',api),'http://localhost:3000/api/v1/media/files/image.png');
 assert.equal(resolve('/storefront/hero.jpg',api),'/storefront/hero.jpg');

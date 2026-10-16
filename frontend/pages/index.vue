@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defaultSiteContent, type HomeSection } from '~/shared/site-content';
 const config = useRuntimeConfig();
-const { openAuth, openCart } = useStorefrontPanels();
+const { openAuth } = useStorefrontPanels();
 const { user } = useStorefront();
 const { t, english, region, rates, ratesLoading, ratesError, loadRates } = useHomeLocale();
 onMounted(() => { void loadRates(); });
@@ -20,7 +20,6 @@ const products = computed(() => {
   const byId = new Map<string, any>(items.map((item: any) => [item.id, item]));
   return home.value.bestsellers.productIds.flatMap(id => byId.has(id) ? [byId.get(id)] : []);
 });
-const accountAction = () => user.value ? navigateTo('/account') : openAuth();
 const joinClub = () => user.value ? navigateTo('/account?tab=loyalty') : openAuth('register');
 const founderPortrait = computed(() => home.value.story.portraitUrl === defaultSiteContent.home.story.portraitUrl ? '/storefront/home/svetlana-founder.png' : storefrontMediaUrl(home.value.story.portraitUrl));
 const orbitLabels = [
@@ -102,6 +101,5 @@ useStorefrontSeo({ title: () => `${siteContent.value.brand.name} — профе�
         </div>
       </section>
     </template>
-    <nav class="sh-dock sh-icon-actions" aria-label="Быстрый доступ"><button aria-label="Личный кабинет" title="Личный кабинет" @click="accountAction"><img src="/storefront/home/account.svg" alt="" /></button><button aria-label="Корзина" title="Корзина" @click="openCart"><img src="/storefront/home/cart.svg" alt="" /></button></nav>
   </SiteShell>
 </template>

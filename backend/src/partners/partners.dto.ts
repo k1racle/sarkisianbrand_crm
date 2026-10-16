@@ -5,6 +5,8 @@ export class PartnerSettingsDto {
  @IsString() @MinLength(1) @MaxLength(100) name!:string;
  @Transform(({obj,key})=>obj[key]) @IsBoolean() isEnabled!:boolean;
  @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100) rewardPercent!:number;
+ @IsIn(['FIXED','PERCENT']) customerRewardMode!:string;
+ @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) fixedCustomerRewardAmount!:number;
  @IsInt() @Min(1) @Max(365) attributionDays!:number;
  @IsInt() @Min(0) @Max(365) holdDays!:number;
  @IsNumber({maxDecimalPlaces:2}) @Min(0) @Max(100000000) minimumOrderAmount!:number;
@@ -46,6 +48,7 @@ export class PartnerVerificationDto {
  @IsString() @MinLength(3) @MaxLength(500) note!:string;
 }
 export class PartnerPayoutRequestDto {
+ @IsOptional() @IsIn(['REFERRAL','BLOGGER']) kind?:PartnerKind;
  @IsUUID() requestKey!:string;
  @IsNumber({maxDecimalPlaces:2}) @Min(1) @Max(100000000) amount!:number;
  @IsOptional() @IsString() @MaxLength(500) note?:string;

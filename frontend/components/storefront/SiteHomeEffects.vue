@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineProps<{ about?: boolean }>();
 const layer = ref<HTMLElement | null>(null);
 const cursor = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | undefined;
@@ -70,6 +71,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="layer" class="sh-ambience" aria-hidden="true"><div class="sh-lava"><span></span><span></span><span></span></div><div class="sh-concrete"></div><div class="sh-cursor-light"></div></div>
+  <div ref="layer" class="sh-ambience" aria-hidden="true"><div class="sh-lava"><span></span><span></span><span></span></div><div class="sh-concrete"><template v-if="about"><span v-for="band in 3" :key="band" class="sa-texture"></span></template></div><div class="sh-cursor-light"></div></div>
   <Teleport to="body"><div ref="cursor" class="sh-cursor-dot" aria-hidden="true"></div></Teleport>
 </template>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ArrowRight, ChevronDown, Grid2X2, Heart, Menu, ShoppingBag, UserRound } from '@lucide/vue';
+import { ArrowRight, ChevronDown, Grid2X2, Heart, Menu } from '@lucide/vue';
 defineProps<{ editorial?: boolean }>();
 
 const route = useRoute();
 const scrolled = ref(false);
 let scrollFrame: number | undefined;
-const { user, cartCount, favoriteIds, loadCart, loadMe, syncFavorites, bindCart } = useStorefront();
+const { user, favoriteIds, loadCart, loadMe, syncFavorites, bindCart } = useStorefront();
 const { content, siteContent, loadStorefrontContent, storefrontMediaUrl } = useStorefrontContent();
 await loadStorefrontContent();
 const clubMenuOpen = ref(false);
@@ -16,8 +16,8 @@ const clubMenuDirections = [
   { label: 'Для бизнеса', description: 'Закупки, команда и запись', url: '/business' },
   { label: 'Для блогеров', description: 'Контент и вознаграждение', url: '/partnerships' },
 ];
-const { catalogOpen, authOpen, cartOpen, favoritesOpen, menuOpen, closeAll, openCatalog, openAuth, openCart, openFavorites, openMenu } = useStorefrontPanels();
-const panelOpen = computed(() => catalogOpen.value || authOpen.value || cartOpen.value || favoritesOpen.value || menuOpen.value);
+const { catalogOpen, authOpen, cartOpen, favoritesOpen, menuOpen, businessRegistrationOpen, closeAll, openCatalog, openAuth, openCart, openFavorites, openMenu, openBusinessRegistration } = useStorefrontPanels();
+const panelOpen = computed(() => catalogOpen.value || authOpen.value || cartOpen.value || favoritesOpen.value || menuOpen.value || businessRegistrationOpen.value);
 let previousOverflow = '';
 let scrollLocked = false;
 let returnFocus: HTMLElement | null = null;
@@ -41,10 +41,10 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function activeDrawer() {
-  const name = catalogOpen.value ? 'catalog' : authOpen.value ? 'auth' : cartOpen.value ? 'cart' : favoritesOpen.value ? 'favorites' : 'menu';
+  const name = catalogOpen.value ? 'catalog' : authOpen.value ? 'auth' : cartOpen.value ? 'cart' : favoritesOpen.value ? 'favorites' : businessRegistrationOpen.value ? 'business-registration' : 'menu';
   return document.querySelector<HTMLElement>(`.sb-${name}-drawer`);
 }
-watch([catalogOpen, authOpen, cartOpen, favoritesOpen, menuOpen], async () => {
+watch([catalogOpen, authOpen, cartOpen, favoritesOpen, menuOpen, businessRegistrationOpen], async () => {
   if (!import.meta.client || !panelOpen.value) return;
   await nextTick();
   const drawer = activeDrawer();
@@ -56,6 +56,10 @@ function accountAction() {
   closeAll();
   if (user.value) navigateTo('/account');
   else openAuth();
+}
+
+function closeAuth() {
+  authOpen.value = false;
 }
 
 function onScroll() {
@@ -129,25 +133,22 @@ watch(() => route.fullPath, () => { clubMenuOpen.value = false; });
 
         <nav class="sb-header-actions" aria-label="Покупки и аккаунт">
           <button aria-label="Избранное" title="Избранное" @click="openFavorites"><Heart :size="22" /><b v-if="favoriteIds.length">{{ favoriteIds.length }}</b></button>
-          <button aria-label="Личный кабинет" :title="user ? 'Личный кабинет' : 'Войти'" @click="accountAction"><UserRound :size="22" /></button>
-          <button aria-label="Корзина" title="Корзина" @click="openCart"><ShoppingBag :size="22" /><b v-if="cartCount">{{ cartCount }}</b></button>
         </nav>
       </header>
 
     </div>
 
     <SiteCatalogDrawer :open="catalogOpen" @close="closeAll" @after-leave="afterPanelLeave" />
-    <SiteAuthDrawer :open="authOpen" @close="closeAll" @after-leave="afterPanelLeave" />
+    <SiteAuthDrawer :open="authOpen" @close="closeAuth" @after-leave="afterPanelLeave" />
     <SiteCartDrawer :open="cartOpen" @close="closeAll" @after-leave="afterPanelLeave" />
     <SiteFavoritesDrawer :open="favoritesOpen" @close="closeAll" @after-leave="afterPanelLeave" />
     <SiteMenuDrawer :open="menuOpen" @close="closeAll" @after-leave="afterPanelLeave" />
+    <SiteBusinessRegistrationDrawer :open="businessRegistrationOpen" @close="closeAll" @after-leave="afterPanelLeave" />
   </div>
 
   <nav v-if="!editorial" class="sb-mobile-nav sb-glass-surface" aria-label="Основная навигация">
     <button aria-label="Каталог" :aria-expanded="catalogOpen" :class="{ active: catalogOpen || (!panelOpen && route.path === '/catalog') }" @click="openCatalog"><Grid2X2 :size="23" /></button>
-    <button aria-label="Личный кабинет" :aria-expanded="authOpen" :class="{ active: authOpen || (!panelOpen && route.path === '/account') }" @click="accountAction"><UserRound :size="23" /></button>
     <button aria-label="Избранное" :aria-expanded="favoritesOpen" :class="{ active: favoritesOpen }" @click="openFavorites"><Heart :size="23" /><b v-if="favoriteIds.length">{{ favoriteIds.length > 99 ? '99+' : favoriteIds.length }}</b></button>
-    <button aria-label="Корзина" :aria-expanded="cartOpen" :class="{ active: cartOpen || (!panelOpen && route.path === '/cart') }" @click="openCart"><ShoppingBag :size="23" /><b v-if="cartCount">{{ cartCount > 99 ? '99+' : cartCount }}</b></button>
     <button class="sb-mobile-nav__menu" aria-label="Меню" :aria-expanded="menuOpen" :class="{ active: menuOpen }" @click="openMenu"><Menu :size="23" /></button>
   </nav>
 </template>

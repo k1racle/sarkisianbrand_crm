@@ -1,75 +1,85 @@
 <script setup lang="ts">
-import { ArrowRight, Check, ChevronDown, ShoppingBag, CalendarDays, Link2, PackageCheck } from '@lucide/vue';
-import { safeSiteContentUrl, type HomePartnershipBlock } from '~/shared/site-content';
+import { ArrowRight, CalendarDays, Check, Link2, ShoppingBag, Users } from '@lucide/vue';
 
-const props = defineProps<{ page: any }>();
-const { siteContent } = useStorefrontContent();
-const blocks = computed<any[]>(() => props.page.blocks || []);
-const block = (id: string) => computed<any>(() => blocks.value.find(item => item.id === id));
-const cover = block('cover');
-const purchases = block('purchases');
-const salon = block('salon');
-const booking = block('booking');
-const supply = block('supply');
-const workday = block('workday');
-const start = block('start');
-const faqIntro = block('faq-intro');
-const contact = block('contact');
-const faqs = computed(() => blocks.value.filter(item => item.kind === 'faq'));
-const paragraphs = (body: unknown) => String(body || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
-const titleParts = computed(() => String(props.page.title || '').split('\n'));
-const workdayTitle = computed(() => String(workday.value?.title || 'Больше времени на клиентов.\nМеньше ручной работы.').split('\n'));
-const canLink = (label: unknown, url: unknown) => typeof label === 'string' && !!label && !!safeSiteContentUrl(url);
-const previewBlock = computed<HomePartnershipBlock>(() => siteContent.value.home.business);
-const config = useRuntimeConfig();
-const { data: productData } = await useFetch<any>('/products', { baseURL: config.public.apiBase, query: { limit: 12 } });
-const sceneProducts = computed(() => (productData.value?.items || []).filter((product: any) => product.productType !== 'GIFT_CARD' && storefrontProductImage(product)));
+defineProps<{ page: any }>();
+const route = useRoute();
+const { openBusinessRegistration } = useStorefrontPanels();
+watch(() => route.query.registration, value => {
+  if (import.meta.client && value === 'open') openBusinessRegistration();
+}, { immediate: true });
 </script>
 
 <template>
-  <article class="sb-partnership-page sb-business-page">
-    <nav class="sb-breadcrumbs" aria-label="Навигационная цепочка"><NuxtLink to="/">Главная</NuxtLink><span>/</span><span>Для бизнеса</span></nav>
-
-    <header class="sb-business-hero sb-partnership-cover">
-      <div class="sb-business-hero__copy">
-        <p class="sb-kicker">{{ page.eyebrow }}</p>
-        <h1>{{ titleParts[0] }}<em v-if="titleParts.length > 1">{{ titleParts.slice(1).join(' ') }}</em></h1>
-        <p class="sb-business-hero__lead">{{ page.lead }}</p>
-        <div class="sb-business-hero__actions">
-          <NuxtLink v-if="canLink(cover?.buttonLabel, cover?.buttonUrl)" :to="cover.buttonUrl" class="sb-primary">{{ cover.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink>
-          <NuxtLink v-if="canLink(cover?.secondaryLabel, cover?.secondaryUrl)" :to="cover.secondaryUrl" class="sb-business-hero__login">{{ cover.secondaryLabel }} <ArrowRight :size="16" aria-hidden="true" /></NuxtLink>
+  <article class="sh-container sb-business-page sb-business-page--crm">
+    <header class="sb-business-hero sb-business-crm-hero">
+      <h1>Салон работает.<em>Запись под контролем.</em></h1>
+      <div class="sb-business-hero__bottom">
+        <div class="sb-business-hero__copy">
+          <p class="sb-business-hero__lead">CRM собирает расписание, клиентов и онлайн-запись в одном кабинете. А профессиональные материалы SARKISIAN вы заказываете там же — по персональной цене своей компании.</p>
+          <div class="sb-business-hero__actions">
+            <button type="button" class="sb-design-button" @click="openBusinessRegistration">Подключить кабинет <ArrowRight :size="18" aria-hidden="true" /></button>
+            <NuxtLink to="/b2b-login" class="sb-business-hero__login">Уже с нами? Войти <ArrowRight :size="16" aria-hidden="true" /></NuxtLink>
+          </div>
+        </div>
+        <div class="sb-business-hero__preview" aria-label="Записи клиентов появляются в расписании салона">
+          <div class="sb-business-crm-demo">
+            <div class="sb-business-crm-demo-top"><span>РАСПИСАНИЕ</span><CalendarDays :size="18" aria-hidden="true" /><span>ПОНЕДЕЛЬНИК</span></div>
+            <div class="sb-business-crm-demo-rows">
+              <div><time>09:00</time><span><strong>Маникюр с покрытием</strong><small>Анна · запись подтверждена</small></span><Check :size="16" /></div>
+              <div><time>10:30</time><span><strong>Укрепление и коррекция</strong><small>Мария · новая запись</small></span><Check :size="16" /></div>
+              <div class="is-free"><time>12:00</time><span><strong>Свободное время</strong><small>Клиент может записаться онлайн</small></span><ArrowRight :size="16" /></div>
+            </div>
+            <span class="sb-business-crm-demo-word" aria-hidden="true">ПЛАН</span>
+          </div>
         </div>
       </div>
-      <div class="sb-business-hero__preview"><SiteBusinessPreview :block="previewBlock" /></div>
-      <ul v-if="cover?.body" class="sb-business-hero__benefits" aria-label="Возможности для бизнеса">
-        <li v-for="(line, index) in paragraphs(cover.body)" :key="index"><Check :size="17" aria-hidden="true" />{{ line }}</li>
-      </ul>
     </header>
 
-    <aside v-if="page.reviewRequired" class="sb-review-notice" role="note">Информация требует утверждения перед публичным запуском.</aside>
-
-    <div class="sb-business-intro"><p class="sb-kicker">{{ cover?.title }}</p><p>01 / 02</p></div>
-    <section v-if="purchases" :id="purchases.id" class="sb-partnership-section sb-business-story sb-business-story--purchase sb-partnership-feature--scene">
-      <div class="sb-business-story__copy"><div class="sb-business-story__eyebrow"><ShoppingBag :size="18" aria-hidden="true" /> ЗАКУПКИ</div><h2>{{ purchases.title }}</h2><p v-for="(line, index) in paragraphs(purchases.body)" :key="index">{{ line }}</p><NuxtLink v-if="canLink(purchases.buttonLabel, purchases.buttonUrl)" :to="purchases.buttonUrl" class="sb-business-story__link">{{ purchases.buttonLabel }} <ArrowRight :size="17" aria-hidden="true" /></NuxtLink></div>
-      <SitePartnershipScene kind="purchases" :products="sceneProducts" />
-    </section>
-    <section v-if="salon" :id="salon.id" class="sb-partnership-section sb-business-story sb-business-story--salon sb-partnership-feature--scene">
-      <div class="sb-business-story__copy"><div class="sb-business-story__eyebrow"><CalendarDays :size="18" aria-hidden="true" /> УПРАВЛЕНИЕ САЛОНОМ</div><h2>{{ salon.title }}</h2><p v-for="(line, index) in paragraphs(salon.body)" :key="index">{{ line }}</p><NuxtLink v-if="canLink(salon.buttonLabel, salon.buttonUrl)" :to="salon.buttonUrl" class="sb-business-story__link">{{ salon.buttonLabel }} <ArrowRight :size="17" aria-hidden="true" /></NuxtLink></div>
-      <SitePartnershipScene kind="salon" :products="sceneProducts" />
+    <section class="sb-business-crm-promise" aria-label="Возможности кабинета">
+      <p>Один кабинет —<br />три задачи салона</p>
+      <span><CalendarDays :size="18" aria-hidden="true" />Записи и клиенты</span>
+      <span><Link2 :size="18" aria-hidden="true" />Онлайн-запись</span>
+      <span><ShoppingBag :size="18" aria-hidden="true" />Заказы SARKISIAN</span>
     </section>
 
-    <div v-if="booking || supply" class="sb-business-details">
-      <div class="sb-business-details__head"><p class="sb-kicker">ДЛЯ ЕЖЕДНЕВНОЙ РАБОТЫ</p><h2>{{ workdayTitle[0] }}<br v-if="workdayTitle.length > 1" /><em v-if="workdayTitle.length > 1">{{ workdayTitle.slice(1).join(' ') }}</em></h2></div>
-      <div class="sb-business-details__rows">
-        <section v-if="booking" :id="booking.id" class="sb-partnership-section sb-business-detail"><Link2 :size="23" aria-hidden="true" /><div><h3>{{ booking.title }}</h3><p v-for="(line, index) in paragraphs(booking.body)" :key="index">{{ line }}</p></div></section>
-        <section v-if="supply" :id="supply.id" class="sb-partnership-section sb-business-detail"><PackageCheck :size="23" aria-hidden="true" /><div><h3>{{ supply.title }}</h3><p v-for="(line, index) in paragraphs(supply.body)" :key="index">{{ line }}</p></div></section>
+    <section id="salon" class="sb-business-crm-section sb-business-crm-salon">
+      <div class="sb-business-crm-heading">
+        <h2>Вы занимаетесь салоном.<em>CRM держит всё в порядке.</em></h2>
+        <p>Рабочий день, команда и клиенты — перед глазами. Записи не теряются в переписках, а история визитов остаётся рядом с карточкой клиента.</p>
       </div>
-    </div>
+      <div class="sb-business-crm-flow" aria-label="Рабочий процесс салона">
+        <div><CalendarDays :size="20" aria-hidden="true" /><strong>Расписание</strong><small>Кто и когда работает</small></div>
+        <ArrowRight :size="18" aria-hidden="true" />
+        <div><Users :size="20" aria-hidden="true" /><strong>Клиенты</strong><small>Контакты и история визитов</small></div>
+        <ArrowRight :size="18" aria-hidden="true" />
+        <div><Check :size="20" aria-hidden="true" /><strong>Повторные визиты</strong><small>Вся история в одном кабинете</small></div>
+      </div>
+    </section>
 
-    <section v-if="start" :id="start.id" class="sb-partnership-section sb-business-start"><div><p class="sb-kicker">НАЧАТЬ РАБОТУ</p><h2>{{ start.title }}</h2><NuxtLink v-if="canLink(cover?.buttonLabel, cover?.buttonUrl)" :to="cover.buttonUrl" class="sb-primary">{{ cover.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink></div><ol><li v-for="(line, index) in paragraphs(start.body)" :key="index"><span>{{ String(index + 1).padStart(2, '0') }}</span><p>{{ line }}</p></li></ol></section>
+    <section id="booking" class="sb-business-crm-booking">
+      <div class="sb-business-crm-booking-title"><h2>Клиент выбирает время.<br /><em>Вы получаете запись.</em></h2></div>
+      <div class="sb-business-crm-booking-info">
+        <p>Покажите свободные окна на своей странице записи или добавьте форму на сайт. Клиент сам выберет услугу и удобное время — запись появится в расписании салона.</p>
+        <div class="sb-business-crm-booking-steps" aria-label="Как клиент записывается">
+          <span>Ваша ссылка</span><ArrowRight :size="18" aria-hidden="true" /><span>Услуга</span><ArrowRight :size="18" aria-hidden="true" /><span>Время</span>
+        </div>
+        <button type="button" class="sb-business-crm-text-link" @click="openBusinessRegistration">Настроить онлайн-запись <ArrowRight :size="16" /></button>
+      </div>
+      <div class="sb-business-crm-booking-word" aria-hidden="true">ЗАПИСЬ</div>
+    </section>
 
-    <div v-if="faqs.length" class="sb-business-faq"><div><p class="sb-kicker">КОРОТКО О ГЛАВНОМ</p><h2>{{ faqIntro?.title || 'Остались вопросы?' }}</h2><p>{{ faqIntro?.body || 'Самое важное перед подключением.' }}</p></div><div><section v-for="item in faqs" :id="item.id" :key="item.id" class="sb-partnership-section"><details><summary>{{ item.title }}<ChevronDown :size="20" aria-hidden="true" /></summary><p v-for="(line, index) in paragraphs(item.body)" :key="index">{{ line }}</p></details></section></div></div>
+    <section id="purchases" class="sb-business-crm-purchases">
+      <div class="sb-business-crm-purchases-art" aria-hidden="true"><span>S</span><i></i><i></i><i></i></div>
+      <div class="sb-business-crm-purchases-copy">
+        <h2>Материалы SARKISIAN.<em>По цене вашей компании.</em></h2>
+        <p>Откройте каталог для бизнеса, выберите нужное и оформите заказ в кабинете. Персональная скидка уже учтена в цене товаров.</p>
+        <div class="sb-business-crm-purchase-detail"><ShoppingBag :size="19" aria-hidden="true" /><span>Каталог, ваши цены и статусы заказов — в одном месте</span></div>
+      </div>
+    </section>
 
-    <section v-if="contact" :id="contact.id" class="sb-partnership-section sb-business-end"><div><p class="sb-kicker">SARKISIAN ДЛЯ БИЗНЕСА</p><h2>{{ contact.title }}</h2><p v-for="(line, index) in paragraphs(contact.body)" :key="index">{{ line }}</p></div><div class="sb-business-end__actions"><NuxtLink v-if="canLink(contact.buttonLabel, contact.buttonUrl)" :to="contact.buttonUrl" class="sb-primary">{{ contact.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink><NuxtLink v-if="canLink(contact.secondaryLabel, contact.secondaryUrl)" :to="contact.secondaryUrl" class="sb-business-end__secondary">{{ contact.secondaryLabel }} <ArrowRight :size="16" aria-hidden="true" /></NuxtLink></div></section>
+    <footer class="sb-business-crm-end">
+      <h2>Пора навести порядок<br />в записи салона?</h2>
+      <div><button type="button" class="sb-design-button" @click="openBusinessRegistration">Подключить кабинет <ArrowRight :size="18" /></button><NuxtLink to="/b2b-login" class="sb-business-crm-text-link">Войти в кабинет <ArrowRight :size="16" /></NuxtLink></div>
+    </footer>
   </article>
 </template>

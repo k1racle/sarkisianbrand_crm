@@ -265,9 +265,13 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
   private orderInclude() { return { items: { include: { variant: { select: { sku: true } } } }, organization: true, customer: true, user: true, marketplaceStaging: true, execution: true, oneCRequests: { where: { status: { in: ['PENDING', 'RECEIVED'] } }, orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }, executionOperations: { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] } }; }
 
   private orderPayload(order: any, config: Record<string, unknown>) {
+    const partnerGift = order.sourceChannel === 'PARTNER_GIFT';
     const payload = {
       id: order.id, external1CId: order.externalId, number: order.orderNumber, revision: order.updatedAt.toISOString(), createdAt: order.createdAt,
       protocolVersion: 4, accountingAuthority: 'ONE_C', settlementBasis: settlementBasis(order),
+      documentPurpose: partnerGift ? 'PARTNER_GIFT' : undefined,
+      inventoryOperation: partnerGift ? 'PARTNER_GIFT_ISSUE' : undefined,
+      requiresCustomerPayment: partnerGift ? false : undefined,
       requests: (order.oneCRequests || []).map((r: any) => ({ id: r.id, kind: r.kind, comment: r.comment, operationId: r.operationId, basisHash: r.basisHash, sourceRevision: r.sourceRevision, createdAt: r.createdAt })),
       status: order.status, source: order.source, sourceChannel: order.sourceChannel, externalChannelOrderId: order.externalOrderId,
       organization: order.organization ? { id: order.organization.id, external1CId: order.organization.external1CId, name: order.organization.name, legalName: order.organization.legalName, inn: order.organization.inn, kpp: order.organization.kpp } : null,

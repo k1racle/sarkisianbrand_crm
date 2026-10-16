@@ -54,7 +54,7 @@ onBeforeUnmount(() => { observer?.disconnect(); reduced?.removeEventListener('ch
 
 <template>
   <section class="sb-home-partnership" :class="['sb-home-partnership--' + block.theme, 'sb-home-partnership--' + kind, { 'sb-home-partnership--workspace': kind === 'business' && headingTag !== 'h1' }]">
-    <div class="sb-home-partnership__copy">
+    <div v-if="block.eyebrow || block.title || block.accent || block.body || block.buttonLabel" class="sb-home-partnership__copy">
       <p class="sb-kicker">{{ block.eyebrow }}</p>
       <component :is="headingTag || 'h2'" class="sb-partnership-heading">{{ block.title }} <em>{{ block.accent }}</em></component>
       <p class="sb-home-partnership__body">{{ block.body }}</p>

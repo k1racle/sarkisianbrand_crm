@@ -1,4 +1,5 @@
 import { catalogCategoryPath, catalogProductPath } from '~/shared/catalog-paths';
+import { resolveProductImageUrl } from '~/shared/product-images';
 export const storefrontProductLink = (product: Parameters<typeof catalogProductPath>[0]) => catalogProductPath(product);
 export const storefrontCategories = [
   { title: 'Новинки', query: 'нов', image: '/storefront/categories/instruments.jpg' },
@@ -11,19 +12,15 @@ export const storefrontCategories = [
   { title: 'Уход', query: 'масло', image: '/storefront/brand-strip.jpg' },
 ];
 
-const productImages: Record<string, string> = {
-  'gel-muss-prozrachnyi-15-gr': '/storefront/products/gel-mousse-clear.jpg',
-  'freza-almaznaya-shar-40-mm': '/storefront/products/cutter-ball.jpg',
-  'gel-muss-kamufliruyushchiy-23': '/storefront/products/gel-mousse-23.jpg',
-  'gel-skorostnoy-002-30-ml': '/storefront/products/speed-gel-002.jpg',
-};
-
 export function storefrontProductImage(product: any) {
-  // Legacy demo /catalog/*.jpg values never had corresponding files.
-  const apiImage = product?.images?.slice().sort((a: any, b: any) => a.sortOrder - b.sortOrder).find((image: any) => !image.url.startsWith('/catalog/') && /^(https?:\/\/|\/(?!\/))/.test(image.url))?.url;
-  if (apiImage?.startsWith('/api/')) return new URL(apiImage, useRuntimeConfig().public.apiBase).toString();
+  const config = useRuntimeConfig();
+  const resolve = (url: unknown) => resolveProductImageUrl(url, config.public.apiBase, config.public.siteUrl);
+  // Merchant photos take precedence; original imported paths use verified local files.
+  const sorted = product?.images?.slice().sort((a: any, b: any) => a.sortOrder - b.sortOrder) || [];
+  const apiImage = sorted.filter((image: any) => !image.url?.startsWith('/catalog/')).map((image: any) => resolve(image.url)).find(Boolean)
+    || sorted.map((image: any) => resolve(image.url)).find(Boolean);
   const categoryImage = product?.categories?.find((item: any) => item?.isPrimary)?.category?.imageUrl || product?.categories?.find((item: any) => item?.category?.imageUrl)?.category?.imageUrl;
-  return apiImage || productImages[product?.slug] || categoryImage || null;
+  return apiImage || resolve(`/catalog/${product?.slug}.jpg`) || resolve(categoryImage) || null;
 }
 
 export type StorefrontCategory = { id: string; slug: string; nameRu: string; parentId?: string | null; isActive?: boolean; imageUrl?: string | null };

@@ -1,0 +1,173 @@
+/* Customer account: the homepage's typography, concrete and shared controls.
+ * All rules belong to this page or its teleported account drawers. */
+.sb-account-editorial .sk-account {
+  padding: clamp(40px,5.3vw,80px) 0 0;
+  color: var(--site-text);
+  font-family: var(--brand-font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 70vh;
+}
+.sk-account .sk-masthead { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,.7fr); gap: 48px; align-items: end; padding-bottom: 54px; margin-bottom: 54px; border-bottom: 1px solid var(--site-line); }
+.sk-account .sk-brand { display: inline-block; margin-bottom: 30px; font-size: 13px; letter-spacing: .32em; }
+.sk-account .sk-masthead h1 { font-size: clamp(60px,7.4vw,112px); line-height: .96; letter-spacing: -.045em; text-transform: uppercase; }
+.sk-account .sk-welcome { max-width: 390px; padding-bottom: 4px; justify-self: end; }
+.sk-account .sk-welcome .sk-greeting { margin-bottom: 18px; font-size: clamp(20px,2vw,30px); line-height: 1.2; overflow-wrap: anywhere; }
+.sk-account .sk-welcome > p:not(.sk-greeting) { max-width: 300px; color: var(--site-muted); }
+.sk-account .sk-welcome > .sa-button { margin-top: 12px; }
+.sk-account .sb-account-layout { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: clamp(32px,4.3vw,64px); margin-top: 0; align-items: start; }
+.sk-account .sk-sidebar { position: sticky; top: 28px; min-width: 0; }
+.sk-account .sb-account-nav { position: static; display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; }
+.sk-account .sb-account-nav .sa-button { width: 100%; min-height: 48px; justify-content: flex-start; padding: 12px 16px; border-color: transparent; border-radius: var(--site-radius-pill); background: transparent; font-size: 14px; white-space: normal; text-align: left; }
+.sk-account .sb-account-nav .sa-button.active { color: var(--site-bg); background: var(--site-fill); border-color: var(--site-fill); }
+.sk-account .sb-account-nav .sk-signout { margin-top: 16px; color: var(--site-muted); }
+.sk-account .sk-help { margin: 32px 16px 0; padding-top: 24px; border-top: 1px solid var(--site-line); font-size: 13px; }
+.sk-account .sk-help p { color: var(--site-muted); margin-bottom: 12px; }
+.sk-account .sk-help a { display: inline-flex; gap: 12px; align-items: center; padding: 4px 0; text-underline-offset: 5px; }
+.sk-account .sk-help a:hover { text-decoration: underline; }
+.sk-account .sb-account-content { min-width: 0; }
+.sk-account .sk-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 0 0 24px; }
+.sk-account .sk-section-heading h2 { margin: 0; }
+.sk-account .sk-section-heading > span { font-size: 11px; letter-spacing: .16em; color: var(--site-muted); }
+
+:is(.sk-account,.sk-account-layer) :is(h2,h3,p) { margin: 0 0 16px; }
+:is(.sk-account,.sk-account-layer) h2 { font-size: clamp(22px,2vw,30px); line-height: 1.2; text-transform: uppercase; letter-spacing: -.025em; }
+:is(.sk-account,.sk-account-layer) h3 { font-size: 18px; line-height: 1.4; margin-top: 28px; }
+:is(.sk-account,.sk-account-layer) :is(small,.sa-muted,.sa-gift-values dt,.sp-metrics small,.sp-history small) { color: var(--site-muted); font-size: 12px; line-height: 1.6; }
+:is(.sk-account,.sk-account-layer) .sa-panel { padding: clamp(24px,2.4vw,36px); margin-bottom: 24px; border: 1px solid var(--site-line); border-radius: var(--site-radius-card); background: #353535b8; box-shadow: none; }
+.sk-account .sa-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(0,1fr)); gap: 16px; margin-bottom: 32px; }
+.sk-account .sa-summary .sa-panel { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 20px; grid-template-rows: auto 1fr; align-content: start; align-items: start; gap: 28px 12px; padding: 26px; margin: 0; min-height: 196px; }
+.sk-account .sa-summary span { font-size: 13px; line-height: 1.4; color: var(--site-muted); }
+.sk-account .sa-summary .sa-panel > svg { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--site-text); }
+.sk-account .sa-summary b { grid-column: 1/-1; align-self: end; margin: 0; font-size: clamp(28px,3.1vw,46px); line-height: 1.1; font-weight: 700; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.sk-account .sa-summary .sk-club-card { background: linear-gradient(140deg,#8a624344,#353535b8); }
+.sk-account .sk-club-link { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0; background: none; border: 0; color: var(--site-text); font-size: 12px; text-align: left; }
+.sk-account .sk-club-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+.sk-account .sk-entry { max-width: 880px; padding: clamp(28px,4vw,56px); }
+.sk-account .sk-entry > p { max-width: 650px; color: var(--site-muted); }
+.sb-account-editorial .sk-account > section.sa-panel { padding: clamp(28px,4vw,56px); margin-top: 0; background: #353535b8; }
+.sb-account-editorial .sk-account > section.sa-panel .sa-button { background: transparent; color: var(--site-text); border-color: var(--site-line); }
+
+/* These aliases use the fill animation in site-design.css. */
+:is(.sk-account,.sk-account-layer) .sa-button { min-height: 48px; height: auto; gap: 12px; padding: 12px 24px; border: 1px solid var(--site-line); border-radius: var(--site-radius-pill); background: transparent; color: var(--site-text); font-family: var(--brand-font-body); font-size: 14px; line-height: 20px; font-weight: 400; box-shadow: none; }
+:is(.sk-account,.sk-account-layer) .sa-button:not(:disabled):hover { background: transparent; }
+:is(.sk-account,.sk-account-layer) .sa-button > svg { flex-shrink: 0; width: 18px; height: 18px; }
+:is(.sk-account,.sk-account-layer) .sa-text-button { color: var(--site-text); font-size: 13px; }
+:is(.sk-account,.sk-account-layer) :is(button,a,input,select,textarea,summary):focus-visible { outline: 2px solid var(--site-text); outline-offset: 4px; }
+:is(.sk-account,.sk-account-layer) .sa-upload:focus-within { outline: 2px solid var(--site-text); outline-offset: 4px; }
+:is(.sk-account,.sk-account-layer) .sa-form { gap: 24px; }
+:is(.sk-account,.sk-account-layer) :is(.sa-form,.sp-account) :is(input:not([type=checkbox]),textarea) { min-width: 0; min-height: 48px; border: 1px solid var(--site-line); border-radius: 12px; background: #35353580; color: var(--site-text); padding: 12px 16px; font-size: 16px; line-height: 22px; color-scheme: dark; }
+:is(.sk-account,.sk-account-layer) input::placeholder { color: #c4c4c4; }
+:is(.sk-account,.sk-account-layer) input[readonly] { opacity: 1; color: var(--site-muted); background: #ffffff08; }
+:is(.sk-account,.sk-account-layer) input:disabled { opacity: .5; cursor: not-allowed; }
+:is(.sk-account,.sk-account-layer) :is(.sa-checkbox,.sp-check) input { accent-color: var(--site-fill); color-scheme: dark; }
+:is(.sk-account,.sk-account-layer) :is(.sa-feedback,.sp-terms) { border: 1px solid var(--site-line); border-radius: 16px; background: #ffffff09; color: var(--site-text); }
+:is(.sk-account,.sk-account-layer) .sa-feedback { margin-bottom: 20px; }
+:is(.sk-account,.sk-account-layer) .sa-feedback[role=alert] { border-color: #e6b18d; }
+:is(.sk-account,.sk-account-layer) .sa-initials { border: 1px solid var(--site-line); background: #ffffff0a; color: var(--site-text); font-size: 36px; }
+:is(.sk-account,.sk-account-layer) :is(.sa-badge,.sp-status) { padding: 6px 12px; border: 1px solid #ffffff40; border-radius: var(--site-radius-pill); background: #ffffff08; color: var(--site-muted); font-size: 11px; line-height: 1.4; }
+:is(.sk-account,.sk-account-layer) .sa-notification-channel { border-color: #ffffff40; padding-block: 16px 24px; }
+:is(.sk-account,.sk-account-layer) .sa-notification-channel h3 { margin: 0 0 12px; }
+:is(.sk-account,.sk-account-layer) .sa-address { border-color: #ffffff40; padding: 28px 0; }
+:is(.sk-account,.sk-account-layer) .sa-address h3 { margin-top: 0; }
+:is(.sk-account,.sk-account-layer) .sa-order { grid-template-columns: minmax(0,1fr) auto auto 20px; gap: 18px; padding: 26px 0; color: var(--site-text); border-color: #ffffff40; }
+:is(.sk-account,.sk-account-layer) .sa-order:last-child { border-bottom: 0; padding-bottom: 4px; }
+:is(.sk-account,.sk-account-layer) .sa-order b { display: block; font-size: 14px; line-height: 1.5; }
+:is(.sk-account,.sk-account-layer) .sa-order strong { font-size: 16px; white-space: nowrap; }
+:is(.sk-account,.sk-account-layer) .sa-order small { margin-top: 6px; }
+:is(.sk-account,.sk-account-layer) .sa-order:hover { opacity: 1; color: var(--site-fill); }
+:is(.sk-account,.sk-account-layer) :is(.sa-order-items article,.sa-history,.sp-history article) { border-color: #ffffff40; }
+:is(.sk-account,.sk-account-layer) .sa-order-items img { border: 1px solid var(--site-line); border-radius: 16px; }
+:is(.sk-account,.sk-account-layer) .sa-progress { background: #ffffff20; height: 4px; }
+:is(.sk-account,.sk-account-layer) .sa-progress > span { background: var(--site-fill); }
+.sk-account .sa-gift-grid { margin-top: 28px; }
+.sk-account .sa-gift-card { padding: 28px; gap: 24px; border-color: var(--site-line); border-radius: var(--site-radius-mobile); background: radial-gradient(ellipse at 90% 100%,#a8794d30,transparent 65%),#ffffff05; }
+.sk-account .sa-gift-heading { font-size: 12px; letter-spacing: .2em; }
+.sk-account .sa-gift-mask { font-size: 28px; letter-spacing: .12em; margin-block: 20px 0; }
+.sk-account .sa-gift-values dd { font-size: 24px; line-height: 1.3; }
+.sk-account .sa-gift-card .sa-button { width: 100%; }
+.sk-account .sp-account .sa-panel { margin: 0; }
+.sk-account .sp-metrics { gap: 16px; }
+.sk-account .sp-metrics .sa-panel { padding: 24px; }
+.sk-account .sp-account h3 { margin-top: 0; }
+.sk-account .sp-account .sa-button { border-radius: var(--site-radius-pill); }
+.sk-account .sp-documents { display: grid; gap: 20px; }
+.sk-account .sp-documents .sp-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; align-items: end; }
+.sk-account .sp-documents label { display: grid; gap: 8px; min-width: 0; }
+.sk-account .sp-documents input:not([type=checkbox]),.sk-account .sp-documents select { min-width: 0; min-height: 48px; border: 1px solid var(--site-line); border-radius: 12px; background: #35353580; color: var(--site-text); padding: 12px 16px; font: inherit; color-scheme: dark; }
+.sk-account .sp-documents .sp-doc-wide { grid-column: 1/-1; }
+.sk-account .sp-documents .sp-history article { align-items: center; }
+@media(max-width:640px) { .sk-account .sp-documents .sp-form-grid { grid-template-columns: minmax(0,1fr); } .sk-account .sp-documents .sp-doc-wide { grid-column: auto; } }
+.sk-account .sp-terms p { margin-top: 16px; }
+.sk-account .sp-join { gap: 24px; }
+.sk-account .sp-join > p { margin-bottom: 0; }
+
+/* Orders, addresses and gift cards inherit the same dark drawer as cart/login. */
+.sk-account-layer .sa-drawer { width: min(800px,100vw); padding: clamp(24px,4.3vw,64px); color: var(--site-text); font-family: var(--brand-font-body); font-size: 14px; line-height: 1.6; }
+.sk-account-layer .sa-drawer .sb-drawer-head { align-items: flex-start; border-bottom: 1px solid var(--site-line); padding: 0 0 28px; gap: 20px; }
+.sk-account-layer .sa-drawer .sb-drawer-head h2 { padding: 0; font-size: clamp(26px,3.2vw,44px); text-transform: uppercase; letter-spacing: -.035em; line-height: 1.12; overflow-wrap: anywhere; }
+.sk-account-layer .sa-drawer .sa-close { width: 44px; height: 44px; background: none; border: 0; border-radius: 50%; color: var(--site-text); }
+.sk-account-layer .sa-drawer-body { padding-top: 32px; }
+.sk-account-layer .sa-drawer-body > :is(.sa-form,.sa-button) { margin-bottom: 24px; }
+.sk-account-layer .sa-totals { font-size: 18px; }
+.sk-account-layer .sa-timeline { margin-left: 0; padding-left: 20px; }
+.sk-account-layer .sa-drawer:focus { outline: none; }
+.sb-account-editorial .sh-footer { padding-top: clamp(80px,9vw,136px); }
+.sb-account-editorial .sh-footer-links { padding-top: clamp(70px,8vw,120px); }
+
+@media(max-width:1100px) {
+  .sk-account .sb-account-layout { grid-template-columns: 210px minmax(0,1fr); gap: 28px; }
+  .sk-account .sb-account-nav .sa-button { padding-inline: 12px; gap: 10px; font-size: 13px; }
+  .sk-account .sa-summary .sa-panel { padding: 20px; min-height: 174px; }
+  .sk-account .sa-gift-grid { grid-template-columns: minmax(0,1fr); }
+  .sk-account .sp-metrics { grid-template-columns: minmax(0,1fr); }
+  .sk-account .sa-order { grid-template-columns: minmax(0,1fr) auto 20px; gap: 12px; }
+  .sk-account .sa-order > .sa-badge { grid-column: 1; grid-row: 2; justify-self: start; }
+  .sk-account .sa-order > strong { grid-column: 2; grid-row: 1; }
+  .sk-account .sa-order > svg { grid-column: 3; grid-row: 1; }
+}
+@media(max-width:900px) {
+  .sk-account .sk-masthead { gap: 28px; }
+  .sk-account .sb-account-layout { grid-template-columns: minmax(0,1fr); gap: 32px; }
+  .sk-account .sk-sidebar { position: static; }
+  .sk-account .sb-account-nav { flex-direction: row; overflow-x: auto; gap: 8px; padding: 4px 4px 14px; scrollbar-width: thin; scrollbar-color: #ffffff50 transparent; }
+  .sk-account .sb-account-nav .sa-button { width: auto; flex-shrink: 0; white-space: nowrap; border-color: #ffffff40; padding-inline: 18px; }
+  .sk-account .sb-account-nav .sk-signout { margin: 0; }
+  .sk-account .sk-help { display: none; }
+  .sk-account .sa-gift-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+  .sb-account-editorial .sk-account { padding-top: 24px; }
+  .sk-account .sk-masthead { grid-template-columns: minmax(0,1fr); gap: 32px; margin-bottom: 28px; padding-bottom: 32px; }
+  .sk-account .sk-brand { margin-bottom: 20px; font-size: 11px; }
+  .sk-account .sk-masthead h1 { font-size: clamp(48px,12.4vw,72px); }
+  .sk-account .sk-welcome { justify-self: start; max-width: none; }
+  .sk-account .sk-welcome .sk-greeting { font-size: 24px; }
+  .sk-account .sk-welcome > .sa-button { margin-top: 8px; }
+  :is(.sk-account,.sk-account-layer) .sa-panel { padding: 24px 20px; border-radius: var(--site-radius-mobile); }
+  .sk-account .sa-summary { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-bottom: 24px; }
+  .sk-account .sa-summary .sa-panel { min-height: 156px; padding: 18px; gap: 20px 6px; }
+  .sk-account .sa-summary .sa-panel > svg { width: 16px; height: 16px; }
+  .sk-account .sa-summary b { font-size: clamp(24px,7.4vw,36px); }
+  .sk-account .sa-summary .sk-club-card { grid-column: 1/-1; min-height: 160px; }
+  .sk-account .sa-summary .sk-club-card b { font-size: 40px; }
+  .sk-account .sk-section-heading > span { font-size: 10px; }
+  .sk-account .sa-gift-grid { grid-template-columns: minmax(0,1fr); }
+  .sk-account .sa-gift-card { padding: 22px; }
+  .sk-account .sa-order { grid-template-columns: minmax(0,1fr) 20px; padding-block: 24px; }
+  .sk-account .sa-order > span:first-child { grid-column: 1; }
+  .sk-account .sa-order > svg { grid-column: 2; grid-row: 1; }
+  .sk-account .sa-order > .sa-badge { grid-column: 1/-1; grid-row: 2; }
+  .sk-account .sa-order > strong { grid-column: 1/-1; grid-row: 3; }
+  :is(.sk-account,.sk-account-layer) .sa-address > svg { display: none; }
+  :is(.sk-account,.sk-account-layer) .sa-actions > .sa-button { flex: 1 1 auto; }
+  :is(.sk-account,.sk-account-layer) .sa-avatar-row { gap: 16px; }
+  :is(.sk-account,.sk-account-layer) .sa-avatar { width: 56px; height: 56px; }
+  :is(.sk-account,.sk-account-layer) .sa-avatar-row .sa-button { padding-inline: 16px; }
+  .sk-account-layer .sa-order-items article { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 12px; }
+  .sk-account-layer .sa-order-items img { width: 56px; height: 70px; }
+  .sk-account-layer .sa-order-items article > div { grid-column: 2; }
+  .sk-account-layer .sa-order-items strong { grid-column: 2; }
+  .sk-account-layer .sa-drawer { padding: 24px 20px max(40px,env(safe-area-inset-bottom)); }
+  .sk-account-layer .sa-drawer .sb-drawer-head { gap: 12px; }
+}

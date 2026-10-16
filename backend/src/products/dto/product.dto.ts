@@ -7,6 +7,7 @@ export class CatalogQueryDto {
   @IsOptional() @IsString() @MaxLength(500) category?: string;
   @IsOptional() @IsString() @MaxLength(500) purpose?: string;
   @IsOptional() @IsString() @MaxLength(500) feature?: string;
+  @IsOptional() @IsString() @MaxLength(179) @Matches(/^\d{1,5}(?:\.\d{1,2})?(?:,\d{1,5}(?:\.\d{1,2})?){0,19}$/) volume?: string;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100000000) minPrice?: number;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100000000) maxPrice?: number;
   @IsOptional() @IsIn(['true', 'false']) inStock?: string;

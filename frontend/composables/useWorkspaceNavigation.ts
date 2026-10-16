@@ -22,7 +22,7 @@ export type WorkspacePreferences = { favorites: string[]; recent: string[]; star
 
 /** Shared by the workspace selector and the home screen, in business order. */
 export const WORKSPACE_AREAS = [
-  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'marketing', 'support', 'channels', 'reports', 'settings'] },
+  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'partner-documents', 'marketing', 'support', 'channels', 'reports', 'settings'] },
   { id: 'site', label: 'Админка сайта', description: 'Каталог, страницы, витрина и изображения', icon: 'ShoppingBag', groupIds: ['catalog', 'site', 'media'] },
 ] as const;
 
@@ -89,6 +89,10 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     {id:'bloggers-rewards',label:'Начисления',to:'/admin-workspace/bloggers-rewards',roles:MARKETING,permission:'partners.read'},
     {id:'bloggers-payouts',label:'Выплаты',to:'/admin-workspace/bloggers-payouts',roles:ADMIN,permission:'partners.payouts'},
     {id:'bloggers-settings',label:'Настройки программы',to:'/admin-workspace/bloggers-settings',roles:MARKETING,permission:'partners.read'},
+    {id:'bloggers-gifts',label:'Подарки блогерам',to:'/crm/bloggers/gifts',roles:['ADMIN','SUPERVISOR'],permission:'partners.write',keywords:'товары подарок блогеру бесплатная отправка сборка склад'},
+  ] },
+  { id: 'partner-documents', label: 'Документы партнёров', description: 'Общие документы для блогеров и участников реферальной программы.', icon: 'FileSignature', items: [
+    { id: 'partner-documents-settings', label: 'Шаблоны, генератор и подпись', to: '/crm/partners/documents', roles: ['ADMIN','SUPERVISOR'], permission: 'partners.write', keywords: 'договоры документы шаблоны генератор SMS ПЭП ИП ООО рефералы блогеры' },
   ] },
   { id: 'marketing', label: 'Маркетинг', description: 'Промокоды и подарочные карты.', icon: 'Megaphone', items: [
     { id: 'contact-messages', label: 'Сообщения с сайта', to: '/admin-workspace/contact-messages', permission: 'crm.read', roles: MARKETING, keywords: 'контакты форма обратной связи письма обращения' },
@@ -137,7 +141,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
 
 export function buildWorkspaceNavigation(role?: string | null, can: (permission?: string) => boolean = () => true): WorkspaceGroup[] {
   if (!role || !INTERNAL.includes(role)) return [];
-  const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
+  const order = ['dashboard', 'sales', 'catalog', 'site', 'loyalty', 'referral', 'bloggers', 'partner-documents', 'marketing', 'crm', 'support', 'channels', 'reports', 'media', 'settings'];
   return WORKSPACE_NAVIGATION.map(group => ({ ...group, items: group.items.filter(item => item.roles.includes(role) && can(item.permission) && (item.requires || []).every(key => can(key)) && (!item.anyOf?.length || item.anyOf.some(key => can(key)))).map(item => {
     const destination = CRM_DESTINATIONS.find(destination => destination.id === item.id);
     return { ...item, label: destination?.label || item.label, keywords: `${item.keywords || ''} ${item.label} ${destination?.group || ''}`, to: destination?.path || item.to };

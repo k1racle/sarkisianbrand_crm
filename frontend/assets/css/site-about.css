@@ -1,0 +1,110 @@
+/* About page: supplied Figma SVG, node 420:1349 (1512 × 4671).
+ * Header/footer, type, controls and ambient motion use the storefront baseline.
+ * The empty grey media slot is intentionally present in the source design. */
+.sb-storefront.sb-about { background: var(--site-panel); }
+.sb-about .sh-concrete { background: none; }
+.sa-texture { display: block; position: absolute; left: 0; right: 0; height: 113.1614vw; background: url('/storefront/about/concrete-wall.png') no-repeat; background-size: 169.7174% 100%; opacity: .3; }
+.sa-texture:nth-child(1) { top: -.1323vw; background-position-x: 52.944%; }
+.sa-texture:nth-child(2) { top: 113.0291vw; background-position-x: 51.236%; }
+.sa-texture:nth-child(3) { top: 226.1905vw; bottom: 0; height: auto; min-height: 113.1614vw; background-size: 169.7174% auto; background-position: 59.775% top; background-repeat: repeat-y; }
+.sa-page { display: flex; flex-direction: column; gap: var(--sh-gap); }
+.sa-hero { position: relative; aspect-ratio: 1412/740; }
+.sa-hero h1 { padding-top: 3.8244%; }
+.sa-hero h1 img { display: block; width: 100%; height: auto; }
+.sa-hero-copy { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; margin-top: 30px; }
+.sa-hero-copy p { max-width: 65%; }
+.sa-hero-copy > span { white-space: nowrap; }
+.sa-intro { position: relative; display: grid; grid-template-columns: 30.6657% 9.7734% 38.9518% 1fr; min-height: 0; }
+.sa-intro-media { grid-column: 1; aspect-ratio: 433/501; }
+.sa-intro-copy { grid-column: 3; display: flex; flex-direction: column; justify-content: space-between; gap: 48px; }
+.sa-intro-copy h2 { font-size: 20px; line-height: 26px; text-transform: uppercase; }
+.sa-intro-copy h2 span { display: block; }
+.sa-intro-copy p + p { margin-top: 50px; }
+.sa-section-label { position: absolute; right: -14px; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; rotate: 180deg; transform: scaleY(.85); white-space: nowrap; text-transform: uppercase; font-weight: 700; font-size: clamp(52px,7.9365vw,120px); line-height: 1; }
+.sa-founder-stage { position: relative; padding-top: 3.754%; }
+.sa-founder-stage h2 { position: absolute; inset: 0; font-size: clamp(56px,7.9365vw,120px); line-height: 1; text-transform: uppercase; letter-spacing: 0; pointer-events: none; }
+.sa-founder-stage h2 > span { position: absolute; top: 0; left: 0; }
+.sa-founder-stage h2 > span:last-child { top: clamp(40px,5.62vw,85px); left: auto; right: 0; }
+.sa-founder-portrait { display: block; width: 42.5637%; height: auto; margin-left: 23.2295%; }
+.sa-role { position: absolute; font-size: 14px; }
+.sa-role-founder { top: 17.82%; left: 0; }
+.sa-role-blogger { top: 0; left: 61.2%; }
+.sa-role-master { top: 0; right: 0; }
+.sa-founder-copy { position: absolute; top: 25.68%; width: 38%; font-size: 14px; line-height: 20px; }
+.sa-founder-copy-left { left: 0; }
+.sa-founder-copy-right { right: 0; }
+.sa-founder-copy-right p + p { margin-top: 16px; }
+.sa-founder-summary { position: absolute; bottom: 0; left: 0; width: 34%; font-size: 20px; line-height: 26px; font-weight: 700; }
+.sa-founder-footer { display: flex; align-items: center; justify-content: space-between; gap: 32px; margin-top: 100px; }
+.sa-founder-socials { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); width: 61%; gap: 24px; }
+.sa-founder-socials a { display: flex; align-items: center; min-height: 44px; font-size: 14px; text-transform: uppercase; }
+.sa-founder-socials a:hover,.sa-brand-socials a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.sa-founder-footer .sb-design-button,.sa-socials-button { min-width: 180px; padding-inline: 24px; }
+.sa-brand-socials { display: flex; align-items: center; scroll-margin-top: 32px; }
+.sa-brand-socials a { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 44px; position: relative; text-transform: uppercase; }
+.sa-brand-socials a > span { position: absolute; left: 0; }
+.sa-brand-socials span { font-size: 28px; line-height: 1; font-weight: 400; }
+.sa-values { position: relative; display: flex; flex-direction: column; margin-top: -32px; }
+.sa-value { width: 40%; scroll-margin-top: 32px; }
+.sa-value h2 { font-size: 20px; line-height: 26px; text-transform: uppercase; margin-bottom: 30px; }
+.sa-value p { font-size: 14px; line-height: 20px; }
+.sa-value:nth-child(4n+2) { margin-left: 41.5%; text-align: right; margin-top: 14px; }
+.sa-value:nth-child(4n+3) { margin-left: 20.25%; margin-top: 120px; }
+.sa-value:nth-child(4n+3) h2 { margin-bottom: 24px; }
+.sa-value:nth-child(4n+4) { margin-left: auto; margin-top: 108px; text-align: right; }
+.sa-value:nth-child(4n+5) { margin-top: 120px; }
+.sa-value .sb-design-button { margin-top: 24px; }
+.sa-socials-button { position: absolute; left: 0; bottom: 0; }
+.sb-about .sh-footer { padding-top: 180px; padding-bottom: 40px; }
+.sb-about .sh-footer-marks { grid-template-columns: 53.8% 46.2%; }
+.sb-about .sh-signature { width: 269px; max-width: 70%; }
+.sb-about .sh-footer-wordmark { width: 100%; }
+.sb-about .sh-footer-legal { margin-top: 40px; }
+@media(min-width:761px) and (max-width:1100px) {
+  .sa-hero-copy { font-size: 12px; }
+  .sa-intro { grid-template-columns: 31% 6% 47% 1fr; }
+  .sa-intro-copy { gap: 28px; }
+  .sa-intro-copy p + p { margin-top: 24px; }
+  .sa-founder-copy { width: 34%; font-size: 12px; line-height: 17px; }
+  .sa-founder-summary { font-size: 16px; line-height: 21px; }
+  .sa-founder-socials { width: 70%; gap: 12px; }
+  .sa-founder-socials a { font-size: 12px; }
+  .sa-value { width: 48%; }
+  .sa-value:nth-child(4n+2) { margin-left: 32%; margin-top: 56px; }
+}
+@media(max-width:760px) {
+  .sa-texture { display: none; }
+  .sb-about .sh-concrete { background: url('/storefront/about/concrete-wall.png') 54% top / auto 1100px repeat-y; opacity: .3; }
+  .sa-hero { aspect-ratio: auto; min-height: 450px; }
+  .sa-hero h1 { padding-top: 20px; }
+  .sa-hero-copy { flex-direction: column; align-items: flex-start; gap: 24px; margin-top: 28px; }
+  .sa-hero-copy p { max-width: 100%; }
+  .sa-hero-copy > span { white-space: normal; font-size: 12px; }
+  .sa-intro { grid-template-columns: minmax(0,1fr); gap: 28px; }
+  .sa-section-label { position: static; display: block; grid-column: 1; grid-row: 1; justify-self: start; writing-mode: horizontal-tb; rotate: none; transform: none; white-space: normal; font-size: clamp(42px,12vw,72px); }
+  .sa-intro-media { grid-column: 1; grid-row: 2; width: 78%; max-width: 433px; }
+  .sa-intro-copy { grid-column: 1; gap: 28px; }
+  .sa-intro-copy p + p { margin-top: 24px; }
+  .sa-founder-stage { display: flex; flex-direction: column; padding-top: 0; }
+  .sa-founder-stage h2 { position: static; font-size: clamp(34px,10.8vw,76px); line-height: 1.1; letter-spacing: -.035em; }
+  .sa-founder-stage h2 > span { position: static; display: block; }
+  .sa-founder-stage h2 > span:last-child { text-align: right; }
+  .sa-founder-portrait { width: 85%; max-width: 480px; margin: 28px auto 0; }
+  .sa-role { position: static; font-size: 12px; margin-top: 10px; }
+  .sa-role-founder { margin-top: 24px; }
+  .sa-founder-stage .sa-founder-copy { position: static; width: 100%; margin-top: 24px; }
+  .sa-founder-stage .sa-founder-summary { position: static; width: 100%; font-size: 18px; line-height: 26px; margin-top: 28px; }
+  .sa-founder-footer { flex-wrap: wrap; gap: 24px; margin-top: 32px; }
+  .sa-founder-socials { width: 100%; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 16px; }
+  .sa-founder-socials a { font-size: 12px; }
+  .sa-brand-socials { gap: 12px; flex-wrap: wrap; }
+  .sa-brand-socials a { flex: 1 1 42%; font-size: 12px; padding-left: 20px; }
+  .sa-brand-socials > span { display: none; }
+  .sa-values { margin-top: 0; gap: 48px; }
+  .sa-value:nth-child(n) { width: 100%; margin: 0; text-align: left; }
+  .sa-value h2 { font-size: 20px; margin-bottom: 20px; }
+  .sa-socials-button { position: static; }
+  .sb-about .sh-footer { padding-top: 80px; }
+  .sb-about .sh-footer-marks { grid-template-columns: 36% 64%; }
+  .sb-about .sh-signature { width: 90%; max-width: none; }
+}

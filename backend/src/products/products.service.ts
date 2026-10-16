@@ -26,6 +26,13 @@ const catalogPrice=Prisma.sql`COALESCE((SELECT MIN(CASE WHEN p."productType" <> 
   AND (pv."saleEndsAt" IS NULL OR pv."saleEndsAt" > NOW())
   THEN pv."salePrice" ELSE pv.price END) FROM "ProductVariant" pv
   WHERE pv."productId"=p.id AND pv."isActive"=true),p."basePrice")`;
+// Use an explicit size option first; older catalog items keep size in their names.
+// The boundary and unit prevent matching shade 115 or the 15 in a 115 ml bottle.
+const volumeText = Prisma.sql`COALESCE(pv.options->>'volume', pv.options->>'объем', pv.options->>'объём', pv.options->>'weight', CONCAT_WS(' ', pv.name, p."nameRu"))`;
+const catalogVolume = Prisma.sql`REPLACE(COALESCE(
+  (regexp_match(${volumeText}, '(?:^|[^0-9])([0-9]{1,5}(?:[.,][0-9]{1,2})?)[[:space:]]*(?:мл|ml|гр|г|g)(?:[^a-zа-я]|$)', 'i'))[1],
+  (regexp_match(${volumeText}, '^[[:space:]]*([0-9]{1,5}(?:[.,][0-9]{1,2})?)[[:space:]]*$'))[1]
+), ',', '.')::numeric`;
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService, private readonly config: ConfigService) {}
@@ -40,6 +47,7 @@ export class ProductsService {
     const categories=selectedCategories.length&&!expanded.length?['__unavailable_category__']:expanded;
     const purposes = tags(query?.purpose);
     const features = tags(query?.feature);
+    const volumes = tags(query?.volume).map(Number);
     const ids = [...new Set((query?.ids || '').split(',').filter(Boolean))];
     const now=new Date(),range={gte:query?.minPrice,lte:query?.maxPrice};
     const hasPrice=query?.minPrice!==undefined||query?.maxPrice!==undefined;
@@ -68,12 +76,12 @@ export class ProductsService {
     const orderBy: Prisma.ProductOrderByWithRelationInput[] = query?.sort === 'price-asc' ? [{ basePrice: 'asc' }, { id: 'asc' }]
       : query?.sort === 'price-desc' ? [{ basePrice: 'desc' }, { id: 'asc' }]
       : query?.sort === 'name' ? [{ nameRu: 'asc' }, { id: 'asc' }] : [{ createdAt: 'desc' }, { id: 'asc' }];
-    if (query?.sort === 'popular'||query?.sort==='price-asc'||query?.sort==='price-desc') {
+    if (volumes.length || query?.sort === 'popular'||query?.sort==='price-asc'||query?.sort==='price-desc') {
       // This SQL mirrors the normalized Prisma filters above. Rank only the requested
       // filtered page in PostgreSQL; never fetch every catalogue ID into application memory.
       const predicates: Prisma.Sql[] = [Prisma.sql`p."isActive" = true`];
       if (ids.length) predicates.push(Prisma.sql`p.id IN (${Prisma.join(ids)})`);
-      if (query.search) {
+      if (query?.search) {
         // Match Prisma contains semantics (including LIKE wildcards), used by count.
         const pattern = `%${query.search}%`;
         predicates.push(Prisma.sql`(p."nameRu" ILIKE ${pattern} OR p.sku ILIKE ${pattern})`);
@@ -84,6 +92,7 @@ export class ProductsService {
       )`);
       if (purposes.length) predicates.push(Prisma.sql`p.purposes && ARRAY[${Prisma.join(purposes)}]::text[]`);
       if (features.length) predicates.push(Prisma.sql`p.features && ARRAY[${Prisma.join(features)}]::text[]`);
+      if (volumes.length) predicates.push(Prisma.sql`EXISTS (SELECT 1 FROM "ProductVariant" pv WHERE pv."productId"=p.id AND pv."isActive"=true AND ${catalogVolume} IN (${Prisma.join(volumes)}))`);
       if(hasPrice){
         const conditions:Prisma.Sql[]=[],fallback:Prisma.Sql[]=[];
         const value=Prisma.sql`CASE WHEN p."productType" <> 'GIFT_CARD' AND pv."salePrice" IS NOT NULL AND pv."salePrice" < pv.price
@@ -93,15 +102,15 @@ export class ProductsService {
         predicates.push(Prisma.sql`(EXISTS (SELECT 1 FROM "ProductVariant" pv WHERE pv."productId"=p.id AND pv."isActive"=true AND ${Prisma.join(conditions,' AND ')}) OR
           (NOT EXISTS (SELECT 1 FROM "ProductVariant" pv WHERE pv."productId"=p.id AND pv."isActive"=true) AND ${Prisma.join(fallback,' AND ')}))`);
       }
-      if (query.inStock === 'true') predicates.push(Prisma.sql`EXISTS (
+      if (query?.inStock === 'true') predicates.push(Prisma.sql`EXISTS (
         SELECT 1 FROM "ProductVariant" available WHERE available."productId" = p.id
           AND available."isActive" = true
           AND (p."productType" = 'GIFT_CARD' OR (available.stock > available.reserved AND EXISTS (SELECT 1 FROM "InventoryChannelStock" cs WHERE cs."variantId"=available.id AND cs.channel='WEB' AND cs.quantity>0)))
       )`);
 
       return this.prisma.$transaction(async tx => {
-        const total = await tx.product.count({ where });
-        const ordering=query.sort==='price-asc'?Prisma.sql`${catalogPrice} ASC,p.id ASC`:query.sort==='price-desc'?Prisma.sql`${catalogPrice} DESC,p.id ASC`:Prisma.sql`COALESCE(sales.units, 0) DESC, p."createdAt" DESC, p.id ASC`;
+        const total = volumes.length ? Number((await tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Product" p WHERE ${Prisma.join(predicates, ' AND ')}`))[0]?.total || 0) : await tx.product.count({ where });
+        const ordering=query?.sort==='price-asc'?Prisma.sql`${catalogPrice} ASC,p.id ASC`:query?.sort==='price-desc'?Prisma.sql`${catalogPrice} DESC,p.id ASC`:query?.sort==='popular'?Prisma.sql`COALESCE(sales.units, 0) DESC, p."createdAt" DESC, p.id ASC`:query?.sort==='name'?Prisma.sql`p."nameRu" ASC,p.id ASC`:Prisma.sql`p."createdAt" DESC,p.id ASC`;
         const ranked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
           SELECT p.id FROM "Product" p
           LEFT JOIN (${purchasedUnits90Days}) sales ON sales."productId" = p.id
@@ -129,13 +138,14 @@ export class ProductsService {
   }
 
   async catalogFilters() {
-    const [categories, purposes, features, prices] = await Promise.all([
+    const [categories, purposes, features, prices, volumes] = await Promise.all([
       this.categories(),
       this.prisma.$queryRaw<{ value: string }[]>`SELECT DISTINCT unnest("purposes") AS value FROM "Product" WHERE "isActive" = true ORDER BY value`,
       this.prisma.$queryRaw<{ value: string }[]>`SELECT DISTINCT unnest("features") AS value FROM "Product" WHERE "isActive" = true ORDER BY value`,
       this.prisma.$queryRaw<{min:any;max:any}[]>(Prisma.sql`SELECT MIN(${catalogPrice}) AS min,MAX(${catalogPrice}) AS max FROM "Product" p WHERE p."isActive"=true`),
+      this.prisma.$queryRaw<{ volume: any }[]>(Prisma.sql`SELECT DISTINCT ${catalogVolume} AS volume FROM "Product" p JOIN "ProductVariant" pv ON pv."productId"=p.id WHERE p."isActive"=true AND pv."isActive"=true ORDER BY volume`),
     ]);
-    return { categories, purposes: purposes.map(item => item.value).filter(Boolean), features: features.map(item => item.value).filter(Boolean), price: { min: Number(prices[0]?.min || 0), max: Number(prices[0]?.max || 0) } };
+    return { categories, purposes: purposes.map(item => item.value).filter(Boolean), features: features.map(item => item.value).filter(Boolean), volumes: volumes.filter(item => item.volume != null).map(item => String(Number(item.volume))), price: { min: Number(prices[0]?.min || 0), max: Number(prices[0]?.max || 0) } };
   }
 
   async findBySlug(slug: string) {

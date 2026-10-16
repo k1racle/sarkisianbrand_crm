@@ -32,7 +32,7 @@ export function storefrontRobotsPolicy(path: string, query: SeoQuery = {}, revie
   const privatePage = privatePrefixes.some(prefix => path.startsWith(prefix));
   const preview = Object.prototype.hasOwnProperty.call(query, 'preview') || Object.prototype.hasOwnProperty.call(query, 'draft');
   const filtered = (path.replace(/\/+$/, '') === '/catalog' || path.startsWith('/catalog/')) && (
-    ['search', 'purpose', 'feature', 'minPrice', 'maxPrice', 'inStock'].some(key => query[key] !== undefined && query[key] !== '') ||
+    ['search', 'purpose', 'feature', 'volume', 'minPrice', 'maxPrice', 'inStock'].some(key => query[key] !== undefined && query[key] !== '') ||
     (query.sort !== undefined && query.sort !== 'new') ||
     (query.category !== undefined && !(typeof query.category === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(query.category)))
   );

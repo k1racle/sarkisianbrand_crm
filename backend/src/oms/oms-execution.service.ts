@@ -32,8 +32,9 @@ export class OmsExecutionService {
       }
       if ((order.execution?.version || 0) !== dto.expectedVersion || order.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime()) throw new ConflictException('Заказ изменился. Обновите карточку перед выполнением действия');
       const marketplace = marketplaceSources.includes(order.source);
+      const partnerGift = order.source === 'MANUAL' && order.sourceChannel === 'PARTNER_GIFT';
       const createReserve = marketplace && dto.kind === 'CONFIRM' && order.reservationState === 'LEGACY';
-      if ((!['WEB', 'B2B'].includes(order.source) && !marketplace) || (order.reservationState !== 'ACTIVE' && !createReserve)) throw new ConflictException('Для исполнения нужен действующий резерв или подтверждение своего склада для заказа площадки');
+      if ((!['WEB', 'B2B'].includes(order.source) && !marketplace && !partnerGift) || (order.reservationState !== 'ACTIVE' && !createReserve)) throw new ConflictException('Для исполнения нужен действующий резерв или подтверждение своего склада для заказа площадки');
       if (order.marketplaceImportIssue) throw new ConflictException(order.marketplaceImportIssue);
       if (createReserve && !dto.localWarehouseConfirmed) throw new BadRequestException('Подтвердите, что заказ отгружается с нашего склада, а не со склада площадки');
       if (['CANCELLED', 'REFUNDED', 'SHIPPED', 'DELIVERED'].includes(order.status)) throw new ConflictException('Заказ уже завершён или отгружен');

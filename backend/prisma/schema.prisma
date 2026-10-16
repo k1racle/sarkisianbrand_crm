@@ -333,6 +333,7 @@ model User {
   bookings                Booking[]
   loyaltyAccount          LoyaltyAccount?
   partnerProfiles         PartnerParticipant[]
+  partnerLegalProfile    PartnerLegalProfile?
   ticketsRequested        HelpdeskTicket[]     @relation("TicketRequester")
   ticketsAssigned         HelpdeskTicket[]     @relation("TicketAssignee")
   ticketComments          HelpdeskComment[]
@@ -1555,6 +1556,7 @@ model Order {
   partnerCode String?
   partnerAttribution PartnerAttribution?
   partnerReward PartnerReward?
+  partnerGift PartnerGiftShipment?
   promoRedemption PromoRedemption?
 
   userId String?
@@ -1640,6 +1642,8 @@ model PartnerProgramSetting {
   name String
   isEnabled Boolean @default(false)
   rewardPercent Decimal @default(5) @db.Decimal(5, 2)
+  customerRewardMode String @default("FIXED")
+  fixedCustomerRewardAmount Decimal @default(0) @db.Decimal(15, 2)
   attributionDays Int @default(30)
   holdDays Int @default(14)
   minimumOrderAmount Decimal @default(0) @db.Decimal(15, 2)
@@ -1677,8 +1681,103 @@ model PartnerParticipant {
   payouts PartnerPayout[]
   events PartnerEvent[]
   registrations PartnerBusinessRegistration[]
+  documents PartnerGeneratedDocument[]
+  giftShipments PartnerGiftShipment[]
   @@unique([userId, kind])
   @@index([kind, status, createdAt])
+}
+
+model PartnerGiftShipment {
+  id String @id @default(uuid())
+  requestKey String @unique
+  orderId String @unique
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  createdById String
+  createdByName String
+  note String @default("")
+  createdAt DateTime @default(now())
+  @@index([participantId, createdAt])
+  @@index([createdAt])
+}
+
+model PartnerLegalProfile {
+  id String @id @default(uuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taxStatus String
+  fullName String
+  inn String
+  ogrnip String?
+  address String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model PartnerLegalEntity {
+  id String @id @default(uuid())
+  entityType String
+  legalName String
+  inn String
+  kpp String?
+  ogrn String?
+  ogrnip String?
+  address String
+  signerName String
+  signerTitle String?
+  signerBasis String
+  email String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  documents PartnerGeneratedDocument[]
+  @@index([isActive, entityType])
+}
+
+model PartnerGeneratedDocument {
+  id String @id @default(uuid())
+  participantId String
+  participant PartnerParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+  entityId String
+  entity PartnerLegalEntity @relation(fields: [entityId], references: [id], onDelete: Restrict)
+  documentType String
+  title String
+  fileName String
+  format String @default("DOC")
+  status String @default("DRAFT_LEGAL_REVIEW")
+  templateVersion String
+  contentHtml String @db.Text
+  createdAt DateTime @default(now())
+  @@index([participantId, createdAt])
+}
+
+model PartnerDocumentTemplateVersion {
+  id String @id @default(uuid())
+  templateKey String
+  version Int
+  documentType String
+  title String
+  bodyHtml String @db.Text
+  audience String @default("ALL")
+  taxStatus String @default("ALL")
+  entityType String @default("ALL")
+  isActive Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@unique([templateKey, version])
+  @@index([documentType, isActive, audience, taxStatus, entityType])
+}
+
+model PartnerDocumentSettings {
+  id String @id @default("default")
+  pepEnabled Boolean @default(false)
+  providerKey String @default("SMS_AERO")
+  codeTtlSeconds Int @default(300)
+  maxAttempts Int @default(5)
+  resendCooldownSeconds Int @default(60)
+  consentRequired Boolean @default(true)
+  eligibleDocumentTypes String[] @default(["SERVICE_AGREEMENT", "REWARD_SCHEDULE", "SERVICE_ACT", "PAYOUT_REQUEST"])
+  updatedAt DateTime @updatedAt
 }
 
 model PartnerClick {
@@ -1704,6 +1803,8 @@ model PartnerAttribution {
   clickId String?
   click PartnerClick? @relation(fields: [clickId], references: [id], onDelete: SetNull)
   rewardPercent Decimal @db.Decimal(5, 2)
+  rewardMode String @default("PERCENT")
+  fixedRewardAmount Decimal? @db.Decimal(15, 2)
   baseAmount Decimal @db.Decimal(15, 2)
   holdDays Int
   firstOrderOnly Boolean

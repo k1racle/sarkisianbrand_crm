@@ -13,7 +13,7 @@ export function partnerKind(value:string){if(!['REFERRAL','BLOGGER'].includes(va
 export function cashAvailable(earned:unknown,reserved:unknown){return (moneyMinor(earned||0)-moneyMinor(reserved||0))/100;}
 const safeUser={id:true,email:true,firstName:true,lastName:true,role:true,isActive:true} as const;
 const DAY=86400000;
-const defaults=(kind:string)=>({kind,name:kind==='REFERRAL'?'Пригласите друзей':'Партнёры SARKISIAN',isEnabled:false,rewardPercent:5,attributionDays:30,holdDays:14,minimumOrderAmount:0,firstOrderOnly:false,minimumPayout:1000,signupRewardAmount:0,signupRewardUnit:'RUB',signupHoldDays:14,termsText:'',autoSettlement:true,updatedAt:new Date(0)});
+const defaults=(kind:string)=>({kind,name:kind==='REFERRAL'?'Пригласите друзей':'Партнёры SARKISIAN',isEnabled:false,rewardPercent:5,customerRewardMode:'FIXED',fixedCustomerRewardAmount:0,attributionDays:30,holdDays:14,minimumOrderAmount:0,firstOrderOnly:false,minimumPayout:1000,signupRewardAmount:0,signupRewardUnit:'RUB',signupHoldDays:14,termsText:'',autoSettlement:true,updatedAt:new Date(0)});
 
 @Injectable()
 export class PartnersService implements OnModuleInit,OnModuleDestroy {
@@ -24,10 +24,13 @@ export class PartnersService implements OnModuleInit,OnModuleDestroy {
  onModuleInit(){if(String(this.config.get('ECOSYSTEM_AUTOMATION_ENABLED','false'))==='true')this.timer=setInterval(()=>{void this.settle(undefined,true).catch(()=>this.logger.error('Ошибка обработки партнёрских начислений'));},60000);}
  onModuleDestroy(){if(this.timer)clearInterval(this.timer);}
  async settings(kind:string,db:Prisma.TransactionClient|PrismaService=this.prisma){partnerKind(kind);return await db.partnerProgramSetting.findUnique({where:{kind}})||defaults(kind);}
- private publicSettings(s:any){return {...s,termsVersion:partnerHash(JSON.stringify([s.termsText,s.rewardPercent,s.holdDays,s.attributionDays,s.firstOrderOnly,s.minimumOrderAmount,s.minimumPayout,s.signupRewardAmount,s.signupRewardUnit,s.signupHoldDays]))};}
+ private publicSettings(s:any){return {...s,termsVersion:partnerHash(JSON.stringify([s.termsText,s.rewardPercent,s.customerRewardMode,s.fixedCustomerRewardAmount,s.holdDays,s.attributionDays,s.firstOrderOnly,s.minimumOrderAmount,s.minimumPayout,s.signupRewardAmount,s.signupRewardUnit,s.signupHoldDays]))};}
  async updateSettings(kind:string,dto:PartnerSettingsDto){
   partnerKind(kind);if(dto.isEnabled&&!dto.termsText.trim())throw new BadRequestException('Перед запуском укажите условия участия');
-  if(kind==='REFERRAL'&&dto.signupRewardAmount!==0)throw new BadRequestException('Вознаграждение за организации доступно только блогерам');
+  if(kind==='REFERRAL'&&dto.customerRewardMode==='FIXED'&&dto.fixedCustomerRewardAmount===0)throw new BadRequestException('Укажите фиксированную выплату за нового клиента');
+  if(kind==='REFERRAL'&&dto.customerRewardMode==='PERCENT'&&dto.rewardPercent===0)throw new BadRequestException('Укажите процент вознаграждения за покупку');
+  if(kind==='REFERRAL'&&dto.signupRewardUnit!=='RUB')throw new BadRequestException('Вознаграждение реферала за салон выплачивается деньгами');
+  if(kind==='BLOGGER'&&dto.fixedCustomerRewardAmount!==0)throw new BadRequestException('Фиксированное вознаграждение за клиента доступно реферальной программе');
   if(dto.signupRewardUnit==='BONUS'&&!Number.isInteger(dto.signupRewardAmount))throw new BadRequestException('Укажите целое количество бонусов');
   return this.prisma.partnerProgramSetting.upsert({where:{kind},update:dto,create:{kind,...dto}});
  }
@@ -74,7 +77,7 @@ export class PartnersService implements OnModuleInit,OnModuleDestroy {
   return {id:p.id,status:p.status};
  });}
  private async liveLink(code:string){if(!/^[RB][a-f0-9]{20}$/.test(code))throw new NotFoundException('Ссылка недоступна');const p=await this.prisma.partnerParticipant.findUnique({where:{code},include:{user:{select:safeUser}}});if(!p||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.user.isActive||p.user.role!=='CUSTOMER_B2C')throw new NotFoundException('Ссылка недоступна');const s=await this.settings(p.kind);if(!s.isEnabled)throw new NotFoundException('Программа приостановлена');return {p,s};}
- async link(code:string){const {p,s}=await this.liveLink(code);return {name:s.name,displayName:p.displayName,kind:p.kind,attributionDays:s.attributionDays,businessRegistration:p.kind==='BLOGGER'&&Number(s.signupRewardAmount)>0};}
+ async link(code:string){const {p,s}=await this.liveLink(code);return {name:s.name,displayName:p.displayName,kind:p.kind,attributionDays:s.attributionDays,businessRegistration:Number(s.signupRewardAmount)>0};}
  async track(code:string,dto:PartnerTrackDto){const {p,s}=await this.liveLink(code);if(!dto.consent)throw new BadRequestException('Подтвердите согласие');const token=randomBytes(32).toString('hex'),expiresAt=new Date(Date.now()+s.attributionDays*DAY);await this.prisma.partnerClick.upsert({where:{participantId_visitorHash:{participantId:p.id,visitorHash:partnerHash(dto.visitorId)}},create:{participantId:p.id,visitorHash:partnerHash(dto.visitorId),tokenHash:partnerHash(token),expiresAt},update:{tokenHash:partnerHash(token),expiresAt,visitsCount:{increment:1},lastVisitAt:new Date()}});return {token,expiresAt};}
  async overview(kind:string,section:string,search='',pageValue='1'){
   partnerKind(kind);if(!['settings','participants','rewards','payouts','overview','registrations'].includes(section))throw new BadRequestException('Неизвестный раздел');
@@ -90,7 +93,7 @@ export class PartnersService implements OnModuleInit,OnModuleDestroy {
   return {settings,summary:{participants,pending,uniqueVisitors:clicks,registrations,totals},rows,total,page,pages:Math.max(1,Math.ceil(total/30))};
  }
  async participant(id:string,dto:PartnerParticipantDto,actorId:string){return this.prisma.$transaction(async tx=>{const p=await this.lock(tx,id);if(dto.status==='ACTIVE'&&(!p.acceptedTermsAt||!p.user.isActive||p.user.role!=='CUSTOMER_B2C'))throw new BadRequestException('Участник должен принять условия в личном кабинете и быть активным частным клиентом');if(!dto.decisionNote.trim())throw new BadRequestException('Укажите причину решения');const result=await tx.partnerParticipant.update({where:{id},data:{status:dto.status,rewardPercent:dto.rewardPercent,decisionNote:dto.decisionNote.trim()}});await tx.partnerEvent.create({data:{participantId:id,actorId,type:'PARTICIPANT_DECISION',payload:{from:p.status,...dto}}});return {id:result.id,status:result.status};});}
- async verify(id:string,dto:PartnerVerificationDto,actorId:string){return this.prisma.$transaction(async tx=>{const p=await this.lock(tx,id);if(p.kind!=='BLOGGER')throw new BadRequestException('Денежные выплаты доступны только блогерам');await tx.partnerParticipant.update({where:{id},data:{payoutVerified:dto.payoutVerified}});await tx.partnerEvent.create({data:{participantId:id,actorId,type:'PAYEE_VERIFIED',payload:{verified:dto.payoutVerified,note:dto.note}}});return {id};});}
+ async verify(id:string,dto:PartnerVerificationDto,actorId:string){return this.prisma.$transaction(async tx=>{const p=await this.lock(tx,id);await tx.partnerParticipant.update({where:{id},data:{payoutVerified:dto.payoutVerified}});await tx.partnerEvent.create({data:{participantId:id,actorId,type:'PAYEE_VERIFIED',payload:{verified:dto.payoutVerified,note:dto.note}}});return {id};});}
  async verifyRegistration(id:string,note:string,actorId:string){return this.prisma.$transaction(async tx=>{
   await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${id} FOR UPDATE`;
   const r=await tx.partnerBusinessRegistration.findUnique({where:{organizationId:id},include:{organization:true}});if(!r)throw new NotFoundException('Привлечение не найдено');
@@ -115,7 +118,7 @@ export class PartnersService implements OnModuleInit,OnModuleDestroy {
     const s=await this.settings(p.kind,tx);
     if(!s.isEnabled||(automatic&&!s.autoSettlement)||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.user.isActive||p.user.role!=='CUSTOMER_B2C')return 0;
     if(r.order&&(r.order.source!=='WEB'||r.order.organizationId||r.order.currency!=='RUB'||r.order.status!=='DELIVERED'||r.order.paymentStatus!=='SUCCEEDED'||!r.order.payments.some(payment=>payment.status==='SUCCEEDED')))return 0;
-    if(r.registration){const reg=r.registration;if(p.kind!=='BLOGGER'||reg.organization.status!=='ACTIVE'||!reg.verifiedAt||!reg.verifiedBy||reg.ownerId===p.userId)return 0;const owner=await tx.organizationMember.findFirst({where:{organizationId:reg.organizationId,userId:reg.ownerId,role:'OWNER',isActive:true},include:{user:{select:{isActive:true}}}});if(!owner?.user.isActive)return 0;}
+    if(r.registration){const reg=r.registration;if(!['BLOGGER','REFERRAL'].includes(p.kind)||reg.organization.status!=='ACTIVE'||!reg.verifiedAt||!reg.verifiedBy||reg.ownerId===p.userId)return 0;const owner=await tx.organizationMember.findFirst({where:{organizationId:reg.organizationId,userId:reg.ownerId,role:'OWNER',isActive:true},include:{user:{select:{isActive:true}}}});if(!owner?.user.isActive)return 0;}
     let loyaltyEntryId:string|undefined,creditedBonus=0,withheldBonus=0;
     if(r.unit==='BONUS'){
      const settings=await tx.loyaltyProgramSetting.findUnique({where:{id:'default'}})||{...DEFAULT_LOYALTY_SETTINGS};if(!settings.isEnabled)return 0;
@@ -133,9 +136,9 @@ export class PartnersService implements OnModuleInit,OnModuleDestroy {
   }finally{this.processing=false;}
  }
  async requestPayout(userId:string,dto:PartnerPayoutRequestDto){return this.prisma.$transaction(async tx=>{
-  await this.customer(userId,tx);const profile=await tx.partnerParticipant.findUnique({where:{userId_kind:{userId,kind:'BLOGGER'}}});if(!profile)throw new NotFoundException('Партнёрский профиль не найден');const p=await this.lock(tx,profile.id);
+  await this.customer(userId,tx);const kind=dto.kind||'BLOGGER';const profile=await tx.partnerParticipant.findUnique({where:{userId_kind:{userId,kind}}});if(!profile)throw new NotFoundException('Партнёрский профиль не найден');const p=await this.lock(tx,profile.id);
   const old=await tx.partnerPayout.findUnique({where:{participantId_requestKey:{participantId:p.id,requestKey:dto.requestKey}}});if(old){if(moneyMinor(old.amount)!==moneyMinor(dto.amount)||old.requestNote!==(dto.note||''))throw new ConflictException('Ключ запроса уже использован');return {id:old.id,status:old.status};}
-  const s=await this.settings('BLOGGER',tx);if(!s.isEnabled||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.payoutVerified)throw new ForbiddenException('Выплаты станут доступны после проверки получателя');
+  const s=await this.settings(kind,tx);if(!s.isEnabled||p.status!=='ACTIVE'||!p.acceptedTermsAt||!p.payoutVerified)throw new ForbiddenException('Выплаты станут доступны после проверки получателя');
   if(dto.amount<Number(s.minimumPayout)||dto.amount>await this.balance(tx,p.id))throw new BadRequestException('Сумма меньше минимальной или превышает доступный баланс');
   const payout=await tx.partnerPayout.create({data:{participantId:p.id,requestKey:dto.requestKey,amount:dto.amount,requestNote:dto.note||''}});await tx.partnerEvent.create({data:{participantId:p.id,actorId:userId,type:'PAYOUT_REQUESTED',payload:{payoutId:payout.id,amount:dto.amount}}});return {id:payout.id,status:payout.status};
  });}

@@ -5,6 +5,7 @@ export function useStorefrontPanels() {
   const cartOpen = useState('storefront-cart-open', () => false);
   const favoritesOpen = useState('storefront-favorites-open', () => false);
   const menuOpen = useState('storefront-menu-open', () => false);
+  const businessRegistrationOpen = useState('storefront-business-registration-open', () => false);
 
   function closeAll() {
     catalogOpen.value = false;
@@ -12,6 +13,7 @@ export function useStorefrontPanels() {
     cartOpen.value = false;
     favoritesOpen.value = false;
     menuOpen.value = false;
+    businessRegistrationOpen.value = false;
   }
 
   function openCatalog() {
@@ -40,5 +42,10 @@ export function useStorefrontPanels() {
     menuOpen.value = true;
   }
 
-  return { catalogOpen, authOpen, authMode, cartOpen, favoritesOpen, menuOpen, closeAll, openCatalog, openAuth, openCart, openFavorites, openMenu };
+  function openBusinessRegistration() {
+    closeAll();
+    businessRegistrationOpen.value = true;
+  }
+
+  return { catalogOpen, authOpen, authMode, cartOpen, favoritesOpen, menuOpen, businessRegistrationOpen, closeAll, openCatalog, openAuth, openCart, openFavorites, openMenu, openBusinessRegistration };
 }

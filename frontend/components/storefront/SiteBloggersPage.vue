@@ -1,57 +1,104 @@
 <script setup lang="ts">
-import { ArrowRight, BarChart3, Building2, Check, ChevronDown, CircleDollarSign, Link2, Wallet } from '@lucide/vue';
-import { safeSiteContentUrl, type HomePartnershipBlock } from '~/shared/site-content';
+import { ArrowDown, ArrowRight, Building2, Gift, Link2, Wallet } from '@lucide/vue';
+import type { HomePartnershipBlock } from '~/shared/site-content';
 
 const props = defineProps<{ page: any }>();
 const { siteContent } = useStorefrontContent();
-const blocks = computed<any[]>(() => props.page.blocks || []);
-const findBlock = (id: string) => computed<any>(() => blocks.value.find(item => item.id === id));
-const cover = findBlock('cover');
-const value = findBlock('bloggers');
-const rewards = findBlock('rewards');
-const businessReward = findBlock('business-reward');
-const transparent = findBlock('transparent');
-const start = findBlock('creator-start');
-const contact = findBlock('together');
+const blocks = computed<any[]>(() => Array.isArray(props.page.blocks) ? props.page.blocks : []);
+const block = (id: string) => blocks.value.find(item => item.id === id) || {};
+const hero = computed(() => block('cover'));
+const author = computed(() => block('bloggers'));
+const payout = computed(() => block('rewards'));
+const salon = computed(() => block('business-reward'));
+const steps = computed(() => block('creator-start'));
+const contact = computed(() => block('together'));
+const creatorPhoneBlock = computed<HomePartnershipBlock>(() => ({
+  ...siteContent.value.home.bloggers,
+  eyebrow: '', title: '', accent: '', body: '', buttonLabel: '', url: '',
+  visualLabel: '', visualTitle: '', visualLines: [], theme: 'dark',
+}));
 const faqs = computed(() => blocks.value.filter(item => item.kind === 'faq'));
-const paragraphs = (body: unknown) => String(body || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
-const canLink = (label: unknown, url: unknown) => typeof label === 'string' && !!label && !!safeSiteContentUrl(url);
-const titleParts = computed(() => String(props.page.title || '').split('\n'));
-const heroBlock = computed<HomePartnershipBlock>(() => {
-  const base = siteContent.value.home.bloggers;
-  return { ...base, eyebrow: props.page.eyebrow, title: titleParts.value[0], accent: titleParts.value.slice(1).join(' '), body: props.page.lead, theme: 'dark', buttonLabel: cover.value?.buttonLabel || '', url: cover.value?.buttonUrl || '', visualLines: paragraphs(cover.value?.body).slice(0, 4) };
-});
+const lines = (value: unknown) => String(value || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
 </script>
 
 <template>
-  <article class="sb-partnership-page sb-bloggers-page">
-    <nav class="sb-breadcrumbs" aria-label="Навигационная цепочка"><NuxtLink to="/">Главная</NuxtLink><span>/</span><span>Для блогеров</span></nav>
-
-    <header class="sb-blogger-hero sb-partnership-cover">
-      <SitePartnershipBlock :block="heroBlock" kind="bloggers" heading-tag="h1" />
+  <article class="sb-cooperation-page">
+    <header class="sc-hero sh-container">
+      <div class="sc-hero__main">
+        <h1>{{ page.title || 'Сотрудничество с SARKISIAN' }}</h1>
+        <div class="sc-hero__intro">
+          <p>{{ page.lead || 'Выберите формат: делитесь рекомендациями, создавайте контент или подключите инструменты для своего салона.' }}</p>
+          <a href="#formats" class="sc-text-link">Выбрать формат <ArrowDown :size="17" aria-hidden="true" /></a>
+        </div>
+      </div>
+      <div class="sc-hero__rail" aria-label="Форматы сотрудничества">
+        <a href="#customers">Покупателям <ArrowRight :size="16" aria-hidden="true" /></a>
+        <a href="#authors">Авторам и блогерам <ArrowRight :size="16" aria-hidden="true" /></a>
+        <a href="#salons">Салонам <ArrowRight :size="16" aria-hidden="true" /></a>
+      </div>
     </header>
 
-    <aside v-if="page.reviewRequired" class="sb-review-notice" role="note">Информация требует утверждения перед публичным запуском.</aside>
+    <section id="formats" class="sc-formats sh-container" aria-label="Форматы сотрудничества">
+      <div id="customers" class="sc-format sc-format--customer">
+        <div class="sc-format__copy">
+          <h2>{{ block('referral').title || 'Рекомендуйте любимые продукты' }}</h2>
+          <p class="sc-format__lead">{{ lines(block('referral').body)[0] || 'Расскажите друзьям о материалах SARKISIAN и приглашайте их за покупками по своей ссылке.' }}</p>
+          <p class="sc-format__detail">{{ lines(block('referral').body)[1] || 'За подходящие заказы начисляются бонусы программы. Их можно использовать при следующих покупках на сайте.' }}</p>
+          <NuxtLink :to="block('referral').buttonUrl || '/club/referrals'" class="sc-link">{{ block('referral').buttonLabel || 'Как работает программа' }} <ArrowRight :size="17" aria-hidden="true" /></NuxtLink>
+        </div>
+        <div class="sc-format__visual sc-customer-visual" aria-hidden="true">
+          <div class="sc-orbit sc-orbit--one"></div><div class="sc-orbit sc-orbit--two"></div>
+          <div class="sc-note"><Gift :size="22" /><span>Рекомендация<br />другу</span></div>
+          <div class="sc-customer-visual__link"><Link2 :size="19" /><span>Ваша ссылка</span><i></i><i></i><i></i></div>
+          <div class="sc-customer-visual__bonus">Бонусы<br /><small>за покупки друзей</small></div>
+        </div>
+      </div>
 
-    <section v-if="value" :id="value.id" class="sb-blogger-value sb-blogger-panel">
-      <div class="sb-blogger-value__copy"><p class="sb-kicker">ЧТО ПОЛУЧАЕТ АВТОР</p><h2>{{ value.title }}</h2><p v-for="(line, index) in paragraphs(value.body)" :key="index">{{ line }}</p><NuxtLink v-if="canLink(value.buttonLabel, value.buttonUrl)" :to="value.buttonUrl" class="sb-primary">{{ value.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink></div>
-      <div class="sb-blogger-value__list"><div v-for="(line, index) in paragraphs(cover?.body)" :key="index"><span><Check :size="17" aria-hidden="true" /></span><div><b>{{ ['Персональная ссылка', 'Денежное вознаграждение', 'Бонус за новый бизнес'][index] || line }}</b><p>{{ line }}</p></div></div></div>
+      <div id="authors" class="sc-format sc-format--author">
+        <div class="sc-format__copy">
+          <h2>{{ author.title || 'Создавайте контент — получайте вознаграждение' }}</h2>
+          <p class="sc-format__lead">{{ lines(author.body)[0] || 'Рассказывайте о продуктах и своём опыте. После одобрения заявки вы получите персональную ссылку и условия партнёрства.' }}</p>
+          <div class="sc-author-payouts">
+            <div><span class="sc-payout-icon"><Wallet :size="18" /></span><p><b>Процент с покупок</b><small>{{ lines(payout.body)[0] || 'Вознаграждение за подходящие розничные заказы, оформленные по вашей ссылке.' }}</small></p></div>
+            <div><span class="sc-payout-icon"><Building2 :size="18" /></span><p><b>Фиксированная сумма за салон</b><small>{{ lines(salon.body)[0] || 'Отдельное вознаграждение за привлечённый салон после проверки и подключения.' }}</small></p></div>
+          </div>
+          <p class="sc-format__detail">Денежное вознаграждение оформляется по договору. Для выплат понадобится статус самозанятого или ИП; документы и начисления доступны в кабинете партнёра.</p>
+          <NuxtLink to="/account?tab=bloggers" class="sc-link">{{ hero.buttonLabel || 'Подать заявку автору' }} <ArrowRight :size="17" aria-hidden="true" /></NuxtLink>
+        </div>
+        <div class="sc-format__visual sc-author-visual">
+          <SitePartnershipBlock :block="creatorPhoneBlock" kind="bloggers" heading-tag="h2" />
+        </div>
+      </div>
+
+      <div id="salons" class="sc-format sc-format--salon">
+        <div class="sc-format__copy">
+          <h2>Запись, клиенты и закупки — в одном кабинете</h2>
+          <p class="sc-format__lead">Подключите CRM SARKISIAN: ведите расписание и базу клиентов, откройте онлайн-запись через отдельную страницу или виджет на своём сайте.</p>
+          <p class="sc-format__detail">В том же кабинете можно заказывать продукцию SARKISIAN по персональным условиям для бизнеса.</p>
+          <NuxtLink to="/business" class="sc-link">Посмотреть возможности для бизнеса <ArrowRight :size="17" aria-hidden="true" /></NuxtLink>
+        </div>
+        <div class="sc-format__visual sc-salon-visual" aria-hidden="true">
+          <div class="sc-salon-visual__head"><span class="sc-salon-mark">S</span><div><b>Мой салон</b><small>РАСПИСАНИЕ · СЕГОДНЯ</small></div><span class="sc-salon-date">КАЛЕНДАРЬ</span></div>
+          <div class="sc-salon-visual__row"><span>09:00</span><div><b>Маникюр с покрытием</b><small>Запись подтверждена</small></div><i></i></div>
+          <div class="sc-salon-visual__row"><span>11:00</span><div><b>Укрепление и коррекция</b><small>Следующий клиент</small></div><i></i></div>
+          <div class="sc-salon-visual__footer">Клиенты, расписание и заказы — в одном кабинете</div>
+        </div>
+      </div>
     </section>
 
-    <div class="sb-blogger-section-head"><p class="sb-kicker">КАК РАБОТАЕТ ВОЗНАГРАЖДЕНИЕ</p><h2>Два способа зарабатывать<br /><em>вместе с SARKISIAN.</em></h2></div>
-    <section v-if="rewards" :id="rewards.id" class="sb-blogger-offer sb-blogger-offer--light sb-partnership-feature--scene">
-      <div class="sb-blogger-offer__copy"><div class="sb-blogger-offer__eyebrow"><CircleDollarSign :size="19" aria-hidden="true" /> РЕКОМЕНДАЦИИ И ПРОДАЖИ</div><h2>{{ rewards.title }}</h2><p v-for="(line, index) in paragraphs(rewards.body)" :key="index">{{ line }}</p></div><SitePartnershipScene kind="creators" />
-    </section>
-    <section v-if="businessReward" :id="businessReward.id" class="sb-blogger-offer sb-blogger-offer--dark sb-partnership-feature--scene">
-      <div class="sb-blogger-offer__copy"><div class="sb-blogger-offer__eyebrow"><Building2 :size="19" aria-hidden="true" /> НОВЫЙ САЛОН ИЛИ БИЗНЕС</div><h2>{{ businessReward.title }}</h2><p v-for="(line, index) in paragraphs(businessReward.body)" :key="index">{{ line }}</p></div><div class="sb-blogger-reward-visual"><div class="sb-blogger-reward-visual__top"><span>Фиксированная награда</span><Building2 :size="18" aria-hidden="true" /></div><strong>Бонус</strong><div class="sb-blogger-reward-visual__bars"><i></i><i></i><i></i><i></i><i></i></div><small>После проверки и активации организации</small></div>
+    <section v-if="steps" class="sc-steps sh-container">
+      <div class="sc-steps__heading"><h2>{{ steps.title || 'Понятный путь от заявки до работы' }}</h2></div>
+      <div class="sc-steps__list"><div v-for="(line, index) in lines(steps.body)" :key="index"><span>{{ ['Заявка', 'Согласование', 'Работа и выплаты'][index] || `Шаг ${index + 1}` }}</span><p>{{ line }}</p></div></div>
     </section>
 
-    <section v-if="transparent" :id="transparent.id" class="sb-blogger-analytics"><div class="sb-blogger-analytics__copy"><p class="sb-kicker">ЛИЧНЫЙ КАБИНЕТ</p><h2>{{ transparent.title }}</h2><p v-for="(line, index) in paragraphs(transparent.body)" :key="index">{{ line }}</p></div><div class="sb-blogger-dashboard"><header><span>Партнёрская статистика</span><BarChart3 :size="19" aria-hidden="true" /></header><div class="sb-blogger-dashboard__numbers"><div><b>Переходы</b><strong>—</strong></div><div><b>Заказы</b><strong>—</strong></div><div><b>Начисления</b><strong>—</strong></div></div><div class="sb-blogger-dashboard__chart"><i v-for="bar in [28,45,36,64,52,78,61,92]" :key="bar" :style="{ height: bar + '%' }"></i></div><footer><Link2 :size="16" aria-hidden="true" /> Данные обновляются в кабинете партнёра</footer></div></section>
+    <section v-if="faqs.length" class="sc-faq sh-container">
+      <div><h2>Вопросы и ответы</h2></div>
+      <div class="sc-faq__items"><details v-for="item in faqs" :id="item.id" :key="item.id"><summary>{{ item.title }}<span>+</span></summary><p v-for="(line, index) in lines(item.body)" :key="index">{{ line }}</p></details></div>
+    </section>
 
-    <section v-if="start" :id="start.id" class="sb-blogger-start"><div><p class="sb-kicker">КАК УЧАСТВОВАТЬ</p><h2>{{ start.title }}</h2><NuxtLink v-if="canLink(cover?.buttonLabel, cover?.buttonUrl)" :to="cover.buttonUrl" class="sb-primary">{{ cover.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink></div><ol><li v-for="(line, index) in paragraphs(start.body)" :key="index"><span>{{ String(index + 1).padStart(2, '0') }}</span><div><b>{{ ['Подайте заявку', 'Получите персональную ссылку', 'Создавайте и отслеживайте'][index] || 'Следующий шаг' }}</b><p>{{ line }}</p></div></li></ol></section>
-
-    <div v-if="faqs.length" class="sb-blogger-faq"><div><p class="sb-kicker">ПРОЗРАЧНЫЕ УСЛОВИЯ</p><h2>Вопросы и ответы</h2><p>Главное о покупках, сроках и выплатах.</p></div><div><section v-for="item in faqs" :id="item.id" :key="item.id" class="sb-partnership-section"><details><summary>{{ item.title }}<ChevronDown :size="20" aria-hidden="true" /></summary><p v-for="(line, index) in paragraphs(item.body)" :key="index">{{ line }}</p></details></section></div></div>
-
-    <section v-if="contact" :id="contact.id" class="sb-blogger-end"><div><p class="sb-kicker">SARKISIAN × АВТОРЫ</p><h2>{{ contact.title }}</h2><p v-for="(line, index) in paragraphs(contact.body)" :key="index">{{ line }}</p></div><div class="sb-blogger-end__actions"><NuxtLink v-if="canLink(contact.buttonLabel, contact.buttonUrl)" :to="contact.buttonUrl" class="sb-primary">{{ contact.buttonLabel }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink><NuxtLink v-if="canLink(contact.secondaryLabel, contact.secondaryUrl)" :to="contact.secondaryUrl" class="sb-blogger-end__secondary">{{ contact.secondaryLabel }} <ArrowRight :size="16" aria-hidden="true" /></NuxtLink></div></section>
+    <footer v-if="contact" class="sc-contact sh-container">
+      <div><h2>{{ contact.title || 'Обсудим подходящий формат?' }}</h2><p>{{ lines(contact.body)[0] || 'Оставьте заявку — мы уточним детали и расскажем о следующих шагах.' }}</p></div>
+      <NuxtLink :to="contact.buttonUrl || '/account?tab=bloggers'" class="sc-contact__button">{{ contact.buttonLabel || 'Оставить заявку' }} <ArrowRight :size="18" aria-hidden="true" /></NuxtLink>
+    </footer>
   </article>
 </template>

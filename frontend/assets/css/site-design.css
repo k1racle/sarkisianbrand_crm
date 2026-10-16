@@ -52,13 +52,16 @@
   overflow: hidden;
 }
 
-:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)) {
+/* Let each page choose absolute/static positioning without losing the fill. */
+:where(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)) {
   position: relative;
+}
+:is(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)) {
   isolation: isolate;
   overflow: hidden;
   transition: border-color .3s, color .3s, box-shadow .3s;
 }
-:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button))::before {
+:is(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button))::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -70,18 +73,36 @@
   transition: transform var(--site-motion-fill) var(--site-ease-fill), border-radius var(--site-motion-fill);
   pointer-events: none;
 }
-:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)):not(:disabled):is(:hover, :focus-visible) {
+:is(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)):not(:disabled):is(:hover, :focus-visible) {
   color: var(--site-button-ink, var(--site-bg));
   border-color: var(--site-fill);
 }
-:is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)):not(:disabled):is(:hover, :focus-visible)::before {
+:is(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)):not(:disabled):is(:hover, :focus-visible)::before {
   transform: translateY(0);
   border-radius: 0;
 }
 .sb-design-button:focus-visible { outline: 2px solid var(--site-text); outline-offset: 4px; }
 .sb-design-button:disabled { opacity: .5; cursor: not-allowed; }
 
+.sb-cart-badge {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--site-bg);
+  border-radius: 50%;
+  background: var(--site-text);
+  color: var(--site-bg);
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 @media(prefers-reduced-motion:reduce) {
-  :is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)),
-  :is(.sb-design-button, .sh-pill, .sh-product-buy, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button))::before { transition: none; }
+  :is(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button)),
+  :is(.sb-design-button, .sh-pill, .sh-product-buy, :is(.sk-account, .sk-account-layer) .sa-button, .sd-layer .sd-drawer :is(.sb-liquid-primary, .sb-social-buttons button, .sb-drawer-tabs button))::before { transition: none; }
 }

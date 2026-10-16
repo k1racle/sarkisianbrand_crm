@@ -37,9 +37,12 @@ interface _GlobalComponents {
   CrmLeadTasks: typeof import("../../components/CrmLeadTasks.vue")['default']
   CrmPdfViewer: typeof import("../../components/CrmPdfViewer.vue")['default']
   CrmPipelineSettings: typeof import("../../components/CrmPipelineSettings.vue")['default']
+  CrmStockRules: typeof import("../../components/CrmStockRules.vue")['default']
   CrmSubtasks: typeof import("../../components/CrmSubtasks.vue")['default']
   CrmTaskAutomation: typeof import("../../components/CrmTaskAutomation.vue")['default']
   CrmTaskFiles: typeof import("../../components/CrmTaskFiles.vue")['default']
+  CrmTaskParticipants: typeof import("../../components/CrmTaskParticipants.vue")['default']
+  CrmTaskPeoplePicker: typeof import("../../components/CrmTaskPeoplePicker.vue")['default']
   EcosystemAccounts: typeof import("../../components/EcosystemAccounts.vue")['default']
   EcosystemIntegrations: typeof import("../../components/EcosystemIntegrations.vue")['default']
   EcosystemTrash: typeof import("../../components/EcosystemTrash.vue")['default']
@@ -67,14 +70,25 @@ interface _GlobalComponents {
   CrmAccessProfiles: typeof import("../../components/crm/CrmAccessProfiles.vue")['default']
   CrmEmployeeAccessReview: typeof import("../../components/crm/CrmEmployeeAccessReview.vue")['default']
   CrmInstallButton: typeof import("../../components/crm/CrmInstallButton.vue")['default']
+  CrmKnowledgeBase: typeof import("../../components/crm/CrmKnowledgeBase.vue")['default']
+  CrmMarketplaceMapping: typeof import("../../components/crm/CrmMarketplaceMapping.vue")['default']
   CrmMeetingGuests: typeof import("../../components/crm/CrmMeetingGuests.vue")['default']
+  CrmNotificationCenter: typeof import("../../components/crm/CrmNotificationCenter.vue")['default']
+  CrmOrderAdjustments: typeof import("../../components/crm/CrmOrderAdjustments.vue")['default']
+  CrmOrderExecution: typeof import("../../components/crm/CrmOrderExecution.vue")['default']
+  CrmOrderFinance: typeof import("../../components/crm/CrmOrderFinance.vue")['default']
+  CrmOrdersRegister: typeof import("../../components/crm/CrmOrdersRegister.vue")['default']
+  CrmReceivables: typeof import("../../components/crm/CrmReceivables.vue")['default']
   CrmSchedulePatterns: typeof import("../../components/crm/CrmSchedulePatterns.vue")['default']
   CrmSectionNavigation: typeof import("../../components/crm/CrmSectionNavigation.vue")['default']
   CrmShell: typeof import("../../components/crm/CrmShell.vue")['default']
+  CrmTaskPipelineEditor: typeof import("../../components/crm/CrmTaskPipelineEditor.vue")['default']
+  CrmThemeToggle: typeof import("../../components/crm/CrmThemeToggle.vue")['default']
   CrmTimeCorrections: typeof import("../../components/crm/CrmTimeCorrections.vue")['default']
   CrmTimesheet: typeof import("../../components/crm/CrmTimesheet.vue")['default']
   CrmWorkClock: typeof import("../../components/crm/CrmWorkClock.vue")['default']
   ProductCard: typeof import("../../components/storefront/ProductCard.vue")['default']
+  SiteAboutPage: typeof import("../../components/storefront/SiteAboutPage.vue")['default']
   SiteAccountAddresses: typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']
   SiteAccountDashboard: typeof import("../../components/storefront/SiteAccountDashboard.vue")['default']
   SiteAccountDrawer: typeof import("../../components/storefront/SiteAccountDrawer.vue")['default']
@@ -86,8 +100,12 @@ interface _GlobalComponents {
   SiteBloggersPage: typeof import("../../components/storefront/SiteBloggersPage.vue")['default']
   SiteBusinessPage: typeof import("../../components/storefront/SiteBusinessPage.vue")['default']
   SiteBusinessPreview: typeof import("../../components/storefront/SiteBusinessPreview.vue")['default']
+  SiteBusinessRegistrationDrawer: typeof import("../../components/storefront/SiteBusinessRegistrationDrawer.vue")['default']
+  SiteCartBadge: typeof import("../../components/storefront/SiteCartBadge.vue")['default']
   SiteCartDrawer: typeof import("../../components/storefront/SiteCartDrawer.vue")['default']
   SiteCartRecommendations: typeof import("../../components/storefront/SiteCartRecommendations.vue")['default']
+  SiteCartSuggestion: typeof import("../../components/storefront/SiteCartSuggestion.vue")['default']
+  SiteCatalogDesignFilters: typeof import("../../components/storefront/SiteCatalogDesignFilters.vue")['default']
   SiteCatalogDrawer: typeof import("../../components/storefront/SiteCatalogDrawer.vue")['default']
   SiteCatalogFilters: typeof import("../../components/storefront/SiteCatalogFilters.vue")['default']
   SiteCatalogMenuEditor: typeof import("../../components/storefront/SiteCatalogMenuEditor.vue")['default']
@@ -102,10 +120,16 @@ interface _GlobalComponents {
   SiteContentEditor: typeof import("../../components/storefront/SiteContentEditor.vue")['default']
   SiteContentPage: typeof import("../../components/storefront/SiteContentPage.vue")['default']
   SiteFavoritesDrawer: typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']
+  SiteFloatingActions: typeof import("../../components/storefront/SiteFloatingActions.vue")['default']
   SiteFooter: typeof import("../../components/storefront/SiteFooter.vue")['default']
   SiteFounderBiography: typeof import("../../components/storefront/SiteFounderBiography.vue")['default']
   SiteGiftCardsEditor: typeof import("../../components/storefront/SiteGiftCardsEditor.vue")['default']
   SiteHeader: typeof import("../../components/storefront/SiteHeader.vue")['default']
+  SiteHomeCourses: typeof import("../../components/storefront/SiteHomeCourses.vue")['default']
+  SiteHomeEffects: typeof import("../../components/storefront/SiteHomeEffects.vue")['default']
+  SiteHomeFooter: typeof import("../../components/storefront/SiteHomeFooter.vue")['default']
+  SiteHomeNavigation: typeof import("../../components/storefront/SiteHomeNavigation.vue")['default']
+  SiteHomeRegion: typeof import("../../components/storefront/SiteHomeRegion.vue")['default']
   SiteLoyaltyPreview: typeof import("../../components/storefront/SiteLoyaltyPreview.vue")['default']
   SiteMenuDrawer: typeof import("../../components/storefront/SiteMenuDrawer.vue")['default']
   SiteMenuLink: typeof import("../../components/storefront/SiteMenuLink.vue")['default']
@@ -124,6 +148,9 @@ interface _GlobalComponents {
   SiteSocialLoginButtons: typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']
   ChannelsWorkspacePage: typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']
   ContactMessagesWorkspace: typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']
+  PartnerDocumentsSettingsPage: typeof import("../../components/workspace/PartnerDocumentsSettingsPage.vue")['default']
+  PartnerGiftsPage: typeof import("../../components/workspace/PartnerGiftsPage.vue")['default']
+  PartnerLegalEntitiesPage: typeof import("../../components/workspace/PartnerLegalEntitiesPage.vue")['default']
   PartnerWorkspacePage: typeof import("../../components/workspace/PartnerWorkspacePage.vue")['default']
   ReportsWorkspacePage: typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']
   SalonSubscriptionSettings: typeof import("../../components/workspace/SalonSubscriptionSettings.vue")['default']
@@ -177,9 +204,12 @@ interface _GlobalComponents {
   LazyCrmLeadTasks: LazyComponent<typeof import("../../components/CrmLeadTasks.vue")['default']>
   LazyCrmPdfViewer: LazyComponent<typeof import("../../components/CrmPdfViewer.vue")['default']>
   LazyCrmPipelineSettings: LazyComponent<typeof import("../../components/CrmPipelineSettings.vue")['default']>
+  LazyCrmStockRules: LazyComponent<typeof import("../../components/CrmStockRules.vue")['default']>
   LazyCrmSubtasks: LazyComponent<typeof import("../../components/CrmSubtasks.vue")['default']>
   LazyCrmTaskAutomation: LazyComponent<typeof import("../../components/CrmTaskAutomation.vue")['default']>
   LazyCrmTaskFiles: LazyComponent<typeof import("../../components/CrmTaskFiles.vue")['default']>
+  LazyCrmTaskParticipants: LazyComponent<typeof import("../../components/CrmTaskParticipants.vue")['default']>
+  LazyCrmTaskPeoplePicker: LazyComponent<typeof import("../../components/CrmTaskPeoplePicker.vue")['default']>
   LazyEcosystemAccounts: LazyComponent<typeof import("../../components/EcosystemAccounts.vue")['default']>
   LazyEcosystemIntegrations: LazyComponent<typeof import("../../components/EcosystemIntegrations.vue")['default']>
   LazyEcosystemTrash: LazyComponent<typeof import("../../components/EcosystemTrash.vue")['default']>
@@ -207,14 +237,25 @@ interface _GlobalComponents {
   LazyCrmAccessProfiles: LazyComponent<typeof import("../../components/crm/CrmAccessProfiles.vue")['default']>
   LazyCrmEmployeeAccessReview: LazyComponent<typeof import("../../components/crm/CrmEmployeeAccessReview.vue")['default']>
   LazyCrmInstallButton: LazyComponent<typeof import("../../components/crm/CrmInstallButton.vue")['default']>
+  LazyCrmKnowledgeBase: LazyComponent<typeof import("../../components/crm/CrmKnowledgeBase.vue")['default']>
+  LazyCrmMarketplaceMapping: LazyComponent<typeof import("../../components/crm/CrmMarketplaceMapping.vue")['default']>
   LazyCrmMeetingGuests: LazyComponent<typeof import("../../components/crm/CrmMeetingGuests.vue")['default']>
+  LazyCrmNotificationCenter: LazyComponent<typeof import("../../components/crm/CrmNotificationCenter.vue")['default']>
+  LazyCrmOrderAdjustments: LazyComponent<typeof import("../../components/crm/CrmOrderAdjustments.vue")['default']>
+  LazyCrmOrderExecution: LazyComponent<typeof import("../../components/crm/CrmOrderExecution.vue")['default']>
+  LazyCrmOrderFinance: LazyComponent<typeof import("../../components/crm/CrmOrderFinance.vue")['default']>
+  LazyCrmOrdersRegister: LazyComponent<typeof import("../../components/crm/CrmOrdersRegister.vue")['default']>
+  LazyCrmReceivables: LazyComponent<typeof import("../../components/crm/CrmReceivables.vue")['default']>
   LazyCrmSchedulePatterns: LazyComponent<typeof import("../../components/crm/CrmSchedulePatterns.vue")['default']>
   LazyCrmSectionNavigation: LazyComponent<typeof import("../../components/crm/CrmSectionNavigation.vue")['default']>
   LazyCrmShell: LazyComponent<typeof import("../../components/crm/CrmShell.vue")['default']>
+  LazyCrmTaskPipelineEditor: LazyComponent<typeof import("../../components/crm/CrmTaskPipelineEditor.vue")['default']>
+  LazyCrmThemeToggle: LazyComponent<typeof import("../../components/crm/CrmThemeToggle.vue")['default']>
   LazyCrmTimeCorrections: LazyComponent<typeof import("../../components/crm/CrmTimeCorrections.vue")['default']>
   LazyCrmTimesheet: LazyComponent<typeof import("../../components/crm/CrmTimesheet.vue")['default']>
   LazyCrmWorkClock: LazyComponent<typeof import("../../components/crm/CrmWorkClock.vue")['default']>
   LazyProductCard: LazyComponent<typeof import("../../components/storefront/ProductCard.vue")['default']>
+  LazySiteAboutPage: LazyComponent<typeof import("../../components/storefront/SiteAboutPage.vue")['default']>
   LazySiteAccountAddresses: LazyComponent<typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']>
   LazySiteAccountDashboard: LazyComponent<typeof import("../../components/storefront/SiteAccountDashboard.vue")['default']>
   LazySiteAccountDrawer: LazyComponent<typeof import("../../components/storefront/SiteAccountDrawer.vue")['default']>
@@ -226,8 +267,12 @@ interface _GlobalComponents {
   LazySiteBloggersPage: LazyComponent<typeof import("../../components/storefront/SiteBloggersPage.vue")['default']>
   LazySiteBusinessPage: LazyComponent<typeof import("../../components/storefront/SiteBusinessPage.vue")['default']>
   LazySiteBusinessPreview: LazyComponent<typeof import("../../components/storefront/SiteBusinessPreview.vue")['default']>
+  LazySiteBusinessRegistrationDrawer: LazyComponent<typeof import("../../components/storefront/SiteBusinessRegistrationDrawer.vue")['default']>
+  LazySiteCartBadge: LazyComponent<typeof import("../../components/storefront/SiteCartBadge.vue")['default']>
   LazySiteCartDrawer: LazyComponent<typeof import("../../components/storefront/SiteCartDrawer.vue")['default']>
   LazySiteCartRecommendations: LazyComponent<typeof import("../../components/storefront/SiteCartRecommendations.vue")['default']>
+  LazySiteCartSuggestion: LazyComponent<typeof import("../../components/storefront/SiteCartSuggestion.vue")['default']>
+  LazySiteCatalogDesignFilters: LazyComponent<typeof import("../../components/storefront/SiteCatalogDesignFilters.vue")['default']>
   LazySiteCatalogDrawer: LazyComponent<typeof import("../../components/storefront/SiteCatalogDrawer.vue")['default']>
   LazySiteCatalogFilters: LazyComponent<typeof import("../../components/storefront/SiteCatalogFilters.vue")['default']>
   LazySiteCatalogMenuEditor: LazyComponent<typeof import("../../components/storefront/SiteCatalogMenuEditor.vue")['default']>
@@ -242,10 +287,16 @@ interface _GlobalComponents {
   LazySiteContentEditor: LazyComponent<typeof import("../../components/storefront/SiteContentEditor.vue")['default']>
   LazySiteContentPage: LazyComponent<typeof import("../../components/storefront/SiteContentPage.vue")['default']>
   LazySiteFavoritesDrawer: LazyComponent<typeof import("../../components/storefront/SiteFavoritesDrawer.vue")['default']>
+  LazySiteFloatingActions: LazyComponent<typeof import("../../components/storefront/SiteFloatingActions.vue")['default']>
   LazySiteFooter: LazyComponent<typeof import("../../components/storefront/SiteFooter.vue")['default']>
   LazySiteFounderBiography: LazyComponent<typeof import("../../components/storefront/SiteFounderBiography.vue")['default']>
   LazySiteGiftCardsEditor: LazyComponent<typeof import("../../components/storefront/SiteGiftCardsEditor.vue")['default']>
   LazySiteHeader: LazyComponent<typeof import("../../components/storefront/SiteHeader.vue")['default']>
+  LazySiteHomeCourses: LazyComponent<typeof import("../../components/storefront/SiteHomeCourses.vue")['default']>
+  LazySiteHomeEffects: LazyComponent<typeof import("../../components/storefront/SiteHomeEffects.vue")['default']>
+  LazySiteHomeFooter: LazyComponent<typeof import("../../components/storefront/SiteHomeFooter.vue")['default']>
+  LazySiteHomeNavigation: LazyComponent<typeof import("../../components/storefront/SiteHomeNavigation.vue")['default']>
+  LazySiteHomeRegion: LazyComponent<typeof import("../../components/storefront/SiteHomeRegion.vue")['default']>
   LazySiteLoyaltyPreview: LazyComponent<typeof import("../../components/storefront/SiteLoyaltyPreview.vue")['default']>
   LazySiteMenuDrawer: LazyComponent<typeof import("../../components/storefront/SiteMenuDrawer.vue")['default']>
   LazySiteMenuLink: LazyComponent<typeof import("../../components/storefront/SiteMenuLink.vue")['default']>
@@ -264,6 +315,9 @@ interface _GlobalComponents {
   LazySiteSocialLoginButtons: LazyComponent<typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']>
   LazyChannelsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']>
   LazyContactMessagesWorkspace: LazyComponent<typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']>
+  LazyPartnerDocumentsSettingsPage: LazyComponent<typeof import("../../components/workspace/PartnerDocumentsSettingsPage.vue")['default']>
+  LazyPartnerGiftsPage: LazyComponent<typeof import("../../components/workspace/PartnerGiftsPage.vue")['default']>
+  LazyPartnerLegalEntitiesPage: LazyComponent<typeof import("../../components/workspace/PartnerLegalEntitiesPage.vue")['default']>
   LazyPartnerWorkspacePage: LazyComponent<typeof import("../../components/workspace/PartnerWorkspacePage.vue")['default']>
   LazyReportsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ReportsWorkspacePage.vue")['default']>
   LazySalonSubscriptionSettings: LazyComponent<typeof import("../../components/workspace/SalonSubscriptionSettings.vue")['default']>

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "smoke:storefront-about": "node scripts/storefront-about-smoke.cjs",
     "smoke:storefront-drawers": "node scripts/storefront-drawers-smoke.cjs",
     "check:crm-launch-actions": "node scripts/crm-launch-actions-check.cjs",
     "smoke:crm-launch-actions": "node scripts/crm-launch-actions-mock.cjs",

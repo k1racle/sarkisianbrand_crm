@@ -5,8 +5,8 @@ async function isolated(browser, width, role, options = {}) {
   const context = await browser.newContext({ baseURL, viewport: { width, height: 960 }, serviceWorkers: 'block', ...options });
   const errors = [], writes = [], calls = [];
   let authenticated = !!role;
-  const profile = { id: 'fixture-referral', role: role || 'CUSTOMER_B2C', firstName: 'Тест', lastName: '', email: 'fixture@example.test', phone: '', sessions: [], notificationPreferences: {} };
-  const dashboard = { summary: { orders: 0, spent: 0 }, orders: [], addresses: [], giftCards: [], loyalty: { isEligible: profile.role === 'CUSTOMER_B2C', balance: 1250, levelLabel: 'Старт', entries: [] } };
+  const profile = { id: 'fixture-referral', role: role || 'CUSTOMER_B2C', firstName: 'РўРµСЃС‚', lastName: '', email: 'fixture@example.test', phone: '', sessions: [], notificationPreferences: {} };
+  const dashboard = { summary: { orders: 0, spent: 0 }, orders: [], addresses: [], giftCards: [], loyalty: { isEligible: profile.role === 'CUSTOMER_B2C', balance: 1250, levelLabel: 'РЎС‚Р°СЂС‚', entries: [] } };
   if (authenticated) await context.addCookies([{ name: 'sb-customer-token', value: 'isolated-referral-token', url: baseURL }]);
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url()), endpoint = url.pathname.replace('/api/v1', '');
@@ -58,13 +58,13 @@ test('Referral deep-link selects the customer section, and tabs keep URL in sync
   const f = await isolated(browser, 1440, 'CUSTOMER_B2C');
   try {
     await f.page.goto('/account?tab=referrals', { waitUntil: 'networkidle' });
-    await expect(f.page.getByRole('heading', { name: 'Приглашайте друзей', exact: true })).toBeVisible();
-    await expect(f.page.getByRole('button', { name: 'Пригласить друзей', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(f.page.getByText('Программа пока не открыта.', { exact: false })).toBeVisible();
-    await f.page.getByRole('button', { name: 'Мои заказы', exact: true }).click();
+    await expect(f.page.getByRole('heading', { name: 'РџСЂРёРіР»Р°С€Р°Р№С‚Рµ РґСЂСѓР·РµР№', exact: true })).toBeVisible();
+    await expect(f.page.getByRole('button', { name: 'РџСЂРёРіР»Р°СЃРёС‚СЊ РґСЂСѓР·РµР№', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(f.page.getByText('РџСЂРѕРіСЂР°РјРјР° РїРѕРєР° РЅРµ РѕС‚РєСЂС‹С‚Р°.', { exact: false })).toBeVisible();
+    await f.page.getByRole('button', { name: 'РњРѕРё Р·Р°РєР°Р·С‹', exact: true }).click();
     await expect(f.page).toHaveURL(/tab=orders/);
     await f.page.reload({ waitUntil: 'networkidle' });
-    await expect(f.page.getByRole('button', { name: 'Мои заказы', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(f.page.getByRole('button', { name: 'РњРѕРё Р·Р°РєР°Р·С‹', exact: true })).toHaveAttribute('aria-current', 'page');
     expect(f.calls.some(c => c.endpoint === '/partners/me/REFERRAL')).toBe(true);
     expect(f.errors).toEqual([]); expect(f.writes).toEqual([]);
   } finally { await f.context.close(); }
@@ -78,7 +78,7 @@ test('Guest referral entry opens login and preserves the section after signing i
     await auth.locator('input[type="email"]').fill('fixture@example.test');
     await auth.locator('input[type="password"]').fill('fixture-password');
     await auth.locator('form button[type="submit"], form .sb-liquid-primary').click();
-    await expect(f.page.getByRole('heading', { name: 'Приглашайте друзей', exact: true })).toBeVisible();
+    await expect(f.page.getByRole('heading', { name: 'РџСЂРёРіР»Р°С€Р°Р№С‚Рµ РґСЂСѓР·РµР№', exact: true })).toBeVisible();
     await expect(auth).toHaveCount(0);
     await expect(f.page).toHaveURL(/account\?tab=referrals/);
     expect(f.errors).toEqual([]); expect(f.writes).toEqual([]);
@@ -88,8 +88,8 @@ for (const role of ['ADMIN', 'CUSTOMER_B2B']) test(`Referral entry explains cust
   const f = await isolated(browser, 390, role);
   try {
     await f.page.goto('/account?tab=referrals', { waitUntil: 'networkidle' });
-    await expect(f.page.getByRole('note')).toContainText('Этот раздел доступен частным покупателям.');
-    await expect(f.page.getByRole('button', { name: 'Сменить аккаунт и войти как покупатель' })).toBeVisible();
+    await expect(f.page.getByRole('note')).toContainText('Р­С‚РѕС‚ СЂР°Р·РґРµР» РґРѕСЃС‚СѓРїРµРЅ С‡Р°СЃС‚РЅС‹Рј РїРѕРєСѓРїР°С‚РµР»СЏРј.');
+    await expect(f.page.getByRole('button', { name: 'РЎРјРµРЅРёС‚СЊ Р°РєРєР°СѓРЅС‚ Рё РІРѕР№С‚Рё РєР°Рє РїРѕРєСѓРїР°С‚РµР»СЊ' })).toBeVisible();
     expect(f.calls.some(c => c.endpoint.startsWith('/partners/'))).toBe(false);
     expect(f.errors).toEqual([]); expect(f.writes).toEqual([]);
   } finally { await f.context.close(); }
@@ -120,7 +120,7 @@ test('Social sign-in keeps the referral query in its return URL', async ({ brows
   const f = await isolated(browser, 1440);
   try {
     await f.page.goto('/account?tab=referrals', { waitUntil: 'networkidle' });
-    await f.page.locator('.sb-auth-drawer').getByRole('button', { name: /Яндекс/ }).click();
+    await f.page.locator('.sb-auth-drawer').getByRole('button', { name: /РЇРЅРґРµРєСЃ/ }).click();
     await expect.poll(() => new URLSearchParams(f.calls.find(c => c.endpoint === '/auth/social/yandex/start')?.query || '').get('returnUrl')).toBe('/account?tab=referrals');
     expect(f.errors).toEqual([]); expect(f.writes).toEqual([]);
   } finally { await f.context.close(); }

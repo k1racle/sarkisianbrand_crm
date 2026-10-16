@@ -36,6 +36,7 @@ declare global {
   const getRouteRules: typeof import('../../node_modules/nuxt/dist/app/composables/manifest').getRouteRules
   const h: typeof import('vue').h
   const hasInjectionContext: typeof import('vue').hasInjectionContext
+  const homeRegions: typeof import('../../composables/useHomeLocale').homeRegions
   const inject: typeof import('vue').inject
   const injectHead: typeof import('../../node_modules/nuxt/dist/app/composables/head').injectHead
   const isNuxtError: typeof import('../../node_modules/nuxt/dist/app/composables/error').isNuxtError
@@ -126,14 +127,17 @@ declare global {
   const useCrmCardDrag: typeof import('../../composables/useCrmCardDrag').useCrmCardDrag
   const useCrmDrive: typeof import('../../composables/useCrmDrive').useCrmDrive
   const useCrmNavigation: typeof import('../../composables/useCrmNavigation').useCrmNavigation
+  const useCrmNotifications: typeof import('../../composables/useCrmNotifications').useCrmNotifications
   const useCrmPwa: typeof import('../../composables/useCrmPwa').useCrmPwa
   const useCrmReminders: typeof import('../../composables/useCrmReminders').useCrmReminders
+  const useCrmTheme: typeof import('../../composables/useCrmTheme').useCrmTheme
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
   const useError: typeof import('../../node_modules/nuxt/dist/app/composables/error').useError
   const useFetch: typeof import('../../node_modules/nuxt/dist/app/composables/fetch').useFetch
   const useHead: typeof import('../../node_modules/nuxt/dist/app/composables/head').useHead
   const useHeadSafe: typeof import('../../node_modules/nuxt/dist/app/composables/head').useHeadSafe
+  const useHomeLocale: typeof import('../../composables/useHomeLocale').useHomeLocale
   const useHydration: typeof import('../../node_modules/nuxt/dist/app/composables/hydrate').useHydration
   const useId: typeof import('vue').useId
   const useLazyAsyncData: typeof import('../../node_modules/nuxt/dist/app/composables/asyncData').useLazyAsyncData
@@ -246,8 +250,14 @@ declare global {
   export type { CrmDriveItem } from '../../composables/useCrmDrive'
   import('../../composables/useCrmDrive')
   // @ts-ignore
+  export type { CrmNotification } from '../../composables/useCrmNotifications'
+  import('../../composables/useCrmNotifications')
+  // @ts-ignore
   export type { CrmInstallPrompt } from '../../composables/useCrmPwa'
   import('../../composables/useCrmPwa')
+  // @ts-ignore
+  export type { CrmTheme } from '../../composables/useCrmTheme'
+  import('../../composables/useCrmTheme')
   // @ts-ignore
   export type { StorefrontCategory, StorefrontCatalogQuickLinkKey, StorefrontCatalogMenu } from '../../composables/useStorefrontCatalog'
   import('../../composables/useStorefrontCatalog')
@@ -300,6 +310,7 @@ declare module 'vue' {
     readonly getRouteRules: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/manifest')['getRouteRules']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasInjectionContext: UnwrapRef<typeof import('vue')['hasInjectionContext']>
+    readonly homeRegions: UnwrapRef<typeof import('../../composables/useHomeLocale')['homeRegions']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectHead: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/head')['injectHead']>
     readonly isNuxtError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['isNuxtError']>
@@ -390,14 +401,17 @@ declare module 'vue' {
     readonly useCrmCardDrag: UnwrapRef<typeof import('../../composables/useCrmCardDrag')['useCrmCardDrag']>
     readonly useCrmDrive: UnwrapRef<typeof import('../../composables/useCrmDrive')['useCrmDrive']>
     readonly useCrmNavigation: UnwrapRef<typeof import('../../composables/useCrmNavigation')['useCrmNavigation']>
+    readonly useCrmNotifications: UnwrapRef<typeof import('../../composables/useCrmNotifications')['useCrmNotifications']>
     readonly useCrmPwa: UnwrapRef<typeof import('../../composables/useCrmPwa')['useCrmPwa']>
     readonly useCrmReminders: UnwrapRef<typeof import('../../composables/useCrmReminders')['useCrmReminders']>
+    readonly useCrmTheme: UnwrapRef<typeof import('../../composables/useCrmTheme')['useCrmTheme']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useError: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/error')['useError']>
     readonly useFetch: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/fetch')['useFetch']>
     readonly useHead: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/head')['useHead']>
     readonly useHeadSafe: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/head')['useHeadSafe']>
+    readonly useHomeLocale: UnwrapRef<typeof import('../../composables/useHomeLocale')['useHomeLocale']>
     readonly useHydration: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/hydrate')['useHydration']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useLazyAsyncData: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/asyncData')['useLazyAsyncData']>

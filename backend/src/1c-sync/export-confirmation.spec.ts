@@ -38,4 +38,9 @@ describe('1C document acknowledgements (no provider)', () => {
     expect(first.idempotencyKey).toBe(second.idempotencyKey); expect(first.operations.map(o => o.id)).toEqual(['ship-1', 'return-1']);
     expect(first.warehouse).toMatchObject({ requiresPicking: false, fulfillmentMode: 'CRM_DOCUMENTS' });
   });
+  it('marks blogger gifts for a zero-payment 1C issue document', () => {
+    const f = fixture();
+    const payload = f.service.orderPayload({ ...order(), source: 'MANUAL', sourceChannel: 'PARTNER_GIFT', finalAmount: 0, totalAmount: 0 }, {});
+    expect(payload).toMatchObject({ documentPurpose: 'PARTNER_GIFT', inventoryOperation: 'PARTNER_GIFT_ISSUE', requiresCustomerPayment: false, finalAmount: 0 });
+  });
 });
