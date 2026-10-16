@@ -6,5 +6,5 @@ useStorefrontSeo({ title: () => `${page.value?.title || 'SARKISIAN CLUB'} — п
 </script>
 
 <template>
-  <SiteShell><SiteContentPage v-if="page" :page="page" /></SiteShell>
+  <SiteShell editorial><SiteContentPage v-if="page" :page="page" /></SiteShell>
 </template>

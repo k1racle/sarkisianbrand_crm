@@ -38,38 +38,20 @@ for (const width of [1440, 390, 320]) test(`Club editorial layout ${width}`, asy
     const { page } = f;
     await page.goto('/club/referrals', { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
-    const hero = page.locator('.is-club .sb-content-hero');
-    expect(await hero.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
-    await expect(hero.locator('.sb-content-actions .sb-primary')).toHaveCount(1);
-    const account = hero.getByRole('link', { name: 'Мой кабинет', exact: true });
-    await expect(account.locator('svg')).toBeVisible();
-    expect(await account.locator('span').evaluate(el => getComputedStyle(el).textDecorationLine)).toBe('underline');
-    const preview = hero.locator('.sb-club-page-preview');
-    expect(await preview.evaluate(el => getComputedStyle(el).overflow)).toBe('visible');
-    if (width > 760) {
-      const card = preview.locator('.sb-club-banner__card');
-      await card.hover({ position: { x: 30, y: 30 } });
-      await expect(card).toHaveClass(/is-card-tilting/);
-      await expect.poll(() => card.evaluate(el => el.style.getPropertyValue('--sb-card-tilt-y'))).not.toBe('0deg');
-      await page.mouse.move(5, 5);
-      await expect(card).not.toHaveClass(/is-card-tilting/);
-    }
-    const blocks = await page.locator('.is-club .sb-content-block').evaluateAll(elements => elements.map(el => {
-      const style = getComputedStyle(el);
-      return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow, columns: style.gridTemplateColumns.split(' ').length };
-    }));
-    expect(blocks).toHaveLength(7);
-    for (const style of blocks) expect(style).toMatchObject({ background: 'rgba(0, 0, 0, 0)', radius: '0px', shadow: 'none', columns: width > 760 ? 2 : 1 });
-    await expect(page.locator('#referral-rules a')).toHaveCount(0);
-    await expect(page.locator('#referral.sb-club-referral h2 em')).toHaveText('Получайте бонусы.');
-    await expect(page.locator('.sb-club-referral__flow li')).toHaveCount(3);
-    await expect(page.locator('#referral a')).toHaveAttribute('href', '/account?tab=referrals');
-    const container = await page.locator('.is-club').boundingBox(), feature = await page.locator('.sb-club-referral').boundingBox();
-    expect(Math.abs(container.width - feature.width)).toBeLessThan(2);
+    const hero = page.locator('.sb-referrals-hero');
+    await expect(page.locator('.sb-referrals-hero h1')).toBeVisible();
+    await expect(page.locator('.sb-referrals-manifesto')).toBeVisible();
+    await expect(page.locator('.sb-referrals-story')).toBeVisible();
+    await expect(page.locator('.sb-referrals-how__gallery figure')).toHaveCount(3);
+    await expect(page.locator('.sb-referrals-story a.sb-referrals-link')).toHaveAttribute('href', '/account?tab=referrals');
+    const heroBox = await hero.boundingBox(), titleBox = await page.locator('.sb-referrals-hero h1').boundingBox();
+    expect(titleBox.x).toBeGreaterThanOrEqual(heroBox.x);
+    expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(heroBox.x + heroBox.width + 2);
+    expect(await page.locator('.sb-referrals-page').boundingBox().then(box => box.width)).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 2);
     expect(f.errors).toEqual([]); expect(f.writes).toEqual([]);
-    await info.attach('club-hero', { body: await hero.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
-    await info.attach('club', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+    await info.attach('referrals-hero', { body: await hero.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+    await info.attach('referrals', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   } finally { await f.context.close(); }
 });
 test('Referral deep-link selects the customer section, and tabs keep URL in sync', async ({ browser }) => {

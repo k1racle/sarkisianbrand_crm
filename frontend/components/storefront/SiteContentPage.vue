@@ -24,6 +24,7 @@ const contactEmail = computed(() => structuredContacts.value ? siteContent.value
   <SiteClubHub v-if="clubHub" :page="page" />
   <SiteBusinessPage v-else-if="page.slug === 'business'" :page="page" />
   <SiteBloggersPage v-else-if="page.slug === 'partnerships'" :page="page" />
+  <SiteClubReferralsPage v-else-if="page.slug === 'club-referrals'" :page="page" />
   <SitePartnershipPage v-else-if="!club && page.slug !== 'about' && page.blocks?.some((block: any) => block.kind && block.kind !== 'text')" :page="page" />
   <article v-else class="sb-content-page" :class="{ 'is-legal': legal, 'is-about': page.slug === 'about', 'is-club': club, 'is-contacts': page.slug === 'contacts', 'is-delivery': page.slug === 'delivery' }">
     <nav class="sb-breadcrumbs" aria-label="Навигационная цепочка"><NuxtLink to="/">Главная</NuxtLink><span>/</span><span>{{ page.eyebrow || page.title }}</span></nav>

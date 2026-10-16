@@ -1,0 +1,196 @@
+/* Referral page: loose editorial composition on the same concrete stage as home. */
+.sb-storefront.sb-home .sb-referrals-page {
+  --ref-gutter: clamp(22px, 5vw, 76px);
+  width: calc(100% - min(6.614vw, 100px));
+  max-width: var(--site-content-width, 1680px);
+  margin: 0 auto;
+  padding: 0 0 clamp(100px, 13vw, 190px);
+  color: #fff;
+  overflow: clip;
+}
+.sb-storefront.sb-home .sb-referrals-page :is(h1,h2,p,figure) { margin: 0; }
+.sb-storefront.sb-home .sb-referrals-page :is(a,button):focus-visible { outline: 2px solid #fff; outline-offset: 6px; }
+.sb-referrals-hero { min-height: min(760px, calc(100svh - 74px)); position: relative; display: grid; grid-template-columns: 1fr .58fr; align-items: center; gap: 3vw; padding: 4vh 0 7vh; }
+.sb-referrals-hero__intro { position: relative; z-index: 1; }
+.sb-referrals-hero h1 { display: grid; width: max-content; max-width: 100%; font-size: clamp(90px, 16.5vw, 246px); line-height: .79; letter-spacing: -.065em; font-weight: 700; }
+.sb-referrals-hero h1 span { white-space: nowrap; }
+.sb-referrals-hero h1 span:nth-child(2) { margin-left: 22%; }
+.sb-referrals-hero h1 span:nth-child(3) { margin-left: 51%; }
+.sb-referrals-hero__intro > p { max-width: 36ch; margin: clamp(32px, 6vw, 86px) 0 0 8%!important; font-size: clamp(16px, 1.15vw, 19px); line-height: 1.65; }
+.sb-referrals-hero__aside { align-self: center; max-width: 380px; padding-top: 50px; }
+.sb-referrals-rule { display: block; width: 52px; height: 1px; margin-bottom: 22px; background: #ffffff9c; }
+.sb-referrals-hero__aside p { max-width: 38ch; font-size: clamp(15px, 1vw, 17px); line-height: 1.7; }
+.sb-referrals-hero__aside a { display: inline-flex; align-items: center; gap: 12px; margin-top: 30px; font-size: 14px; text-decoration: none; }
+.sb-referrals-hero__aside a svg,.sb-referrals-link svg { transition: transform .25s ease; }
+.sb-referrals-hero__aside a:hover svg,.sb-referrals-link:hover svg { transform: translate(3px,-2px); }
+.sb-referrals-scroll { position: absolute; left: 50%; bottom: 24px; display: grid; place-items: center; width: 44px; height: 44px; color: #fff; animation: sb-referral-nudge 2s ease-in-out infinite; }
+@keyframes sb-referral-nudge { 50% { transform: translateY(7px); } }
+.sb-referrals-manifesto { min-height: 620px; padding: 70px 0 90px; display: flex; flex-direction: column; justify-content: space-between; }
+.sb-referrals-manifesto__line { display: grid; grid-template-columns: 1fr .72fr; align-items: end; gap: 3vw; }
+.sb-referrals-manifesto__line h2 { font-size: clamp(56px, 8.5vw, 126px); line-height: .86; letter-spacing: -.055em; font-weight: 700; }
+.sb-referrals-manifesto__line p,.sb-referrals-manifesto__line span { max-width: 36ch; padding-bottom: 8px; font-size: clamp(14px, 1vw, 16px); line-height: 1.55; }
+.sb-referrals-manifesto__line--second { grid-template-columns: .7fr 1.3fr; }
+.sb-referrals-manifesto__line--second h2 { justify-self: end; white-space: nowrap; }
+.sb-referrals-manifesto__line--second span { grid-column: 1; grid-row: 1; align-self: start; }
+.sb-referrals-benefits { display: grid; grid-template-columns: repeat(3,1fr); gap: 30px; padding-top: 55px; border-top: 1px solid #ffffff6b; }
+.sb-referrals-benefits p { display: flex; align-items: center; gap: 14px; max-width: 250px; font-size: 14px; line-height: 1.55; }
+.sb-referrals-benefits p:nth-child(2) { justify-self: center; }
+.sb-referrals-benefits p:last-child { justify-self: end; }
+.sb-referrals-benefits svg { flex: none; opacity: .78; }
+.sb-referrals-story { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); gap: 4vw; align-items: center; min-height: 760px; padding: 6vw 0 8vw; }
+.sb-referrals-story__copy { position: relative; z-index: 1; }
+.sb-referrals-story__lead { margin-bottom: 32px!important; font-size: clamp(38px, 5.2vw, 78px); line-height: .94; letter-spacing: -.045em; font-weight: 700; }
+.sb-referrals-story__copy h2 { margin-bottom: 25px!important; font-size: clamp(30px, 3.5vw, 52px); line-height: 1.05; letter-spacing: -.04em; font-weight: 600; }
+.sb-referrals-story__body { max-width: 46ch; font-size: clamp(15px, 1vw, 17px); line-height: 1.75; }
+.sb-referrals-story__body p + p { margin-top: 14px!important; }
+.sb-referrals-link { display: inline-flex; align-items: center; gap: 12px; min-height: 46px; margin-top: 30px; color: #fff; font-size: 14px; text-decoration: none; border-bottom: 1px solid #ffffff9c; }
+.sb-referrals-products { position: relative; min-height: 660px; }
+.sb-referrals-product { position: absolute; display: grid; justify-items: center; gap: 13px; color: #ffffffd6; text-align: center; text-decoration: none; font-size: 12px; }
+.sb-referrals-product img { display: block; width: 100%; height: 100%; object-fit: cover; filter: saturate(.9); transition: transform .45s cubic-bezier(.2,.7,.2,1), filter .45s ease; }
+.sb-referrals-product:hover img { transform: scale(1.025) rotate(-1deg); filter: saturate(1.05); }
+.sb-referrals-product--one { top: 0; left: 0; width: 30%; height: 250px; }
+.sb-referrals-product--two { top: 18%; right: 3%; width: 34%; height: 330px; }
+.sb-referrals-product--three { bottom: 0; left: 18%; width: 29%; height: 250px; }
+.sb-referrals-how { position: relative; min-height: 600px; padding: 44px 0 0; }
+.sb-referrals-how h2 { display: grid; font-size: clamp(48px, 7.2vw, 108px); line-height: .88; letter-spacing: -.055em; font-weight: 700; }
+.sb-referrals-how h2 span:nth-child(2) { margin-left: 11%; }
+.sb-referrals-how h2 span:nth-child(3) { margin-left: 32%; }
+.sb-referrals-how h2 span:nth-child(4) { justify-self: end; }
+.sb-referrals-how__steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 28px; margin: 72px 0 0 36%; }
+.sb-referrals-how__steps > div { padding-top: 16px; border-top: 1px solid #ffffff80; }
+.sb-referrals-how__steps span { font-size: 12px; opacity: .72; }
+.sb-referrals-how__steps p { max-width: 28ch; margin-top: 18px!important; font-size: 14px; line-height: 1.6; }
+.sb-referrals-how > .sb-referrals-link { margin-left: 36%; }
+@media (max-width: 900px) {
+  .sb-referrals-hero { min-height: 620px; grid-template-columns: 1fr; align-content: center; gap: 40px; }
+  .sb-referrals-hero h1 { font-size: clamp(88px, 19vw, 164px); }
+  .sb-referrals-hero__aside { justify-self: end; max-width: 400px; padding: 0; }
+  .sb-referrals-manifesto { min-height: 520px; }
+  .sb-referrals-story { grid-template-columns: 1fr; gap: 48px; }
+  .sb-referrals-story__copy { max-width: 650px; }
+  .sb-referrals-products { width: min(100%, 700px); justify-self: center; min-height: 580px; }
+}
+@media (max-width: 600px) {
+  .sb-storefront.sb-home .sb-referrals-page { width: calc(100% - 40px); padding-bottom: 90px; }
+  .sb-referrals-hero { min-height: 640px; align-content: start; padding: 86px 0 70px; gap: 38px; }
+  .sb-referrals-hero h1 { font-size: clamp(72px, 21vw, 112px); line-height: .83; }
+  .sb-referrals-hero h1 span:nth-child(2) { margin-left: 11%; }
+  .sb-referrals-hero h1 span:nth-child(3) { margin-left: 26%; }
+  .sb-referrals-hero__intro > p { max-width: 32ch; margin: 34px 0 0 4%!important; font-size: 15px; }
+  .sb-referrals-hero__aside { justify-self: start; margin-left: 18%; }
+  .sb-referrals-scroll { left: auto; right: 0; bottom: 4px; }
+  .sb-referrals-manifesto { min-height: 560px; padding: 40px 0 54px; }
+  .sb-referrals-manifesto__line,.sb-referrals-manifesto__line--second { grid-template-columns: 1fr; gap: 18px; }
+  .sb-referrals-manifesto__line h2 { font-size: clamp(52px, 15vw, 86px); }
+  .sb-referrals-manifesto__line p,.sb-referrals-manifesto__line span { grid-column: 1; grid-row: auto; max-width: 34ch; }
+  .sb-referrals-manifesto__line--second h2 { justify-self: start; white-space: normal; }
+  .sb-referrals-benefits { grid-template-columns: 1fr; gap: 16px; padding-top: 24px; }
+  .sb-referrals-benefits p,.sb-referrals-benefits p:nth-child(2),.sb-referrals-benefits p:last-child { justify-self: start; max-width: none; }
+  .sb-referrals-story { min-height: 0; padding: 75px 0; gap: 36px; }
+  .sb-referrals-story__lead { max-width: 10ch; font-size: clamp(46px, 13vw, 72px); }
+  .sb-referrals-story__copy h2 { font-size: clamp(30px, 9vw, 44px); }
+  .sb-referrals-products { min-height: 430px; }
+  .sb-referrals-product--one { width: 37%; height: 168px; }
+  .sb-referrals-product--two { top: 18%; right: 0; width: 43%; height: 230px; }
+  .sb-referrals-product--three { left: 9%; width: 37%; height: 175px; }
+  .sb-referrals-product { font-size: 10px; }
+  .sb-referrals-how { min-height: 0; padding-top: 22px; }
+  .sb-referrals-how h2 { font-size: clamp(42px, 12vw, 68px); }
+  .sb-referrals-how h2 span:nth-child(2) { margin-left: 4%; }
+  .sb-referrals-how h2 span:nth-child(3) { margin-left: 14%; }
+  .sb-referrals-how h2 span:nth-child(4) { justify-self: start; margin-left: 30%; }
+  .sb-referrals-how__steps { grid-template-columns: 1fr; gap: 20px; margin: 46px 0 0 18%; }
+  .sb-referrals-how__steps p { max-width: 36ch; }
+  .sb-referrals-how > .sb-referrals-link { margin-left: 18%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-referrals-scroll { animation: none; }
+  .sb-referrals-product img,.sb-referrals-link svg,.sb-referrals-hero__aside a svg { transition: none; }
+}
+
+/* Closer to the supplied long-page composition: a second oversized wordmark,
+   an edge-to-edge media interlude and three staggered club scenes. */
+.sb-referrals-brand { min-height: 900px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0 120px; text-align: center; }
+.sb-referrals-brand > p { font-size: 13px; opacity: .8; }
+.sb-referrals-brand h2 { display: grid; margin: 42px 0 46px!important; font-size: clamp(104px, 16vw, 230px); line-height: .78; letter-spacing: -.065em; font-weight: 700; }
+.sb-referrals-brand h2 span:nth-child(2) { margin-left: 20%; }
+.sb-referrals-brand h2 span:nth-child(3) { margin-left: 6%; }
+.sb-referrals-brand > a { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 24px; margin: 10px 0 0; border: 1px solid #ffffff72; border-radius: 24px; color: #fff; font-size: 12px; text-decoration: none; }
+.sb-referrals-brand > a:hover { background: #ffffff17; }
+.sb-referrals-story { display: block; min-height: 0; padding: 0; margin-inline: calc(var(--ref-gutter) * -1); width: calc(100% + var(--ref-gutter) * 2); }
+.sb-referrals-story__copy { display: grid; grid-template-columns: minmax(0,.68fr) minmax(0,1.32fr); align-items: end; gap: 24px 5vw; padding: 0 var(--ref-gutter) 26px; }
+.sb-referrals-story__intro { max-width: 44ch; font-size: 14px; line-height: 1.65; }
+.sb-referrals-story__lead { grid-column: 1 / -1; grid-row: 2; font-size: clamp(54px, 8.1vw, 122px); white-space: nowrap; }
+.sb-referrals-story__copy h2 { align-self: end; margin: 0!important; font-size: clamp(18px, 2vw, 28px); }
+.sb-referrals-story__body { align-self: end; max-width: 55ch; font-size: 14px; }
+.sb-referrals-story__copy > .sb-referrals-link { justify-self: end; grid-column: 2; grid-row: 1; margin: 0; }
+.sb-referrals-media { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: clamp(500px, 75vw, 980px); overflow: hidden; background: #a9a7a6; }
+.sb-referrals-media a { min-width: 0; min-height: 0; overflow: hidden; background: #bbb; }
+.sb-referrals-media a + a { background: #9d9998; }
+.sb-referrals-media img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .8s cubic-bezier(.2,.7,.2,1); }
+.sb-referrals-media a:first-child img { object-position: center 34%; }
+.sb-referrals-media a + a img { object-position: center; }
+.sb-referrals-media a:hover img { transform: scale(1.025); }
+.sb-referrals-how { min-height: 0; padding: clamp(110px, 13vw, 190px) 0 0; }
+.sb-referrals-how__heading { display: grid; grid-template-columns: 1fr .5fr; align-items: start; gap: 4vw; }
+.sb-referrals-how__heading h2 { font-size: clamp(48px, 7vw, 104px); line-height: .88; }
+.sb-referrals-how__heading h2 span:nth-child(2) { margin-left: 17%; }
+.sb-referrals-how__heading h2 span:nth-child(3) { margin-left: 0; }
+.sb-referrals-how__heading h2 span:nth-child(4) { justify-self: end; }
+.sb-referrals-how__heading > p { max-width: 34ch; font-size: 14px; line-height: 1.65; }
+.sb-referrals-how__gallery { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); align-items: start; min-height: clamp(750px, 82vw, 1180px); margin-top: 78px; }
+.sb-referrals-how__gallery figure { display: flex; flex-direction: column; align-items: center; gap: 18px; min-width: 0; }
+.sb-referrals-how__gallery figure:nth-child(1) { grid-column: 1 / span 4; margin-top: 260px; }
+.sb-referrals-how__gallery figure:nth-child(2) { grid-column: 6 / span 4; margin-top: 0; }
+.sb-referrals-how__gallery figure:nth-child(3) { grid-column: 9 / span 4; margin-top: 390px; }
+.sb-referrals-how__gallery img { display: block; width: 100%; height: clamp(300px, 31vw, 440px); object-fit: cover; }
+.sb-referrals-how__gallery figure:nth-child(2) img { height: clamp(380px, 38vw, 540px); }
+.sb-referrals-how__gallery figure > a { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-size: 12px; text-decoration: none; }
+.sb-referrals-how > .sb-referrals-link { margin: 34px 0 0 2%; }
+@media (max-width: 900px) {
+  .sb-referrals-brand { min-height: 700px; }
+  .sb-referrals-how__heading { grid-template-columns: 1fr; }
+  .sb-referrals-how__heading > p { justify-self: end; }
+  .sb-referrals-how__gallery { min-height: 780px; }
+  .sb-referrals-how__gallery figure:nth-child(1) { margin-top: 190px; }
+  .sb-referrals-how__gallery figure:nth-child(3) { margin-top: 300px; }
+}
+@media (max-width: 600px) {
+  .sb-referrals-brand { min-height: 600px; padding: 40px 0 80px; }
+  .sb-referrals-brand h2 { font-size: clamp(76px, 22vw, 126px); margin: 36px 0!important; }
+  .sb-referrals-story { margin-inline: -20px; width: calc(100% + 40px); }
+  .sb-referrals-story__copy { grid-template-columns: 1fr; gap: 20px; padding: 0 20px 24px; }
+  .sb-referrals-story__intro { max-width: 34ch; }
+  .sb-referrals-story__lead { grid-column: 1; grid-row: auto; white-space: normal; font-size: clamp(44px, 13vw, 68px); }
+  .sb-referrals-story__body { grid-row: auto; }
+  .sb-referrals-story__copy > .sb-referrals-link { justify-self: start; grid-column: 1; grid-row: auto; }
+  .sb-referrals-media { height: 600px; grid-template-columns: 1fr 1fr; }
+  .sb-referrals-how { padding-top: 100px; }
+  .sb-referrals-how__heading h2 { font-size: clamp(38px, 11vw, 64px); }
+  .sb-referrals-how__heading h2 span:nth-child(2) { margin-left: 3%; }
+  .sb-referrals-how__heading h2 span:nth-child(4) { justify-self: end; }
+  .sb-referrals-how__gallery { min-height: 640px; grid-template-columns: repeat(6,minmax(0,1fr)); margin-top: 48px; }
+  .sb-referrals-how__gallery figure { gap: 12px; }
+  .sb-referrals-how__gallery figure:nth-child(1) { grid-column: 1 / span 3; margin-top: 160px; }
+  .sb-referrals-how__gallery figure:nth-child(2) { grid-column: 3 / span 3; }
+  .sb-referrals-how__gallery figure:nth-child(3) { grid-column: 4 / span 3; margin-top: 240px; }
+  .sb-referrals-how__gallery img,.sb-referrals-how__gallery figure:nth-child(2) img { height: 230px; }
+  .sb-referrals-how__gallery figure:nth-child(2) img { height: 270px; }
+}
+.sb-referrals-brand h2 span { white-space: nowrap; }
+.sb-referrals-how__heading { display: block; position: relative; padding-top: 76px; }
+.sb-referrals-how__heading h2 { width: 100%; font-size: clamp(50px, 6.4vw, 94px); }
+.sb-referrals-how__heading h2 span { display: block; white-space: nowrap; }
+.sb-referrals-how__heading h2 span:nth-child(2) { margin-left: 12%; }
+.sb-referrals-how__heading h2 span:nth-child(3) { margin-left: 0; }
+.sb-referrals-how__heading h2 span:nth-child(4) { margin-left: auto; width: max-content; }
+.sb-referrals-how__heading > p { position: absolute; top: 0; right: 0; width: min(34ch, 38%); margin: 0; }
+@media (max-width: 900px) {
+  .sb-referrals-how__heading h2 { font-size: clamp(46px, 7.5vw, 68px); }
+}
+@media (max-width: 600px) {
+  .sb-referrals-brand h2 { font-size: clamp(68px, 20vw, 104px); }
+  .sb-referrals-how__heading { padding-top: 86px; }
+  .sb-referrals-how__heading h2 { font-size: clamp(30px, 9vw, 52px); }
+  .sb-referrals-how__heading > p { width: min(28ch, 70%); }
+}
