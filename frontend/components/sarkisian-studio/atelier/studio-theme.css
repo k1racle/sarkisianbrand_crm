@@ -1,0 +1,175 @@
+.sb-studio-page .atelier {
+  --at-ink: #fff;
+  --at-muted: rgba(255, 255, 255, .68);
+  --at-green: #fff;
+  --at-green-dark: #dedede;
+  --at-line: rgba(255, 255, 255, .28);
+  --at-paper: transparent;
+  --at-white: rgba(31, 31, 31, .86);
+  min-height: 70vh;
+  background: transparent;
+  color: #fff;
+  font-family: var(--brand-font-body, Mont, Montserrat, Arial, sans-serif);
+}
+
+.sb-studio-page .atelier :is(button, input, a) {
+  font-family: var(--brand-font-body, Mont, Montserrat, Arial, sans-serif);
+}
+
+.sb-studio-page .atelier :is(h1, h2, h3, .at-eyebrow, .at-brief h3) {
+  color: #fff;
+  font-family: var(--brand-font-body, Mont, Montserrat, Arial, sans-serif);
+  font-weight: 700;
+  letter-spacing: -.035em;
+}
+
+.sb-studio-page .atelier .at-brand img {
+  filter: brightness(0) invert(1);
+}
+
+.sb-studio-page .atelier :is(.at-level, .at-level svg, .at-coins svg, .at-scene-topline > span:first-child,
+  .at-scene-topline svg, .at-career-card svg, .at-autosave, .at-live) {
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier :is(.at-live, .at-autosave i, .at-nav > button i, .at-nav > button.active::before) {
+  background-color: #fff !important;
+}
+
+.sb-studio-page .atelier :is(p, small, .at-subtle, .at-eyebrow, .at-header-caption, .at-autosave,
+  .at-scene-topline, .at-section-line, .at-color-name, .at-order-pay,
+  .at-game-note, .at-career-card small, .at-booking-info small, .at-master-card > div > span:last-child) {
+  color: rgba(255, 255, 255, .7);
+}
+
+/* These source-game chips keep their light surfaces, so preserve dark text on them. */
+.sb-studio-page .atelier :is(.at-day-badge, .at-order-tags > span) {
+  color: #292929 !important;
+}
+
+.sb-studio-page .atelier :is(.at-header, .at-nav, .at-coins, .at-scene-card, .at-career-card,
+  .at-agenda, .at-booking, .at-master-card, .at-mentor, .at-reputation-card,
+  .at-practice-invite, .at-hand-column, .at-tools-panel, .at-client-brief, .at-lesson-brief,
+  .at-patterns > button, .at-finish-emblem, .at-finish-track, .at-segmented,
+  .at-design-card, .at-empty, .at-upgrade-card, .at-upgrade-art, .at-brand-story,
+  .at-dialog, .at-close, .at-mentor-header, .at-lesson-reward, .at-result-copy,
+  .at-loading, .at-reputation-meter > i, .at-goal-check, .at-shape-options > button,
+  .at-length-options, .at-fit-result > span, .at-special-orders, .at-shift-bonus,
+  .at-clients-empty, .at-shelf-strip, .at-supply-choice, .at-basic-kit, .at-supply-card,
+  .at-restock, .at-shelf-message, .at-result-copy > .at-material-result) {
+  background-color: rgba(31, 31, 31, .86) !important;
+  border-color: rgba(255, 255, 255, .28) !important;
+  color: #fff;
+  backdrop-filter: blur(10px);
+}
+
+.sb-studio-page .atelier :is(.at-header, .at-nav, .at-scene-card, .at-agenda, .at-career-card,
+  .at-tools-panel, .at-design-card, .at-upgrade-card, .at-dialog, .at-reputation-card) {
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .16);
+}
+
+.sb-studio-page .atelier .at-nav > button {
+  color: rgba(255, 255, 255, .72);
+}
+
+.sb-studio-page .atelier .at-nav > button:hover,
+.sb-studio-page .atelier .at-booking:hover,
+.sb-studio-page .atelier .at-master-card:hover,
+.sb-studio-page .atelier .at-mentor:hover,
+.sb-studio-page .atelier .at-shelf-strip:hover,
+.sb-studio-page .atelier .at-restock:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .12) !important;
+}
+
+.sb-studio-page .atelier .at-nav > button.active {
+  background: #fff !important;
+  color: #292929 !important;
+}
+
+.sb-studio-page .atelier :is(.at-steps li.current, .at-service-kind, .at-text-button,
+  .at-level, .at-level svg, .at-section-line, .at-daily-progress, .at-nail-progress,
+  .at-master-card > div > span:last-child, .at-reputation-meter > strong) {
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier .at-steps li.current > span {
+  background: #fff !important;
+  border-color: #fff !important;
+  color: #292929 !important;
+}
+
+.sb-studio-page .atelier .at-steps li.done {
+  color: rgba(255, 255, 255, .76) !important;
+}
+
+.sb-studio-page .atelier .at-steps li.done > span {
+  background: rgba(255, 255, 255, .14) !important;
+  border-color: rgba(255, 255, 255, .34) !important;
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier .at-primary,
+.sb-studio-page .atelier .at-btn.at-primary {
+  background: #fff !important;
+  border-color: #fff !important;
+  color: #292929 !important;
+}
+
+.sb-studio-page .atelier .at-primary:hover:not(:disabled),
+.sb-studio-page .atelier .at-btn.at-primary:hover:not(:disabled) {
+  background: #dedede !important;
+  border-color: #dedede !important;
+  color: #292929 !important;
+}
+
+.sb-studio-page .atelier :is(.at-secondary, .at-icon, .at-text-button) {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, .48) !important;
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier :is(.at-secondary, .at-icon):hover:not(:disabled) {
+  background: rgba(255, 255, 255, .12) !important;
+}
+
+.sb-studio-page .atelier :is(.at-service-heading, .at-work-hint, .at-work-footer,
+  .at-tool-bottom, .at-scene-caption, .at-agenda-title, .at-finger-controls,
+  .at-section-line, .at-reputation-card, .at-shelf-strip) {
+  border-color: rgba(255, 255, 255, .24) !important;
+}
+
+.sb-studio-page .atelier :is(.at-alert, .at-notice, .at-shelf-message, .at-supply-choice.is-mismatch,
+  .at-booking.selected, .at-patterns > button[aria-pressed='true'], .at-shape-options > button[aria-pressed='true'],
+  .at-length-options > button[aria-pressed='true'], .at-segmented > button[aria-pressed='true']) {
+  background: rgba(255, 255, 255, .14) !important;
+  border-color: rgba(255, 255, 255, .4) !important;
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier :is(.at-field input:not([type='range']), .at-search, input:not([type='range'])) {
+  background: rgba(20, 20, 20, .76) !important;
+  border-color: rgba(255, 255, 255, .38) !important;
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier :is(.at-field input, input)::placeholder {
+  color: rgba(255, 255, 255, .55);
+}
+
+.sb-studio-page .atelier :is(button, a, input):focus-visible {
+  outline-color: #fff;
+}
+
+.sb-studio-page .atelier .at-loading {
+  color: #fff;
+}
+
+.sb-storefront:has(.sb-studio-page) .sh-dock {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .sb-studio-page .atelier {
+    min-height: 80vh;
+  }
+}

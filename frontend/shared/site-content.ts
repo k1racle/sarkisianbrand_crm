@@ -71,7 +71,7 @@ export const defaultSiteContent: SiteContent = {
   },
   footer: { columns: [
     { id: 'buyers', title: 'Покупателям', items: [link('catalog', 'Каталог', '/catalog'), link('account', 'Личный кабинет', '/account', 'account'), link('favorites', 'Избранное', '/favorites', 'favorites'), link('cart', 'Корзина', '/cart', 'cart')] },
-    { id: 'company', title: 'Компания', items: [link('about', 'О бренде', '/about'), link('delivery', 'Доставка и оплата', '/delivery'), link('club', 'О клубе', '/club'), link('business', 'Для бизнеса', '/business'), link('partnerships', 'Для блогеров', '/partnerships'), link('contacts', 'Контакты', '/contacts'), link('b2b', 'Кабинет B2B', '/b2b-login')] },
+    { id: 'company', title: 'Компания', items: [link('about', 'О бренде', '/about'), link('delivery', 'Доставка и оплата', '/delivery'), link('club', 'О клубе', '/club'), link('studio', 'Игра «Студия»', '/studio'), link('business', 'Для бизнеса', '/business'), link('partnerships', 'Для блогеров', '/partnerships'), link('contacts', 'Контакты', '/contacts'), link('b2b', 'Кабинет B2B', '/b2b-login')] },
   ], legalLinks: [
     { id: 'privacy', label: 'Политика конфиденциальности', url: '/privacy', newTab: false },
     { id: 'oferta', label: 'Публичная оферта', url: '/oferta', newTab: false },

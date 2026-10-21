@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-01",
+  "tool": "built-in image_gen",
+  "asset": "studio-v3.png",
+  "original": "C:/Users/relotech/.codex/generated_images/01a0f20a-0c7d-74f0-b1f3-a01b00b6d6af/exec-16c4f645-d8eb-4594-ab40-2e36d27709bf.png",
+  "editTarget": "studio-v2.png",
+  "references": [
+    "D:/Projects/sarkisianbrand_crm/frontend/public/storefront/categories/gel-polish.jpg",
+    "../gel-mousse.jpg"
+  ],
+  "prompt": "Use case: precise-object-edit.\nAsset type: production 2D illustrated browser game environment, 1536x1024.\nInput image 1 is the EDIT TARGET: the empty nail atelier background. Images 2 and 3 are packaging references only (SARKISIAN gel polish bottle and gel mousse jar).\nChange ONLY the nail product containers on the shelves at the far right, approximately x=1380..1536. Replace the anonymous black containers with recognizable illustrated SARKISIAN products: a curated mix of short wide black screw-top gel jars and closed black gel-polish bottles with tall slim caps, with crisp light ivory brand labels matching the references. On the two lower shelves use fewer, slightly larger products so the word SARKISIAN is discernible; all containers must sit naturally ON the existing shelf surfaces, within the existing shelf heights. Keep them modest in scale, warm brown ink contours and flat warm charcoal cel shading like the existing drawing. Front-facing labels use the exact spaced uppercase word \"SARKISIAN\", small subtitle \"от мастера мастерам\", and restrained ivory/pale nude shade strips; do not introduce bright colorful packaging. The reference photographs guide the actual silhouettes and branding, NOT the art style. The closed black gel jar on the desk's left tray should also have a small matching SARKISIAN label on its front face.\nPreserve EVERYTHING else exactly: same 1536x1024 canvas, camera, framing, chair, table edge at y=707, lamp, hand rest, plants and hanging ivy, all shelves, furniture, entire architecture, drawing style, warm lighting and palette. Do not shift, enlarge, or redesign furniture. Do not introduce people, interface, captions, extra signs, extra products outside existing containers. Keep the wall clock exactly as it is. This is an exact localized brand packaging edit, not a new scene.",
+  "usage": "Current production backdrop and foreground. Branded packaging localized on right shelves and desk jar. StudioClock.vue overlays the painted dial at runtime with local device time; the original painted clock rim is retained."
+}
