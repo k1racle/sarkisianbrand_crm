@@ -144,7 +144,7 @@ jobs:
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/helpdesk-email-ui.cjs
           SALON_MANAGEMENT_TEST_ORIGIN=http://127.0.0.1:3001 node scripts/salon-booking-management-mock.cjs
           WORKSPACE_DESIGN_BATCH=ci-unified node scripts/workspace-design-review.cjs --crm-all --after
-          npx playwright test salon-booking.spec.cjs salon-subscription.spec.cjs
+          npx playwright test salon-booking.spec.cjs salon-subscription.spec.cjs ecosystem.spec.cjs partners.spec.cjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
