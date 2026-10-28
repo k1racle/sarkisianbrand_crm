@@ -117,6 +117,10 @@ jobs:
         env:
           HOST: 127.0.0.1
           PORT: 3001
+          # Match the Portainer production frontend: browsers use the same-origin
+          # proxy, while browser acceptance continues to intercept all API calls.
+          NUXT_PUBLIC_API_BASE: /api/v1
+          NUXT_PUBLIC_API_PROXY_ENABLED: 'true'
         run: |
           mkdir -p ../.screenshots
           node .output/server/index.mjs > ../.screenshots/design-preview.log 2>&1 &

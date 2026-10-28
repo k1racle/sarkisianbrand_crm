@@ -11,8 +11,8 @@ const fixtures=new Map([
  ['/b2b/organizations',[{id:profile.id,name:profile.name,status:'ACTIVE',role:'OWNER',canOrder:true,canSeeFinance:true,canUseSalon:true}]],
  ['/b2b/team',{members:[{...member,version:1,isActive:true}],invitations:[],canManage:true,currentMemberId:member.id}],
  ['/b2b/profile',profile],['/b2b/dashboard',{clients:1,bookingsToday:1,upcoming:1,serviceRevenueMonth:1000,purchasesMonth:780,purchaseOrdersMonth:1,recentOrders:[order],nextBookings:[],lowStock:0}],
- ['/b2b/clients',[client]],['/b2b/services',[service]],['/b2b/bookings',[{id:'qa-booking',startTime:date,endTime:date,status:'CONFIRMED',client,service,masterMember:member}]],
- ['/b2b/catalog',[{id:'qa-product',sku:'QA-001',nameRu:'Гель-мусс',images:[{url:'/storefront/products/gel-mousse-23.jpg'}],variants:[{id:'qa-variant',b2bPrice:780,retailPrice:850,available:10}]}]],
+ ['/b2b/clients',[client]],['/b2b/services',[service]],['/b2b/booking-settings',{timeZone:'Europe/Moscow'}],['/b2b/bookings',[{id:'qa-booking',startTime:date,endTime:date,status:'CONFIRMED',client,service,masterMember:member}]],
+ ['/b2b/catalog',[{id:'qa-product',sku:'QA-001',nameRu:'Гель-мусс',images:[{url:'/storefront/products/gel-mousse-23.jpg'}],variants:[{id:'qa-variant',sku:'QA-001',b2bPrice:780,retailPrice:850,availabilityStatus:'CURRENT',available:10}]}]],
  ['/b2b/orders',[order]],['/b2b/support',[{id:'qa-ticket',number:'HD-QA',subject:'Вопрос партнёра',status:'WAITING_REQUESTER',priority:'MEDIUM',createdAt:date}]],
 ]);
 async function verify(f,width,testInfo){
@@ -29,7 +29,7 @@ for(const width of [1440,390,320])for(const section of ['dashboard','calendar','
   try{
    await f.page.goto(`http://127.0.0.1:3001/b2b?section=${section}`);await f.page.locator('.portal .body').waitFor();
    for(const label of await f.page.locator(':is(.hero,.team-head,.support-intro) p').all())expect(await label.evaluate(el=>getComputedStyle(el).color)).toBe('rgb(196, 196, 204)');
-   if(section==='catalog')expect(await f.page.locator('.product-image img').evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
+   if(section==='catalog')expect(await f.page.locator('.business-product-image img').evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
    if(section==='calendar'){await f.page.getByRole('button',{name:'Неделя',exact:true}).click();await expect(f.page.getByRole('button',{name:'Неделя',exact:true})).toHaveAttribute('aria-pressed','true');await f.page.locator('.portal .body').waitFor();}
    await verify(f,width,testInfo);
   }finally{await f.context.close();}
@@ -61,7 +61,7 @@ test('B2B procurement without purchasing permission is read-only',async({browser
  const f=await isolatedContext(browser,390,false,false,{b2b:true,fixtures:readonly,actor:{...member.user,email:'qa-b2b@example.invalid',role:'CUSTOMER_B2B'}});
  try{
   await f.page.goto('http://127.0.0.1:3001/b2b?section=catalog');await f.page.locator('.portal .body').waitFor();
-  await expect(f.page.locator('.variant button').last()).toBeDisabled();await expect(f.page.locator('.cart-summary footer button')).toBeDisabled();
+  await expect(f.page.locator('.business-product-variant button').last()).toBeDisabled();await expect(f.page.locator('.business-cart footer button')).toBeDisabled();
   await verify(f,390,testInfo);
  }finally{await f.context.close();}
 });
