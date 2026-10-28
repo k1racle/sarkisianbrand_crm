@@ -46,6 +46,13 @@ fixtures.set('/partners/admin/documents/participants', []);
 fixtures.set('/studio/admin', { settings: { enabled: true, dailyRunLimit: 3, minimumRunSeconds: 90 }, offers: [5, 10, 15].map((discountPercent, i) => ({ id: 'offer-' + i, discountPercent, coinPrice: [15000, 35000, 60000][i], validDays: 30, minimumAmount: 0, maximumDiscount: null, isActive: true })), issued: 0, accounts: 0, recent: [] });
 fixtures.set('/oms/inventory', { items: [], categories: [], total: 0, page: 1, pages: 1, asOf: new Date().toISOString(), allOrdersVisible: true, summary: { positions: 0, stock: 0, reserved: 0, toShip: 0 } });
 fixtures.set('/partners/admin/gifts', { participants: [], products: [], shipments: [] });
+const marketplaceStatus = { enabled:false, configured:false, automatic:false, running:false, lastSuccessAt:null, lastError:null };
+fixtures.set('/marketplaces/wildberries/fbs/status', marketplaceStatus);
+fixtures.set('/marketplaces/ozon/status', { FBS:marketplaceStatus, FBO:{...marketplaceStatus,supported:false} });
+for (const prefix of ['/marketplaces/wildberries/fbs','/marketplaces/ozon']) {
+  fixtures.set(prefix+'/unresolved', {items:[],truncated:false});
+  fixtures.set(prefix+'/mappings', []);
+}
 fixtures.set('/helpdesk/knowledge', { items: [], categories: [], total: 0, page: 1, pages: 1, canWrite: true });
 const businessFixtures = new Map([
   ['/b2b/organizations', [{ id: company, name: profile.name, status: 'ACTIVE', role: 'OWNER', canOrder: true, canSeeFinance: true, canUseSalon: true }]],

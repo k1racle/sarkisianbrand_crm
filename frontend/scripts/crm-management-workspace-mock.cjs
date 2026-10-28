@@ -12,7 +12,7 @@ assert.ok(['localhost','127.0.0.1','[::1]'].includes(new URL(origin).hostname), 
 const output = path.resolve(__dirname, '../.screenshots/crm-management-workspace');
 fs.mkdirSync(output, { recursive: true });
 const person = { id:'qa-management-partner',displayName:'Мария Александрова',code:'MARIA',kind:'BLOGGER',status:'ACTIVE',payoutVerified:true,rewardPercent:7,user:{email:'maria@example.invalid'},channels:[],_count:{clicks:2,attributions:1,registrations:0} };
-const product = { id:'qa-management-variant',productName:'Гель моделирующий',variantName:'30 мл',sku:'QA-GEL-30',available:12 };
+const product = { id:'qa-management-variant',productName:'Гель моделирующий',variantName:'30 мл',sku:'QA-GEL-30',available:12,availabilityStatus:'CURRENT' };
 const entity = { id:'qa-management-entity',entityType:'LLC',legalName:'ООО «Пример»',inn:'0000000000',kpp:'000000000',ogrn:'0000000000000',address:'Тестовый город, Примерная улица, 1',signerName:'Анна Иванова',signerBasis:'Устав',isActive:true };
 const document = { id:'qa-management-template',templateKey:'service',version:1,documentType:'SERVICE_AGREEMENT',title:'Договор информационных услуг',bodyHtml:'<p>Заказчик: {{company_name}}. Исполнитель: {{partner_name}}.</p>',audience:'ALL',taxStatus:'ALL',entityType:'ALL',isActive:true };
 const smsSettings = { pepEnabled:false,providerKey:'SMS_AERO',codeTtlSeconds:300,maxAttempts:5,resendCooldownSeconds:60,consentRequired:true,eligibleDocumentTypes:['SERVICE_AGREEMENT'] };
@@ -24,6 +24,13 @@ function fixtures() {
   map.set('/partners/admin/documents/participants',[person]);
   map.set('/partners/admin/legal-entities',[entity]);
   map.set('/partners/admin/gifts',{participants:[person],products:[product],shipments:[]});
+  const marketplaceStatus = { enabled:false, configured:false, automatic:false, running:false, lastSuccessAt:null, lastError:null };
+  map.set('/marketplaces/wildberries/fbs/status', marketplaceStatus);
+  map.set('/marketplaces/ozon/status', { FBS:marketplaceStatus, FBO:{...marketplaceStatus,supported:false} });
+  for (const prefix of ['/marketplaces/wildberries/fbs','/marketplaces/ozon']) {
+    map.set(prefix+'/unresolved', {items:[],truncated:false});
+    map.set(prefix+'/mappings', []);
+  }
   map.set('/helpdesk/tickets',Array.from({length:26},(_,i)=>ticket(i+1)));
   map.set('/helpdesk/agents',[]);
   map.set('/helpdesk/knowledge',{items:[{id:'qa-article',title:'Как оформить обращение',category:'Рабочие процессы',excerpt:'Порядок работы с заявками',status:'PUBLISHED',version:1,updatedAt:'2026-10-27T07:00:00Z'}],categories:[{name:'Рабочие процессы',count:1}],total:1,page:1,pages:1,canWrite:true});
@@ -60,7 +67,7 @@ async function giftRetry(browser) {
     await page.getByLabel('Телефон',{exact:true}).fill('+70000000000');
     await page.getByLabel('Адрес доставки').fill('Тестовый город, Примерная улица, 1');
     await page.getByLabel('Товар и вариант').selectOption(product.id);
-    const submit=page.getByRole('button',{name:'Создать отправку',exact:true});
+    const submit=page.getByRole('button',{name:'Подготовить отправку',exact:true});
     await submit.click();await page.locator('.gift-error').waitFor();await submit.waitFor({state:'visible'});
     await submit.click();await page.getByText('Состав изменился. Обновите данные перед повтором.',{exact:true}).waitFor();
     assert.equal(requests.length,2);assert.equal(requests[0].requestKey,requests[1].requestKey,'Lost response retry keeps identity');

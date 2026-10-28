@@ -33,6 +33,9 @@ if(publication){const scheduled=new Date();scheduled.setHours(14,0,0,0);const cu
 const orderFixture=fixtures.get('/oms/orders/qa-b2b-order');
 if(orderFixture){const current={...orderFixture,items:orderFixture.items.map(item=>({pickedQuantity:0,shippedQuantity:0,cancelledQuantity:0,returnedQuantity:0,damagedReturnedQuantity:0,...item}))};fixtures.set('/oms/orders/qa-b2b-order',current);fixtures.set('/oms/orders/list',{items:[current],total:1,page:1,pages:1});fixtures.set('/oms/orders/qa-b2b-order/managers',{items:[{id:'mock-admin',firstName:'Анна',lastName:'Соколова',isActive:true}],canUnassign:true,hasMore:false});}
 async function elements(page){
+ // Vue can mount the drawer before the browser starts its enter transition.
+ // Let the next paint schedule that transition before waiting for its end.
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.locator('.admin-dialog').evaluateAll(es=>Promise.all(es.flatMap(e=>e.getAnimations().map(a=>a.finished.catch(()=>{})))));
  const typography=[];try{await assertTypography(page);}catch(error){typography.push(...(Array.isArray(error.actual)?error.actual:[{message:error.message}]));}
  const viewport=[];try{await assertWidth(page);}catch(error){viewport.push({kind:'viewport',message:error.message});}
@@ -86,7 +89,7 @@ async function main(){
      });
     }
     if(item.id==='b2b-order'){
-     for(const name of ['Обзор','Сборка и возвраты','История','Условия и заметки'])await check('inline order '+name,async()=>{await panel.getByRole('tab',{name,exact:true}).click();await elements(p);});
+     for(const name of ['Обзор','Склад 1С','История','Условия и заметки'])await check('inline order '+name,async()=>{await panel.getByRole('tab',{name,exact:true}).click();await elements(p);});
      await panel.getByRole('tab',{name:'Обзор',exact:true}).click();
     }
     await check('primary hover',async()=>{
