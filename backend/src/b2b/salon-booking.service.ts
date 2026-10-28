@@ -69,6 +69,22 @@ export class SalonBookingService {
     }
   }
 
+  private async notifyClientOfSalonChange(tx: Prisma.TransactionClient, booking: any, action: 'CANCELLED' | 'MOVED' | 'CONFIRMED') {
+    if (!this.notifications || booking.startTime <= new Date()) return;
+    // Only use the address explicitly supplied for this online booking. Do not
+    // infer consent or an address from a matching private client record.
+    const request = await tx.salonBookingRequest.findUnique({ where: { bookingId: booking.id }, select: { notificationEmail: true } });
+    if (!request?.notificationEmail) return;
+    const setting = await tx.salonBookingSetting.findUnique({ where: { organizationId: booking.organizationId }, select: { timeZone: true } });
+    const timeZone = setting?.timeZone || 'Europe/Moscow';
+    const when = booking.startTime.toLocaleString('ru-RU', { timeZone, day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const caption = action === 'CANCELLED' ? 'Салон отменил запись' : action === 'CONFIRMED' ? 'Салон подтвердил запись' : 'Салон изменил запись';
+    const master = [booking.masterMember?.user?.firstName, booking.masterMember?.user?.lastName].filter(Boolean).join(' ');
+    const text = `${caption}: ${booking.service.name}, ${when}. Часовой пояс салона: ${timeZone}.${action !== 'CANCELLED' && master ? ` Мастер: ${master}.` : ''} Если у вас есть вопросы, свяжитесь с салоном.`;
+    const mail = this.notifications.prepare({ kind: 'SALON_BOOKING_CLIENT', recipient: request.notificationEmail, subject: caption, text, dedupeKey: `salon-booking:${booking.id}:${booking.version}:salon-${action}:client`, bookingId: booking.id, bookingVersion: booking.version });
+    await tx.mailOutbox.upsert({ where: { dedupeKey: mail.dedupeKey }, create: mail, update: {} });
+  }
+
   private async membership(userId: string) {
     const member = await businessMembership(this.db, userId);
     if (![OrganizationMemberRole.OWNER, OrganizationMemberRole.EMPLOYEE].includes(member.role as any)) throw new ForbiddenException('Для вашей роли недоступны настройки салона');
@@ -367,6 +383,11 @@ export class SalonBookingService {
         await tx.b2BClient.update({ where: { id: booking.clientId }, data: { lastVisitAt, totalVisits: { increment: 1 }, totalSpent: { increment: booking.priceSnapshot } } });
       }
       await this.audit(tx, updated, actor, status === B2BBookingStatus.COMPLETED && booking.status !== status ? 'COMPLETED' : changingTime || changingMaster ? 'MOVED' : status !== booking.status ? 'STATUS_CHANGED' : 'UPDATED', before);
+      if (status === B2BBookingStatus.CANCELLED && booking.status !== status) {
+        await this.notifyClientOfSalonChange(tx, updated, 'CANCELLED');
+      } else if ((changingTime || changingMaster || status !== booking.status) && ['NEW', 'CONFIRMED'].includes(status)) {
+        await this.notifyClientOfSalonChange(tx, updated, status === 'CONFIRMED' && status !== booking.status ? 'CONFIRMED' : 'MOVED');
+      }
       return updated;
     });
   }

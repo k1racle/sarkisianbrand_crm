@@ -147,9 +147,22 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
           }
           if (['SALON_BOOKING_OWNER', 'SALON_BOOKING_CLIENT'].includes(mail.kind)) {
             const version = Number(payload.bookingVersion);
-            const current = payload.bookingId && Number.isSafeInteger(version) && version > 0 && await this.prisma.b2BBooking.findFirst({ where: { id: payload.bookingId, version, startTime: { gt: new Date() } }, select: { id: true, organizationId: true } });
+            const current = payload.bookingId && Number.isSafeInteger(version) && version > 0 && await this.prisma.b2BBooking.findFirst({ where: { id: payload.bookingId, startTime: { gt: new Date() } }, select: { id: true, organizationId: true, version: true } });
+            let unchangedForRecipient = !!current && current.version === version;
+            // Editing an internal note must not discard an otherwise current
+            // confirmation or cancellation. Only allow a contiguous, bounded
+            // history of note-only updates; any missing or material event fails
+            // closed and the older notification is cancelled as before.
+            if (current && current.version > version && current.version - version <= 50) {
+              const events = await this.prisma.salonBookingEvent.findMany({ where: { bookingId: current.id, version: { gt: version, lte: current.version } }, orderBy: { version: 'asc' }, select: { version: true, action: true, before: true, after: true } });
+              const fields = ['startTime', 'endTime', 'status', 'masterMemberId', 'priceSnapshot', 'serviceId', 'clientId'];
+              unchangedForRecipient = events.length === current.version - version && events.every((event, index) => {
+                const before = event.before as Record<string, unknown> | null, after = event.after as Record<string, unknown> | null;
+                return event.version === version + index + 1 && event.action === 'UPDATED' && !!before && !!after && fields.every(field => Object.prototype.hasOwnProperty.call(before, field) && Object.prototype.hasOwnProperty.call(after, field) && before[field] === after[field]);
+              });
+            }
             const ownerStillAuthorized = mail.kind !== 'SALON_BOOKING_OWNER' || (current && await this.prisma.organizationMember.findFirst({ where: { organizationId: current.organizationId, role: 'OWNER', isActive: true, user: { email: mail.recipient, role: 'CUSTOMER_B2B', isActive: true } }, select: { id: true } }));
-            if (!current || !ownerStillAuthorized) {
+            if (!current || !unchangedForRecipient || !ownerStillAuthorized) {
               await this.prisma.mailOutbox.updateMany({ where: owner, data: { status: 'CANCELLED', lastError: 'Запись изменилась до отправки письма.' } });
               processed++; continue;
             }

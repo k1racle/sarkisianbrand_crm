@@ -17,7 +17,7 @@ pg('Public salon booking management (isolated PostgreSQL, fake SMTP)', () => {
   const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
   async function fixture() {
     const org = await db.organization.create({ data: { name: 'Fixture', status: 'ACTIVE' } });
-    const owner = await db.user.create({ data: { email: `owner-${randomUUID()}@example.invalid`, password: 'fixture', role: 'CUSTOMER_B2B' } });
+    const owner = await db.user.create({ data: { email: `owner-${randomUUID()}@example.invalid`, firstName: 'Анна', lastName: 'Мастер', password: 'fixture', role: 'CUSTOMER_B2B' } });
     const member = await db.organizationMember.create({ data: { organizationId: org.id, userId: owner.id, role: 'OWNER' } });
     const service = await db.b2BService.create({ data: { organizationId: org.id, name: 'Маникюр', duration: 60, price: 1000 } });
     await db.salonBookingSetting.create({ data: { organizationId: org.id, enabled: true, timeZone: 'UTC', startMinute: 540, endMinute: 1200, masterIds: [member.id], workingDays: [0,1,2,3,4,5,6] } });
@@ -98,5 +98,67 @@ pg('Public salon booking management (isolated PostgreSQL, fake SMTP)', () => {
     expect((await db.mailOutbox.findFirstOrThrow({ where: { recipient: f.owner.email } })).status).toBe('CANCELLED');
     expect((await db.mailOutbox.findFirstOrThrow({ where: { recipient: f.dto.email } })).status).toBe('SENT');
     expect(smtp.send.mock.calls.some((call: any[]) => call[0].recipient === f.owner.email)).toBe(false);
+  });
+
+  it('notifies the online client when the salon reschedules the appointment and cancels stale mail', async () => {
+    const f = await fixture(), booking = await salon.publicCreate(f.org.id, f.dto);
+    await salon.update(f.org.id, booking.id, { version: 1, startTime: `${day}T10:00:00.000Z` }, { id: f.owner.id, label: 'Владелец' });
+    await notifications.processQueue(50);
+    const messages = await db.mailOutbox.findMany({ where: { recipient: f.dto.email } });
+    expect(messages.filter(mail => mail.status === 'CANCELLED')).toHaveLength(1);
+    expect(messages.filter(mail => mail.status === 'SENT')).toHaveLength(1);
+    expect(smtp.send.mock.calls.map((call: any[]) => call[0].subject)).toEqual(['Салон изменил запись']);
+    expect(smtp.send.mock.calls[0][0].text).toContain('10:00');
+    expect(smtp.send.mock.calls[0][0].text).toContain('Мастер: Анна Мастер');
+  });
+
+  it('emails a salon cancellation once and does not notify clients who did not supply an email', async () => {
+    const f = await fixture(), booking = await salon.publicCreate(f.org.id, f.dto);
+    await salon.update(f.org.id, booking.id, { version: 1, status: 'CANCELLED' });
+    await salon.update(f.org.id, booking.id, { version: 2, status: 'CANCELLED' });
+    await notifications.processQueue(50);
+    expect(smtp.send.mock.calls.map((call: any[]) => call[0].subject)).toEqual(['Салон отменил запись']);
+    expect(await db.mailOutbox.count({ where: { recipient: f.dto.email } })).toBe(2);
+
+    const noEmail = await salon.publicCreate(f.org.id, { ...f.dto, requestKey: randomUUID(), email: undefined, phone: '79000000001', startTime: `${day}T11:00:00.000Z` });
+    const countBefore = await db.mailOutbox.count();
+    await salon.update(f.org.id, noEmail.id, { version: 1, status: 'CANCELLED' });
+    expect(await db.mailOutbox.count()).toBe(countBefore);
+  });
+
+  it('rolls back salon changes when the client notification cannot be queued', async () => {
+    const f = await fixture(), booking = await salon.publicCreate(f.org.id, f.dto);
+    const failing = new SalonBookingService(db as any, { prepare: () => { throw new Error('fixture-outbox-failure'); } } as any, config);
+    await expect(failing.update(f.org.id, booking.id, { version: 1, status: 'CANCELLED' })).rejects.toThrow('fixture-outbox-failure');
+    expect((await db.b2BBooking.findUniqueOrThrow({ where: { id: booking.id } })).status).toBe('NEW');
+    expect(await db.salonBookingEvent.count({ where: { bookingId: booking.id } })).toBe(1);
+  });
+
+  it('delivers the current salon change even if an internal note is edited before delivery', async () => {
+    const f = await fixture(), booking = await salon.publicCreate(f.org.id, f.dto);
+    await salon.update(f.org.id, booking.id, { version: 1, startTime: `${day}T10:00:00.000Z` });
+    await salon.update(f.org.id, booking.id, { version: 2, notes: 'Внутренняя заметка' });
+    await notifications.processQueue(50);
+    expect(smtp.send.mock.calls.map((call: any[]) => call[0].subject)).toEqual(['Салон изменил запись']);
+    expect(smtp.send.mock.calls[0][0].text).not.toContain('Внутренняя заметка');
+    expect((await db.mailOutbox.findFirstOrThrow({ where: { recipient: f.dto.email, status: 'SENT' } })).kind).toBe('SALON_BOOKING_CLIENT');
+  });
+
+  it('does not deliver older reschedule messages after another material change', async () => {
+    const f = await fixture(), booking = await salon.publicCreate(f.org.id, f.dto);
+    await salon.update(f.org.id, booking.id, { version: 1, startTime: `${day}T10:00:00.000Z` });
+    await salon.update(f.org.id, booking.id, { version: 2, status: 'CANCELLED' });
+    await notifications.processQueue(50);
+    expect(smtp.send.mock.calls.map((call: any[]) => call[0].subject)).toEqual(['Салон отменил запись']);
+    expect(await db.mailOutbox.count({ where: { recipient: f.dto.email, status: 'CANCELLED' } })).toBe(2);
+  });
+
+  it('sends the latest confirmation when the salon confirms before a previous mail is delivered', async () => {
+    const f = await fixture(), booking = await salon.publicCreate(f.org.id, f.dto);
+    await salon.update(f.org.id, booking.id, { version: 1, startTime: `${day}T10:00:00.000Z` });
+    await salon.update(f.org.id, booking.id, { version: 2, status: 'CONFIRMED' });
+    await notifications.processQueue(50);
+    expect(smtp.send.mock.calls.map((call: any[]) => call[0].subject)).toEqual(['Салон подтвердил запись']);
+    expect(smtp.send.mock.calls[0][0].text).toContain('10:00');
   });
 });

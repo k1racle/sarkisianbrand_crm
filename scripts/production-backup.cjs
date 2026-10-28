@@ -55,6 +55,19 @@ async function backup(envFile, projectOverride) {
   const base = ['compose', '--env-file', environment, '-f', path.join(root, 'docker-compose.production.yml'), ...(projectOverride ? ['-p', projectOverride] : [])];
   const config = JSON.parse(docker(...base, 'config', '--format', 'json')), project = config.name;
   if (!/^[a-z0-9][a-z0-9_-]+$/.test(project)) throw new Error('Invalid compose project');
+  // A stopped container name is a daemon-wide atomic lock. Unlike a local lock
+  // file, it also protects a project accessed from different Git checkouts.
+  // Never automatically steal a stale lock: the operator must first confirm
+  // that no other backup is still running.
+  const lockName = `sarkisian-backup-lock-${crypto.createHash('sha256').update(project).digest('hex').slice(0, 24)}`;
+  let lockId;
+  try {
+    lockId = docker('create', '--name', lockName, '--network', 'none', '--read-only', '--label', `com.sarkisian.backup.project=${project}`, 'postgres:15-alpine').trim();
+  } catch {
+    throw new Error(`Cannot acquire backup lock for project ${project}; another backup may be running or Docker may be unavailable`);
+  }
+  if (!/^[a-f0-9]{12,64}$/.test(lockId)) throw new Error('Docker returned an invalid backup lock ID');
+  try {
   const containers = {};
   for (const service of ['backend', 'postgres', 'redis']) {
     const id = docker(...base, 'ps', '-a', '-q', service).trim();
@@ -93,6 +106,10 @@ async function backup(envFile, projectOverride) {
     // A failed encryption must not leave plaintext credentials in the output.
     try { fs.unlinkSync(path.join(destination, 'payload.tar.gz')); } catch {}
     if (restart) docker(...base, 'start', 'backend');
+  }
+  } finally {
+    // Remove only the container we created, never a later replacement by name.
+    docker('rm', lockId);
   }
 }
 async function verify(directory) {

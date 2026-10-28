@@ -20,6 +20,7 @@ import { OneCWarehouseService } from './one-c-warehouse.service';
 import { OneCWarehouseStocksDto } from './dto/warehouse-stock.dto';
 import { OneCWarehouseStockService } from './one-c-warehouse-stock.service';
 import { executionSnapshot } from '../oms/execution-snapshot';
+import { assertCatalogImport, parseOneCCatalog } from './one-c-products';
 
 const marketplaceSources: OrderSource[] = [OrderSource.OZON, OrderSource.WILDBERRIES, OrderSource.YANDEX_MARKET, OrderSource.MEGAMARKET];
 const needsMarketplaceMapping = (order: any) => marketplaceSources.includes(order.source) &&
@@ -173,6 +174,9 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
   }
 
   private async processProducts(dto: OneCProductsSyncDto, progress: JobProgress) {
+    // Validate every row before the transaction, including jobs already queued
+    // before deployment. A missing stock field is distinct from a zero balance.
+    assertCatalogImport(dto?.products);
     let processed = 0;
     const stockSkipped: string[] = [];
     await this.prisma.$transaction(async tx => {
@@ -207,8 +211,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     await this.client.testConnection();
     await progress(12);
     const rawProducts = await this.client.get('productsPath', '/hs/sarkisian/v1/products');
-    const products = this.normalizeProducts(rawProducts);
-    if (!products.length) throw new BadGatewayException('1С не вернула товары в ожидаемом формате');
+    const products = parseOneCCatalog(rawProducts);
     const productResult = await this.processProducts({ products }, async value => progress(12 + value * .4));
     await progress(55);
 
@@ -355,11 +358,6 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     };
     const { revision, ...content } = payload;
     return { ...payload, idempotencyKey: createHash('sha256').update(JSON.stringify(content)).digest('hex') };
-  }
-
-  private normalizeProducts(raw: any) {
-    const items = Array.isArray(raw) ? raw : raw?.products || raw?.value || [];
-    return items.map((item: any) => ({ externalId: String(item.externalId || item.ref || item.Ref_Key || ''), sku: String(item.sku || item.article || item.Code || ''), nameRu: String(item.nameRu || item.name || item.Description || ''), slug: String(item.slug || item.sku || item.article || item.Code || '').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, ''), price: Number(item.price ?? item.basePrice ?? 0), stock: Number(item.stock ?? item.quantity ?? 0) })).filter((item: any) => item.externalId && item.sku && item.nameRu && item.slug && Number.isFinite(item.price));
   }
 
   private toOrderStatus(status: string, current: OrderStatus) {

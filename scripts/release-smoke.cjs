@@ -2,7 +2,7 @@
  * No host ports, no existing volumes, no seed, no external business operations.
  */
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawn } = require('node:child_process');
 const { backup, verify, unpack } = require('./production-backup.cjs');
 const { preflight } = require('./production-preflight.cjs');
 const root = path.resolve(__dirname, '..'), reportDir = path.join(root, '.screenshots');
@@ -54,8 +54,30 @@ async function main() {
     const before = process.env.SARKISIAN_BACKUP_KEY;
     process.env.SARKISIAN_BACKUP_KEY = crypto.randomBytes(32).toString('hex');
     try {
-      phase = 'create encrypted backup';
-      backupPath = await backup(envFile, project);
+      phase = 'check concurrent backup isolation';
+      // Exercise two independent processes, not just two calls in one Node
+      // event loop. The second must fail before touching the running stack.
+      const lockName = `sarkisian-backup-lock-${crypto.createHash('sha256').update(project).digest('hex').slice(0, 24)}`;
+      const child = spawn(process.execPath, [path.join(root, 'scripts/production-backup.cjs'), 'backup', envFile, project], { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+      let output = '', ended = false;
+      child.stdout.setEncoding('utf8'); child.stdout.on('data', chunk => { output += chunk; });
+      child.stderr.resume(); // Never print potentially sensitive process output.
+      const done = new Promise(resolve => { child.once('error', () => { ended = true; resolve(null); }); child.once('close', code => { ended = true; resolve(code); }); });
+      try {
+        let locked = false;
+        for (let attempt = 0; attempt < 60 && !ended; attempt++) {
+          try { run(['inspect', lockName]); locked = true; break; } catch { await new Promise(resolve => setTimeout(resolve, 500)); }
+        }
+        assert.ok(locked, 'First backup must acquire a daemon-wide lock');
+        await assert.rejects(() => backup(envFile, project), /Cannot acquire backup lock/, 'Concurrent backup must be rejected');
+        assert.equal(await done, 0, 'First backup must complete normally');
+        const match = output.match(/^Encrypted backup ready: (.+)$/m);
+        assert.ok(match, 'First backup must return its encrypted output');
+        backupPath = match[1].trim();
+        assert.equal(JSON.parse(run(['inspect', compose(['ps', '-a', '-q', 'backend']).trim()]))[0].State.Running, true, 'Backend must resume after backup');
+        assert.throws(() => run(['inspect', lockName]), 'Backup must release its lock');
+      } finally { await done; }
+      checks.push('Concurrent production backups are rejected without interrupting the first; API resumes and lock is released');
       const correctKey = process.env.SARKISIAN_BACKUP_KEY;
       process.env.SARKISIAN_BACKUP_KEY = crypto.randomBytes(32).toString('hex');
       phase = 'check wrong backup key';
