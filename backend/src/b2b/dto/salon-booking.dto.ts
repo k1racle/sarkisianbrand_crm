@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayUnique, Equals, IsArray, IsBoolean, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, Equals, IsArray, IsBoolean, IsEmail, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 export class SalonBreakDto {
  @IsInt() @Min(0) @Max(1439) startMinute!:number;
@@ -28,8 +28,25 @@ export class SalonSlotsDto {
 }
 
 export class PublicSalonBookingDto extends SalonSlotsDto {
+  @IsOptional() @IsUUID() requestKey?: string;
   @IsString() @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/) startTime!: string;
   @IsString() @MinLength(1) @MaxLength(80) firstName!: string;
   @IsString() @Matches(/^\+?[\d ()-]{8,30}$/) phone!: string;
+  @IsOptional() @IsEmail() @MaxLength(254) email?: string;
   @Transform(({ obj }) => obj.personalDataConsent) @Equals(true) personalDataConsent!: boolean;
+}
+
+export class PublicBookingTokenDto {
+  @IsString() @Matches(/^[a-f0-9-]{36}\.[a-f0-9]{64}$/i) token!: string;
+}
+export class PublicBookingMoveDto extends PublicBookingTokenDto {
+  @IsInt() @Min(1) version!: number;
+  @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) date!: string;
+  @IsString() @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/) startTime!: string;
+}
+export class PublicBookingCancelDto extends PublicBookingTokenDto {
+  @IsInt() @Min(1) version!: number;
+}
+export class PublicBookingManageSlotsDto extends PublicBookingTokenDto {
+  @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) date!: string;
 }

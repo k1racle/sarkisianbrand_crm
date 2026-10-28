@@ -8,6 +8,12 @@ import { apiCorsOrigins } from './common/api-cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
+  const configService = app.get(ConfigService);
+  // Trust only an explicitly configured count of proxies on the private network.
+  const proxyHops = configService.get<string>('TRUST_PROXY_HOPS', '0');
+  if (!/^[0-2]$/.test(String(proxyHops))) throw new Error('TRUST_PROXY_HOPS must be 0, 1 or 2');
+  app.getHttpAdapter().getInstance().set('trust proxy', Number(proxyHops));
   
   // Security
   app.use(helmet());
@@ -49,19 +55,21 @@ async function bootstrap() {
     .addTag('bots', 'Telegram & Max Bot Integration')
     .build();
     
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+  const docsEnabled = configService.get('API_DOCS_ENABLED') === 'true' || (configService.get('NODE_ENV') !== 'production' && configService.get('API_DOCS_ENABLED') !== 'false');
+  if (docsEnabled) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+  }
   
-  const configService = app.get(ConfigService);
   const port = configService.get('PORT') || 3000;
   
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/docs`);
+  if (docsEnabled) console.log(`📚 API Documentation: http://localhost:${port}/docs`);
 }
 
 bootstrap();

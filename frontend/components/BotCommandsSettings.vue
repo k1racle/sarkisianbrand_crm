@@ -2,13 +2,16 @@
 import { Activity, Bot, CheckCircle2, CircleAlert, KeyRound, Link2, MessageCircleMore, Pencil, Plus, RefreshCw, Save, Search, ShieldCheck, Trash2, X } from '@lucide/vue';
 
 const config = useRuntimeConfig();
+const route = useRoute();
 const { token } = useWorkspaceSession();
 const { openContextMenu, copyText } = useContextMenu();
 const commands = ref<any[]>([]);
 const botActivity = ref<any>({ items: [], identities: 0, unlinked: 0, statuses: {} });
 const loading = ref(true);
+const loaded = ref(false);
 const saving = ref(false);
 const selected = ref<any>(null);
+const { panel: settingsPanel, keyboard: settingsKeys } = useCatalogDialog(computed(() => Boolean(selected.value)), () => close());
 const search = ref('');
 const audienceFilter = ref('ALL');
 const channelFilter = ref('ALL');
@@ -47,6 +50,7 @@ async function load() {
       $fetch<any>('/system-settings/bot-events', { baseURL: config.public.apiBase, headers: headers.value }),
     ]);
     commands.value = commandRows;
+    loaded.value = true;
     botActivity.value = activity;
   }
   catch (reason: any) { error.value = reason?.data?.message || 'Не удалось загрузить команды'; }
@@ -131,19 +135,20 @@ onMounted(load);
 
 <template>
   <section data-v-ui-4d3f24510037 class="command-settings">
-    <div data-v-ui-4d3f24510037 class="command-kpis">
+    <WorkspaceLoading v-if="loading && !loaded" label="Загружаем настройки…"/><div v-else-if="error && !loaded" class="crm-management-error" role="alert"><p>{{error}}</p><button type="button" class="crm-button" :disabled="loading" @click="load">Повторить загрузку</button></div>
+    <div data-v-ui-4d3f24510037 v-if="loaded" class="command-kpis">
       <article class="crm-surface" data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>Команд</span><strong data-v-ui-4d3f24510037>{{ stats.total }}</strong><small data-v-ui-4d3f24510037>в общем реестре</small></article>
       <article class="crm-surface" data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>Активно</span><strong data-v-ui-4d3f24510037>{{ stats.enabled }}</strong><small data-v-ui-4d3f24510037>доступны пользователям</small></article>
       <article class="crm-surface" data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>Без авторизации</span><strong data-v-ui-4d3f24510037>{{ stats.public }}</strong><small data-v-ui-4d3f24510037>публичные сценарии</small></article>
       <article class="crm-surface" data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>С проверкой профиля</span><strong data-v-ui-4d3f24510037>{{ stats.protected }}</strong><small data-v-ui-4d3f24510037>привязаны к экосистеме</small></article>
     </div>
 
-    <article data-v-ui-4d3f24510037 class="commands-panel">
+    <article data-v-ui-4d3f24510037 v-if="loaded" class="commands-panel">
       <header data-v-ui-4d3f24510037 class="commands-head">
         <div data-v-ui-4d3f24510037><p data-v-ui-4d3f24510037 class="kicker">ЕДИНЫЙ РЕЕСТР СЦЕНАРИЕВ</p><h2 data-v-ui-4d3f24510037>Команды ботов</h2><span data-v-ui-4d3f24510037>Одна команда может работать в нескольких мессенджерах, но только для выбранных аудиторий.</span></div>
         <div data-v-ui-4d3f24510037 class="head-actions"><label class="crm-input-group" data-v-ui-4d3f24510037><Search data-v-ui-4d3f24510037 :size="15" /><input class="crm-input" data-v-ui-4d3f24510037 id="bot-command-query" v-model="search" aria-label="Поиск команд ботов" placeholder="Команда или название" /></label><button class="crm-button crm-button--refresh crm-button--icon" data-v-ui-4d3f24510037 aria-label="Обновить команды" @click="load"><RefreshCw data-v-ui-4d3f24510037 :size="15" :class="{ spin: loading }" /></button><button data-v-ui-4d3f24510037 class="primary crm-button crm-button--primary" @click="edit()"><Plus data-v-ui-4d3f24510037 :size="15" /> Новая команда</button></div>
       </header>
-      <div data-v-ui-4d3f24510037 class="filters crm-toolbar"><span data-v-ui-4d3f24510037>Аудитория</span><button class="crm-button" data-v-ui-4d3f24510037 v-for="item in [{id:'ALL',label:'Все'},...audiences]" :key="item.id" :class="{ active: audienceFilter === item.id }" @click="audienceFilter = item.id">{{ item.label }}</button><i data-v-ui-4d3f24510037></i><span data-v-ui-4d3f24510037>Канал</span><button class="crm-button" data-v-ui-4d3f24510037 v-for="item in [{id:'ALL',label:'Все'},...channels]" :key="item.id" :class="{ active: channelFilter === item.id }" @click="channelFilter = item.id">{{ item.label }}</button></div>
+      <div data-v-ui-4d3f24510037 class="filters crm-toolbar bot-command-filters"><label>Аудитория<select class="crm-input" v-model="audienceFilter" aria-label="Аудитория команды"><option value="ALL">Все аудитории</option><option v-for="item in audiences" :key="item.id" :value="item.id">{{item.label}}</option></select></label><label>Канал<select class="crm-input" v-model="channelFilter" aria-label="Канал команды"><option value="ALL">Все каналы</option><option v-for="item in channels" :key="item.id" :value="item.id">{{item.label}}</option></select></label><button v-if="audienceFilter!=='ALL'||channelFilter!=='ALL'" type="button" class="crm-button" @click="audienceFilter='ALL';channelFilter='ALL'">Сбросить фильтры</button></div>
       <div data-v-ui-4d3f24510037 class="command-table">
         <div data-v-ui-4d3f24510037 class="command-row head crm-table-head"><span data-v-ui-4d3f24510037>Команда</span><span data-v-ui-4d3f24510037>Аудитории</span><span data-v-ui-4d3f24510037>Каналы</span><span data-v-ui-4d3f24510037>Доступ</span><span data-v-ui-4d3f24510037>Состояние</span><span data-v-ui-4d3f24510037></span></div>
         <div data-v-ui-4d3f24510037 v-for="item in filtered" :key="item.id" class="command-row" @dblclick="edit(item)" @contextmenu.prevent="commandMenu($event, item)">
@@ -159,7 +164,7 @@ onMounted(load);
       <p data-v-ui-4d3f24510037 v-if="error && !selected" class="form-error">{{ error }}</p>
     </article>
 
-    <article data-v-ui-4d3f24510037 class="activity-panel">
+    <article data-v-ui-4d3f24510037 v-if="loaded" class="activity-panel">
       <header data-v-ui-4d3f24510037 class="activity-head">
         <div data-v-ui-4d3f24510037><p data-v-ui-4d3f24510037 class="kicker">ЖИВОЙ КОНТУР WEBHOOK</p><h2 data-v-ui-4d3f24510037>События и привязки профилей</h2><span data-v-ui-4d3f24510037>Входящие события защищены секретом, дедуплицируются и обрабатываются через очередь.</span></div>
         <div data-v-ui-4d3f24510037 class="activity-summary"><span data-v-ui-4d3f24510037><Link2 data-v-ui-4d3f24510037 :size="14" /><b data-v-ui-4d3f24510037>{{ botActivity.identities }}</b> профилей</span><span data-v-ui-4d3f24510037 :class="{ attention: botActivity.unlinked }"><CircleAlert data-v-ui-4d3f24510037 :size="14" /><b data-v-ui-4d3f24510037>{{ botActivity.unlinked }}</b> ждут привязки</span></div>
@@ -177,9 +182,9 @@ onMounted(load);
       </div>
     </article>
 
-    <aside data-v-ui-4d3f24510037 v-if="selected" class="drawer-backdrop admin-dialog-backdrop" @click.self="close">
-      <form data-v-ui-4d3f24510037 class="command-drawer admin-dialog admin-dialog--drawer" @submit.prevent="save">
-        <header data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037 class="bot-icon large"><Bot data-v-ui-4d3f24510037 :size="20" /></span><div data-v-ui-4d3f24510037><p data-v-ui-4d3f24510037 class="kicker">{{ selected.id ? 'РЕДАКТИРОВАНИЕ СЦЕНАРИЯ' : 'НОВЫЙ СЦЕНАРИЙ' }}</p><h2 data-v-ui-4d3f24510037>{{ selected.id ? draft.title : 'Создать команду' }}</h2></div><button data-v-ui-4d3f24510037 type="button" class="close crm-button" @click="close"><X data-v-ui-4d3f24510037 :size="18" /></button></header>
+    <Teleport :disabled="!route.path.startsWith('/crm/')" to="body"><aside data-v-ui-4d3f24510037 v-if="selected" class="drawer-backdrop admin-dialog-backdrop crm-management-backdrop" @click.self="close">
+      <form data-v-ui-4d3f24510037 ref="settingsPanel" tabindex="-1" @keydown="settingsKeys" class="command-drawer admin-dialog admin-dialog--drawer crm-management-dialog" role="dialog" aria-modal="true" aria-label="Команда бота" @submit.prevent="save">
+        <header data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037 class="bot-icon large"><Bot data-v-ui-4d3f24510037 :size="20" /></span><div data-v-ui-4d3f24510037><p data-v-ui-4d3f24510037 class="kicker">{{ selected.id ? 'РЕДАКТИРОВАНИЕ СЦЕНАРИЯ' : 'НОВЫЙ СЦЕНАРИЙ' }}</p><h2 data-v-ui-4d3f24510037>{{ selected.id ? draft.title : 'Создать команду' }}</h2></div><button data-v-ui-4d3f24510037 type="button" class="close crm-button crm-button--icon" aria-label="Закрыть команду бота" @click="close"><X data-v-ui-4d3f24510037 :size="18" /></button></header>
         <div data-v-ui-4d3f24510037 class="drawer-scroll admin-dialog-body">
           <div data-v-ui-4d3f24510037 class="two-fields"><label data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>Команда</span><input class="crm-input" data-v-ui-4d3f24510037 v-model.trim="draft.command" placeholder="/orders" required pattern="/?[a-z0-9_]{2,32}" /></label><label data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>Порядок</span><input class="crm-input" data-v-ui-4d3f24510037 v-model.number="draft.sortOrder" type="number" min="0" max="10000" /></label></div>
           <label data-v-ui-4d3f24510037><span data-v-ui-4d3f24510037>Название</span><input class="crm-input" data-v-ui-4d3f24510037 v-model.trim="draft.title" required maxlength="80" placeholder="Мои заказы" /></label>
@@ -193,7 +198,7 @@ onMounted(load);
         </div>
         <footer data-v-ui-4d3f24510037><button class="crm-button" data-v-ui-4d3f24510037 type="button" @click="close">Отмена</button><button data-v-ui-4d3f24510037 class="primary crm-button crm-button--primary" type="submit" :disabled="saving"><Save data-v-ui-4d3f24510037 :size="15" />{{ saving ? 'Сохраняем…' : 'Сохранить команду' }}</button></footer>
       </form>
-    </aside>
+    </aside></Teleport>
     <div data-v-ui-4d3f24510037 v-if="notice" class="command-toast">{{ notice }}</div>
   </section>
 </template>

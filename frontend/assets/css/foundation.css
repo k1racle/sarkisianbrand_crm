@@ -1,3 +1,5 @@
+/* CRM's approved working-interface roles take precedence over legacy important resets. */
+@layer crm-workspace;
 @import "./heading-typography.css";
 
 :root {

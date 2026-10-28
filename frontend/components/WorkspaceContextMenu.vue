@@ -153,11 +153,11 @@ onBeforeUnmount(() => {
             ><small data-v-ui-5fed95735d45 v-if="contextMenuState.subtitle">{{
               contextMenuState.subtitle
             }}</small></span
-          ><button data-v-ui-5fed95735d45 aria-label="Закрыть" @click="closeContextMenu">
+          ><button class="crm-button" data-v-ui-5fed95735d45 aria-label="Закрыть" @click="closeContextMenu">
             <X data-v-ui-5fed95735d45 :size="14" />
           </button>
         </header>
-        <button data-v-ui-5fed95735d45
+        <button class="crm-button crm-button--row" data-v-ui-5fed95735d45
           v-for="(item, index) in contextMenuState.items"
           :key="`${item.label}-${index}`"
           :class="{ danger: item.danger, separator: item.separator }"

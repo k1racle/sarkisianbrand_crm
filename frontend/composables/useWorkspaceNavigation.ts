@@ -22,7 +22,7 @@ export type WorkspacePreferences = { favorites: string[]; recent: string[]; star
 
 /** Shared by the workspace selector and the home screen, in business order. */
 export const WORKSPACE_AREAS = [
-  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'partner-documents', 'marketing', 'support', 'channels', 'reports', 'settings'] },
+  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'partner-documents', 'marketing', 'studio', 'support', 'channels', 'reports', 'settings'] },
   { id: 'site', label: 'Админка сайта', description: 'Каталог, страницы, витрина и изображения', icon: 'ShoppingBag', groupIds: ['catalog', 'site', 'media'] },
 ] as const;
 
@@ -44,6 +44,7 @@ const ADMIN = ['ADMIN'];
  * Every protected data section uses the same permission keys as its API.
  */
 export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
+  {id:'studio',label:'Игра и награды',description:'Условия обмена монет на скидки.',icon:'Gift',items:[{id:'studio-rewards',label:'Награды игры',to:'/crm/studio-rewards',permission:'promotions.read',roles:['ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR'],keywords:'игра студия скидки монеты промокоды награды'}]},
   { id: 'dashboard', label: 'Рабочий стол', description: 'Быстрые переходы и обзор интернет-магазина.', icon: 'LayoutDashboard', items: [
     { id: 'web-dashboard', label: 'Обзор магазина', to: '/admin-workspace/dashboard', permission: 'admin.read', roles: CATALOG },
   ] },
@@ -69,7 +70,7 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     { id: 'work-schedule', label: 'Графики работы', to: '/crm/work-schedule', permission: 'work_schedule.read', roles: INTERNAL, keywords: 'смены работа сотрудники календарь выходные отсутствие расписание' },
     { id: 'work-time', label: 'Рабочее время', to: '/crm/work-time', permission: 'work_time.read', roles: INTERNAL, keywords: 'начать завершить день перерыв фактическое время история часов' },
     { id: 'crm-chat', label: 'Чат команды', to: '/crm/chat', roles: INTERNAL, keywords: 'общение сообщения переписка сотрудники' },
-    { id: 'crm-meetings', label: 'Встречи', to: '/crm/meetings', permission: 'meetings.read', roles: INTERNAL, keywords: 'планёрки собеседования расписание видеовстречи' },
+    { id: 'crm-meetings', label: 'Календарь событий', to: '/crm/meetings', permission: 'meetings.read', roles: INTERNAL, keywords: 'мероприятия совещания планёрки собеседования расписание приглашения участие Google Яндекс Apple' },
     { id: 'payment-calendar', label: 'Календарь платежей', to: '/crm/payment-calendar', permission: 'payment_calendar.read', roles: INTERNAL, keywords: 'финансы расходы связь интернет сервер подписка сумма оплата периодичность' },
     { id: 'content-plan', label: 'Контент-план', to: '/crm/content-plan', permission: 'content_plan.read', roles: [...CRM_READ, 'CONTENT_MANAGER'], keywords: 'smm смм контент календарь рилс reels shorts шортс сценарий публикации' },
   ] },

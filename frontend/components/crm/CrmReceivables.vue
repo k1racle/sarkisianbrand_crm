@@ -31,7 +31,7 @@ onBeforeUnmount(() => { ++generation; clearTimeout(timer); });
     <div class="crm-directory-register-heading"><h2>Расчёты из 1С <span v-if="data">{{ data.total }}</span></h2><small>1С:Комплексная автоматизация</small></div>
     <div class="crm-orders-finance-note"><Info :size="18" aria-hidden="true" /><p>Долг, возвраты и разрешение отгрузки приходят из 1С. Если данных нет, задолженность неизвестна. Для сверки откройте заказ.</p></div>
     <div class="crm-directory-toolbar">
-      <div class="crm-input-group crm-directory-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Номер заказа для расчётов" placeholder="Найти расчёты по номеру заказа" maxlength="150" @keydown.enter.prevent="refresh" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск расчётов" @click="search = ''"><X :size="16" /></button></div>
+      <div class="crm-input-group crm-directory-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Номер заказа для расчётов" placeholder="Найти расчёты по номеру заказа" maxlength="150" @keydown.enter.prevent="refresh" /><button v-if="search" class="crm-directory-clear crm-button crm-button--icon" aria-label="Очистить поиск расчётов" @click="search = ''"><X :size="16" /></button></div>
       <button type="button" class="crm-button crm-button--refresh" :disabled="busy" @click="refresh"><RefreshCw :size="16" />Обновить данные</button>
     </div>
     <p v-if="error" class="crm-orders-error" role="alert">{{ error }}</p>

@@ -3,8 +3,12 @@ const route = useRoute();
 const session = useWorkspaceSession();
 const access = useWorkspaceAccess();
 const { active, home } = useCrmNavigation();
-const identity = computed(() => JSON.stringify([session.user.value?.id, session.token.value, route.path]));
-const permitted = computed(() => access.ready.value && Boolean(active.value));
+const hasSession = computed(() => Boolean(session.token.value || session.refreshToken.value));
+const loginDestination = computed(() => ({ path: '/crm/login', query: { redirect: route.fullPath } }));
+// A token rotation rechecks permissions, but does not switch the employee or
+// destroy their draft. A login/logout generation change does switch identity.
+const identity = computed(() => JSON.stringify([session.generation.value, session.user.value?.id, route.path]));
+const permitted = computed(() => hasSession.value && access.ready.value && Boolean(active.value));
 const mountedIdentity = ref('');
 
 // A failed refresh must not mount an unchecked page, or destroy the draft of a
@@ -17,8 +21,17 @@ watch([identity, access.ready, permitted], ([key, ready, allowed]) => {
 </script>
 
 <template>
-  <WorkspaceLoading v-if="!access.ready.value && !access.error.value" label="Проверяем доступ к разделу" />
-  <div v-if="access.error.value || (access.ready.value && !permitted)" class="crm-standard">
+  <div v-if="!hasSession" class="crm-standard">
+    <section class="crm-surface" role="alert" aria-labelledby="crm-session-ended-title">
+      <header class="crm-panel-header"><h2 id="crm-session-ended-title">Сессия завершена</h2></header>
+      <div class="crm-register crm-stack">
+        <p class="crm-inline-note">Войдите снова, чтобы открыть раздел и продолжить работу.</p>
+        <div class="crm-action-bar"><NuxtLink class="crm-button" :to="loginDestination">Войти в CRM</NuxtLink></div>
+      </div>
+    </section>
+  </div>
+  <WorkspaceLoading v-else-if="!access.ready.value && !access.error.value" label="Проверяем доступ к разделу" />
+  <div v-if="hasSession && (access.error.value || (access.ready.value && !permitted))" class="crm-standard">
     <section v-if="access.error.value" class="crm-surface" role="alert" aria-labelledby="crm-access-error-title">
       <header class="crm-panel-header"><h2 id="crm-access-error-title">Не удалось проверить доступ</h2></header>
       <div class="crm-register crm-stack">
@@ -34,7 +47,7 @@ watch([identity, access.ready, permitted], ([key, ready, allowed]) => {
       </div>
     </section>
   </div>
-  <div v-if="mountedIdentity === identity" v-show="permitted" :inert="!permitted || undefined">
+  <div v-if="hasSession && mountedIdentity === identity" v-show="permitted" :inert="!permitted || undefined">
     <slot />
   </div>
 </template>

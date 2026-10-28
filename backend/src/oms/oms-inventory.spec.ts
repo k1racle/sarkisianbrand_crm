@@ -43,6 +43,7 @@ function fixture(scope = 'OWN') {
   order: { findMany: jest.fn(async ({ where, select, skip, take }) => orders.filter(row => matches(row, where)).slice(skip, skip + take).map(row => project(row, select))) },
   organization: { findMany: jest.fn(async () => []) },
   oneCStockSnapshot: { findUnique: jest.fn(async () => null) },
+  ecosystemIntegration: { findUnique: jest.fn(async () => null as any) },
  };
  db.$transaction = jest.fn(async fn => fn(db));
  const scoped = operationAccess(scope), access: any = { resolve: jest.fn((tx, actor, permission) => permission === 'inventory.read' ? { company: () => true } : scoped.resolve(tx, actor, permission)) };
@@ -52,11 +53,22 @@ describe('inventory read model and access', () => {
  it('keeps global stock totals but scopes quantities and destinations to permitted orders', async () => {
   const f = fixture(), list = await f.service.list('actor', new InventoryQueryDto());
   expect(list).toMatchObject({ allOrdersVisible: false, summary: { stock: 20, reserved: 7, toShip: 3 } });
-  expect(list.items[0]).toMatchObject({ available: 13, allocated: 7, toShip: 3, picked: 1, damaged: 2, reservationDifference: 0 });
+  expect(list.items[0]).toMatchObject({ available: 13, allocated: 7, toShip: 3, picked: 1, damaged: 2, reservationDifference: null, warehouseStock: { status: 'UNAVAILABLE', available: null } });
   const detail = await f.service.detail('actor', 'variant', { page: 1, limit: 20 });
   expect(detail.total).toBe(1); expect(detail.orders[0]).toMatchObject({ id: 'own', remaining: 3, picked: 1, toPick: 2, reservationExpired: true, destination: 'Свой получатель' });
   expect(JSON.stringify(detail)).not.toMatch(/SECRET|Чужой|HIDDEN|hidden-org/);
   expect(f.db.$transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'RepeatableRead' }));
+ });
+ it('shows stock as confirmed only with a current, matching 1C snapshot', async () => {
+  const f = fixture();
+  f.variant.product.externalId = 'erp-product';
+  f.variant.oneCWarehouseStock = { warehouseId: 'main', externalProductId: 'erp-product', sku: 'SKU', stock: 20, reserved1C: 4, localPending: 3, asOf: new Date(Date.now() - 1000), validUntil: new Date(Date.now() + 60000) };
+  f.db.ecosystemIntegration.findUnique.mockResolvedValue({ isEnabled: true, configuredSecretKeys: ['password', 'exchangeSecret'], config: { warehouseId: 'main', baseUrl: 'https://example.invalid', username: 'fixture' } });
+  const current = await f.service.list('actor', new InventoryQueryDto());
+  expect(current.items[0].warehouseStock).toMatchObject({ status: 'CURRENT', reserved1C: 4, localPending: 3, available: 13 });
+  f.variant.oneCWarehouseStock.validUntil = new Date(0);
+  const stale = await f.service.list('actor', new InventoryQueryDto());
+  expect(stale.items[0].warehouseStock).toMatchObject({ status: 'UNAVAILABLE', available: null, reserved1C: null, localPending: null });
  });
  it('company view includes both destinations, excludes terminal and unreserved orders, and paginates', async () => {
   const f = fixture('COMPANY'), list = await f.service.list('actor', new InventoryQueryDto());

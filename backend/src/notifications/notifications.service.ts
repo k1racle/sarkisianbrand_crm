@@ -12,6 +12,10 @@ export interface EnqueueMail {
   subject: string;
   text: string;
   dedupeKey: string;
+  bookingId?: string;
+  bookingVersion?: number;
+  helpdeskCommentId?: string;
+  helpdeskTicketId?: string;
 }
 
 interface ClaimedMail {
@@ -51,7 +55,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     // Do not allow the encryption service's known development fallback for stored mail.
     const key = this.config.get<string>('INTEGRATION_ENCRYPTION_KEY') || this.config.get<string>('JWT_SECRET');
     if (!key || key.length < 32 || key === 'local-development-only') throw new Error('MAIL_ENCRYPTION_KEY_REQUIRED');
-    const encryptedPayload = this.secrets.encrypt({ subject: mail.subject, text: mail.text });
+    const encryptedPayload = this.secrets.encrypt({ subject: mail.subject, text: mail.text, ...(mail.bookingId && mail.bookingVersion ? { bookingId: mail.bookingId, bookingVersion: String(mail.bookingVersion) } : {}), ...(mail.helpdeskCommentId && mail.helpdeskTicketId ? { helpdeskCommentId: mail.helpdeskCommentId, helpdeskTicketId: mail.helpdeskTicketId } : {}) });
     if (!encryptedPayload) throw new Error('MAIL_ENCRYPTION_FAILED');
     return {
       id: randomUUID(),
@@ -132,6 +136,24 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
           }
           const payload = this.secrets.decrypt(mail.encryptedPayload);
           if (!payload.subject || !payload.text) throw new Error('MAIL_PAYLOAD_INVALID');
+          if (mail.kind === 'HELPDESK_REPLY') {
+            // A deleted ticket/comment or an address changed after the reply
+            // must not result in a delayed disclosure to an old recipient.
+            const current = payload.helpdeskCommentId && payload.helpdeskTicketId && await this.prisma.helpdeskComment.findFirst({ where: { id: payload.helpdeskCommentId, ticketId: payload.helpdeskTicketId, isInternal: false, ticket: { requesterEmail: { equals: mail.recipient, mode: 'insensitive' } } }, select: { id: true } });
+            if (!current) {
+              await this.prisma.mailOutbox.updateMany({ where: owner, data: { status: 'CANCELLED', lastError: 'Обращение или адрес получателя изменились до отправки.' } });
+              processed++; continue;
+            }
+          }
+          if (['SALON_BOOKING_OWNER', 'SALON_BOOKING_CLIENT'].includes(mail.kind)) {
+            const version = Number(payload.bookingVersion);
+            const current = payload.bookingId && Number.isSafeInteger(version) && version > 0 && await this.prisma.b2BBooking.findFirst({ where: { id: payload.bookingId, version, startTime: { gt: new Date() } }, select: { id: true, organizationId: true } });
+            const ownerStillAuthorized = mail.kind !== 'SALON_BOOKING_OWNER' || (current && await this.prisma.organizationMember.findFirst({ where: { organizationId: current.organizationId, role: 'OWNER', isActive: true, user: { email: mail.recipient, role: 'CUSTOMER_B2B', isActive: true } }, select: { id: true } }));
+            if (!current || !ownerStillAuthorized) {
+              await this.prisma.mailOutbox.updateMany({ where: owner, data: { status: 'CANCELLED', lastError: 'Запись изменилась до отправки письма.' } });
+              processed++; continue;
+            }
+          }
           // Reset mail must not deliver an already expired/revoked link after queue downtime.
           if (mail.kind === 'PASSWORD_RESET') {
             const token = /[?&]token=([a-f0-9]{64})(?:\s|$)/.exec(payload.text)?.[1];
@@ -146,6 +168,21 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
               } });
               processed++;
               continue;
+            }
+          }
+          if (mail.kind === 'BUSINESS_TEAM_INVITE') {
+            const token = /[#&]token=([A-Za-z0-9_-]{43})(?:\s|$)/.exec(payload.text)?.[1];
+            const invitation = token && await this.prisma.businessTeamInvitation.findFirst({ where: {
+              tokenHash: createHash('sha256').update(token).digest('hex'), email: mail.recipient,
+              status: 'PENDING', expiresAt: { gt: new Date() }, organization: { status: { not: 'ARCHIVED' } },
+            }, select: { organizationId: true, createdById: true } });
+            const inviter = invitation && await this.prisma.organizationMember.findFirst({ where: {
+              organizationId: invitation.organizationId, userId: invitation.createdById, isActive: true, role: 'OWNER',
+              user: { isActive: true, role: 'CUSTOMER_B2B' },
+            }, select: { id: true } });
+            if (!inviter) {
+              await this.prisma.mailOutbox.updateMany({ where: owner, data: { status: 'CANCELLED', lastError: 'Приглашение недействительно или срок действия истёк.' } });
+              processed++; continue;
             }
           }
           await this.smtp.send({ recipient: mail.recipient, subject: payload.subject, text: payload.text });

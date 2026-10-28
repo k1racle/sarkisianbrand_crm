@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { requestKey as createRequestKey } from '~/shared/request-key';
-import { Clock3, Pause, Play, RefreshCw, Square } from '@lucide/vue';
+import { ArrowUpRight, Clock3, Pause, Play, RefreshCw, Square } from '@lucide/vue';
 import { workTimeCounter, workTimeDuration, type WorkTimeAction, type WorkTimeCurrent } from '~/shared/crm-work-time';
 defineProps<{ compact?: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
@@ -58,8 +58,24 @@ onUnmounted(() => { alive = false; ++loadVersion; clearInterval(timer); clearInt
 defineExpose({ refresh: load });
 </script>
 <template>
-  <section class="crm-surface" aria-label="Мой рабочий день">
-    <header class="crm-panel-header"><div><p>УЧЁТ ВРЕМЕНИ</p><h2 class="crm-icon-heading"><Clock3 :size="18" /><span>Мой рабочий день</span></h2></div><NuxtLink v-if="compact" to="/crm/work-time" class="crm-button crm-button--text">История времени</NuxtLink><button v-else class="crm-button crm-button--refresh" :disabled="loading || saving" @click="load"><RefreshCw :size="18" />Обновить отметки</button></header>
+  <section class="crm-surface crm-work-clock" :class="{ 'crm-work-clock--compact': compact }" aria-label="Мой рабочий день">
+    <template v-if="compact">
+      <div class="crm-clock-strip">
+        <div class="crm-clock-copy"><Clock3 :size="20" /><div><strong>Рабочий день</strong><small v-if="data">{{ stateLabel }}</small><small v-else-if="loading" role="status">Загружаем отметки…</small><small v-else>Отметки недоступны</small></div></div>
+        <strong v-if="data" class="crm-clock-counter" aria-label="Работа сегодня">{{ workTimeCounter(worked) }}</strong>
+        <div v-if="data?.canTrack" class="crm-clock-actions">
+          <button v-if="!data.active" class="crm-button crm-button--primary" :disabled="disabled" aria-label="Начать рабочий день" @click="act('START')"><Play :size="16" />Начать день</button>
+          <template v-else><button v-if="data.active.status === 'WORKING'" class="crm-button" :disabled="disabled" @click="act('PAUSE')"><Pause :size="16" />Перерыв</button><button v-else class="crm-button crm-button--primary" :disabled="disabled" @click="act('RESUME')"><Play :size="16" />Продолжить работу</button><button class="crm-button crm-button--icon" :disabled="disabled" aria-label="Завершить рабочий день" title="Завершить рабочий день" @click="act('FINISH')"><Square :size="16" /></button></template>
+        </div>
+        <NuxtLink to="/crm/work-time" class="crm-button crm-button--text crm-clock-history" aria-label="История времени" title="История времени"><span>История времени</span><ArrowUpRight :size="18" /></NuxtLink>
+      </div>
+      <div v-if="error || notice || pending && !saving" class="crm-clock-feedback">
+        <p v-if="error" role="alert">{{ error }}</p><p v-if="notice" role="status">{{ notice }}</p>
+        <button v-if="pending && !saving" class="crm-button" @click="send">Проверить сохранение</button><button v-else-if="error" class="crm-button" :disabled="loading || saving" @click="load">Повторить загрузку</button>
+      </div>
+    </template>
+    <template v-else>
+    <header class="crm-panel-header"><div><h2 class="crm-icon-heading"><Clock3 :size="18" /><span>Мой рабочий день</span></h2></div><button class="crm-button crm-button--refresh" :disabled="loading || saving" @click="load"><RefreshCw :size="18" />Обновить отметки</button></header>
     <div class="crm-register crm-page-content--stack">
       <p v-if="error" role="alert">{{ error }}</p><p v-if="notice" role="status">{{ notice }}</p><p v-if="loading && !data" role="status">Загружаем рабочий день…</p>
       <div v-if="pending && !saving" class="crm-action-bar crm-action-bar--spread"><p class="crm-inline-note">Результат запроса не подтверждён. Проверка использует тот же запрос и не создаст вторую отметку.</p><button class="crm-button" @click="send">Проверить сохранение</button></div>
@@ -81,5 +97,6 @@ defineExpose({ refresh: load });
         <p class="crm-inline-note">{{ compact ? 'Перерывы не входят в рабочее время. Не забудьте завершить день.' : 'Перерывы не входят в рабочее время. График не завершает рабочий день автоматически. Отметки сохраняются на сервере; без связи новые отметки недоступны.' }}</p>
       </template>
     </div>
+    </template>
   </section>
 </template>

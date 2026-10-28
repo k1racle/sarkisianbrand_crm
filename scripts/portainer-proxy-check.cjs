@@ -1,0 +1,34 @@
+/* Isolated gateway/NPM forwarding check. It creates only uniquely named Docker
+ * networks and containers, publishes no host port, and uses synthetic data. */
+const { execFileSync } = require('node:child_process');
+const crypto = require('node:crypto'), assert = require('node:assert/strict');
+const prefix = `sb-proxy-check-${crypto.randomBytes(5).toString('hex')}`;
+const app = `${prefix}-app`, edge = `${prefix}-edge`, backend = `${prefix}-backend`, frontend = `${prefix}-frontend`, gateway = `${prefix}-gateway`, npm = `${prefix}-npm`, client = `${prefix}-client`, occupier = `${prefix}-occupier`;
+const run = (...args) => execFileSync('docker', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+const server = `const http=require('http');http.createServer((req,res)=>{res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({role:process.env.ROLE,path:req.url,xff:req.headers['x-forwarded-for'],ip:req.headers['x-real-ip'],proto:req.headers['x-forwarded-proto']}))}).on('upgrade',(req,socket)=>socket.end('HTTP/1.1 101 Switching Protocols\\r\\nUpgrade: websocket\\r\\nConnection: Upgrade\\r\\n\\r\\n')).listen(3000,'0.0.0.0');`;
+// Model NPM's default private-network trust and its per-host override from
+// our instructions: untrusted callers cannot forge the IP sent to backend.
+const npmConfig = `events {} http { set_real_ip_from 10.0.0.0/8; set_real_ip_from 172.16.0.0/12; set_real_ip_from 192.168.0.0/16; real_ip_header X-Real-IP; real_ip_recursive on; server { set_real_ip_from 127.0.0.1; real_ip_header X-Real-IP; real_ip_recursive off; listen 8080; location / { proxy_pass http://sarkisian-gateway:8080; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection $http_connection; proxy_http_version 1.1; } } }`;
+try {
+  run('network', 'create', '--internal', app); run('network', 'create', '--internal', edge);
+  for (const [name, alias, role] of [[backend, 'backend', 'backend'], [frontend, 'frontend', 'frontend']]) run('run', '-d', '--name', name, '--network', app, '--network-alias', alias, '-e', `ROLE=${role}`, '--entrypoint', 'node', 'node:22.23.3-alpine', '-e', server);
+  run('run', '-d', '--name', gateway, '--network', app, '--read-only', '--tmpfs', '/tmp:rw,noexec,nosuid,mode=1777,size=32m', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', 'codex-portainer-gateway-check:local');
+  run('network', 'connect', '--alias', 'sarkisian-gateway', edge, gateway);
+  run('run', '-d', '--name', npm, '--network', edge, '--network-alias', 'npm', '--entrypoint', '/bin/sh', 'nginx:1.30.6-alpine', '-c', `printf '%s' '${npmConfig}' > /tmp/check.conf && exec nginx -c /tmp/check.conf -g 'daemon off;'`);
+  run('run', '-d', '--name', client, '--network', edge, '--entrypoint', 'node', 'node:22.23.3-alpine', '-e', 'setInterval(()=>{},10000)');
+  const ip = run('inspect', '-f', `{{(index .NetworkSettings.Networks "${edge}").IPAddress}}`, client);
+  const check = `const assert=require('assert/strict'),http=require('http');(async()=>{for(let i=0;i<30;i++){try{const r=await fetch('http://npm:8080/');if(r.ok)break}catch{}await new Promise(r=>setTimeout(r,200))}const get=async(path)=>fetch('http://npm:8080'+path,{headers:{'x-forwarded-for':'203.0.113.222','x-real-ip':'203.0.113.222'}});let r=await get('/api/v1/orders?test=1');let v=await r.json();assert.equal(v.role,'backend');assert.equal(v.path,'/api/v1/orders?test=1');assert.equal(v.xff,process.env.EXPECTED_IP);assert.equal(v.ip,process.env.EXPECTED_IP);assert.equal(v.proto,'https');r=await get('/socket.io/?EIO=4&transport=polling');assert.equal((await r.json()).role,'backend');await new Promise((resolve,reject)=>{const req=http.request('http://npm:8080/socket.io/?transport=websocket',{headers:{Connection:'Upgrade',Upgrade:'websocket'}});req.setTimeout(3000,()=>req.destroy(new Error('websocket timeout')));req.on('upgrade',(response,socket)=>{socket.destroy();response.statusCode===101?resolve():reject(new Error('bad upgrade status'))});req.on('response',response=>reject(new Error('websocket not upgraded: '+response.statusCode)));req.on('error',reject);req.end()});r=await get('/crm/login');assert.equal((await r.json()).role,'frontend');for(const p of ['/api/v1/health/ready','/API/V1/HEALTH','/__health','/docs','/docs-json'])assert.equal((await get(p)).status,404,p);console.log('PASS routing, client IP, hidden internal endpoints, socket.io polling and websocket upgrade');})().catch(e=>{console.error(e.message);process.exit(1)});`;
+  console.log(run('exec', '-e', `EXPECTED_IP=${ip}`, client, 'node', '-e', check));
+  const before = run('inspect', '-f', `{{(index .NetworkSettings.Networks "${app}").IPAddress}}`, backend);
+  run('rm', '-f', backend);
+  run('run', '-d', '--name', occupier, '--network', app, '--entrypoint', 'node', 'node:22.23.3-alpine', '-e', 'setInterval(()=>{},10000)');
+  run('run', '-d', '--name', backend, '--network', app, '--network-alias', 'backend', '-e', 'ROLE=replaced', '--entrypoint', 'node', 'node:22.23.3-alpine', '-e', server);
+  const after = run('inspect', '-f', `{{(index .NetworkSettings.Networks "${app}").IPAddress}}`, backend);
+  assert.notEqual(before, after, 'The replacement must have a different container IP');
+  const reconnect = `const assert=require('assert/strict');(async()=>{await new Promise(r=>setTimeout(r,6500));const v=await(await fetch('http://npm:8080/api/v1/orders')).json();assert.equal(v.role,'replaced');console.log('PASS DNS refresh after replacing backend');})().catch(e=>{console.error(e.message);process.exit(1)});`;
+  console.log(run('exec', client, 'node', '-e', reconnect));
+} finally {
+  if (!/^sb-proxy-check-[a-f0-9]{10}$/.test(prefix)) throw new Error('Unexpected fixture name');
+  for (const name of [client, npm, gateway, frontend, backend, occupier]) { try { run('rm', '-f', name); } catch {} }
+  for (const network of [edge, app]) { try { run('network', 'rm', network); } catch {} }
+}

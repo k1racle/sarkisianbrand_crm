@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } f
 import { colorHex, type ColorId, type Design, type Nail } from './model'
 import { geometry } from './nail-art-geometry'
 import NailFinish from './NailFinish.vue'
+import NailPhotoLighting from './NailPhotoLighting.vue'
+import {anatomyNails} from './anatomy'
 
 const props = withDefaults(defineProps<{
   design: Design; imageUrl: string; interactive?: boolean; selected?: number
@@ -13,6 +15,7 @@ const emit = defineEmits<{ paint: [index: number] }>()
 const uid = useId().replaceAll(':', '')
 const svg = ref<SVGSVGElement | null>(null)
 const nails = computed(() => geometry(props.design.kind, props.design.shape, props.design.length))
+const nativeNails=computed(()=>anatomyNails(props.design.kind))
 const shaped = computed(() => props.design.kind === 'manicure' && ((props.design.shape ?? 'almond') !== 'almond' || (props.design.length ?? 'natural') !== 'natural'))
 type Stroke = { index: number; before: Nail; start: number; progress: number }
 const strokes = shallowRef<Stroke[]>([])
@@ -107,13 +110,13 @@ onBeforeUnmount(() => { cancelAnimationFrame(frame); motionPreference?.removeEve
     <image :href="imageUrl" width="1448" height="1086" draggable="false"/>
     <g v-for="(n, i) in nails" :key="i" :class="{ 'nail-target': interactive, 'is-painting': !!strokeAt(i) }" :data-testid="`nail-${i}`" :role="interactive ? 'button' : undefined" :tabindex="interactive ? 0 : undefined" :aria-label="`Нанести покрытие на ноготь ${i + 1}`" @click="(event: MouseEvent) => { if (interactive && event.detail === 0) emit('paint', i) }" @keydown.enter.prevent="interactive && emit('paint', i)" @keydown.space.prevent="interactive && emit('paint', i)">
       <path class="nail-hit-area" :d="n.path" fill="transparent" stroke="transparent" stroke-width="26"/>
-      <g v-if="shaped && !design.nails[i]?.color" pointer-events="none"><path :d="n.path" fill="#e5b3a2"/><path :d="n.path" :fill="`url(#${uid}-gloss)`"/></g>
+      <path v-if="shaped && !design.nails[i]?.color" :d="n.path" fill="none" stroke="#ffffffa0" stroke-width="1.5" pointer-events="none"/>
       <path v-if="preparing && prepared?.includes(i)" :d="n.path" fill="#94aa7130" stroke="#819c65" stroke-width="7" pointer-events="none"/>
       <g :clip-path="`url(#${uid}-clip-${i})`" pointer-events="none">
-        <NailFinish v-if="strokeAt(i)" :nail="strokeAt(i)!.before" :geometry="n" :gloss-id="`${uid}-gloss`"/>
-        <g :clip-path="strokeAt(i) ? `url(#${uid}-reveal-${i})` : undefined"><NailFinish :nail="design.nails[i]!" :geometry="n" :gloss-id="`${uid}-gloss`"/></g>
+        <g v-if="strokeAt(i)?.before.color" style="isolation:isolate"><NailFinish :nail="strokeAt(i)!.before" :geometry="n" :gloss-id="`${uid}-gloss`" photographic/><NailPhotoLighting :image-url="imageUrl" :geometry="nativeNails[i]!" :matte="strokeAt(i)!.before.finish==='matte'"/></g>
+        <g :clip-path="strokeAt(i) ? `url(#${uid}-reveal-${i})` : undefined" style="isolation:isolate"><NailFinish :nail="design.nails[i]!" :geometry="n" :gloss-id="`${uid}-gloss`" photographic/><NailPhotoLighting v-if="design.nails[i]?.color" :image-url="imageUrl" :geometry="nativeNails[i]!" :matte="design.nails[i]?.finish==='matte'"/></g>
       </g>
-      <path v-if="interactive && selected === i" class="nail-selection" :d="n.path" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="9 7" pointer-events="none"/>
+      <path v-if="interactive && selected === i" class="nail-selection" :d="n.path" fill="none" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 4" pointer-events="none"/>
     </g>
     <g v-if="interactive && brush && !preparing" class="nail-brush" :class="{ 'is-stroking': brush.active }" :transform="`translate(${brush.x} ${brush.y}) rotate(-32)`" pointer-events="none" aria-hidden="true">
       <ellipse cx="18" cy="80" rx="14" ry="76" fill="#33271f" opacity=".12"/>

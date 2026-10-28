@@ -9,6 +9,8 @@ import { OneCOrderStatusesDto, OneCProductsSyncDto } from './dto/sync.dto';
 import { OneCSyncService } from './1c-sync.service';
 import { OneCFinanceDto } from './dto/finance.dto';
 import { OneCStockSnapshotsDto } from './dto/stock.dto';
+import { OneCWarehouseSnapshotDto } from './dto/warehouse.dto';
+import { OneCWarehouseStocksDto } from './dto/warehouse-stock.dto';
 
 @ApiTags('1c-sync')
 @Controller('1c-sync')
@@ -49,6 +51,18 @@ export class OneCSyncController {
 @Controller('1c-webhook')
 export class OneCWebhookController {
   constructor(private readonly sync: OneCSyncService) {}
+  @Post('warehouse-snapshot')
+  @ApiOperation({ summary: 'Версионные подтверждённые складские данные заказа из 1С' })
+  async warehouseSnapshot(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCWarehouseSnapshotDto) {
+    if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');
+    return this.sync.importWarehouse(dto, key);
+  }
+  @Post('warehouse-stock')
+  @ApiOperation({ summary: 'Версионные остатки и резервы 1С с учётом локальных удержаний' })
+  async warehouseStock(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCWarehouseStocksDto) {
+    if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');
+    return this.sync.importWarehouseStock(dto, key);
+  }
   @Post('stock-snapshots')
   @ApiOperation({ summary: 'Версионные физические остатки 1С для сверки без изменения склада CRM' })
   async stockSnapshots(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCStockSnapshotsDto) {
@@ -58,7 +72,7 @@ export class OneCWebhookController {
   @Post('order-finance')
   async orderFinance(@Headers('x-integration-key') key: string | undefined, @Body() dto: OneCFinanceDto) {
     if (!(await this.sync.verifyInboundSecret(key))) throw new UnauthorizedException('Неверный ключ интеграции 1С');
-    return this.sync.importFinance(dto);
+    return this.sync.importFinance(dto, key);
   }
 
   @Post('order-statuses')

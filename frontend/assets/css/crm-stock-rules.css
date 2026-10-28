@@ -1,6 +1,6 @@
 @layer crm-elements {
  .crm-stock-rules { display: grid !important; gap: 16px !important; min-width: 0 !important; }
- .crm-stock-rules-intro { display: flex !important; gap: 16px !important; padding: 20px !important; border: 1px solid var(--brand-gray) !important; border-radius: 16px !important; background: var(--brand-soft) !important; }
+ .crm-stock-rules-intro { display: flex !important; gap: 16px !important; padding: 20px !important; border: 1px solid var(--brand-gray) !important; border-radius: 8px !important; background: var(--brand-soft) !important; }
  .crm-stock-rules-intro > svg { flex-shrink: 0 !important; color: var(--brand-action) !important; }
  .crm-stock-rules-intro h2 { margin: 0 0 8px !important; font-size: 18px !important; }
  .crm-stock-rules-intro p, .crm-stock-rules-delivery p { margin: 0 !important; line-height: 1.6 !important; }
@@ -16,13 +16,13 @@
  .crm-stock-rule h3, .crm-stock-group h3 { font-size: 15px !important; margin: 0 !important; overflow-wrap: anywhere !important; }
  .crm-stock-rule p, .crm-stock-group p { margin: 8px 0 4px !important; line-height: 1.5 !important; overflow-wrap: anywhere !important; }
  .crm-stock-rule small, .crm-stock-group small { color: var(--brand-muted) !important; font-size: 12px !important; }
- .crm-stock-rule-badge { padding: 5px 8px !important; border-radius: 7px !important; background: var(--brand-soft) !important; font-size: 11px !important; white-space: nowrap !important; }
- .crm-stock-rule-badge[data-active="true"] { background: #fff0d6 !important; color: #785008 !important; }
+ .crm-stock-rule-badge { padding: 5px 8px !important; border-radius: 7px !important; background: var(--brand-soft) !important; font-size: 12px !important; white-space: nowrap !important; }
+ .crm-stock-rule-badge[data-active="true"] { background: var(--crm-warning-bg) !important; color: var(--crm-warning) !important; }
  .crm-stock-rule-condition { display: grid !important; gap: 6px !important; }
  .crm-stock-rule-condition strong { font-size: 21px !important; }
  .crm-stock-rule-channels > div, .crm-stock-rule-members { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 8px !important; }
  .crm-stock-rule-channels span, .crm-stock-rule-members > span { padding: 6px 9px !important; background: var(--brand-soft) !important; border-radius: 7px !important; font-size: 12px !important; color: var(--brand-action) !important; }
- .crm-stock-rules-delivery { display: flex !important; align-items: flex-start !important; gap: 10px !important; padding: 14px 16px !important; background: #fff9ec !important; border: 1px solid #f0dfbc !important; border-radius: 12px !important; font-size: 13px !important; color: #795d22 !important; }
+ .crm-stock-rules-delivery { display: flex !important; align-items: flex-start !important; gap: 10px !important; padding: 14px 16px !important; background: var(--crm-warning-bg) !important; border: 1px solid var(--crm-line) !important; border-radius: 12px !important; font-size: 13px !important; color: var(--crm-warning) !important; }
  .crm-stock-rules-delivery svg { flex-shrink: 0 !important; margin-top: 2px !important; }
  .crm-stock-group { display: grid !important; grid-template-columns: 24px minmax(0,1fr) auto !important; align-items: center !important; gap: 16px !important; padding: 20px !important; }
  .crm-stock-rule-form { display: flex !important; flex-direction: column !important; gap: 16px !important; }

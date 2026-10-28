@@ -4,7 +4,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
-import { CancelMeetingDto, CreateMeetingDto, MeetingListDto, UpdateMeetingDto } from './meeting.dto';
+import { CancelMeetingDto, CreateMeetingDto, MeetingListDto, RespondMeetingDto, UpdateMeetingDto } from './meeting.dto';
 import { MeetingsService } from './meetings.service';
 
 @Controller('crm/meetings')
@@ -19,4 +19,5 @@ export class MeetingsController {
   @Post() @Permissions('meetings.read', 'meetings.write') create(@Req() req: any, @Body() dto: CreateMeetingDto) { return this.meetings.create(req.user.sub, dto); }
   @Patch(':id') @Permissions('meetings.read', 'meetings.write') update(@Req() req: any, @Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @Body() dto: UpdateMeetingDto) { return this.meetings.update(req.user.sub, id, dto); }
   @Post(':id/cancel') @Permissions('meetings.read', 'meetings.write') cancel(@Req() req: any, @Param('id', new ParseUUIDPipe({ version: '4' })) id: string, @Body() dto: CancelMeetingDto) { return this.meetings.cancel(req.user.sub, id, dto); }
+  @Post(':id/respond') respond(@Req() req:any,@Param('id',new ParseUUIDPipe({version:'4'})) id:string,@Body() dto:RespondMeetingDto){return this.meetings.respond(req.user.sub,id,dto);}
 }

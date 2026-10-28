@@ -51,7 +51,7 @@
  html[data-crm-ui] .crm-knowledge-reader-meta {display:flex;gap:8px 20px;flex-wrap:wrap;margin-bottom:28px;}
  html[data-crm-ui] .crm-knowledge-reader-meta > span {display:flex;align-items:center;gap:6px;color:var(--crm-muted);font-size:var(--crm-type-caption)!important;}
  html[data-crm-ui] .crm-knowledge-text {white-space:normal;}
- html[data-crm-ui] .crm-knowledge .crm-knowledge-text > p {white-space:pre-wrap;overflow-wrap:anywhere;color:var(--crm-ink)!important;font-size:15px!important;line-height:1.85!important;margin:0 0 20px!important;}
+ html[data-crm-ui] .crm-knowledge .crm-knowledge-text > p {white-space:pre-wrap;overflow-wrap:anywhere;color:var(--crm-ink)!important;font-size:14px!important;line-height:1.75!important;margin:0 0 16px!important;max-width:78ch;}
  html[data-crm-ui] .crm-knowledge-editor {min-width:0;padding:24px!important;}
  html[data-crm-ui] .crm-knowledge-editor > fieldset {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;border:0;padding:0;margin:0 0 20px;min-width:0;}
  html[data-crm-ui] .crm-knowledge-editor label {display:grid;gap:8px;min-width:0;}

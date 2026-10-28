@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsDefined, IsEmail, IsEnum, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsDefined, IsEmail, IsEnum, IsIn, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { MarketplaceChannel, MarketplaceOrderStatus } from '@prisma/client';
 
 export class UpsertMarketplaceOrderDto {
@@ -13,6 +13,7 @@ export class UpsertMarketplaceOrderDto {
   @IsNumber() @Min(0) totalAmount!: number;
   @IsOptional() @IsString() deliveryDate?: string;
   @IsOptional() @IsString() trackingNumber?: string;
+  @IsOptional() @IsIn(['FBS', 'FBO']) fulfillmentMode?: 'FBS' | 'FBO';
   @IsDefined() items!: Record<string, unknown> | unknown[];
   @IsOptional() @IsObject() payload?: Record<string, unknown>;
 }

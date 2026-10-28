@@ -1,0 +1,13 @@
+/* Legacy page geometry kept outside canonical control recipes. */
+@layer crm-elements {
+ html[data-crm-ui] .tasks-page .calendar > header > .crm-button {width:44px!important;min-width:44px!important;padding:10px!important;}
+ html[data-crm-ui] .tasks-page .calendar-grid > .today > time {background:var(--crm-accent)!important;color:var(--crm-on-accent)!important;border-radius:6px;}
+ html[data-crm-ui] .tasks-page .calendar-grid button.crm-button {display:block!important;justify-content:flex-start!important;text-align:left!important;padding:8px!important;}
+ html[data-crm-ui] .tasks-page .calendar-grid button.crm-button.overdue {background:var(--crm-danger-bg)!important;color:var(--crm-danger)!important;}
+ html[data-crm-ui] .pipeline-page .crm-board {display:grid!important;grid-auto-flow:column!important;grid-auto-columns:284px!important;grid-template-rows:auto minmax(0,1fr)!important;min-height:626px!important;}
+ html[data-crm-ui] .pipeline-page .crm-board-column {display:grid!important;grid-row:span 2!important;grid-template-rows:subgrid!important;row-gap:0!important;min-width:0!important;}
+ html[data-crm-ui] .pipeline-page .crm-board-column > header {height:auto!important;min-height:0!important;grid-template-columns:4px minmax(0,1fr)!important;align-items:stretch!important;}
+ html[data-crm-ui] .pipeline-page .crm-board-column > header > i {height:auto!important;min-height:34px!important;}
+ html[data-crm-ui] .pipeline-page .crm-board-column > header > div {min-width:0!important;grid-template-rows:1fr auto!important;}
+ html[data-crm-ui] .pipeline-page .crm-board-column > header strong {white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.45!important;}
+ html[data-crm-ui] .pipeline-page .crm-board-column > .cards {align-content:start!important;min-width:0!important;}}

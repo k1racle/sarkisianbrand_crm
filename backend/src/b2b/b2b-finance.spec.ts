@@ -8,5 +8,6 @@ describe('B2B historical financial visibility, no network/database',()=>{
  it('protects nested dashboard/client/profile totals',()=>{const result=protectB2BFinance({creditLimit:10000,serviceRevenueMonth:1500,purchasesMonth:2000,recentOrders:[order],client:{totalSpent:5000}},false);expect(result.creditLimit).toBeNull();expect(result.client.totalSpent).toBeNull();expect(result.recentOrders[0].finalAmount).toBeNull();});
  it('allowed viewers receive original values',()=>{expect(protectB2BFinance(order,true)).toBe(order);});
  it('list prices are not treated as historic finance',()=>{expect(protectB2BFinance({name:'Service',price:1000},false).price).toBe(1000);});
+ it('redacts historic booking prices without redacting current service list prices',()=>{expect(protectB2BFinance({priceSnapshot:750,service:{price:1000}},false)).toEqual({priceSnapshot:null,service:{price:1000}});});
  it('preserves Prisma Decimal-style serialization',()=>{const decimal={toJSON:()=> '1000',d:[1000],s:1,e:3};expect(protectB2BFinance({price:decimal},false).price).toBe(decimal);});
 });

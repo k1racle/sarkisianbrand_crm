@@ -1,19 +1,71 @@
-/* Public online booking and embedded widget; independent from employee CSS. */
-.public-salon-hours{padding:12px;border:1px solid var(--line);border-radius:8px}.public-salon-hours summary{cursor:pointer}.public-salon-hours>div{display:flex;gap:8px;flex-wrap:wrap;padding-top:8px}.public-salon-hours small{width:100%}
-.public-salon-booking .public-booking-card header img.public-salon-logo{filter:none;max-width:180px;height:64px;object-fit:contain}.public-salon-contacts{display:grid;gap:8px;min-width:0}.public-salon-contacts p{margin:0;overflow-wrap:anywhere}.public-salon-contacts>div{display:flex;gap:8px 16px;flex-wrap:wrap}.public-salon-contacts a{color:var(--sb-ink);overflow-wrap:anywhere}.public-salon-contacts small{font-size:12px;color:var(--muted)}
-.public-salon-booking { min-height:100dvh;background:var(--sb-bg);padding:32px 16px;color:var(--sb-ink);font:14px/1.5 Montserrat,Arial,sans-serif; }
-.public-booking-card { display:grid;gap:24px;max-width:560px;margin:0 auto;padding:28px;border:1px solid var(--line);border-radius:16px;background:var(--sb-panel); }
-.public-booking-card header { display:grid;gap:8px; }.public-booking-card header img { width:190px;max-width:80%;margin-bottom:12px; }
-.public-booking-card :is(h1,h2) { margin:0;font-size:20px;line-height:1.35;font-weight:600; }.public-booking-card p { margin:0; }
-.public-booking-card small { font-size:12px;color:var(--muted); }.public-booking-card :is(form,.public-booking-stage,fieldset) { display:grid;gap:20px;min-width:0; }.public-booking-card fieldset { border:0;margin:0;padding:0; }
-.public-booking-card label { display:grid;gap:8px; }.public-booking-card :is(input:not([type=checkbox]),select) { width:100%;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--sb-panel);padding:10px 12px;font:inherit;color:inherit; }
-.public-booking-card :is(button,a) { display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--sb-panel);color:var(--sb-ink);font:inherit;font-weight:600; }
-.public-booking-card :is(button:disabled,fieldset:disabled) { opacity:.5;cursor:default; }.public-booking-card button.public-booking-primary { background:var(--sb-ink);color:var(--sb-panel);border-color:var(--sb-ink); }
-.public-booking-card :is(input,select,button):focus-visible { outline:2px solid var(--blue);outline-offset:2px; }
-.public-booking-steps { display:flex;justify-content:space-between;gap:8px;padding:0;margin:0;list-style:none; }.public-booking-steps li { display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted); }
-.public-booking-steps li>span { display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--soft); }.public-booking-steps li.active { color:var(--sb-ink);font-weight:600; }.public-booking-steps li.active>span,.public-booking-steps li.done>span { background:var(--sb-ink);color:var(--sb-panel); }
-.public-booking-summary { display:grid;gap:6px;padding:14px;background:var(--soft);border-radius:8px; }.public-booking-slots { display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px; }.public-booking-slots button.selected { background:var(--sb-ink);color:var(--sb-panel);border-color:var(--sb-ink); }
-.public-booking-card footer { display:flex;justify-content:space-between;gap:12px; }.public-booking-card .public-booking-consent { display:flex;align-items:start;gap:10px;font-size:12px; }.public-booking-consent input { width:18px;height:18px;flex:none;margin:0; }
-.public-booking-error { border:1px solid var(--coral);border-radius:8px;padding:12px; }.public-booking-success { display:grid;justify-items:center;text-align:center;gap:16px;padding:16px 0; }.public-booking-powered { text-align:center; }
-.public-salon-booking.is-embedded { padding:12px;min-height:0;background:var(--sb-panel); }.is-embedded .public-booking-card { border:0;border-radius:0;padding:12px; }
-@media(max-width:600px) { .public-salon-booking { padding:16px 12px; }.public-booking-card { padding:20px 16px; }.public-booking-card footer>button { flex:1; }.public-booking-steps { gap:4px; } }
+/* Public booking owns its surfaces; CRM and storefront skins do not override it. */
+.public-salon-booking {
+  --booking-ink:var(--brand-graphite);--booking-muted:var(--brand-muted);--booking-line:var(--brand-gray);
+  --booking-soft:#f6f6f5;--booking-surface:#fff;
+  min-height:100dvh;background:var(--brand-bg);padding:48px 16px;color:var(--booking-ink);
+  font:14px/1.55 var(--brand-font-body);
+}
+.public-booking-card {display:grid;gap:24px;max-width:640px;margin:0 auto;padding:32px;border:1px solid var(--booking-line);border-radius:16px;background:var(--booking-surface);box-shadow:0 4px 20px rgb(60 60 59 / .03);}
+.public-booking-card header {display:grid;gap:8px;padding-bottom:24px;border-bottom:1px solid var(--booking-line);}
+.public-booking-card header img {width:176px;max-width:80%;margin-bottom:16px;}
+.public-booking-card header img.public-salon-logo {filter:none;max-width:180px;height:64px;object-fit:contain;object-position:left center;}
+.public-booking-card :is(h1,h2) {margin:0;line-height:1.25;font-family:var(--sb-font-heading);font-weight:700;letter-spacing:-.02em;}
+.public-booking-card h1 {font-size:28px;}
+.public-booking-card h2 {font-size:20px;}
+.public-booking-card .public-booking-title {margin-bottom:-8px;}
+.public-booking-card p {margin:0;}
+.public-booking-card small {font-size:12px;color:var(--booking-muted);}
+.public-booking-card :is(form,.public-booking-stage,fieldset) {display:grid;gap:20px;min-width:0;}
+.public-booking-card fieldset {border:0;margin:0;padding:0;}
+.public-booking-card label {display:grid;gap:8px;}
+.public-booking-card :is(input:not([type=checkbox]),select) {width:100%;min-width:0;min-height:48px;border:1px solid var(--booking-line);border-radius:10px;background:var(--booking-surface);padding:12px;font:inherit;color:inherit;}
+.public-booking-card :is(button,a) {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid var(--booking-line);border-radius:10px;background:var(--booking-surface);color:var(--booking-ink);font:500 14px/1.5 var(--brand-font-ui);}
+.public-booking-card button:hover:not(:disabled) {background:var(--booking-soft);border-color:var(--booking-muted);}
+.public-booking-card :is(button:disabled,fieldset:disabled) {opacity:.5;cursor:not-allowed;}
+.public-booking-card button.public-booking-primary {background:var(--booking-ink);color:#fff;border-color:var(--booking-ink);min-height:48px;}
+.public-booking-card button.public-booking-primary:hover:not(:disabled) {background:var(--brand-action-hover);}
+.public-booking-card :is(input,select,button,a,summary):focus-visible {outline:2px solid var(--booking-ink);outline-offset:3px;}
+.public-booking-card :is(h2):focus {outline:none;}
+.public-booking-steps {display:flex;justify-content:space-between;gap:8px;padding:0;margin:0;list-style:none;}
+.public-booking-steps li {display:flex;align-items:center;gap:8px;font:500 12px/1.5 var(--brand-font-ui);color:var(--booking-muted);}
+.public-booking-steps li>span {display:grid;place-items:center;width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--booking-soft);border:1px solid var(--booking-line);}
+.public-booking-steps li.active {color:var(--booking-ink);}
+.public-booking-steps li:is(.active,.done)>span {background:var(--booking-ink);color:#fff;border-color:var(--booking-ink);}
+.public-booking-summary {display:grid;gap:6px;padding:16px;background:var(--booking-soft);border-radius:10px;}
+.public-booking-service-preview {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border:1px solid var(--booking-line);border-radius:10px;}
+.public-booking-service-preview span {display:grid;gap:4px;}
+.public-booking-service-preview strong {white-space:nowrap;font-size:20px;}
+.public-booking-nearest {display:flex;flex-wrap:wrap;gap:8px;}
+.public-booking-nearest button {flex:1 1 100px;padding-inline:8px;}
+.public-booking-card button[aria-pressed=true] {background:var(--booking-ink);color:#fff;border-color:var(--booking-ink);}
+.public-booking-card button[aria-pressed=true]:hover:not(:disabled) {background:var(--booking-ink);color:#fff;border-color:var(--booking-ink);}
+.public-booking-slots {display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;}
+.public-booking-slots button.selected {background:var(--booking-ink);color:#fff;border-color:var(--booking-ink);}
+.public-booking-card footer {display:flex;justify-content:space-between;gap:12px;padding-top:8px;}
+.public-booking-card .public-booking-consent {display:flex;align-items:flex-start;gap:12px;font-size:12px;line-height:1.65;cursor:pointer;}
+.public-booking-consent input {width:20px;height:20px;flex:0 0 20px;margin:0;accent-color:var(--booking-ink);}
+.public-booking-error {display:grid;gap:12px;border:1px solid #dbaeb7;background:#fff5f6;color:#8f3044;border-radius:10px;padding:16px;}
+.public-booking-error button {justify-self:start;}
+.public-booking-success {display:grid;justify-items:center;text-align:center;gap:16px;padding:24px 0;}
+.public-booking-success>svg {box-sizing:content-box;padding:16px;background:var(--booking-soft);border-radius:50%;}
+.public-booking-powered {text-align:center;}
+.public-salon-contacts {display:grid;gap:8px;min-width:0;}
+.public-salon-contacts p {margin:0;overflow-wrap:anywhere;}
+.public-salon-contacts>div {display:flex;gap:8px 16px;flex-wrap:wrap;}
+.public-salon-contacts a {min-height:24px;padding:0;border:0;border-radius:0;justify-content:flex-start;overflow-wrap:anywhere;text-decoration:underline;text-underline-offset:4px;}
+.public-salon-hours {padding:0;border:0;}
+.public-salon-hours summary {cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--booking-muted);text-decoration:underline;text-underline-offset:4px;}
+.public-salon-hours>div {display:flex;gap:8px;flex-wrap:wrap;padding-top:8px;}
+.public-salon-hours small {width:100%;}
+.public-salon-booking.is-embedded {padding:12px;min-height:0;background:var(--booking-surface);}
+.is-embedded .public-booking-card {border:0;border-radius:0;padding:12px;box-shadow:none;}
+@media(max-width:600px) {
+ .public-salon-booking {padding:16px 12px;}
+ .public-booking-card {padding:24px 20px;}
+ .public-booking-card h1 {font-size:24px;}
+ .public-booking-card :is(input:not([type=checkbox]),select) {font-size:16px;}
+ .public-booking-card footer>button {flex:1;}
+ .public-booking-steps {gap:4px;}
+ .public-booking-steps li {gap:6px;}
+ .public-booking-nearest button {flex-basis:90px;}
+}

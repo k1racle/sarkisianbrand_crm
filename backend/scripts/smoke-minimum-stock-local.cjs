@@ -61,10 +61,10 @@ async function cleanup(){
  const rejected=await api('/orders/checkout','',400,'POST',{acceptedTerms:true,contact,deliveryMethod:'COURIER',shippingAddress:{city:'Москва',address:'Тест 1'}},{'x-cart-session':cartSession,'x-idempotency-key':randomUUID()});assert.match(rejected.message,/Недостаточно товара/);
  const password='QA-'+randomUUID(),hash=await bcrypt.hash(password,10);
  const customer=await db.user.create({data:{email:key+'-buyer@local.test',password:hash,firstName:'QA',role:'CUSTOMER_B2B'}});users.push(customer.id);
- const organization=await db.organization.create({data:{name:key+' company'}});organizations.push(organization.id);await db.organizationMember.create({data:{organizationId:organization.id,userId:customer.id,canOrder:true,canSeeFinance:true,role:'OWNER'}});
+ const organization=await db.organization.create({data:{name:key+' company',status:'ACTIVE'}});organizations.push(organization.id);await db.organizationMember.create({data:{organizationId:organization.id,userId:customer.id,canOrder:true,canSeeFinance:true,role:'OWNER'}});
  const buyer=(await api('/auth/login','',200,'POST',{email:customer.email,password})).accessToken;
  const b2b=await api('/b2b/catalog',buyer);assert.equal(b2b.find(x=>x.id===p.id).variants.find(x=>x.id===a.id).available,0);
- await api('/b2b/orders',buyer,400,'POST',{items:[{variantId:a.id,quantity:1}]});
+ await api('/b2b/orders',buyer,400,'POST',{requestKey:randomUUID(),items:[{variantId:a.id,quantity:1}]});
  await api(config,buyer,403);await api(config+'/rules',buyer,403,'POST',r.body);
  const employee=await db.user.create({data:{email:key+'-read@local.test',password:hash,role:'WAREHOUSE',accessProfileMode:true}});users.push(employee.id);
  const profile=await db.crmAccessProfile.create({data:{name:key,normalizedName:key}});profiles.push(profile.id);const grants=[{permissionKey:'inventory.read',scope:'COMPANY',departmentIds:[]}];
@@ -75,10 +75,10 @@ async function cleanup(){
  for(const patch of [{threshold:-1},{threshold:1.5},{threshold:'2'},{channels:[]},{channels:['ALIEN']},{channels:['WEB','WEB']},{autoResume:'false'},{targetId:randomUUID()}])await api(config+'/rules',admin,400,'POST',{...r.body,...patch});
  // Same rules protect concurrent checkout after the first order reaches the threshold.
  await db.productVariant.update({where:{id:a.id},data:{stock:21,reserved:0}});
- const responses=await Promise.all([1,2].map(()=>fetch(base+'/b2b/orders',{method:'POST',headers:{Authorization:'Bearer '+buyer,'Content-Type':'application/json'},body:JSON.stringify({items:[{variantId:a.id,quantity:1}]})})));
+ const responses=await Promise.all([1,2].map(()=>fetch(base+'/b2b/orders',{method:'POST',headers:{Authorization:'Bearer '+buyer,'Content-Type':'application/json'},body:JSON.stringify({requestKey:randomUUID(),items:[{variantId:a.id,quantity:1}]})})));
  assert.deepEqual(responses.map(x=>x.status).sort(),[201,400]);assert.equal((await db.productVariant.findUniqueOrThrow({where:{id:a.id}})).reserved,1);await check(a.id,'B2B',0,true);
  const created=(await api('/b2b/orders',buyer)).find(x=>x.items.some(i=>i.variantId===a.id));assert(created,'existing order stays visible');
- await api('/b2b/orders/'+created.id+'/repeat',buyer,400,'POST',{});
+ await api('/b2b/orders/'+created.id+'/repeat',buyer,400,'POST',{requestKey:randomUUID()});
  // Above threshold a WEB order is accepted and its reservation closes the next order.
  await db.productVariant.update({where:{id:a.id},data:{stock:22}});
  await api('/orders/checkout','',201,'POST',{acceptedTerms:true,contact,deliveryMethod:'COURIER',shippingAddress:{city:'Москва',address:'Тест 1'}},{'x-cart-session':cartSession,'x-idempotency-key':randomUUID()});await check(a.id,'WEB',0,true);

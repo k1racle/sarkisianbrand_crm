@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+FROM node:22.23.3-alpine AS node-base
+RUN apk add --no-cache openssl
+WORKDIR /app
+ENV NODE_ENV=production
+
+FROM node-base AS backend-build
+RUN apk add --no-cache python3 make g++
+COPY backend/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --include=dev --no-audit --no-fund
+COPY backend/ ./
+RUN ./node_modules/.bin/prisma generate && npm run build
+
+FROM backend-build AS migrations
+USER node
+ENTRYPOINT ["./node_modules/.bin/prisma"]
+CMD ["migrate", "deploy"]
+
+FROM backend-build AS backend-dependencies
+RUN npm prune --omit=dev --ignore-scripts --no-audit --no-fund
+
+FROM node-base AS backend
+COPY --from=backend-dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=backend-build --chown=node:node /app/dist ./dist
+COPY --from=backend-build --chown=node:node /app/package.json ./package.json
+COPY --chown=node:node backend/scripts/production-config-check.cjs backend/scripts/bootstrap-admin.cjs backend/scripts/production-entrypoint.sh ./scripts/
+RUN mkdir -p /app/uploads /app/private-crm-files && chown node:node /app/uploads /app/private-crm-files
+ENV PORT=3000
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=20s --timeout=4s --start-period=60s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/api/v1/health/ready',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+ENTRYPOINT ["/bin/sh", "/app/scripts/production-entrypoint.sh"]
+CMD ["node", "dist/src/main.js"]
+
+FROM node-base AS frontend-build
+COPY frontend/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+FROM node-base AS frontend
+COPY --from=frontend-build --chown=node:node /app/.output ./.output
+ENV HOST=0.0.0.0 PORT=3000
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=20s --timeout=4s --start-period=30s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/__health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["node", ".output/server/index.mjs"]
+
+FROM caddy:2.11.7-alpine AS proxy
+RUN mkdir -p /data /config && chown -R 1000:1000 /data /config
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+USER 1000:1000
+EXPOSE 8080 8443
+HEALTHCHECK --interval=20s --timeout=4s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:2019/config/

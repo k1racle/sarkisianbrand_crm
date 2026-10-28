@@ -1,4 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
+import { browserRealtimeOrigin } from '~/shared/api-origin';
 
 let realtime: Socket | null = null;
 let realtimeToken = '';
@@ -39,7 +40,7 @@ export function usePlatformChat() {
     if (realtime && realtimeToken === token.value) return;
     realtime?.disconnect();
     realtimeToken = token.value;
-    const origin = String(config.public.apiBase).replace(/\/api\/v1\/?$/, '');
+    const origin = browserRealtimeOrigin(String(config.public.apiBase), window.location.origin, config.public.apiProxyEnabled, String(config.public.apiRealtimePort || ''));
     realtime = io(`${origin}/platform-chat`, { auth: { token: token.value }, transports: ['websocket', 'polling'], reconnection: true });
     const connection = realtime, connectionToken = realtimeToken;
     const current = () => connection === realtime && token.value === connectionToken;

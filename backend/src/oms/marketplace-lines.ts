@@ -10,12 +10,15 @@ export function marketplaceLines(source: unknown) {
     const quantity = Number(item.quantity ?? item.count ?? 1), price = Number(item.price ?? item.salePrice ?? item.amount ?? 0);
     const total = Number(item.total ?? Math.round(price * quantity * 100) / 100);
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000000 || !Number.isFinite(price) || price < 0 || !Number.isFinite(total) || total < 0 || !Number.isSafeInteger(Math.round(total * 100))) throw new BadRequestException('Некорректное количество или цена площадки');
-    return { externalSku: String(item.sku ?? item.offerId ?? item.nmId ?? item.productId ?? ''), offerId: item.offerId == null ? null : String(item.offerId), quantity, price, total,
+    const externalVariantId = item.externalVariantId == null ? undefined : String(item.externalVariantId).trim();
+    return { externalSku: String(item.sku ?? item.offerId ?? item.nmId ?? item.productId ?? ''), offerId: item.offerId == null ? null : String(item.offerId), quantity, price, total, ...(externalVariantId ? { externalVariantId } : {}),
       productName: String(item.name ?? item.title ?? ''), variantName: String(item.variantName ?? item.size ?? '') };
   });
 }
-export function marketplaceContentHash(input: { items: unknown; totalAmount: number; buyerName?: string; buyerEmail?: string; buyerPhone?: string; deliveryDate?: string; status?: string }) {
+export function marketplaceContentHash(input: { items: unknown; totalAmount: number; buyerName?: string; buyerEmail?: string; buyerPhone?: string; deliveryDate?: string; status?: string; fulfillmentMode?: 'FBS' | 'FBO'; payload?: Record<string, unknown> | null }) {
   if (!Number.isFinite(input.totalAmount) || input.totalAmount < 0 || !Number.isSafeInteger(Math.round(input.totalAmount * 100))) throw new BadRequestException('Некорректная сумма заказа площадки');
   return createHash('sha256').update(JSON.stringify({ terminalStatus: ['CANCELLED', 'RETURNED'].includes(input.status || '') ? input.status : null, total: input.totalAmount, buyerName: input.buyerName ?? null, buyerEmail: input.buyerEmail ?? null, buyerPhone: input.buyerPhone ?? null, deliveryDate: input.deliveryDate ? new Date(input.deliveryDate).toISOString() : null,
-    lines: marketplaceLines(input.items).map(line => JSON.stringify(line)).sort() })).digest('hex');
+    lines: marketplaceLines(input.items).map(line => JSON.stringify(line)).sort(), ...(input.fulfillmentMode ? { fulfillmentMode: input.fulfillmentMode } : {}),
+    ...(input.payload?.provider === 'OZON' ? { sourceStatus: input.payload.sourceStatus ?? null } : {}),
+    ...(input.payload?.provider === 'WILDBERRIES' ? { supplierStatus: input.payload.supplierStatus ?? null, wbStatus: input.payload.wbStatus ?? null } : {}) })).digest('hex');
 }

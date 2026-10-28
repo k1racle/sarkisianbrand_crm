@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrmReadAccess } from '../crm/read-access';
 import { withOperationalAccess } from '../common/operational-access';
@@ -9,12 +9,13 @@ import { orderAccessWhere, marketplaceSources } from './oms-read.service';
 import { OrderExecutionDto } from './dto/execution.dto';
 import { executionSnapshot } from './execution-snapshot';
 export { executionSnapshot } from './execution-snapshot';
-import { requireOneCRelease } from '../1c-sync/finance-policy';
+import { OneCSyncService } from '../1c-sync/1c-sync.service';
+import { holdVerifiedOneCStock } from '../common/one-c-sale-stock';
 
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 export class OmsExecutionService {
-  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess, private readonly oneC: Pick<OneCSyncService, 'stageOrderExport'>) {}
 
   execute(actor: string, id: string, dto: OrderExecutionDto) {
     return withOperationalAccess(this.prisma, this.access, actor, 'oms', true, async ctx => {
@@ -30,9 +31,15 @@ export class OmsExecutionService {
         if (previous.requestHash !== requestHash) throw new ConflictException('Этот ключ запроса уже использован для другого действия');
         return { operationId: previous.id, repeated: true };
       }
+      if (dto.kind !== 'CONFIRM') throw new ConflictException('Сборка и отгрузка выполняются в 1С. Дождитесь подтверждения склада.');
       if ((order.execution?.version || 0) !== dto.expectedVersion || order.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime()) throw new ConflictException('Заказ изменился. Обновите карточку перед выполнением действия');
       const marketplace = marketplaceSources.includes(order.source);
       const partnerGift = order.source === 'MANUAL' && order.sourceChannel === 'PARTNER_GIFT';
+      const marketplacePayload = order.sourcePayload && typeof order.sourcePayload === 'object' && !Array.isArray(order.sourcePayload) ? order.sourcePayload as Record<string, unknown> : {};
+      if (marketplace && marketplacePayload.fulfillmentMode === 'FBO') throw new ConflictException('Заказ исполняется со склада площадки. Создание задания своему складу недоступно.');
+      const providerPayload = marketplacePayload.payload && typeof marketplacePayload.payload === 'object' && !Array.isArray(marketplacePayload.payload) ? marketplacePayload.payload as Record<string, unknown> : {};
+      if (marketplace && providerPayload.provider === 'OZON' && providerPayload.sourceStatus !== 'awaiting_packaging') throw new ConflictException('Статус Ozon не подтверждает необходимость новой сборки. Сначала сверьте заказ с площадкой.');
+      if (marketplace && providerPayload.provider === 'WILDBERRIES' && providerPayload.supplierStatus !== 'new') throw new ConflictException('Статус Wildberries не подтверждает необходимость новой сборки. Сначала сверьте заказ с площадкой.');
       const createReserve = marketplace && dto.kind === 'CONFIRM' && order.reservationState === 'LEGACY';
       if ((!['WEB', 'B2B'].includes(order.source) && !marketplace && !partnerGift) || (order.reservationState !== 'ACTIVE' && !createReserve)) throw new ConflictException('Для исполнения нужен действующий резерв или подтверждение своего склада для заказа площадки');
       if (order.marketplaceImportIssue) throw new ConflictException(order.marketplaceImportIssue);
@@ -40,15 +47,13 @@ export class OmsExecutionService {
       if (['CANCELLED', 'REFUNDED', 'SHIPPED', 'DELIVERED'].includes(order.status)) throw new ConflictException('Заказ уже завершён или отгружен');
       if (!order.managerId) throw new BadRequestException('Сначала назначьте ответственного менеджера');
       if (order.source === 'WEB' && !(order.paymentStatus === 'SUCCEEDED' && order.payments.some(p => p.status === 'SUCCEEDED'))) throw new ConflictException('Оплата заказа сайта должна быть подтверждена платёжной системой');
-      if (order.source === 'B2B' && dto.kind === 'SHIP') requireOneCRelease({ ...order, oneCFinance: await tx.oneCOrderFinance.findUnique({ where: { orderId: id } }) });
       const operator = await tx.user.findUniqueOrThrow({ where: { id: actor }, select: { firstName: true, lastName: true } });
       const actorName = [operator.firstName, operator.lastName].filter(Boolean).join(' ') || 'Сотрудник';
       let status: OrderStatus = order.status;
       let comment: string;
       let reservationState = order.reservationState;
-      let pickingStartedAt = order.pickingStartedAt, pickedAt = order.pickedAt;
       const lines: { itemId: string; productName: string; quantity: number }[] = [];
-      if (dto.kind === 'CONFIRM') {
+      {
         if (order.execution || order.fulfillmentManaged) throw new ConflictException('Задание на сборку уже создано');
         if (!['NEW', 'CONFIRMED', 'PAYMENT_WAITING', 'PAID'].includes(order.status)) throw new ConflictException('Заказ уже передан в исполнение другим способом');
         if (!dto.compositionChecked || !dto.pricesChecked || !dto.paymentTerms?.trim() || !dto.deliveryTerms?.trim()) throw new BadRequestException('Проверьте состав и цены, укажите условия оплаты и доставки');
@@ -58,6 +63,8 @@ export class OmsExecutionService {
         for (const item of order.items) quantities.set(item.variantId!, (quantities.get(item.variantId!) || 0) + item.quantity);
         for (const [variantId, quantity] of [...quantities].sort(([a], [b]) => a.localeCompare(b))) {
           if (createReserve) {
+            await tx.$queryRaw`SELECT id FROM "ProductVariant" WHERE id = ${variantId} FOR UPDATE`;
+            await holdVerifiedOneCStock(tx, variantId, quantity);
             const reserved = await tx.$queryRaw<{ id: string }[]>`UPDATE "ProductVariant" SET reserved = reserved + ${quantity} WHERE id = ${variantId} AND "isActive" = true AND stock - reserved >= ${quantity} AND EXISTS (SELECT 1 FROM "Product" WHERE "Product".id = "ProductVariant"."productId" AND "Product"."isActive" = true AND "Product"."productType" = 'PHYSICAL') RETURNING id`;
             if (reserved.length !== 1) throw new ConflictException('Недостаточно доступного товара для резерва площадки');
           }
@@ -67,40 +74,14 @@ export class OmsExecutionService {
         if (createReserve) reservationState = 'ACTIVE';
         await tx.orderExecution.create({ data: { orderId: id, snapshotHash: executionSnapshot(order), paymentTerms: dto.paymentTerms.trim(), deliveryTerms: dto.deliveryTerms.trim(), confirmedBy: actor } });
         status = order.status === 'PAID' ? OrderStatus.PAID : OrderStatus.CONFIRMED;
-        comment = 'Состав и цены проверены; условия оплаты и доставки согласованы. Создано задание на сборку';
-      } else {
-        if (!order.execution || !order.fulfillmentManaged) throw new ConflictException('Сначала подтвердите состав и условия заказа');
-        if (order.execution.snapshotHash !== executionSnapshot(order)) throw new ConflictException('Состав или условия изменились после подтверждения. Исполнение остановлено для сверки');
-        if (!dto.lines?.length || new Set(dto.lines.map(l => l.itemId)).size !== dto.lines.length) throw new BadRequestException('Укажите позиции без повторов и количество');
-        const ordered = [...dto.lines].sort((a, b) => a.itemId.localeCompare(b.itemId));
-        // Aggregate variant movements and lock in stable order across different orders.
-        const movements = new Map<string, number>();
-        for (const line of ordered) {
-          const item = order.items.find(i => i.id === line.itemId);
-          if (!item || !item.variantId || !Number.isSafeInteger(line.quantity) || line.quantity <= 0) throw new BadRequestException('Некорректная позиция или количество');
-          const available = dto.kind === 'PICK' ? item.quantity - item.cancelledQuantity - item.pickedQuantity : item.pickedQuantity - item.shippedQuantity;
-          if (line.quantity > available) throw new ConflictException(dto.kind === 'PICK' ? 'Нельзя собрать больше заказанного' : 'Нельзя отгрузить больше собранного');
-          if (dto.kind === 'PICK') item.pickedQuantity += line.quantity;
-          else { item.shippedQuantity += line.quantity; movements.set(item.variantId, (movements.get(item.variantId) || 0) + line.quantity); }
-          lines.push({ itemId: item.id, productName: item.productName, quantity: line.quantity });
-        }
-        for (const [variantId, quantity] of [...movements].sort(([a], [b]) => a.localeCompare(b))) {
-          const moved = await tx.productVariant.updateMany({ where: { id: variantId, stock: { gte: quantity }, reserved: { gte: quantity } }, data: { stock: { decrement: quantity }, reserved: { decrement: quantity } } });
-          if (moved.count !== 1) throw new ConflictException('Недостаточно остатков или резерва. Отгрузка не проведена');
-        }
-        for (const item of order.items.filter(i => dto.lines!.some(l => l.itemId === i.id))) await tx.orderItem.update({ where: { id: item.id }, data: { pickedQuantity: item.pickedQuantity, shippedQuantity: item.shippedQuantity } });
-        const complete = order.items.every(i => i.shippedQuantity + i.cancelledQuantity === i.quantity);
-        status = complete ? OrderStatus.SHIPPED : OrderStatus.ASSEMBLING;
-        if (complete) reservationState = 'CONSUMED';
-        pickingStartedAt ||= new Date();
-        if (order.items.every(i => i.pickedQuantity + i.cancelledQuantity === i.quantity)) pickedAt ||= new Date();
-        comment = `${dto.kind === 'PICK' ? 'Сборка' : complete ? 'Завершена отгрузка' : 'Частичная отгрузка'}: ${lines.map(l => `${l.productName} × ${l.quantity}`).join('; ')}`;
-        await tx.orderExecution.update({ where: { orderId: id }, data: { version: { increment: 1 } } });
+        comment = 'Состав и цены проверены; условия оплаты и доставки согласованы. Заказ подготовлен к передаче в 1С';
       }
-      const operation = await tx.orderExecutionOperation.create({ data: { orderId: id, requestKey: dto.requestKey, requestHash, kind: dto.kind, actorId: actor, actorName, lines, trackingNumber: dto.kind === 'SHIP' ? dto.trackingNumber?.trim() || null : null } });
-      await tx.order.update({ where: { id }, data: { fulfillmentManaged: true, status, reservationState, reservationExpiresAt: null, pickingStartedAt, pickedAt, ...(dto.kind === 'SHIP' && dto.trackingNumber?.trim() ? { trackingNumber: dto.trackingNumber.trim() } : {}), isSynced1C: false } });
+      const operation = await tx.orderExecutionOperation.create({ data: { orderId: id, requestKey: dto.requestKey, requestHash, kind: dto.kind, actorId: actor, actorName, lines } });
+      await tx.order.update({ where: { id }, data: { fulfillmentManaged: false, status, reservationState, reservationExpiresAt: null, isSynced1C: false,
+        ...(createReserve && !marketplacePayload.fulfillmentMode ? { sourcePayload: { ...marketplacePayload, fulfillmentMode: 'FBS', fulfillmentModeSource: 'MANAGER_CONFIRMATION' } as Prisma.InputJsonValue } : {}) } });
       await tx.orderStatusHistory.create({ data: { orderId: id, fromStatus: order.status, toStatus: status, changedBy: actor, comment: `${comment}. Выполнил: ${actorName}` } });
       await tx.auditLog.create({ data: { actorId: actor, resource: 'oms', resourceId: id, action: `ORDER_EXECUTION_${dto.kind}`, payload: { operationId: operation.id, lines } } });
+      await this.oneC.stageOrderExport(tx, id, actor);
       return { operationId: operation.id, repeated: false };
     });
   }

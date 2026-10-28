@@ -1,5 +1,5 @@
 const http = require('http');
-const { createCipheriv, createHash, createHmac, randomBytes } = require('crypto');
+const { createCipheriv, createHash, createHmac, randomBytes, randomUUID } = require('crypto');
 const jwt = require('jsonwebtoken');
 const { PrismaClient, Prisma } = require('@prisma/client');
 
@@ -179,7 +179,7 @@ async function main() {
     const automaticVariant = catalog.flatMap(item => item.variants).find(item => item.available > 0 && item.sku !== 'ONE-C-SMOKE-001');
     if (!automaticVariant) throw new Error('Нет товара для проверки автоматической выгрузки B2B-заказа');
     automaticVariantBackup = await prisma.productVariant.findUniqueOrThrow({ where: { id: automaticVariant.id }, select: { id: true, stock: true, reserved: true } });
-    const automaticOrder = await api('/b2b/orders', demoAuth.accessToken, { method: 'POST', body: JSON.stringify({ items: [{ variantId: automaticVariant.id, quantity: 1 }], comments: 'Проверка автоматической отправки в 1С' }) });
+    const automaticOrder = await api('/b2b/orders', demoAuth.accessToken, { method: 'POST', body: JSON.stringify({ requestKey: randomUUID(), items: [{ variantId: automaticVariant.id, quantity: 1 }], comments: 'Проверка автоматической отправки в 1С' }) });
     createdOrderIds.push(automaticOrder.id);
     const automaticRunDeadline = Date.now() + 15000;
     let automaticStored;

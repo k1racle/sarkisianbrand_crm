@@ -1,0 +1,184 @@
+/* The embedded wardrobe uses the same dark surfaces as the game. Keep text
+   and its surface together: the source wardrobe's light panels need both. */
+.sb-studio-page .atelier .keri-wardrobe {
+  --kw-ink: #fff;
+  --kw-muted: #dedede;
+  --kw-line: #ffffff40;
+  --kw-paper: transparent;
+  color: var(--kw-ink);
+  background: transparent;
+  font-family: inherit;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-controls {
+  color: #fff;
+  background: #282828;
+  border-color: #ffffff40;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+  background: #242424;
+  border-color: #ffffff40;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs > button {
+  height: 44px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #ffffff50;
+  border-radius: 24px;
+  background: transparent !important;
+  color: #fff !important;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs > button > :is(span, svg) {
+  color: inherit !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs > button:hover:not(.active) {
+  background: #454545 !important;
+  border-color: #fff;
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs > button.active,
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs > button.active:hover {
+  background: #fff !important;
+  border-color: #fff;
+  color: #242424 !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-tabs > button.active::after {
+  display: none;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-controls :is(h2, legend, .kw-section-title > span, .kw-section-description, .kw-save-message) {
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-controls legend > span {
+  color: #dedede;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-choice {
+  background: #333 !important;
+  border-color: #ffffff50 !important;
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-choice:hover {
+  background: #454545 !important;
+  border-color: #fff !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-choice.selected {
+  background: #333 !important;
+  border-color: #fff !important;
+  box-shadow: inset 0 0 0 1px #fff;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-choice-picture {
+  background: #eee9df;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-choice-label {
+  color: #fff !important;
+  font-size: 11px;
+  padding: 10px 6px;
+  min-height: 36px;
+  line-height: 1.45;
+  overflow-wrap: normal;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-choice.selected .kw-choice-label,
+.sb-studio-page .atelier .keri-wardrobe .kw-choice-check {
+  background: #fff;
+  color: #242424 !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-divider {
+  background: #ffffff40;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-actions {
+  background: #282828;
+  border-top: 1px solid #ffffff40;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-actions .kw-text-button,
+.sb-studio-page .atelier .keri-wardrobe .kw-actions .kw-text-button:hover:not(:disabled) {
+  color: #fff !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-actions .kw-text-button:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-save {
+  background: #fff !important;
+  border-color: #fff !important;
+  color: #242424 !important;
+  border-radius: 28px;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-save:hover:not(:disabled) {
+  background: #dedede !important;
+  border-color: #dedede !important;
+  color: #242424 !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-save > :is(span, svg) {
+  color: inherit !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-controls :is(button, a):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* The illustration retains its neutral light backdrop for checking colors. */
+.sb-studio-page .atelier .keri-wardrobe .kw-preview {
+  --kw-ink: #35352f;
+  --kw-muted: #626258;
+  border-color: #ffffff40;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-preview-footer,
+.sb-studio-page .atelier .keri-wardrobe .kw-preview-state,
+.sb-studio-page .atelier .keri-wardrobe .kw-preview .kw-text-button,
+.sb-studio-page .atelier .keri-wardrobe .kw-preview .kw-text-button:hover:not(:disabled) {
+  color: #53534b !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-camera {
+  background: #fffdf6 !important;
+  color: #292929 !important;
+}
+
+.sb-studio-page .atelier .keri-wardrobe .kw-credits,
+.sb-studio-page .atelier .keri-wardrobe .kw-credits a {
+  color: #fff;
+}
+
+@media (max-width: 740px) {
+  .sb-studio-page .atelier .keri-wardrobe .kw-tabs {
+    gap: 6px;
+    padding: 10px;
+  }
+  .sb-studio-page .atelier .keri-wardrobe .kw-tabs > button {
+    font-size: 11px;
+    gap: 5px;
+    padding: 7px 4px;
+  }
+  .sb-studio-page .atelier .keri-wardrobe .kw-tabs > button > svg {
+    width: 16px;
+    height: 16px;
+  }
+}

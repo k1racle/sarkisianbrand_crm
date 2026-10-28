@@ -1,0 +1,149 @@
+/* Day workspace owns its composition; shared CRM tokens and controls own the theme. */
+html[data-crm-ui] .crm-day-page{padding:0;margin:0;max-width:none;min-width:0;color:var(--crm-ink);font-size:var(--crm-type-body);background:transparent}
+html[data-crm-ui] .crm-day-page :is(h1,h2,h3,p){margin:0}
+html[data-crm-ui] .crm-day-page :is(a,button,summary):focus-visible{outline:3px solid var(--crm-accent);outline-offset:3px}
+html[data-crm-ui] .crm-day-head{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:32px}
+html[data-crm-ui] .crm-day-head>div:first-child{min-width:0}
+html[data-crm-ui] .crm-day-head h1{font-size:var(--crm-type-page);font-weight:600;letter-spacing:-.025em;line-height:1.25}
+html[data-crm-ui] .crm-day-date{font-size:var(--crm-type-caption);color:var(--crm-muted);margin-top:8px!important;line-height:1.6}
+html[data-crm-ui] .crm-day-date::first-letter{text-transform:uppercase}
+html[data-crm-ui] .crm-day-head-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+html[data-crm-ui] .crm-day-create{position:relative}
+html[data-crm-ui] .crm-day-create>summary{list-style:none;cursor:pointer;min-width:140px;gap:12px}
+html[data-crm-ui] .crm-day-create>summary::-webkit-details-marker{display:none}
+html[data-crm-ui] .crm-day-create>nav{position:absolute;inset:calc(100% + 8px) 0 auto auto;width:200px;padding:8px;border:1px solid var(--crm-line);border-radius:10px;background:var(--crm-surface);box-shadow:0 12px 32px rgb(0 0 0 / .1);z-index:15;display:grid;gap:4px}
+html[data-crm-ui] .crm-day-create>nav>a{display:flex;align-items:center;gap:12px;padding:10px 12px;min-height:44px;border-radius:6px;color:var(--crm-ink);text-decoration:none}
+html[data-crm-ui] .crm-day-create>nav>a:hover{background:var(--crm-tint)}
+html[data-crm-ui] .crm-day-work{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:48px;align-items:start}
+html[data-crm-ui] .crm-day-work--wide{grid-template-columns:minmax(0,1fr)}
+html[data-crm-ui] .crm-day-work>*,html[data-crm-ui] .crm-day-secondary>*{min-width:0}
+html[data-crm-ui] .crm-day-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin-bottom:8px}
+html[data-crm-ui] .crm-day-section-head h2{display:flex;align-items:center;gap:10px;font-size:var(--crm-type-heading);font-weight:600;line-height:1.4;letter-spacing:-.015em}
+html[data-crm-ui] .crm-day-count{min-width:26px;padding:3px 7px;text-align:center;border-radius:5px;color:var(--crm-muted);background:var(--crm-tint);font-size:var(--crm-type-caption);line-height:20px;font-weight:500}
+html[data-crm-ui] .crm-day-scope{font-size:var(--crm-type-caption);color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-queue-items{border-top:1px solid var(--crm-line)}
+html[data-crm-ui] .crm-day-action{display:flex;gap:14px;align-items:center;min-height:84px;padding:12px;border-bottom:1px solid var(--crm-line)}
+html[data-crm-ui] .crm-day-action:first-child{background:var(--crm-accent-soft);border-left:3px solid var(--crm-accent);padding-left:9px}
+html[data-crm-ui] .crm-day-action-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;border:1px solid var(--crm-line);border-radius:8px;background:var(--crm-surface);color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-action--late .crm-day-action-icon{color:var(--crm-danger)}
+html[data-crm-ui] .crm-day-action-copy{flex:1;min-width:0}
+html[data-crm-ui] .crm-day-action-copy h3{font-size:var(--crm-type-body);font-weight:500;line-height:1.55;overflow-wrap:anywhere}
+html[data-crm-ui] .crm-day-action-copy p{font-size:var(--crm-type-caption);line-height:1.65;margin-top:3px;color:var(--crm-muted);overflow-wrap:anywhere}
+html[data-crm-ui] .crm-day-action-target{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;min-width:110px}
+html[data-crm-ui] .crm-day-action-target .crm-button{font-size:var(--crm-type-caption);padding:8px 10px;min-width:100px;min-height:44px}
+html[data-crm-ui] .crm-day-action-target>span{font-size:var(--crm-type-caption);line-height:1.5;color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-page .crm-day-late{color:var(--crm-danger)}
+html[data-crm-ui] .crm-day-queue-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;font-size:var(--crm-type-caption);line-height:1.6;color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-queue-footer .crm-button{margin-left:auto;font-size:var(--crm-type-caption)}
+html[data-crm-ui] .crm-day-notice{display:flex;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid var(--crm-line);border-radius:8px;padding:16px;margin:12px 0;color:var(--crm-ink);background:var(--crm-tint)}
+html[data-crm-ui] .crm-day-notice>svg{flex-shrink:0;color:var(--crm-warning)}
+html[data-crm-ui] .crm-day-notice>p{flex:1;min-width:120px;font-size:var(--crm-type-body);line-height:1.6}
+html[data-crm-ui] .crm-day-placeholder{padding:28px 0;font-size:var(--crm-type-body);line-height:1.7;color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-empty{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:40px 24px;border-top:1px solid var(--crm-line);min-height:220px}
+html[data-crm-ui] .crm-day-empty>svg{color:var(--crm-success)}
+html[data-crm-ui] .crm-day-empty h3{font-size:var(--crm-type-heading);font-weight:600}
+html[data-crm-ui] .crm-day-empty p{font-size:var(--crm-type-body);color:var(--crm-muted);line-height:1.7;max-width:45ch}
+html[data-crm-ui] .crm-day-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:8px 0 28px}
+html[data-crm-ui] .crm-day-week>div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;border-radius:8px;font-size:var(--crm-type-body)}
+html[data-crm-ui] .crm-day-week>div>span{font-size:var(--crm-type-caption);color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-week>div>strong{font-size:var(--crm-type-body);font-weight:600}
+html[data-crm-ui] .crm-day-week>.current{background:var(--crm-accent);color:var(--crm-on-accent)}
+html[data-crm-ui] .crm-day-week>.current>span{color:var(--crm-on-accent)}
+html[data-crm-ui] .crm-day-meetings{display:flex;flex-direction:column;gap:24px}
+html[data-crm-ui] .crm-day-meeting{display:flex;align-items:flex-start;gap:16px;padding:4px 0;text-decoration:none;color:var(--crm-ink);border-radius:6px;min-height:76px}
+html[data-crm-ui] .crm-day-meeting:hover h3{color:var(--crm-accent)}
+html[data-crm-ui] .crm-day-meeting-time{display:flex;flex-direction:column;gap:4px;min-width:50px;flex-shrink:0}
+html[data-crm-ui] .crm-day-meeting-time>strong{font-size:var(--crm-type-body);font-weight:600;font-variant-numeric:tabular-nums}
+html[data-crm-ui] .crm-day-meeting-time>span{font-size:var(--crm-type-caption);color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-meeting-copy{min-width:0;flex:1}
+html[data-crm-ui] .crm-day-meeting-copy>h3{font-size:var(--crm-type-body);line-height:1.55;font-weight:500;overflow-wrap:anywhere}
+html[data-crm-ui] .crm-day-meeting-copy>p{font-size:var(--crm-type-caption);line-height:1.65;color:var(--crm-muted);margin-top:4px;overflow-wrap:anywhere}
+html[data-crm-ui] .crm-day-meeting-copy>span{display:block;color:var(--crm-success);font-size:var(--crm-type-caption);line-height:1.65;margin-top:6px}
+html[data-crm-ui] .crm-day-meeting-copy>.pending{color:var(--crm-warning)}
+html[data-crm-ui] .crm-day-more{font-size:var(--crm-type-caption);line-height:1.6;color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-calendar-link{display:flex;width:100%;margin-top:24px}
+html[data-crm-ui] .crm-day-agenda-empty{display:flex;align-items:flex-start;flex-direction:column;gap:10px;padding:8px 0 20px}
+html[data-crm-ui] .crm-day-agenda-empty>svg{color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-agenda-empty>p{font-size:var(--crm-type-body);font-weight:500}
+html[data-crm-ui] .crm-day-agenda-empty>span{font-size:var(--crm-type-caption);line-height:1.6;color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-results{border-top:1px solid var(--crm-line);margin-top:48px;padding-top:20px}
+html[data-crm-ui] .crm-day-results>.crm-day-section-head h2{font-size:var(--crm-type-body)}
+html[data-crm-ui] .crm-day-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px;margin-top:20px}
+html[data-crm-ui] .crm-day-result-grid>article{min-width:0}
+html[data-crm-ui] .crm-day-result-grid>.crm-day-metric-wide{grid-column:span 2}
+html[data-crm-ui] .crm-day-result-grid h3{font-size:var(--crm-type-caption);font-weight:400;color:var(--crm-muted);line-height:1.6}
+html[data-crm-ui] .crm-day-result-grid strong{display:block;font-size:var(--crm-type-metric);font-weight:600;letter-spacing:-.02em;line-height:1.5;white-space:nowrap;font-variant-numeric:tabular-nums}
+html[data-crm-ui] .crm-day-result-grid strong>span{font-size:var(--crm-type-caption);font-weight:400;letter-spacing:0}
+html[data-crm-ui] .crm-day-result-grid p{color:var(--crm-muted);font-size:var(--crm-type-caption);line-height:1.65;margin-top:3px}
+html[data-crm-ui] .crm-day-clock{margin-top:32px}
+html[data-crm-ui] .crm-day-secondary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;border-top:1px solid var(--crm-line);padding-top:28px;margin-top:36px}
+html[data-crm-ui] .crm-day-funnel{display:grid;gap:16px}
+html[data-crm-ui] .crm-day-funnel>a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;text-decoration:none;color:var(--crm-ink);padding:8px 0;border-radius:4px}
+html[data-crm-ui] .crm-day-funnel>a:hover{background:var(--crm-tint)}
+html[data-crm-ui] .crm-day-stage-name{display:flex;gap:10px;align-items:center;font-size:var(--crm-type-body);min-width:0;overflow-wrap:anywhere}
+html[data-crm-ui] .crm-day-stage-name>i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+html[data-crm-ui] .crm-day-stage-values{display:flex;gap:16px;align-items:center;font-size:var(--crm-type-caption);white-space:nowrap}
+html[data-crm-ui] .crm-day-stage-values>span{color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-bar{display:block;grid-column:1/-1;height:5px;background:var(--crm-tint);border-radius:3px;overflow:hidden}
+html[data-crm-ui] .crm-day-bar>i{height:100%;display:block;border-radius:3px}
+html[data-crm-ui] .crm-day-interactions>a{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--crm-line);text-decoration:none;color:var(--crm-ink)}
+html[data-crm-ui] .crm-day-interactions>a>svg{flex-shrink:0;color:var(--crm-muted);margin-top:3px}
+html[data-crm-ui] .crm-day-interactions>a>div{min-width:0;flex:1}
+html[data-crm-ui] .crm-day-interactions h3{font-size:var(--crm-type-body);font-weight:500;line-height:1.6}
+html[data-crm-ui] .crm-day-interactions p{font-size:var(--crm-type-body);line-height:1.6;overflow-wrap:anywhere;margin:3px 0}
+html[data-crm-ui] .crm-day-interactions span{font-size:var(--crm-type-caption);line-height:1.6;color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-shortcuts{display:flex;flex-wrap:wrap;gap:16px 32px;border-top:1px solid var(--crm-line);margin-top:32px;padding-top:16px}
+html[data-crm-ui] .crm-day-shortcuts>a{display:flex;align-items:center;gap:10px;min-height:44px;font-size:var(--crm-type-body);text-decoration:none;color:var(--crm-ink)}
+html[data-crm-ui] .crm-day-shortcuts>a:hover{color:var(--crm-accent)}
+@media(min-width:1700px){html[data-crm-ui] .crm-day-work{grid-template-columns:minmax(0,1fr) 360px;gap:64px}html[data-crm-ui] .crm-day-work--wide{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:1180px){html[data-crm-ui] .crm-day-work{grid-template-columns:minmax(0,1fr) 280px;gap:28px}html[data-crm-ui] .crm-day-work--wide{grid-template-columns:minmax(0,1fr)}html[data-crm-ui] .crm-day-scope{display:none}html[data-crm-ui] .crm-day-action{gap:10px;padding:12px 8px}html[data-crm-ui] .crm-day-action:first-child{padding-left:5px}html[data-crm-ui] .crm-day-action-icon{display:none}html[data-crm-ui] .crm-day-result-grid{gap:20px}html[data-crm-ui] .crm-day-secondary{gap:28px}}
+@media(max-width:900px){html[data-crm-ui] .crm-day-work{grid-template-columns:minmax(0,1fr)}html[data-crm-ui] .crm-day-agenda{border-top:1px solid var(--crm-line);padding-top:24px}html[data-crm-ui] .crm-day-week{max-width:420px}html[data-crm-ui] .crm-day-meetings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}html[data-crm-ui] .crm-day-secondary{grid-template-columns:minmax(0,1fr)}html[data-crm-ui] .crm-day-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){html[data-crm-ui] .crm-day-head{align-items:flex-start;gap:12px;margin-bottom:24px}html[data-crm-ui] .crm-day-head-actions{gap:6px}html[data-crm-ui] .crm-day-create>summary{min-width:44px;padding:10px;font-size:var(--crm-type-caption);gap:6px}html[data-crm-ui] .crm-day-head-actions>.crm-button{display:none}html[data-crm-ui] .crm-day-head h1{font-size:var(--crm-type-page)}html[data-crm-ui] .crm-day-date{max-width:27ch}html[data-crm-ui] .crm-day-section-head{gap:8px;flex-wrap:wrap}html[data-crm-ui] .crm-day-action{gap:10px;padding:14px 0;min-height:96px;align-items:flex-start}html[data-crm-ui] .crm-day-action:first-child{padding:16px;border:0;border-radius:9px;margin-bottom:4px;display:grid;grid-template-columns:1fr}html[data-crm-ui] .crm-day-action:first-child .crm-day-action-target{align-items:stretch;margin-top:4px;gap:6px}html[data-crm-ui] .crm-day-action:first-child .crm-day-action-target .crm-button{background:var(--crm-accent);color:var(--crm-on-accent);width:100%}html[data-crm-ui] .crm-day-action:first-child .crm-day-action-target>span{align-self:flex-end}html[data-crm-ui] .crm-day-action-target{min-width:44px;max-width:110px;gap:6px}html[data-crm-ui] .crm-day-action-target .crm-button{min-width:44px;padding:8px;font-size:var(--crm-type-caption)}html[data-crm-ui] .crm-day-action-target .crm-button>svg{display:none}html[data-crm-ui] .crm-day-action-target>span{text-align:right;font-size:var(--crm-type-caption)}html[data-crm-ui] .crm-day-queue-footer{flex-wrap:wrap;gap:4px}html[data-crm-ui] .crm-day-queue-footer>span{flex-basis:100%}html[data-crm-ui] .crm-day-work{gap:28px}html[data-crm-ui] .crm-day-meetings{display:flex;gap:20px}html[data-crm-ui] .crm-day-results{margin-top:32px}html[data-crm-ui] .crm-day-result-grid{gap:24px 16px}html[data-crm-ui] .crm-day-result-grid strong{font-size:var(--crm-type-heading)}html[data-crm-ui] .crm-day-result-grid strong>span{display:block;line-height:1.4}html[data-crm-ui] .crm-day-clock{margin-top:24px}html[data-crm-ui] .crm-day-shortcuts{gap:4px 20px}html[data-crm-ui] .crm-day-empty{padding:28px 0}}
+
+@media(max-width:600px){html[data-crm-ui] .crm-day-action:first-child .crm-day-action-target{width:100%;max-width:none}}
+
+/* Employee-owned widget arrangement; DOM order remains the reading and keyboard order. */
+html[data-crm-ui] .crm-day-widgets{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:32px;align-items:start}
+html[data-crm-ui] .crm-day-widget{grid-column:span var(--day-widget-span,12);min-width:0;container-type:inline-size;position:relative}
+html[data-crm-ui] .crm-day-widget-content{min-width:0}
+html[data-crm-ui] .crm-day-widget-content>.crm-day-results{margin-top:0}
+html[data-crm-ui] .crm-day-widget-content>.crm-day-clock,html[data-crm-ui] .crm-day-widget-content>.crm-day-shortcuts{margin-top:0}
+html[data-crm-ui] .crm-day-widget--editing{border:1px dashed var(--crm-accent);border-radius:10px;background:var(--crm-surface);overflow:hidden}
+html[data-crm-ui] .crm-day-widget--dragging{opacity:.5}
+html[data-crm-ui] .crm-day-widget--editing>.crm-day-widget-content{padding:20px}
+html[data-crm-ui] .crm-day-widget-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;background:var(--crm-accent-soft);border-bottom:1px solid var(--crm-line);color:var(--crm-ink)}
+html[data-crm-ui] .crm-day-widget-label{font-size:var(--crm-type-caption);font-weight:600;flex:1;min-width:100px}
+html[data-crm-ui] .crm-day-widget-grip{cursor:grab;flex-shrink:0}
+html[data-crm-ui] .crm-day-widget-grip:active{cursor:grabbing}
+html[data-crm-ui] .crm-day-widget-tool-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-left:auto}
+html[data-crm-ui] .crm-day-widget-size select{width:128px;min-height:44px;padding:8px;font-size:var(--crm-type-caption);color:var(--crm-ink);background:var(--crm-surface);border:1px solid var(--crm-line);border-radius:7px}
+html[data-crm-ui] .crm-day-widget-size .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+html[data-crm-ui] .crm-day-editor{padding:24px;border:1px solid var(--crm-line);border-radius:10px;background:var(--crm-tint);margin-bottom:24px}
+html[data-crm-ui] .crm-day-editor-heading{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}
+html[data-crm-ui] .crm-day-editor-heading>div:first-child{min-width:0;max-width:70ch}
+html[data-crm-ui] .crm-day-editor-heading h2{font-size:var(--crm-type-heading);font-weight:600;line-height:1.45}
+html[data-crm-ui] .crm-day-editor-heading p{font-size:var(--crm-type-caption);line-height:1.7;color:var(--crm-muted);margin-top:8px}
+html[data-crm-ui] .crm-day-editor-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;flex-shrink:0;max-width:420px}
+html[data-crm-ui] .crm-day-widget-catalog{border-top:1px solid var(--crm-line);margin-top:20px;padding-top:12px}
+html[data-crm-ui] .crm-day-widget-catalog>summary{font-size:var(--crm-type-body);font-weight:500;cursor:pointer;min-height:44px;line-height:44px}
+html[data-crm-ui] .crm-day-widget-catalog>div{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:4px}
+html[data-crm-ui] .crm-day-widget-catalog label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:var(--crm-type-body);cursor:pointer}
+html[data-crm-ui] .crm-day-widget-catalog input{width:18px;height:18px;accent-color:var(--crm-accent);flex-shrink:0;min-height:0;padding:0}
+html[data-crm-ui] .crm-day-layout-notice,html[data-crm-ui] .crm-day-layout-warning{font-size:var(--crm-type-body);line-height:1.7;margin-bottom:20px!important}
+html[data-crm-ui] .crm-day-layout-notice{color:var(--crm-muted)}
+html[data-crm-ui] .crm-day-layout-warning{padding:16px;border-radius:8px;background:var(--crm-warning-bg);color:var(--crm-ink)}
+html[data-crm-ui] .crm-day-widget-pending{padding:28px 20px;min-height:140px;color:var(--crm-muted);font-size:var(--crm-type-body);line-height:1.7}
+html[data-crm-ui] .crm-day-all-hidden{margin-top:24px}
+@container(max-width:620px){
+  html[data-crm-ui] .crm-day-result-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px}
+  html[data-crm-ui] .crm-day-result-grid strong{font-size:var(--crm-type-heading)}
+  html[data-crm-ui] .crm-day-result-grid strong>span{display:block;font-size:var(--crm-type-caption)}
+  html[data-crm-ui] .crm-day-scope{display:none}
+  html[data-crm-ui] .crm-day-action{gap:10px;padding:12px 8px}
+  html[data-crm-ui] .crm-day-action-icon{display:none}
+  html[data-crm-ui] .crm-day-clock .crm-clock-strip{flex-wrap:wrap;gap:12px}
+  html[data-crm-ui] .crm-day-clock .crm-clock-actions{flex-wrap:wrap}
+  html[data-crm-ui] .crm-day-widget-content .crm-day-meetings{display:flex}
+}
+@media(max-width:1100px){html[data-crm-ui] .crm-day-widget[data-width="4"],html[data-crm-ui] .crm-day-widget[data-width="6"]{grid-column:span 6}html[data-crm-ui] .crm-day-widget[data-width="8"]{grid-column:span 12}html[data-crm-ui] .crm-day-editor-heading{flex-direction:column}html[data-crm-ui] .crm-day-editor-actions{max-width:none;justify-content:flex-start}}
+@media(max-width:760px){html[data-crm-ui] .crm-day-widgets{gap:28px}html[data-crm-ui] .crm-day-widget{grid-column:1/-1!important}html[data-crm-ui] .crm-day-widget-content>.crm-day-agenda{margin-top:0}html[data-crm-ui] .crm-day-head{flex-wrap:wrap}html[data-crm-ui] .crm-day-head-actions{flex-wrap:wrap}html[data-crm-ui] .crm-day-editor{padding:16px}html[data-crm-ui] .crm-day-widget--editing>.crm-day-widget-content{padding:16px}html[data-crm-ui] .crm-day-widget-tool-actions{width:100%;justify-content:flex-end}}

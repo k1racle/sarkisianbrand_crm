@@ -1,0 +1,33 @@
+# Add this file after docker-compose.production.yml in Portainer's Git stack.
+# The only exposed service is the gateway on an existing dedicated Docker network.
+services:
+  migrations:
+    profiles: !reset []
+    restart: "no"
+  backend:
+    depends_on:
+      migrations: { condition: service_completed_successfully }
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.portainer-gateway
+    image: ${RELEASE_IMAGE_PREFIX:-sarkisian-crm}/portainer-gateway:${RELEASE_TAG:-local}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,mode=1777,size=32m
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}
+    networks:
+      app: {}
+      portainer_proxy:
+        aliases: [sarkisian-gateway]
+    depends_on:
+      backend: {condition: service_healthy}
+      frontend: {condition: service_healthy}
+networks:
+  portainer_proxy:
+    external: true
+    name: ${PORTAINER_PROXY_NETWORK:?Set PORTAINER_PROXY_NETWORK to the dedicated NPM network}

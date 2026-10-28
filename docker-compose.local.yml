@@ -33,6 +33,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      API_DOCS_ENABLED: "true"
       PORT: 3000
       DATABASE_URL: postgresql://postgres:${LOCAL_DB_PASSWORD}@postgres:5432/sarkisian_brand?schema=public
       REDIS_URL: redis://redis:6379
@@ -46,6 +47,7 @@ services:
       ECOSYSTEM_AUTOMATION_ENABLED: "false"
       STOREFRONT_EXTERNAL_CALLS_ENABLED: "false"
       MAIL_DELIVERY_ENABLED: "false"
+      B2B_TEAM_LOCAL_INVITE_LINKS: "true"
       LOYALTY_MAINTENANCE_ENABLED: "false"
       CRM_MEDIA_ENABLED: "false"
       CRM_MEDIA_GATEWAY_ENFORCED: "false"
@@ -66,7 +68,11 @@ services:
       target: frontend
     restart: unless-stopped
     environment:
-      NUXT_PUBLIC_API_BASE: ${LOCAL_API_URL:-http://localhost:3000/api/v1}
+      # Browser requests use the same host as the page, independent of LAN/DHCP.
+      NUXT_PUBLIC_API_BASE: /api/v1
+      NUXT_PUBLIC_API_PROXY_ENABLED: "true"
+      NUXT_API_PROXY_BASE: http://backend:3000/api/v1
+      NUXT_PUBLIC_API_REALTIME_PORT: "3000"
       NUXT_SEO_API_BASE: http://backend:3000/api/v1
       NUXT_PUBLIC_SITE_URL: ${LOCAL_SITE_URL:-http://localhost:3001}
       NUXT_PUBLIC_SEO_INDEXING_ENABLED: "false"

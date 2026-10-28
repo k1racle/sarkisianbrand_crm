@@ -34,16 +34,30 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, context: SessionContext = {}) {
+    return this.registerCustomerAccount(dto, UserRole.CUSTOMER_B2C, context);
+  }
+
+  /** Internal enrollment for reviewed owner registration or a verified team invitation. */
+  async registerBusinessAccount(dto: RegisterDto, context: SessionContext, enroll: (tx: Prisma.TransactionClient, user: { id: string; email: string; role: UserRole; isActive: boolean }) => Promise<void>) {
+    return this.registerCustomerAccount(dto, UserRole.CUSTOMER_B2B, context, enroll);
+  }
+
+  private async registerCustomerAccount(dto: RegisterDto, role: UserRole, context: SessionContext,
+    enroll?: (tx: Prisma.TransactionClient, user: { id: string; email: string; role: UserRole; isActive: boolean }) => Promise<void>) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findFirst({ where: { OR: [{ email }, ...(dto.phone ? [{ phone: dto.phone }] : [])] } });
-    if (existing) throw new ConflictException('Пользователь с такими данными уже существует');
+    if (existing) throw new ConflictException(role === UserRole.CUSTOMER_B2B ? 'Этот email или телефон уже используется. Войдите в существующий бизнес-аккаунт или укажите отдельные данные для бизнеса.' : 'Пользователь с такими данными уже существует');
     this.assertPasswordStrength(dto.password);
     const password = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({ data: { email, phone: dto.phone, firstName: dto.firstName, lastName: dto.lastName, password, passwordChangedAt: new Date(), role: UserRole.CUSTOMER_B2C } });
-      await tx.customer.create({ data: { userId: created.id, firstName: created.firstName, lastName: created.lastName, email: created.email, phone: created.phone, normalizedEmail: created.email, normalizedPhone: created.phone?.replace(/\D/g, '') || null, segment: 'B2C', source: 'WEB' } });
-      await this.createInitialLoyaltyAccount(tx, created.id);
+      const created = await tx.user.create({ data: { email, phone: dto.phone, firstName: dto.firstName, lastName: dto.lastName, password, passwordChangedAt: new Date(), role } });
+      await tx.customer.create({ data: { userId: created.id, firstName: created.firstName, lastName: created.lastName, email: created.email, phone: created.phone, normalizedEmail: created.email, normalizedPhone: created.phone?.replace(/\D/g, '') || null, segment: role === UserRole.CUSTOMER_B2B ? 'B2B' : 'B2C', source: 'WEB' } });
+      if (role === UserRole.CUSTOMER_B2C) await this.createInitialLoyaltyAccount(tx, created.id);
+      if (enroll) await enroll(tx, created);
       return created;
+    }, { timeout: 30000 }).catch(error => {
+      if (error?.code === 'P2002') throw new ConflictException('Учётная запись с такими данными уже создана. Войдите с указанным email.');
+      throw error;
     });
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id, user.role, context)) };
   }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { requestKey } from '~/shared/request-key';
 const props = defineProps<{ order: any; disabled: boolean; hasUnsavedChanges?: boolean; reload: () => Promise<void> }>();
-const emit = defineEmits<{ busy: [value: boolean] }>();
+const emit = defineEmits<{ busy: [value: boolean]; snapshot: [value: any] }>();
 const config = useRuntimeConfig(), session = useWorkspaceSession(), access = useWorkspaceAccess();
 const data = ref<any>(null), loading = ref(false), busy = ref(false), error = ref(''), notice = ref('');
 const kind = ref('RECONCILE'), comment = ref(''), operationId = ref('');
@@ -16,7 +16,7 @@ const money = (value: any) => value == null ? 'Нет данных' : new Intl.N
 const date = (value: string) => new Date(value).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
 const request = (path: string, options: any = {}) => $fetch<any>(`/oms/orders/${props.order.id}/${path}`, { baseURL: config.public.apiBase, headers: { Authorization: `Bearer ${session.token.value}` }, retry: 0, ...options });
 const pending = ref<{ signature: string; key: string } | null>(null);let generation = 0;
-async function load() { const n = ++generation; loading.value = true; error.value = ''; try { const result = await request('finance'); if (n === generation) data.value = result; } catch (e: any) { if (n === generation) { data.value = null; error.value = e?.data?.message || 'Не удалось загрузить данные 1С'; } } finally { if (n === generation) loading.value = false; } }
+async function load() { const n = ++generation; loading.value = true; error.value = ''; try { const result = await request('finance'); if (n === generation) { data.value = result; emit('snapshot', result); } } catch (e: any) { if (n === generation) { data.value = null; emit('snapshot', null); error.value = e?.data?.message || 'Не удалось загрузить данные 1С'; } } finally { if (n === generation) loading.value = false; } }
 watch(() => [props.order.id, props.order.updatedAt, session.token.value], load, { immediate: true });onBeforeUnmount(() => { ++generation; });watch(kind, () => { operationId.value = ''; });
 async function refresh() {
  if (busy.value || loading.value) return;

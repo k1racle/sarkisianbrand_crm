@@ -53,6 +53,7 @@ const emojiOpen = ref(false);
 const attachOpen = ref(false);
 const entityOpen = ref(false);
 const createOpen = ref(false);
+const { panel: createPanel, keyboard: createKeyboard } = useCatalogDialog(computed(() => createOpen.value), () => { if (!creating.value) createOpen.value = false; });
 const directPicker = ref(false), directBusy = ref(false);
 const historyBefore = ref(''), historyBusy = ref(false), hasOlder = ref(false);
 const directCandidates = computed(() => team.value.filter(member => member.id !== user.value?.id && (!channelSearch.value || person(member).toLowerCase().includes(channelSearch.value.toLowerCase()))));
@@ -635,7 +636,7 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <Transition name="chat">
       <div data-v-ui-6f58f7dddb37 v-if="isOpen" class="platform-chat-backdrop admin-dialog-backdrop" @click.self="closeChat">
-        <section data-v-ui-6f58f7dddb37 ref="chatPanel" class="platform-chat crm-messenger admin-dialog admin-dialog--chat" role="dialog" aria-modal="true" aria-label="Сообщения" tabindex="-1" @keydown="chatKeys">
+        <section data-v-ui-6f58f7dddb37 ref="chatPanel" :inert="createOpen || undefined" class="platform-chat crm-messenger admin-dialog admin-dialog--chat" role="dialog" aria-modal="true" aria-label="Сообщения" tabindex="-1" @keydown="chatKeys">
           <div v-if="loading" class="messenger-loading"><button class="crm-button messenger-icon" aria-label="Закрыть чат" @click="closeChat"><X :size="20" /></button><WorkspaceLoading label="Открываем сообщения" /></div>
           <div data-v-ui-6f58f7dddb37 v-else class="chat-body" :class="{ 'chat-body--channels': mobileChannels || !active }">
             <aside data-v-ui-6f58f7dddb37 class="channels">
@@ -652,11 +653,11 @@ onBeforeUnmount(() => {
                   :aria-label="directPicker?'Найти сотрудника':'Найти чат или человека'"
               /></label>
               <nav v-if="directPicker" data-v-ui-6f58f7dddb37 aria-label="Сотрудники для личного диалога">
-                <button class="messenger-dialog-row messenger-create-group" :disabled="sending" @click="createOpen=true"><i class="chat-avatar"><Users :size="22" /></i><span><b>Новый групповой чат</b><small>Обсуждение с командой</small></span></button>
-                <button v-for="member in directCandidates" :key="member.id" class="messenger-dialog-row" :disabled="directBusy || sending" @click="openDirect(member)"><i class="chat-avatar" :class="avatarTone(person(member))">{{initials(member)}}</i><span><b>{{person(member)}}</b><small>Личное сообщение</small></span></button><p v-if="!directCandidates.length" class="crm-inline-note">Сотрудники не найдены.</p>
+                <button class="messenger-dialog-row messenger-create-group crm-card-action" :disabled="sending" @click="createOpen=true"><i class="chat-avatar"><Users :size="22" /></i><span><b>Новый групповой чат</b><small>Обсуждение с командой</small></span></button>
+                <button v-for="member in directCandidates" :key="member.id" class="messenger-dialog-row crm-card-action" :disabled="directBusy || sending" @click="openDirect(member)"><i class="chat-avatar" :class="avatarTone(person(member))">{{initials(member)}}</i><span><b>{{person(member)}}</b><small>Личное сообщение</small></span></button><p v-if="!directCandidates.length" class="crm-inline-note">Сотрудники не найдены.</p>
               </nav>
               <nav v-else data-v-ui-6f58f7dddb37 aria-label="Чаты и личные сообщения">
-                <button class="messenger-dialog-row" data-v-ui-6f58f7dddb37
+                <button class="messenger-dialog-row crm-card-action" data-v-ui-6f58f7dddb37
                   v-for="channel in visibleChannels"
                   :key="channel.id"
                   :class="{ active: active?.id === channel.id }"
@@ -896,13 +897,12 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <div data-v-ui-6f58f7dddb37 v-if="createOpen" class="modal admin-dialog-backdrop admin-chat-create-layer" @click.self="createOpen = false">
-          <form data-v-ui-6f58f7dddb37 class="admin-dialog admin-dialog--modal" role="dialog" aria-modal="true" aria-label="Создать обсуждение" @keydown.esc.stop.prevent="createOpen = false" @submit.prevent="createChannel">
+          <form ref="createPanel" tabindex="-1" data-v-ui-6f58f7dddb37 class="admin-dialog admin-dialog--modal" role="dialog" aria-modal="true" aria-label="Создать обсуждение" @keydown="createKeyboard" @submit.prevent="createChannel">
             <header data-v-ui-6f58f7dddb37>
               <div data-v-ui-6f58f7dddb37>
-                <p data-v-ui-6f58f7dddb37>НОВЫЙ КАНАЛ</p>
                 <h3 data-v-ui-6f58f7dddb37>Создать обсуждение</h3>
               </div>
-              <button class="crm-button crm-button--icon" data-v-ui-6f58f7dddb37 type="button" aria-label="Закрыть создание канала" @click="createOpen = false">
+              <button class="crm-button crm-button--icon" data-v-ui-6f58f7dddb37 type="button" aria-label="Закрыть создание канала" :disabled="creating" @click="createOpen = false">
                 <X data-v-ui-6f58f7dddb37 :size="17" />
               </button>
             </header>
@@ -929,7 +929,7 @@ onBeforeUnmount(() => {
               >
             </div>
             <footer data-v-ui-6f58f7dddb37>
-              <button class="crm-button" data-v-ui-6f58f7dddb37 type="button" @click="createOpen = false">Отмена</button
+              <button class="crm-button" data-v-ui-6f58f7dddb37 type="button" :disabled="creating" @click="createOpen = false">Отмена</button
               ><button data-v-ui-6f58f7dddb37 :disabled="creating" class="primary crm-button crm-button--primary">{{creating ? 'Создаём…' : 'Создать канал'}}</button>
             </footer>
           </form>

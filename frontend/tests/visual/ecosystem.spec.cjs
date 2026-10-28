@@ -8,6 +8,8 @@ const client={id:'qa-client',firstName:'Тестовый',lastName:'Клиент
 const service={id:'qa-service',name:'Маникюр',duration:60,price:1000,color:'#77709e',isActive:true};
 const order={id:'qa-b2b-order',orderNumber:'SB-B2B-QA',status:'NEW',finalAmount:780,createdAt:date,items:[{id:'qa-line',productName:'Тестовый гель',quantity:1,price:780,total:780}],history:[]};
 const fixtures=new Map([
+ ['/b2b/organizations',[{id:profile.id,name:profile.name,status:'ACTIVE',role:'OWNER',canOrder:true,canSeeFinance:true,canUseSalon:true}]],
+ ['/b2b/team',{members:[{...member,version:1,isActive:true}],invitations:[],canManage:true,currentMemberId:member.id}],
  ['/b2b/profile',profile],['/b2b/dashboard',{clients:1,bookingsToday:1,upcoming:1,serviceRevenueMonth:1000,purchasesMonth:780,purchaseOrdersMonth:1,recentOrders:[order],nextBookings:[],lowStock:0}],
  ['/b2b/clients',[client]],['/b2b/services',[service]],['/b2b/bookings',[{id:'qa-booking',startTime:date,endTime:date,status:'CONFIRMED',client,service,masterMember:member}]],
  ['/b2b/catalog',[{id:'qa-product',sku:'QA-001',nameRu:'Гель-мусс',images:[{url:'/storefront/products/gel-mousse-23.jpg'}],variants:[{id:'qa-variant',b2bPrice:780,retailPrice:850,available:10}]}]],

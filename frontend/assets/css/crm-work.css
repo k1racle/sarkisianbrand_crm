@@ -1,5 +1,29 @@
 /* Operational screens use the same CRM tokens; never changes storefront/admin. */
 @layer crm-shell {
+  /* A quick attendance action belongs beside the day's work, not a second dashboard. */
+  html[data-crm-ui] .crm-clock-strip {display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:16px;}
+  html[data-crm-ui] .crm-clock-copy {display:flex;align-items:center;gap:12px;flex:1;min-width:140px;}
+  html[data-crm-ui] .crm-clock-copy > svg {flex-shrink:0;color:var(--crm-muted);}
+  html[data-crm-ui] .crm-clock-copy > div {display:grid;gap:2px;}
+  html[data-crm-ui] .crm-clock-copy small {color:var(--crm-muted);font-size:var(--crm-type-caption)!important;}
+  html[data-crm-ui] .crm-clock-counter {font-size:var(--crm-type-heading)!important;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  html[data-crm-ui] .crm-clock-actions {display:flex;align-items:center;gap:8px;}
+  html[data-crm-ui] .crm-clock-feedback {display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:0 16px 16px;}
+  html[data-crm-ui] .crm-clock-feedback p {margin:0;flex:1 1 240px;}
+  html[data-crm-ui] .crm-clock-feedback [role=alert] {color:var(--crm-danger)!important;}
+  html[data-crm-ui] .crm-clock-feedback [role=status] {color:var(--crm-success)!important;}
+  html[data-crm-ui] .crm-day-workspace .page-head {padding-top:32px!important;padding-bottom:0!important;}
+  html[data-crm-ui] .crm-day-workspace .kpis {margin-bottom:24px!important;}
+  html[data-crm-ui] .crm-day-workspace .tasks-panel {border-top:1px solid var(--crm-line-soft)!important;}
+  @media(max-width:639px){
+    html[data-crm-ui] .crm-clock-strip {gap:12px;}
+    html[data-crm-ui] .crm-clock-actions {flex:1 1 auto;}
+    html[data-crm-ui] .crm-clock-history {margin-left:auto;min-width:44px!important;padding:10px!important;}
+    html[data-crm-ui] .crm-clock-history > span {position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+    html[data-crm-ui] .crm-day-workspace .head-actions {display:grid!important;grid-template-columns:44px minmax(0,1fr) minmax(0,1fr)!important;width:100%;}
+    html[data-crm-ui] .crm-day-workspace .head-actions > :is(a,button) {padding:10px!important;}
+    html[data-crm-ui] .crm-day-workspace .head-actions a > svg {display:none;}
+  }
   /* Alternate task views share the toolbar edges and theme-aware grid surfaces. */
   html[data-crm-ui] .tasks-page > :is(.gantt,.calendar,.list).panel {width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box;margin:0 0 24px!important;overflow:auto;overscroll-behavior-x:contain;}
   html[data-crm-ui] .tasks-page :is(.gantt > header,.gantt-row) {grid-template-columns:240px minmax(0,1fr)!important;min-width:720px;border-color:var(--crm-line)!important;}
@@ -67,7 +91,8 @@
   html[data-crm-ui] .crm-attachment span { text-align:left !important; overflow-wrap:anywhere !important; min-width:0 !important; }
   html[data-crm-ui] .crm-attachment small { display:block !important; color:var(--crm-muted) !important; }
   html[data-crm-ui] .tasks-page .comment-box { display:flex!important; flex-direction:column !important; gap:8px !important; }
-  html[data-crm-ui] .tasks-page .comment-box button { align-self:flex-end !important; background:var(--crm-accent)!important; color:#fff!important; }
+  html[data-crm-ui] .tasks-page .comment-box button { align-self:flex-end !important; background:var(--crm-accent)!important; color:var(--crm-on-accent)!important; }
+  html[data-crm-ui] .tasks-page .kanban > article > header > span {color:var(--crm-muted)!important;}
   html[data-crm-ui] .tasks-page .comment p { white-space:pre-wrap !important; overflow-wrap:anywhere !important; }
   html[data-crm-ui] .crm-work-page { padding:24px 16px !important; min-width:0 !important; }
   html[data-crm-ui] .crm-work-header { display:flex !important; align-items:center !important; flex-wrap:wrap !important; gap:12px !important; justify-content:space-between !important; margin-bottom:20px !important; }

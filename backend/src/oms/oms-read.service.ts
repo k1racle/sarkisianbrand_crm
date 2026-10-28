@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OmsOrderListDto } from './dto/order-list.dto';
 import { marketplaceLines } from './marketplace-lines';
 import { oneCClosureState } from '../1c-sync/finance-policy';
+import { warehouseExecutionView } from './warehouse-execution-view';
 
 export const marketplaceSources: OrderSource[] = ['WILDBERRIES', 'OZON', 'YANDEX_MARKET', 'MEGAMARKET'];
 export function orderAccessWhere(ctx: OperationalContext, domain = 'oms'): Prisma.OrderWhereInput {
@@ -14,14 +15,15 @@ export function orderAccessWhere(ctx: OperationalContext, domain = 'oms'): Prism
 export function orderSelect(ctx: OperationalContext, detail = false): Prisma.OrderSelect {
   // Never return checkout/guest hashes, raw source payloads or payment metadata.
   return {
-    id: true, orderNumber: true, source: true, status: true, managerId: true, externalOrderId: true,
+    id: true, orderNumber: true, source: true, sourceChannel: true, status: true, managerId: true, externalOrderId: true,
     manager: { select: { id: true, firstName: true, lastName: true } },
     buyerName: true, buyerEmail: true, buyerPhone: true, customerId: true, organizationId: true,
     totalAmount: true, discountAmount: true, finalAmount: true, currency: true, shippingAddress: true,
     shippingProvider: true, shippingCost: true, trackingNumber: true, deliveryDate: true,
     paymentStatus: true, paymentMethod: true, internalNotes: true, comments: true, createdAt: true, updatedAt: true,
     fulfillmentManaged: true, reservationState: true,
-    marketplaceImportIssue: true, isSynced1C: true, oneCSyncAt: true,
+    marketplaceImportIssue: true, isSynced1C: true, oneCSyncAt: true, oneCStatus: true, oneCSyncError: true, warehouseDocumentId: true,
+    warehouseExecution: { select: { owner: true, status: true, warehouseId: true, revision: true, executionVersion: true, basisHash: true, asOf: true, validUntil: true, receivedAt: true, documentId: true, documentNumber: true, executorName: true, error: true, lines: true, documents: true } },
     execution: { select: { version: true, confirmedAt: true, paymentTerms: true, deliveryTerms: true, settlementReviewRequired: true } },
     user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
     items: { select: { id: true, productType: true, productName: true, variantName: true, price: true, quantity: true, total: true, externalSku: true, offerId: true, variantId: true, variant: { select: { sku: true } }, pickedQuantity: true, shippedQuantity: true, cancelledQuantity: true, returnedQuantity: true, damagedReturnedQuantity: true } },
@@ -53,14 +55,15 @@ export class OmsReadService {
     ]);
     return rows.map(row => {
       const customer = customers.find(item => item.id === row.customerId) || null, organization = organizations.find(item => item.id === row.organizationId) || null;
-      const { marketplaceStaging, oneCFinance, ...safe } = row;
+      const { marketplaceStaging, oneCFinance, warehouseExecution, ...safe } = row;
+      const warehouse = warehouseExecutionView(warehouseExecution, row);
       let marketplaceIncoming: any = null;
       if (marketplaceStaging) {
         let items: ReturnType<typeof marketplaceLines> = [];
         try { items = marketplaceLines(marketplaceStaging.items); } catch { /* Historic invalid input remains unavailable for automatic adoption. */ }
         marketplaceIncoming = { status: marketplaceStaging.status, totalAmount: marketplaceStaging.totalAmount, updatedAt: marketplaceStaging.updatedAt, buyerName: marketplaceStaging.buyerName, buyerEmail: marketplaceStaging.buyerEmail, buyerPhone: marketplaceStaging.buyerPhone, deliveryDate: marketplaceStaging.deliveryDate, items };
       }
-      return { ...safe, ...(oneCFinance !== undefined ? { closure: oneCClosureState(row) } : {}), marketplaceIncoming, customer, organization, customerId: customer?.id || null, organizationId: organization?.id || null, canWrite: writable.some(item => item.id === row.id) };
+      return { ...safe, warehouseExecution: warehouse, ...(oneCFinance !== undefined ? { closure: oneCClosureState(row) } : {}), marketplaceIncoming, customer, organization, customerId: customer?.id || null, organizationId: organization?.id || null, canWrite: writable.some(item => item.id === row.id) };
     });
   }
   private filter(ctx: OperationalContext, source?: OrderSource, status?: OrderStatus, search?: string): Prisma.OrderWhereInput {

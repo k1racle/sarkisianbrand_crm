@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { StorefrontService } from './storefront.service';
+import { executionSnapshot } from '../oms/execution-snapshot';
 
 describe('Storefront dashboard role eligibility (isolated mocks)', () => {
   function fixture(role = 'CUSTOMER_B2C', isActive = true) {
@@ -59,6 +60,22 @@ describe('Storefront dashboard role eligibility (isolated mocks)', () => {
     const failure = new Error('Isolated loyalty failure');
     loyalty.account.mockRejectedValue(failure);
     await expect(service.dashboard('isolated-b2c-error')).rejects.toBe(failure);
+  });
+
+  it('shows only safe warehouse progress in the customer dashboard', async () => {
+    const { service, prisma } = fixture();
+    const order: any = {
+      id: 'order', orderNumber: 'TEST-1', status: 'PAID', createdAt: new Date(), source: 'WEB',
+      totalAmount: '100', discountAmount: '0', finalAmount: '100', currency: 'RUB', shippingAddress: {}, shippingCost: '0', shippingProvider: 'pickup', paymentMethod: 'CARD',
+      items: [{ id: 'line', variantId: 'variant', productName: 'Товар', variantName: 'Вариант', quantity: 1, price: '100', total: '100', productType: 'PHYSICAL' }],
+    };
+    order.warehouseExecution = { status: 'PICKING', basisHash: executionSnapshot(order), asOf: new Date(), validUntil: new Date(Date.now() + 60000), documentId: 'PRIVATE', executorName: 'PRIVATE' };
+    prisma.order.findMany.mockResolvedValue([order]);
+    const result = await service.dashboard('customer');
+    expect(result.orders[0].warehouseStatus).toMatchObject({ stage: 'PICKING', isCurrent: true });
+    expect(result.orders[0]).not.toHaveProperty('warehouseExecution');
+    expect(JSON.stringify(result.orders)).not.toContain('PRIVATE');
+    expect(result.orders[0]).not.toHaveProperty('shippingAddress');
   });
 
   it.each(['CUSTOMER_B2C', 'CUSTOMER_B2B', 'ADMIN'])('returns only masked own-purchase summaries for %s', async role => {

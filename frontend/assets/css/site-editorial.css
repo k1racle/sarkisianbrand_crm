@@ -218,7 +218,6 @@
 .sb-storefront .sb-reset-card,.sb-storefront main > .sp-landing { width: min(720px,100%); padding: 48px; margin: 48px auto 80px; border-radius: 36px; background: #fff; box-shadow: var(--sf-surface-shadow); }
 .sb-storefront main > .sp-landing { width: min(820px,calc(100% - 48px)); }
 .sb-storefront main > .sp-landing h1 { font-size: var(--sb-type-page); font-weight: var(--sb-weight-medium); line-height: var(--sb-leading-heading); letter-spacing: var(--sb-tracking-heading); }
-.public-salon-booking:not(.is-embedded) .public-booking-card { border-radius: 36px; box-shadow: var(--sf-surface-shadow,0 24px 64px #201b1710); }
 @media (max-width: 1000px) {
   .sb-storefront .sb-checkout-flow { grid-template-columns: minmax(0,1fr) 300px; gap: 20px; }
   .sb-storefront .sb-auth-card { padding: 28px; }

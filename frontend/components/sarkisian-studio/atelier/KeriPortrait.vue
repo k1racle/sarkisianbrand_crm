@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { keriLayers, type KeriLook } from '../keri/look'
 import { loadKeriImage } from '../keri/render'
+import { drawStyledKeri } from '../keri/styling'
 const props = withDefaults(defineProps<{ look: KeriLook; assetBase: string; crop?: 'head' | 'seated'; animated?: boolean; label?: string }>(), { crop: 'head', animated: false, label: 'Персонаж' })
 const canvas = ref<HTMLCanvasElement>()
 let layers: HTMLImageElement[] = [], revision = 0, timer: ReturnType<typeof setTimeout> | undefined
@@ -13,12 +14,7 @@ function draw(closed = false) {
   const [x, y, w, h] = crop as [number, number, number, number]
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
   ctx.save(); ctx.scale(ctx.canvas.width / w, ctx.canvas.height / h); ctx.translate(-x, -y)
-  layers.forEach((img, i) => {
-    if (i === 4 && closed) {
-      const b = eyeBounds
-      ctx.drawImage(img, b.x, b.y, b.w, b.h, b.x, b.y + b.h * .49, b.w, Math.max(2, b.h * .035))
-    } else ctx.drawImage(img, 0, 0)
-  }); ctx.restore()
+  drawStyledKeri(ctx, layers, props.look, closed, eyeBounds); ctx.restore()
 }
 function schedule() {
   clearTimeout(timer)

@@ -10,6 +10,7 @@ import { OrdersController } from './orders.controller';
 import { StorefrontController } from '../storefront/storefront.controller';
 import { NotificationsService } from '../notifications/notifications.service';
 import { IntegrationSecretsService } from '../system-settings/integration-secrets.service';
+import { executionSnapshot } from '../oms/execution-snapshot';
 
 // Gift-card persistence/cryptography has its own suite. These tests validate only Orders' orchestration.
 jest.mock('../gift-cards/gift-cards.service', () => ({ GiftCardsService: class MockGiftCardsService {} }));
@@ -47,7 +48,7 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
       provider: destination.shippingProvider, deliveryMethod: destination.deliveryMethod, amount: 250.50, currency: 'RUB',
       requestSnapshot: snapshot, expiresAt: new Date(Date.now() + 15 * 60000),
     };
-    let state: any = { order: null, payments: [], stock: 10, reserved: 2, account: { id: 'mock-loyalty', userId: actor.sub, balance: 1000, level: 'START' }, entries: [], mails: [], redemptions: [], giftHolds: [], issuedCards: [], cleared: false };
+    let state: any = { order: null, payments: [], stock: 10, reserved: 2, oneCPending: 0, account: { id: 'mock-loyalty', userId: actor.sub, balance: 1000, level: 'START' }, entries: [], mails: [], redemptions: [], giftHolds: [], issuedCards: [], cleared: false };
     // Ledger maintenance has its own unit suite. Preserve this suite's opening
     // balance fixture while exercising the real write-off/positive-credit metadata.
     jest.spyOn(loyaltyCore, 'maintainAccount').mockImplementation(async () => ({ account: { ...state.account }, entries: [], expiredAmount: 0 }));
@@ -72,7 +73,13 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
         create: jest.fn(async ({ data }: any) => { state.order = { id: 'mock-order', ...data, items: data.items.create, history: [data.history.create], loyaltyAccruedAt: null }; return readOrder({ where: { id: state.order.id } }); }),
         update: jest.fn(async ({ data }: any) => { const { history, ...fields } = data; Object.assign(state.order, fields); if (history) state.order.history.push(history.create); return readOrder({ where: { id: state.order.id } }); }),
       },
-      productVariant: { updateMany: jest.fn(async ({ data, where }: any) => { if (state.reserved < where.reserved.gte) return { count: 0 }; state.reserved -= data.reserved.decrement; return { count: 1 }; }) },
+      ecosystemIntegration: { findUnique: jest.fn().mockResolvedValue({ isEnabled: true, configuredSecretKeys: ['password', 'exchangeSecret'], config: { baseUrl: 'https://fixture.invalid', username: 'fixture', warehouseId: 'warehouse' } }) },
+      oneCWarehouseCoverage: { findUnique: jest.fn().mockResolvedValue(null) },
+      oneCWarehouseStock: {
+        findUnique: jest.fn(async () => ({ variantId: 'mock-variant', warehouseId: 'warehouse', sku: 'MOCK', externalProductId: '1c-product', stock: state.stock, reserved1C: 2, localPending: state.oneCPending, revision: 1, asOf: new Date(Date.now() - 1000), validUntil: new Date(Date.now() + 60000) })),
+        updateMany: jest.fn(async ({ where, data }: any) => { if (where.localPending?.gte !== undefined && state.oneCPending < where.localPending.gte) return { count: 0 }; state.oneCPending += (data.localPending.increment || 0) - (data.localPending.decrement || 0); return { count: 1 }; }),
+      },
+      productVariant: { findUnique: jest.fn(async () => ({ id: 'mock-variant', sku: 'MOCK', stock: state.stock, reserved: state.reserved, product: { externalId: '1c-product', productType: 'PHYSICAL' } })), updateMany: jest.fn(async ({ data, where }: any) => { if (state.reserved < where.reserved.gte) return { count: 0 }; state.reserved -= data.reserved.decrement; return { count: 1 }; }) },
       loyaltyAccount: {
         upsert: jest.fn(async () => ({ ...state.account })), findUnique: jest.fn(async () => ({ ...state.account })), findUniqueOrThrow: jest.fn(async () => ({ ...state.account })),
         update: jest.fn(async ({ data }: any) => { state.account.balance += (data.balance?.increment || 0) - (data.balance?.decrement || 0); if (data.level) state.account.level = data.level; return { ...state.account }; }),
@@ -100,7 +107,7 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
     const pricing: any = { quote: jest.fn(async () => ({ cart, subtotalMinor: 156050, promoDiscountMinor: 0, bonusAmount: owned ? 50 : 0, shippingMinor: 25050,
       finalMinor: owned ? 176100 : 181100, deliveryConfirmed: true, promoCode: 'TEST', customerHash: 'mock-hash', settings, loyaltyAccount: owned ? { ...state.account } : undefined,
       publicQuote: { subtotal: 1560.5, total: owned ? 1761 : 1811, deliveryConfirmed: true, canPay: true, messages: [] } })) };
-    const oneC: any = { enqueueOrder: jest.fn().mockResolvedValue(undefined) };
+    const oneC: any = { enqueueOrder: jest.fn().mockResolvedValue(undefined), stageOrderExport: jest.fn().mockResolvedValue(undefined) };
     const config: any = { get: jest.fn(() => 'mock-jwt-security-key-at-least-32-characters') };
     const mailSecrets = new IntegrationSecretsService(config);
     // Real encrypted payload preparation only; lifecycle/SMTP/queue are never started.
@@ -141,6 +148,19 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
     expect(result.accessToken).toEqual(expect.any(String));
     for (const field of ['checkoutKey', 'checkoutRequestHash', 'guestAccessHash', 'guestAccessExpiresAt']) expect(result).not.toHaveProperty(field);
   });
+  it('requires a current 1C stock snapshot and rolls back when the export intent fails', async () => {
+    const ctx = setup();
+    ctx.tx.oneCWarehouseStock.findUnique.mockResolvedValueOnce(null);
+    await expect(ctx.service.checkout(session, dto(), undefined, key)).rejects.toBeInstanceOf(ConflictException);
+    expect(ctx.state.order).toBeNull(); expect(ctx.state.reserved).toBe(2); expect(ctx.state.oneCPending).toBe(0);
+    ctx.oneC.stageOrderExport.mockRejectedValueOnce(new Error('outbox unavailable'));
+    await expect(ctx.service.checkout(session, dto(), undefined, key)).rejects.toThrow('outbox unavailable');
+    expect(ctx.state.order).toBeNull(); expect(ctx.state.reserved).toBe(2); expect(ctx.state.oneCPending).toBe(0);
+    await ctx.service.checkout(session, dto(), undefined, key);
+    expect(ctx.oneC.stageOrderExport).toHaveBeenLastCalledWith(ctx.tx, 'mock-order', undefined);
+    expect(ctx.state.oneCPending).toBe(2);
+  });
+
   it('atomically replays without a second reserve/order/mail/bonus debit', async () => {
     const ctx = setup(true); const first = await ctx.service.checkout(session, dto(), actor, key); const second = await ctx.service.checkout(session, dto(), actor, key);
     expect(second.orderNumber).toBe(first.orderNumber); expect(ctx.tx.order.create).toHaveBeenCalledTimes(1); expect(ctx.pricing.quote).toHaveBeenCalledTimes(1);
@@ -251,12 +271,42 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
     const ctx = setup(true); const order = await ctx.service.checkout(session, dto(), actor, key); ctx.payment();
     expect((await ctx.service.findOne(order.orderNumber, actor)).payments[0]).not.toHaveProperty('metadata');
   });
+  it('exposes only current customer-facing 1C progress and hides internal warehouse fields', async () => {
+    const ctx = setup(true); const order = await ctx.service.checkout(session, dto(), actor, key);
+    ctx.state.order.items[0].id = 'line';
+    ctx.state.order.execution = { version: 2 };
+    ctx.state.order.warehouseExecution = { status: 'PICKING', executionVersion: 2, basisHash: executionSnapshot(ctx.state.order), asOf: new Date(), validUntil: new Date(Date.now()+60000), executorName: 'private', documentId: 'private', error: 'private', lines: [{ private: true }] };
+    const result: any = await ctx.service.findOne(order.orderNumber, actor);
+    expect(result.warehouseStatus).toMatchObject({ stage: 'PICKING', isCurrent: true });
+    expect(result.requiresWarehouse).toBe(true);
+    expect(result).not.toHaveProperty('warehouseExecution'); expect(result).not.toHaveProperty('execution');
+    expect(Object.keys(result.warehouseStatus).sort()).toEqual(['asOf', 'isCurrent', 'stage']);
+    ctx.state.order.warehouseExecution.validUntil = new Date(0);
+    expect((await ctx.service.findOne(order.orderNumber, actor)).warehouseStatus).toMatchObject({ stage: null, isCurrent: false });
+  });
   it('cancels and releases only reserved stock, reversing bonuses exactly once', async () => {
     const ctx = setup(true); const order = await ctx.service.checkout(session, dto(), actor, key); await ctx.service.cancel(order.orderNumber, actor); await ctx.service.cancel(order.orderNumber, actor);
     expect(ctx.state.order).toMatchObject({ status: 'CANCELLED', reservationState: 'RELEASED', reservationExpiresAt: null });
     expect(ctx.state.stock).toBe(10); expect(ctx.state.reserved).toBe(2); expect(ctx.state.account.balance).toBe(1000); expect(ctx.state.entries.filter((e: any) => e.type === 'REVERSAL')).toHaveLength(1);
     expect(ctx.state.redemptions[0].status).toBe('RELEASED'); expect(ctx.state.mails.filter((m: any) => m.kind === 'ORDER_CANCELLED')).toHaveLength(1);
     expect(ctx.tx.productVariant.updateMany).toHaveBeenCalledWith({ where: { id: 'mock-variant', reserved: { gte: 2 } }, data: { reserved: { decrement: 2 } } });
+  });
+  it('releases a draft with zero 1C coverage, but preserves the hold when 1C has recorded movement', async () => {
+    const covered = setup(true); const order = await covered.service.checkout(session, dto(), actor, key);
+    covered.tx.oneCWarehouseCoverage.findUnique.mockResolvedValue({ reserved: 1, shipped: 0, cancelled: 0 });
+    await expect(covered.service.cancel(order.orderNumber, actor)).rejects.toBeInstanceOf(ConflictException);
+    expect(covered.state).toMatchObject({ reserved: 4, oneCPending: 2, order: { status: 'NEW' }, account: { balance: 950 } });
+    covered.tx.oneCWarehouseCoverage.findUnique.mockResolvedValue({ reserved: 0, shipped: 0, cancelled: 0 });
+    await covered.service.cancel(order.orderNumber, actor);
+    expect(covered.state).toMatchObject({ reserved: 2, oneCPending: 0, order: { status: 'CANCELLED' } });
+  });
+  it('rolls back cancellation if its 1C export intent cannot be recorded', async () => {
+    const ctx = setup(true); const order = await ctx.service.checkout(session, dto(), actor, key);
+    ctx.oneC.stageOrderExport.mockRejectedValueOnce(new Error('outbox unavailable'));
+    await expect(ctx.service.cancel(order.orderNumber, actor)).rejects.toThrow('outbox unavailable');
+    expect(ctx.state).toMatchObject({ reserved: 4, oneCPending: 2, order: { status: 'NEW' }, account: { balance: 950 } });
+    await ctx.service.cancel(order.orderNumber, actor);
+    expect(ctx.state).toMatchObject({ reserved: 2, oneCPending: 0, order: { status: 'CANCELLED', isSynced1C: false } });
   });
   it.each(['CREATING', 'PENDING', 'SUCCEEDED'])('does not cancel with a %s payment', async (status) => {
     const ctx = setup(true); const order = await ctx.service.checkout(session, dto(), actor, key); ctx.payment(status);

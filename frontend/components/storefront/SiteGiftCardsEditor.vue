@@ -374,7 +374,7 @@ defineExpose({ load: () => load(true), busy: computed(() => busy.value || loadin
           <template v-else><div class="sb-gift-preview-brand"><span>SARKISIAN</span><Gift :size="32" /></div><div class="sb-gift-preview-value"><span>ПОДАРОЧНАЯ КАРТА</span><strong>{{ previewNominal ? money(previewNominal.value) : 'Выберите номинал' }}</strong></div></template>
         </div>
         <div class="sb-gift-preview-copy"><h3>{{ product.nameRu || 'Подарочная карта' }}</h3><p>{{ product.descriptionRu || 'Добавьте описание для покупателей' }}</p></div>
-        <div v-if="previewDenominations.length" class="sb-gift-preview-nominals" aria-label="Номинал в предпросмотре"><button v-for="item in previewDenominations" :key="item.key" type="button" :aria-pressed="previewNominal?.key === item.key" @click="previewKey = item.key">{{ money(item.value) }}</button></div>
+        <div v-if="previewDenominations.length" class="sb-gift-preview-nominals" aria-label="Номинал в предпросмотре"><button class="crm-button" v-for="item in previewDenominations" :key="item.key" type="button" :aria-pressed="previewNominal?.key === item.key" @click="previewKey = item.key">{{ money(item.value) }}</button></div>
         <p class="sb-gift-preview-term"><Clock3 :size="16" />Срок действия: {{ product.validityDays || '—' }} дн.</p>
         <small class="sb-gift-preview-note">Предпросмотр текущих настроек. Изменения появятся на сайте после сохранения.</small>
       </aside>
@@ -391,8 +391,8 @@ defineExpose({ load: () => load(true), busy: computed(() => busy.value || loadin
       <footer class="sb-gift-actions"><button type="submit" class="sb-gift-button crm-button crm-button--primary" :disabled="busy"><Save :size="18" /> {{ busy ? 'Сохраняем…' : issue ? 'Выдать карту' : 'Сохранить изменения' }}</button><button type="button" class="sb-gift-button sb-gift-button--white crm-button" :disabled="busy" @click="closeEditor"><X :size="18" /> Отмена</button></footer>
     </form>
     <Teleport to="body"><Transition name="sb-gift-dialog">
-      <div v-if="dialog" class="sb-gift-dialog-layer admin-dialog-backdrop" @click.self="closeDialog()" @keydown="dialogKeys">
-        <section ref="dialogEl" class="sb-gift-admin sb-gift-panel sb-gift-dialog admin-dialog admin-dialog--modal crm-surface" :class="{ 'sb-gift-dialog--history': dialog.kind === 'history' }" role="dialog" aria-modal="true" aria-labelledby="sb-gift-dialog-title" aria-describedby="sb-gift-dialog-description">
+      <div v-if="dialog" class="sb-gift-dialog-layer admin-dialog-backdrop crm-management-backdrop" @click.self="closeDialog()" @keydown="dialogKeys">
+        <section ref="dialogEl" class="sb-gift-admin sb-gift-panel sb-gift-dialog admin-dialog admin-dialog--modal crm-surface crm-management-dialog" :class="{ 'sb-gift-dialog--history': dialog.kind === 'history' }" role="dialog" aria-modal="true" aria-labelledby="sb-gift-dialog-title" aria-describedby="sb-gift-dialog-description">
           <header class="sb-gift-form-head">
             <h3 id="sb-gift-dialog-title">{{ dialog.kind === 'history' ? 'История карты' : dialog.kind === 'reveal' ? 'Полный код карты' : 'Выключить карту?' }}</h3>
             <button class="sb-gift-icon-button crm-button crm-button--icon" :disabled="busy" aria-label="Закрыть окно карты" @click="closeDialog()"><X :size="20" /></button>

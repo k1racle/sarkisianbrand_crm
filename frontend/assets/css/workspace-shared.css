@@ -64,8 +64,8 @@
     --ui-line: var(--brand-gray);
     --ui-accent: var(--brand-action);
     --ui-accent-soft: var(--brand-soft);
-    --ui-control-radius: 8px;
-    --ui-card-radius: 12px;
+    --ui-control-radius: 10px;
+    --ui-card-radius: 16px;
     --ui-gutter: 24px;
   }
   .ui-fieldset-reset {

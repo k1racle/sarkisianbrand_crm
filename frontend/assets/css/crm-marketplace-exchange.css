@@ -1,0 +1,31 @@
+@layer crm-workspace {
+ .marketplace-exchange { margin:0 0 24px; padding:24px; color:var(--crm-ink,var(--brand-graphite)); }
+ .marketplace-exchange-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; }
+ .marketplace-exchange :is(h2,h3,h4,p) { margin:0; }
+ .marketplace-exchange-heading h2 { font-size:var(--crm-type-section,18px); line-height:1.35; }
+ .marketplace-exchange-heading p,.marketplace-exchange-mapping > div > p { margin-top:6px; color:var(--crm-muted,var(--brand-muted)); line-height:1.6; }
+ .marketplace-exchange > .crm-inline-note { margin:18px 0; }
+ .marketplace-exchange-rows { border-top:1px solid var(--crm-line,var(--brand-gray)); }
+ .marketplace-exchange-row { display:grid; grid-template-columns:minmax(160px,1fr) minmax(170px,1fr) auto; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--crm-line,var(--brand-gray)); }
+ .marketplace-exchange-row h3,.marketplace-exchange-mapping h3 { font-size:var(--crm-type-body,14px); line-height:1.4; }
+ .marketplace-exchange-row p,.marketplace-exchange-status small,.marketplace-exchange-unresolved small { display:block; margin-top:4px; color:var(--crm-muted,var(--brand-muted)); line-height:1.5; }
+ .marketplace-exchange-status { min-width:0; overflow-wrap:anywhere; }
+ .marketplace-exchange-status strong { font-size:var(--crm-type-body,14px); }
+ .marketplace-exchange > .crm-muted { margin:14px 0; line-height:1.6; }
+ .marketplace-exchange-message,.marketplace-exchange-error { margin:16px 0!important; padding:12px 14px; border-left:3px solid var(--crm-accent,#6864bb); background:var(--crm-tint,transparent); line-height:1.5; }
+ .marketplace-exchange-error { border-color:var(--crm-danger,#b53f48); }
+ .marketplace-exchange-mapping { display:grid; gap:14px; margin-top:24px; padding-top:24px; border-top:1px solid var(--crm-line,var(--brand-gray)); }
+ .marketplace-exchange-mapping h4 { margin-top:6px; font-size:var(--crm-type-body,14px); }
+ .marketplace-exchange-unresolved { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 0; border-bottom:1px solid var(--crm-line,var(--brand-gray)); }
+ .marketplace-exchange-editor { display:grid; gap:14px; padding:16px; }
+ .marketplace-exchange-search { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:10px; }
+ .marketplace-exchange-actions { display:flex; gap:10px; flex-wrap:wrap; }
+ @media(max-width:700px) {
+  .marketplace-exchange { padding:16px; }
+  .marketplace-exchange-row { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .marketplace-exchange-row > button { justify-self:start; }
+  .marketplace-exchange-unresolved { align-items:flex-start; flex-direction:column; }
+  .marketplace-exchange-search { grid-template-columns:minmax(0,1fr); }
+  .marketplace-exchange-search > button { justify-self:start; }
+ }
+}

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { salonMasterAvailable } from '~/shared/salon-masters';
 import { CalendarDays, Code, Copy, ExternalLink, Globe, Save, Users } from '@lucide/vue';
 const props=defineProps<{profile:any;scheduleOnly?:boolean}>();
 const config=useRuntimeConfig(),session=useB2BSession();
 const draft=reactive<any>({enabled:false,timeZone:'Europe/Moscow',startMinute:540,endMinute:1200,slotStep:15,horizonDays:30,workingDays:[1,2,3,4,5,6],masterIds:[],weeklySchedule:[]});
 const loading=ref(true),busy=ref(false),error=ref(''),notice=ref(''),baseline=ref('');
 const canEdit=computed(()=>props.profile.membership?.role==='OWNER');
+const masterOptions=computed(()=>{const active=props.profile.members.filter(salonMasterAvailable);return [...active,...draft.masterIds.filter((id:string)=>!active.some((member:any)=>member.id===id)).map((id:string)=>props.profile.members.find((member:any)=>member.id===id)||{id,isActive:false,user:{firstName:'Мастер недоступен'}})];});
 const dirty=computed(()=>Boolean(baseline.value)&&JSON.stringify(draft)!==baseline.value);
 const days=[{id:1,label:'Пн'},{id:2,label:'Вт'},{id:3,label:'Ср'},{id:4,label:'Чт'},{id:5,label:'Пт'},{id:6,label:'Сб'},{id:0,label:'Вс'}];
 const publicUrl=computed(()=>`${String(config.public.siteUrl).replace(/\/$/,'')}/booking/${props.profile.id}`);
@@ -13,8 +15,8 @@ const hours=(key:string)=>computed({get:()=>{const minute=draft[key]===1440?0:dr
 const opensAt=hours('startMinute'),closesAt=hours('endMinute');
 const fields=['enabled','timeZone','startMinute','endMinute','slotStep','horizonDays','workingDays','masterIds','weeklySchedule'];
 const headers=computed(()=>({Authorization:`Bearer ${session.token.value}`}));
-async function load(){loading.value=true;error.value='';try{const value=await $fetch<any>('/b2b/booking-settings',{baseURL:config.public.apiBase,headers:headers.value});for(const key of fields)if(value[key]!==undefined)draft[key]=value[key];baseline.value=JSON.stringify(draft);}catch{error.value='Не удалось загрузить настройки онлайн-записи.';}finally{loading.value=false;}}
-async function save(){if(busy.value||!canEdit.value)return;busy.value=true;error.value='';notice.value='';try{await $fetch('/b2b/booking-settings',{baseURL:config.public.apiBase,headers:headers.value,method:'PATCH',body:Object.fromEntries(fields.map(key=>[key,draft[key]]))});baseline.value=JSON.stringify(draft);notice.value='Настройки сохранены';}catch(e:any){error.value=typeof e.data?.message==='string'?e.data.message:'Не удалось сохранить настройки.';}finally{busy.value=false;}}
+async function load(){loading.value=true;error.value='';try{const value=await session.request<any>('/b2b/booking-settings');for(const key of fields)if(value[key]!==undefined)draft[key]=value[key];baseline.value=JSON.stringify(draft);}catch{error.value='Не удалось загрузить настройки онлайн-записи.';}finally{loading.value=false;}}
+async function save(){if(busy.value||!canEdit.value)return;busy.value=true;error.value='';notice.value='';try{await session.request('/b2b/booking-settings',{method:'PATCH',body:Object.fromEntries(fields.map(key=>[key,draft[key]]))});baseline.value=JSON.stringify(draft);notice.value='Настройки сохранены';}catch(e:any){error.value=typeof e.data?.message==='string'?e.data.message:'Не удалось сохранить настройки.';}finally{busy.value=false;}}
 async function copy(kind:'widget'|'link'='widget'){error.value='';try{await navigator.clipboard.writeText(kind==='link'?publicUrl.value:embed.value);notice.value=kind==='link'?'Ссылка скопирована':'Код виджета скопирован';}catch{error.value='Не удалось скопировать. Выделите текст и скопируйте вручную.';}}
 function leave(){return !busy.value&&(!dirty.value||window.confirm('Настройки онлайн-записи не сохранены. Покинуть раздел?'));}
 async function refresh(){if(busy.value||loading.value)return;if(dirty.value&&!window.confirm('Настройки не сохранены. Отменить изменения и обновить?'))return;notice.value='';await load();}
@@ -39,7 +41,7 @@ onMounted(load);
           <fieldset class="salon-settings-days"><legend>Рабочие дни</legend><div class="salon-day-options"><label v-for="day in days" :key="day.id"><input v-model="draft.workingDays" :value="day.id" type="checkbox"/><span>{{day.label}}</span></label></div></fieldset>
         </section>
         <SalonWeeklySchedule v-model="draft.weeklySchedule" :working-days="draft.workingDays" :start-minute="draft.startMinute" :end-minute="draft.endMinute"/>
-        <fieldset class="salon-settings-masters"><legend><Users :size="18"/>Мастера для публичной записи</legend><div class="salon-master-options"><label v-for="member in profile.members" :key="member.id"><input v-model="draft.masterIds" :value="member.id" type="checkbox"/><span>{{[member.user.firstName,member.user.lastName].filter(Boolean).join(' ')||'Сотрудник'}}</span></label><small v-if="!profile.members.length">Нет активных сотрудников.</small></div></fieldset>
+        <fieldset class="salon-settings-masters"><legend><Users :size="18"/>Мастера для публичной записи</legend><div class="salon-master-options"><label v-for="member in masterOptions" :key="member.id"><input v-model="draft.masterIds" :value="member.id" type="checkbox"/><span>{{[member.user.firstName,member.user.lastName].filter(Boolean).join(' ')||'Сотрудник'}}{{salonMasterAvailable(member)?'':' · недоступен'}}</span></label><small v-if="!profile.members.some(salonMasterAvailable)">Нет активных сотрудников.</small></div></fieldset>
       </fieldset>
       <details class="salon-settings-notes"><summary>Условия публикации</summary><p class="salon-settings-warning">Публикация доступна для активной организации. Часы по дням недели и перерывы действуют для всех выбранных мастеров. Индивидуальные смены и исключения по датам — следующий этап. Перед массовым запуском необходимо подключить подтверждение телефона.</p></details>
       <footer class="salon-settings-save"><span role="status">{{notice|| (dirty?'Есть несохранённые изменения':'Все изменения сохранены')}}</span><button v-if="canEdit" class="primary" type="submit" :disabled="busy||!dirty"><Save :size="16"/>{{busy?'Сохраняем…':'Сохранить настройки'}}</button></footer>

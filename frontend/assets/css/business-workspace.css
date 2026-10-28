@@ -1,0 +1,528 @@
+/* Business workspace: the same neutral hierarchy as the CRM, with purchasing
+ * controls and salon records kept together with their own content. */
+@layer business-theme {
+  html[data-business-ui] .b2b-rail {
+    background:var(--ui-bg)!important;
+    color:var(--ui-ink)!important;
+    border-color:var(--ui-line-soft,var(--ui-line))!important;
+  }
+  html[data-business-ui] .b2b-rail .brand img:not(.salon-tenant-logo) { filter:brightness(0)!important; }
+  html[data-business-ui][data-business-theme="dark"] .b2b-rail .brand img:not(.salon-tenant-logo) { filter:brightness(0) invert(1)!important; }
+  html[data-business-ui] .b2b-rail :is(nav a,.bottom button,.bottom b,.b2b-rail-toggle,.ui-mobile-close) {
+    color:var(--ui-ink)!important;
+    background:transparent!important;
+    border-color:var(--ui-line-soft,var(--ui-line))!important;
+  }
+  html[data-business-ui] .b2b-rail nav a {
+    min-height:44px!important;
+    padding:10px 12px!important;
+    border-radius:var(--ui-control-radius,10px)!important;
+    font-weight:400!important;
+  }
+  html[data-business-ui] .b2b-rail :is(nav a,.bottom button,.b2b-rail-toggle,.ui-mobile-close):hover {
+    background:var(--ui-soft)!important;
+    color:var(--ui-ink)!important;
+  }
+  html[data-business-ui] .b2b-rail nav a.active {
+    color:var(--ui-ink)!important;
+    background:var(--ui-panel)!important;
+    box-shadow:inset 0 0 0 1px var(--ui-line-soft,var(--ui-line))!important;
+    font-weight:600!important;
+  }
+  html[data-business-ui] .b2b-rail nav a > span {font-weight:inherit!important;}
+  html[data-business-ui] .b2b-rail :is(.bottom,.person) { border-color:var(--ui-line-soft,var(--ui-line))!important; }
+  html[data-business-ui] .b2b-rail :is(.bottom small,.business-rail-group-label) { color:var(--ui-muted)!important; }
+  html[data-business-ui] .b2b-rail .person i { background:var(--ui-panel)!important;color:var(--ui-ink)!important;border:1px solid var(--ui-line-soft,var(--ui-line))!important; }
+  html[data-business-ui] .b2b-rail :is(a,button,select):focus-visible { outline:2px solid var(--ui-ink)!important;outline-offset:3px!important; }
+
+  .b2b-frame .business-toolbar { padding:12px 24px!important;gap:16px!important;background:var(--ui-panel)!important;border-color:var(--ui-line-soft,var(--ui-line))!important; }
+  .b2b-frame .business-toolbar select {
+    min-height:44px!important;height:44px!important;width:100%!important;
+    padding:0 30px 0 2px!important;margin:0!important;
+    border:0!important;border-radius:0!important;background:transparent!important;
+    color:var(--ui-ink)!important;color-scheme:inherit!important;
+    font-size:14px!important;box-shadow:none!important;
+  }
+  .b2b-frame .business-toolbar option { background:var(--ui-panel)!important;color:var(--ui-ink)!important; }
+  .b2b-frame .business-toolbar .wn-icon-control { width:44px!important;min-height:44px!important;height:44px!important;border-color:transparent!important;background:transparent!important; }
+  .b2b-frame .business-toolbar .wn-icon-control:hover { background:var(--ui-soft)!important; }
+
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls,.business-catalog-empty) { border-radius:var(--ui-card-radius,16px)!important;border-color:var(--ui-line-soft,var(--ui-line))!important; }
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls) .salon-services-filters { border-color:var(--ui-line-soft,var(--ui-line))!important;padding:16px!important; }
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls) :is(select,input:not([type=checkbox]),button) { border-radius:var(--ui-control-radius,10px)!important; }
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls) .salon-services-search { background:var(--ui-panel)!important;border-radius:var(--ui-control-radius,10px)!important;border-color:var(--ui-line)!important; }
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls) .salon-services-search input { border-radius:0!important; }
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls) .salon-services-search button { width:32px!important;min-height:40px!important; }
+  .b2b-frame .business-results-summary .business-text-control { display:inline-flex!important;align-items:center;gap:6px;min-height:32px!important;height:auto!important;padding:4px 0!important;border:0!important;background:transparent!important;color:var(--ui-ink)!important;white-space:normal!important; }
+  .b2b-frame .business-results-summary .business-text-control:hover { text-decoration:underline; }
+  .b2b-frame .business-register-panel .salon-services-table :is(th,td) { padding:14px 16px!important;border-color:var(--ui-line-soft,var(--ui-line))!important; }
+  .b2b-frame .business-register-panel .salon-services-table thead th { background:var(--ui-panel)!important;font-size:12px!important;color:var(--ui-muted)!important;font-weight:400!important; }
+  .b2b-frame .business-register-panel .salon-services-table tbody .salon-service-row:hover :is(th,td),
+  .b2b-frame .business-register-panel .salon-services-table tbody .is-expanded :is(th,td) { background:var(--ui-surface-muted,var(--ui-soft))!important; }
+  .b2b-frame .business-register-panel .salon-service-info .b2b-edit-link { min-height:32px!important;font-weight:600!important;text-decoration:none!important;line-height:1.5!important; }
+  .b2b-frame .business-register-panel .salon-service-info .b2b-edit-link:hover { text-decoration:underline!important;text-underline-offset:3px; }
+  .b2b-frame .business-register-panel .salon-service-info .business-order-expand { display:inline-flex!important;align-items:center;gap:8px; }
+  .b2b-frame .business-register-panel .salon-services-table :is(.salon-client-spent,.salon-service-price,.business-money-heading) { text-align:right!important; }
+  .b2b-frame .business-register-panel .salon-service-status.is-active { color:var(--ui-success)!important;background:var(--ui-success-soft)!important; }
+  .b2b-frame .business-register-panel .salon-service-actions button { border-color:transparent!important;background:transparent!important;border-radius:var(--ui-control-radius,10px)!important; }
+  .b2b-frame .business-register-panel .salon-service-actions button:hover { border-color:var(--ui-line)!important;background:var(--ui-panel)!important; }
+  .b2b-frame .business-register-panel :is(.business-pagination,.business-order-actions) button,
+  .b2b-frame .business-catalog-pagination button { display:inline-flex!important;align-items:center;justify-content:center;gap:8px;padding:0 12px!important;min-height:40px!important;border:1px solid var(--ui-line)!important;background:var(--ui-panel)!important;color:var(--ui-ink)!important; }
+  .b2b-frame .business-register-panel .business-pagination button { width:40px!important;padding:0!important; }
+
+  .b2b-frame .business-product .business-quantity :is(input,button) { min-height:40px!important;height:40px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--ui-ink)!important;box-shadow:none!important; }
+  .b2b-frame .business-product .business-quantity button { width:32px!important;min-width:32px!important;display:grid!important;place-items:center; }
+  .b2b-frame .business-product .business-quantity input { width:38px!important;min-width:0!important;flex:0 0 38px!important; }
+  .b2b-frame .business-product .business-quantity button:hover:not(:disabled) { background:var(--ui-soft)!important; }
+  .b2b-frame .business-cart footer button.primary { background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:var(--ui-on-accent,var(--ui-bg))!important;min-height:44px!important;border-radius:var(--ui-control-radius,10px)!important; }
+  .b2b-frame .business-cart footer button.primary :is(svg,span) { color:inherit!important; }
+  .b2b-frame .business-cart .business-cart-line button { width:32px!important;min-height:32px!important;height:32px!important;padding:0!important;display:grid!important;place-items:center;border-color:transparent!important;background:transparent!important; }
+  .b2b-frame .business-cart .business-cart-line button:hover { background:var(--ui-soft)!important;color:var(--ui-danger)!important; }
+  .b2b-frame button.business-cart-jump { border-color:var(--ui-line)!important;background:var(--ui-panel)!important;color:var(--ui-ink)!important;border-radius:var(--ui-control-radius,10px)!important; }
+  .b2b-frame button.business-cart-jump :is(span,strong,svg) { color:inherit!important; }
+
+  .b2b-frame .business-workspace-overview .business-overview-metrics>article { background:transparent!important;border:0!important;border-radius:0!important;padding:22px!important;gap:10px!important; }
+  .b2b-frame .business-workspace-overview .business-overview-metrics>article+article { border-left:1px solid var(--ui-line-soft,var(--ui-line))!important; }
+  .b2b-frame .business-workspace-overview .business-overview-metrics>article>strong { font-size:28px!important;line-height:1.2!important;font-weight:700!important;letter-spacing:-.03em!important; }
+  .b2b-frame .business-workspace-overview .business-overview-metrics>article>small { color:var(--ui-muted)!important;font-size:12px!important; }
+  .b2b-frame .business-workspace-overview .salon-settings-panel { border-color:var(--ui-line-soft,var(--ui-line))!important;border-radius:var(--ui-card-radius,16px)!important; }
+  .b2b-frame .business-workspace-overview a.business-section-link { display:inline-flex!important;align-items:center;gap:7px;min-height:40px!important;border:0!important;background:transparent!important;padding:0 0 0 12px!important;white-space:nowrap; }
+  .b2b-frame .business-workspace-overview a.business-section-link:hover { text-decoration:underline;text-underline-offset:4px; }
+  .b2b-frame .business-workspace-overview a.business-dashboard-order { display:flex!important;gap:14px!important;min-height:0!important;padding:16px 0!important;border:0!important;border-top:1px solid var(--ui-line-soft,var(--ui-line))!important;border-radius:0!important;background:transparent!important; }
+  .b2b-frame .business-workspace-overview a.business-dashboard-order:hover { background:var(--ui-surface-muted,var(--ui-soft))!important; }
+  .b2b-frame .business-workspace-overview .business-order-mark { border-color:var(--ui-line-soft,var(--ui-line))!important;background:var(--ui-surface-muted,var(--ui-soft))!important;color:var(--ui-muted)!important; }
+  .b2b-frame .business-workspace-overview .business-order-mark svg { background:transparent!important;color:inherit!important; }
+  .b2b-frame .business-workspace-overview .business-dashboard-empty>a { display:inline-flex!important;align-items:center;justify-content:center;gap:8px;border:1px solid var(--ui-line)!important;min-height:44px!important;padding:0 16px!important;white-space:normal!important; }
+  .b2b-frame .business-workspace-overview .salon-organization { background:var(--ui-panel)!important;color:var(--ui-ink)!important;border:1px solid var(--ui-line-soft,var(--ui-line))!important;border-radius:var(--ui-card-radius,16px)!important;padding:22px 24px!important; }
+  .b2b-frame .business-workspace-overview .salon-organization :is(h2,strong,a) { color:var(--ui-ink)!important; }
+  .b2b-frame .business-workspace-overview .salon-organization :is(small,p) { color:var(--ui-muted)!important; }
+  .b2b-frame .business-workspace-overview .salon-organization h2 { margin:6px 0 8px!important;font-size:20px!important; }
+  .b2b-frame .business-workspace-overview .salon-organization p { margin-bottom:8px!important; }
+  .b2b-frame .business-workspace-overview .salon-organization-finance>div { padding:0 0 0 20px!important;border:0!important;border-left:1px solid var(--ui-line-soft,var(--ui-line))!important;border-radius:0!important; }
+  .b2b-frame .business-workspace-overview .salon-organization-status { border-color:var(--ui-line-soft,var(--ui-line))!important;background:var(--ui-surface-muted,var(--ui-soft))!important;color:var(--ui-muted)!important; }
+  .b2b-frame .business-workspace-overview .salon-organization-status.is-active { background:var(--ui-success-soft)!important;color:var(--ui-success)!important;border-color:transparent!important; }
+}
+
+/* Booking is a task, so salon contacts stay available without preceding every
+ * step with the same tall contact block. These selectors never reach the shop. */
+.public-salon-booking { padding:24px 16px; }
+.b2b-visually-hidden { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+.public-salon-booking .public-booking-card { padding:24px;gap:20px; }
+.public-booking-card header { padding-bottom:16px;gap:6px; }
+.public-booking-card header img { width:152px;margin-bottom:8px; }
+.public-booking-card :is(h1,h2) { font-weight:600; }
+.public-booking-card h1 { font-size:24px; }
+.public-salon-address { overflow-wrap:anywhere;color:var(--booking-muted); }
+.public-salon-info { min-width:0; }
+.public-salon-info>summary { display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none;font-size:13px;color:var(--booking-ink); }
+.public-salon-info>summary::after { content:'⌄';margin-left:auto; }
+.public-salon-info[open]>summary::after { transform:rotate(180deg); }
+.public-salon-info>summary:focus-visible { outline:2px solid var(--booking-ink);outline-offset:3px; }
+.public-salon-info .public-salon-contacts a { min-height:44px; }
+.public-booking-card :is(form,.public-booking-stage,fieldset) { gap:16px; }
+.public-booking-card .public-booking-summary { padding:12px 14px;gap:4px; }
+.public-booking-card .public-booking-nearest button { flex-basis:72px; }
+.public-booking-card .public-booking-service-preview { padding:12px 14px; }
+@media(max-width:600px) {
+  .public-salon-booking { padding:12px; }
+  .public-salon-booking .public-booking-card { padding:20px 16px;gap:16px; }
+  .public-booking-card header img { width:144px;margin-bottom:4px; }
+  .public-booking-card h1 { font-size:22px; }
+  .public-booking-card header { padding-bottom:12px; }
+  .public-booking-card .public-booking-nearest { gap:6px; }
+  .public-booking-card .public-booking-nearest button { flex-basis:68px; }
+}
+@layer business-theme {
+  .sb-business-registration-drawer .sb-business-registration-form>button[type=button] { min-height:44px!important;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px!important;border:1px solid var(--sd-line);border-radius:var(--site-radius-pill);background:transparent;color:var(--site-text); }
+  @media(max-width:800px) {
+    .sb-business-registration-drawer .sb-business-registration-form input:not([type=checkbox]) { font-size:16px!important; }
+    html[data-business-ui] .b2b-login .login-card :is(input:not([type=checkbox]),select) { font-size:16px!important; }
+  }
+}
+
+.business-toolbar-context { display:flex;align-items:center;gap:20px;min-width:0;flex:1; }
+.business-workspace-switch,.business-organization-switch { display:flex;align-items:center;gap:10px;min-width:0;max-width:260px; }
+.business-workspace-switch>svg,.business-organization-switch>svg,.business-toolbar-company>svg { flex:none;color:var(--ui-muted); }
+.business-workspace-switch { width:222px;flex:0 1 222px; }
+.business-organization-switch { border-left:1px solid var(--ui-line-soft,var(--ui-line));padding-left:20px;flex:0 1 260px; }
+.business-toolbar-company { display:flex;align-items:center;gap:8px;min-width:0;color:var(--ui-muted);font-size:12px; }
+.business-toolbar-company>span { overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
+.business-rail-management { margin-top:24px!important; }
+.business-rail-group-label { margin:4px 12px 8px;font-size:12px;font-weight:400;line-height:1.5; }
+.b2b-rail.b2b-rail--collapsed .business-rail-group-label { display:none; }
+
+.business-workspace-overview { gap:24px; }
+.business-workspace-overview .business-overview-metrics { grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;overflow:hidden;border:1px solid var(--ui-line-soft,var(--ui-line));border-radius:var(--ui-card-radius,16px);background:var(--ui-panel); }
+.business-overview-columns { display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);align-items:start;gap:24px;min-width:0; }
+.business-workspace-overview .business-purchases-columns { gap:24px; }
+.business-workspace-overview .salon-overview-heading { flex-wrap:nowrap;align-items:start;padding:0; }
+.business-workspace-overview .salon-overview-heading h2 { margin:0; }
+.business-workspace-overview .salon-overview-heading p { margin:6px 0 0;color:var(--ui-muted);font-size:12px;line-height:1.5; }
+.business-upcoming-panel,.business-recent-orders { gap:0; }
+.business-recent-orders>.salon-overview-heading { padding-bottom:20px; }
+.business-overview-shortcuts { display:grid;gap:12px;min-width:0; }
+.business-shortcut { display:flex;align-items:center;gap:14px;padding:20px;border:1px solid var(--ui-line-soft,var(--ui-line));border-radius:var(--ui-card-radius,16px);background:var(--ui-panel);color:var(--ui-ink);text-decoration:none;transition:background .15s,border-color .15s;min-width:0; }
+.business-shortcut>svg { flex:none; }
+.business-shortcut>svg:first-child { color:var(--ui-muted); }
+.business-shortcut>span { display:grid;gap:6px;flex:1;min-width:0; }
+.business-shortcut strong { line-height:1.5;font-weight:600; }
+.business-shortcut small { color:var(--ui-muted);font-size:12px;line-height:1.5; }
+.business-shortcut:hover { border-color:var(--ui-line);background:var(--ui-surface-muted,var(--ui-soft)); }
+.business-shortcut--primary { background:var(--ui-ink);border-color:var(--ui-ink);color:var(--ui-on-accent,var(--ui-bg)); }
+.business-shortcut--primary :is(small,svg),.business-shortcut--primary>svg:first-child { color:inherit; }
+.business-shortcut--primary small { opacity:.88; }
+.business-shortcut--primary:hover { color:var(--ui-on-accent,var(--ui-bg));background:var(--ui-ink);opacity:.92; }
+.business-overview-notice { display:flex;align-items:center;gap:16px;padding:16px 20px;border:1px solid var(--ui-line);border-radius:var(--ui-card-radius,16px);background:var(--ui-panel);min-width:0; }
+.business-overview-notice>svg { flex:none;color:var(--ui-danger); }
+.business-overview-notice>div { flex:1;min-width:0; }
+.business-overview-notice p { margin:6px 0 0;color:var(--ui-muted);line-height:1.5; }
+.business-overview-notice>a { display:flex;align-items:center;gap:8px;color:var(--ui-ink);text-decoration:none;min-height:44px; }
+.business-upcoming-list { list-style:none;margin:0;padding:0; }
+.business-upcoming-list .salon-overview-visit { display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:16px;margin:0;padding:20px 0;border-color:var(--ui-line-soft,var(--ui-line)); }
+.business-upcoming-list .salon-overview-visit:first-child { margin-top:20px; }
+.business-upcoming-list time { font-variant-numeric:tabular-nums;font-size:12px;color:var(--ui-muted);line-height:1.6; }
+.business-upcoming-list strong { font-weight:600;line-height:1.5; }
+.business-upcoming-list small { color:var(--ui-muted);font-size:12px;line-height:1.5; }
+.business-upcoming-list .business-visit-duration { display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;color:var(--ui-muted); }
+.business-dashboard-empty { display:grid;justify-items:center;gap:12px;padding:36px 12px;text-align:center;min-width:0; }
+.business-dashboard-empty>svg { color:var(--ui-muted); }
+.business-dashboard-empty h3 { margin:4px 0 0;line-height:1.4; }
+.business-dashboard-empty p { max-width:400px;margin:0;color:var(--ui-muted);line-height:1.6; }
+.business-dashboard-empty>a { margin-top:8px; }
+.business-dashboard-order { min-width:0; }
+.business-workspace-overview .business-dashboard-order { gap:14px; }
+.business-dashboard-order>div { min-width:0;flex:1; }
+.business-dashboard-order>strong { font-variant-numeric:tabular-nums;white-space:nowrap; }
+.business-dashboard-order>svg { flex:none;color:var(--ui-muted); }
+.business-order-mark { display:grid;place-items:center;flex:none;width:38px;height:38px;border:1px solid var(--ui-line-soft,var(--ui-line));border-radius:var(--ui-control-radius,10px);background:var(--ui-surface-muted,var(--ui-soft));color:var(--ui-muted); }
+
+.business-results-summary { display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;padding:8px 16px;color:var(--ui-muted);font-size:12px;line-height:1.5; }
+.business-results-summary>span { min-width:0; }
+.business-results-summary>small { font-size:12px; }
+.business-register-panel .business-results-summary { border-bottom:1px solid var(--ui-line-soft,var(--ui-line)); }
+.business-register-panel .salon-services-search,.business-catalog-controls .salon-services-search { transition:border-color .15s; }
+.business-register-panel .salon-services-search:focus-within,.business-catalog-controls .salon-services-search:focus-within { outline:2px solid var(--ui-ink);outline-offset:2px; }
+.business-register-panel .salon-services-table { table-layout:auto; }
+.business-register-panel .salon-person-avatar { background:var(--ui-surface-muted,var(--ui-soft));border:1px solid var(--ui-line-soft,var(--ui-line));width:36px;height:36px;flex-basis:36px; }
+.business-register-panel .salon-service-status { font-size:12px;border-radius:6px;line-height:1.4; }
+.business-register-panel .salon-service-color { width:4px;flex-basis:4px;height:32px;border-radius:3px; }
+.business-register-panel .salon-service-info p { display:block;-webkit-line-clamp:unset;overflow:visible;font-size:12px;line-height:1.5; }
+.business-register-panel .salon-person-contacts>a:first-child { font-variant-numeric:tabular-nums; }
+.business-register-panel .salon-services-total { border-top:1px solid var(--ui-line-soft,var(--ui-line)); }
+.business-pagination,.business-catalog-pagination { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.business-pagination span,.business-catalog-pagination span { font-size:12px;color:var(--ui-muted);font-variant-numeric:tabular-nums;white-space:nowrap; }
+.business-order-expand>svg { flex:none;transition:transform .15s; }
+.business-order-expand[aria-expanded=true]>svg { transform:rotate(180deg); }
+.business-register-panel .business-order-details td>div { padding:12px 4px; }
+.business-order-details .business-order-line { border-color:var(--ui-line-soft,var(--ui-line));font-size:14px; }
+.business-order-line>strong { white-space:nowrap;font-variant-numeric:tabular-nums; }
+.business-order-line>span:nth-child(2) { color:var(--ui-muted);white-space:nowrap;font-variant-numeric:tabular-nums; }
+.business-order-comment { margin:16px 0;padding:12px 14px;border-radius:var(--ui-control-radius,10px);background:var(--ui-surface-muted,var(--ui-soft));line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere; }
+.business-order-repeat-note { display:block;margin-top:16px;line-height:1.6; }
+
+.business-catalog { grid-template-columns:minmax(0,1fr) 300px;gap:24px; }
+.business-catalog-products { gap:20px; }
+.business-catalog-filters { grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:12px; }
+.business-catalog-filters .salon-services-search { grid-column:1/-1; }
+.business-product-grid { grid-template-columns:repeat(3,minmax(0,1fr));gap:16px; }
+.business-product { border-color:var(--ui-line-soft,var(--ui-line));border-radius:var(--ui-card-radius,16px);transition:border-color .15s; }
+.business-product.is-selected { border-color:var(--ui-ink); }
+.business-product-image { height:168px;padding:16px;background:var(--ui-surface-muted,var(--ui-soft)); }
+.business-product-image img { max-height:136px; }
+.business-product-heading { padding:16px 16px 20px; }
+.business-product-heading h3 { font-size:14px;line-height:1.5;font-weight:600;overflow-wrap:normal;word-break:normal; }
+.business-product-heading>small { font-size:12px;overflow-wrap:anywhere; }
+.business-product-variant { gap:10px;flex-wrap:wrap;align-items:center;border-color:var(--ui-line-soft,var(--ui-line));padding:14px; }
+.business-product-variant>div:first-child { flex:1 1 94px;gap:7px; }
+.business-product-prices { align-items:baseline;gap:5px 8px; }
+.business-product-prices strong { font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap; }
+.business-product-prices s { font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap; }
+.business-product-stock { display:flex;align-items:center;gap:5px;font-size:12px;line-height:1.5; }
+.business-product-stock>i { width:5px;height:5px;flex:none;border-radius:50%;background:var(--ui-muted); }
+.business-product-stock.is-available>i { background:var(--ui-success); }
+.business-product-no-variants { margin:0;padding:0 16px 20px;color:var(--ui-muted);font-size:12px;line-height:1.5; }
+.business-quantity { gap:0;border:1px solid var(--ui-line);border-radius:var(--ui-control-radius,10px);overflow:hidden; }
+.business-catalog-pagination { padding:4px 0; }
+.business-cart-jump { display:none; }
+.business-cart { top:24px;gap:20px;scroll-margin-top:20px; }
+.business-cart header { gap:8px; }
+.business-cart-title { display:flex;align-items:center;gap:10px;min-width:0; }
+.business-cart-title>svg { color:var(--ui-muted);flex:none; }
+.business-count-badge { display:grid;place-items:center;width:24px;height:24px;font-size:12px;border-radius:7px;color:var(--ui-muted);background:var(--ui-surface-muted,var(--ui-soft));margin-left:auto; }
+.business-cart-empty { display:grid;justify-items:center;gap:14px;padding:20px 4px;color:var(--ui-muted);text-align:center; }
+.business-cart-empty p { margin:0;font-size:12px;line-height:1.6; }
+.business-cart-line { position:relative;grid-template-columns:minmax(0,1fr) auto;gap:12px;border-color:var(--ui-line-soft,var(--ui-line));padding:16px 0 0; }
+.business-cart-line>div { padding-right:24px; }
+.business-cart-line>div>strong { display:block;font-size:12px;line-height:1.6;font-weight:600; }
+.business-cart-line>div>small { font-size:12px;line-height:1.5; }
+.business-cart-line>strong { grid-column:1;font-size:14px;font-variant-numeric:tabular-nums; }
+.business-cart-line>button { position:absolute;top:12px;right:0; }
+.business-cart footer { gap:16px; }
+.business-cart footer>span { align-items:baseline; }
+.business-cart footer>span>strong { font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums; }
+.business-cart footer>button { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.business-cart footer>small { font-size:12px;line-height:1.6; }
+.business-catalog-empty { min-height:260px; }
+.business-catalog-empty p { max-width:420px;line-height:1.6; }
+.business-workspace-overview :is(.business-shortcut,.business-dashboard-order,.business-section-link):focus-visible,
+.b2b-frame :is(.business-catalog-pagination,.business-pagination,.business-cart,.business-register-panel) :is(button,input,select,a):focus-visible,
+.b2b-frame .business-cart:focus-visible { outline:2px solid var(--ui-ink);outline-offset:3px; }
+
+@media(max-width:1200px) {
+  .business-catalog { grid-template-columns:minmax(0,1fr); }
+  .business-cart { position:static; }
+  .business-overview-columns { grid-template-columns:minmax(0,1fr); }
+  .business-overview-shortcuts { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .business-shortcut { flex-wrap:wrap;padding:18px; }
+  .business-shortcut>span { flex-basis:calc(100% - 40px); }
+  .business-shortcut>svg:last-child { display:none; }
+}
+@media(max-width:1000px) {
+  .business-product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .business-toolbar-context { gap:12px; }
+  .business-toolbar-company { display:none; }
+  .business-organization-switch { padding-left:12px; }
+  .business-workspace-overview .salon-organization-finance { gap:24px; }
+}
+@media(max-width:800px) {
+  @layer business-theme {
+    .b2b-frame .business-toolbar { padding:10px 16px!important;gap:8px!important; }
+    .b2b-frame .business-toolbar select { font-size:16px!important; }
+    .b2b-frame .business-register-panel .salon-services-table :is(th,td) { padding:0!important;border:0!important;background:transparent!important; }
+    .b2b-frame .business-register-panel .salon-services-table tbody .salon-service-row:hover :is(th,td),
+    .b2b-frame .business-register-panel .salon-services-table tbody .is-expanded :is(th,td) { background:transparent!important; }
+    .b2b-frame .business-register-panel .salon-services-table :is(.salon-client-spent,.salon-service-price,.business-money-heading) { text-align:left!important; }
+    .b2b-frame .business-workspace-overview .business-overview-metrics>article { padding:18px!important; }
+    .b2b-frame .business-workspace-overview .business-overview-metrics>article>strong { font-size:24px!important; }
+    .b2b-frame .business-workspace-overview .business-overview-metrics>article:nth-child(odd) { border-left:0!important; }
+    .b2b-frame .business-workspace-overview .business-overview-metrics>article:nth-child(n+3) { border-top:1px solid var(--ui-line-soft,var(--ui-line))!important; }
+    .b2b-frame .business-workspace-overview .salon-organization { padding:20px!important; }
+    .b2b-frame .business-workspace-overview .salon-organization-finance>div { padding:0!important;border:0!important; }
+    .b2b-frame .business-workspace-overview a.business-dashboard-order { display:grid!important;grid-template-columns:36px minmax(0,1fr) auto;gap:12px!important; }
+  }
+  .business-toolbar-context { flex:1 1 160px; }
+  .business-workspace-switch { flex:1 1 190px;width:auto; }
+  .business-organization-switch { max-width:none;flex:1 1 200px; }
+  .business-toolbar-context:has(.business-organization-switch) { flex-wrap:wrap; }
+  .business-toolbar-context:has(.business-organization-switch) .business-workspace-switch { flex-basis:100%;max-width:none; }
+  .business-toolbar-context:has(.business-organization-switch) .business-organization-switch { flex-basis:100%;border-left:0;padding-left:0; }
+  .business-toolbar-actions { align-self:flex-start; }
+  .business-workspace-overview,.business-overview-columns,.business-workspace-overview .business-purchases-columns { gap:20px; }
+  .business-workspace-overview .business-overview-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .business-overview-shortcuts { grid-template-columns:minmax(0,1fr);gap:10px; }
+  .business-shortcut { flex-wrap:nowrap;padding:18px; }
+  .business-shortcut>span { flex-basis:auto; }
+  .business-shortcut>svg:last-child { display:block; }
+  .business-upcoming-list .salon-overview-visit { grid-template-columns:minmax(0,1fr) auto;gap:8px 12px; }
+  .business-upcoming-list time { grid-column:1/-1; }
+  .business-upcoming-list .business-visit-duration { align-self:start; }
+  .business-workspace-overview .salon-overview-heading { flex-wrap:wrap;gap:8px; }
+  .business-workspace-overview .business-dashboard-order { display:grid!important;grid-template-columns:36px minmax(0,1fr) auto;gap:12px; }
+  .business-dashboard-order>strong { grid-column:2; }
+  .business-dashboard-order>svg { grid-column:3;grid-row:1; }
+  .business-overview-notice { flex-wrap:wrap;align-items:start; }
+  .business-overview-notice>div { flex-basis:calc(100% - 40px); }
+  .business-overview-notice>a { margin-left:36px; }
+  .business-register-panel .salon-services-table tbody { padding:0 16px; }
+  .business-register-panel .salon-services-table .salon-service-row { border:0;border-bottom:1px solid var(--ui-line-soft,var(--ui-line));border-radius:0;margin:0;padding:20px 0;gap:14px; }
+  .business-register-panel .salon-services-table .salon-service-row:last-child { border-bottom:0; }
+  .business-register-panel .salon-person-contacts { padding-left:48px!important; }
+  .business-register-panel .business-orders-table .business-order-details { display:block;margin:0 0 16px;padding:0 14px 16px;background:var(--ui-surface-muted,var(--ui-soft));border:0;border-radius:var(--ui-control-radius,10px); }
+  .business-order-details .business-order-line { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px; }
+  .business-order-line>span:first-child { grid-column:1/-1; }
+  .business-order-line>strong { text-align:right; }
+  .business-results-summary { flex-wrap:wrap;gap:6px 12px; }
+  .business-results-summary>small { flex-basis:100%; }
+  .business-catalog { gap:20px; }
+  .business-catalog-products { gap:16px; }
+  .business-catalog-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .business-catalog-filters>select:last-child { grid-column:1/-1; }
+  .business-cart-jump { display:flex;align-items:center;gap:10px;min-height:52px;padding:12px 16px;border:1px solid var(--ui-line);border-radius:var(--ui-control-radius,10px);background:var(--ui-panel);color:var(--ui-ink);text-align:left;font:inherit; }
+  .business-cart-jump>span { flex:1; }
+  .business-cart-jump>strong { font-variant-numeric:tabular-nums; }
+  .business-cart-jump>svg { flex:none; }
+  .business-cart { scroll-margin-top:20px; }
+  .business-cart-line>strong { grid-column:2;grid-row:2;justify-self:end; }
+}
+@media(max-width:600px) {
+  .business-product-grid { grid-template-columns:minmax(0,1fr); }
+  .business-product-image { height:190px; }
+  .business-product-image img { max-height:158px; }
+  .business-product-heading { padding:16px; }
+  .business-product-variant { padding:16px; }
+  .business-toolbar-context { flex:1 1 0;max-width:none; }
+  .business-workspace-switch { gap:6px; }
+  .business-workspace-switch>svg { display:none; }
+  .business-toolbar-actions { gap:2px!important; }
+  .business-upcoming-list .salon-overview-visit { grid-template-columns:minmax(0,1fr); }
+  .business-upcoming-list .business-visit-duration { margin-top:2px; }
+  .business-results-summary { padding:10px 16px; }
+  .business-pagination { margin-left:auto; }
+  .business-catalog-pagination { gap:8px; }
+  .business-cart-jump { flex-wrap:wrap; }
+  .business-cart-jump>span { font-size:12px; }
+  .business-cart-jump>strong { font-size:14px; }
+  .business-workspace-overview .salon-overview-heading { flex-wrap:nowrap;align-items:center; }
+  .business-workspace-overview .salon-overview-heading p { display:none; }
+  .business-workspace-overview .business-section-link>span { display:none; }
+  .business-workspace-overview .business-section-link { flex:0 0 40px;justify-content:center; }
+}
+@media(max-width:360px) {
+  .business-catalog-filters { grid-template-columns:minmax(0,1fr); }
+  .business-catalog-filters>select:last-child { grid-column:auto; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .business-shortcut,.business-product,.business-order-expand>svg { transition:none; }
+}
+
+/* Operational density: keep the content, give routine work the first screen.
+ * Desktop uses 40px controls; coarse pointers retain a 44px touch target. */
+@layer business-theme {
+  html[data-business-ui] { --ui-type-page:24px; }
+  .b2b-frame .business-toolbar { padding:6px 20px!important;gap:12px!important; }
+  .b2b-frame .business-toolbar :is(select,.wn-icon-control) { height:40px!important;min-height:40px!important; }
+  .b2b-frame .portal>.top { min-height:88px!important;padding:18px 20px!important;gap:12px!important; }
+  .b2b-frame .portal>.top h1 { font-size:24px!important;margin:0 0 5px!important;line-height:1.25!important; }
+  .b2b-frame .portal>.top>div>span { font-size:14px!important;line-height:1.5!important; }
+  .b2b-frame .portal>.body { padding:20px!important;gap:16px!important; }
+  .b2b-frame .portal :is(.top-actions,.salon-calendar-tools,.salon-settings-panel,.salon-services-filters,.business-order-actions,.salon-services-total) :is(button,input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),select),
+  .business-team-dialog :is(button,input:not([type=checkbox]),select) { min-height:40px!important;height:40px!important;padding-top:0!important;padding-bottom:0!important; }
+  .b2b-frame .salon-services-search { min-height:40px!important;height:40px!important; }
+  .b2b-frame .salon-services-search input { min-height:38px!important;height:38px!important; }
+  .b2b-frame :is(.business-register-panel,.business-catalog-controls) .salon-services-filters { padding:12px!important;gap:10px!important; }
+  .b2b-frame .business-results-summary { min-height:38px!important;padding:6px 12px!important;box-sizing:border-box; }
+  .b2b-frame .business-register-panel .salon-services-table :is(th,td) { padding:9px 12px!important; }
+  .b2b-frame .salon-team-table :is(th,td) { padding:10px 12px!important; }
+  .b2b-frame .business-register-panel .salon-service-info .b2b-edit-link { min-height:24px!important; }
+  .b2b-frame .salon-person-contacts a+a { margin-top:3px!important; }
+  .b2b-frame .salon-client-tags { margin-top:3px!important;gap:4px!important; }
+  .b2b-frame .salon-client-tags small { padding:2px 6px!important;font-size:12px!important;line-height:1.4!important; }
+  .b2b-frame .salon-service-actions button { width:40px!important;height:40px!important;min-height:40px!important; }
+  .b2b-frame .salon-settings-panel { padding:16px!important;gap:16px!important;border-radius:12px!important; }
+  .b2b-frame .salon-settings-fields { gap:14px 16px!important; }
+  .b2b-frame .salon-settings-fields label { gap:6px!important; }
+  .b2b-frame .salon-settings-heading h2 { font-size:18px!important;line-height:1.35!important; }
+  .b2b-frame .salon-settings-save { gap:12px!important;padding-top:12px!important; }
+  .b2b-frame .business-workspace-overview .business-overview-metrics>article { padding:16px 18px!important;gap:6px!important; }
+  .b2b-frame .business-workspace-overview .business-overview-metrics>article>strong { font-size:24px!important;font-weight:600!important; }
+  .b2b-frame .business-workspace-overview .salon-organization { padding:16px 18px!important; }
+  .b2b-frame .business-workspace-overview a.business-dashboard-order { padding:12px 0!important; }
+  .b2b-frame .business-upcoming-list .salon-overview-visit { padding:14px 0!important;gap:12px!important; }
+  .b2b-frame .business-shortcut { padding:16px!important;gap:12px!important; }
+  .b2b-frame .salon-calendar-filter { padding:12px!important;gap:12px!important; }
+  .b2b-frame .salon-calendar-tools { margin-bottom:12px!important; }
+  .b2b-frame .salon-calendar-heading,.b2b-frame .salon-calendar-corner { padding:10px 8px!important; }
+  html[data-business-ui] .b2b-frame .salon-month-date { background:transparent!important;color:var(--ui-ink)!important;border-color:transparent!important; }
+  html[data-business-ui] .b2b-frame .salon-month-date:hover:not(:disabled) { background:var(--ui-soft)!important; }
+  html[data-business-ui] .b2b-frame .salon-month-visit { background:var(--ui-soft)!important;color:var(--ui-ink)!important; }
+  html[data-business-ui] .b2b-frame .salon-month-more { background:transparent!important;color:var(--ui-ink)!important;border:0!important; }
+  html[data-business-ui] .b2b-frame .salon-agenda>button { background:var(--ui-panel)!important;color:var(--ui-ink)!important;border:0!important;border-bottom:1px solid var(--ui-line)!important;border-radius:0!important;min-height:64px!important;padding:12px 16px!important; }
+  html[data-business-ui] .b2b-frame .salon-agenda>button:hover:not(:disabled) { background:var(--ui-soft)!important; }
+  html[data-business-ui] .b2b-frame .salon-agenda>button :is(time,small) { color:var(--ui-muted)!important; }
+  html[data-business-ui] .b2b-frame .drawer label { color:var(--ui-ink)!important; }
+  html[data-business-ui] .b2b-frame .drawer .check strong { color:var(--ui-ink)!important; }
+  html[data-business-ui] .b2b-frame .drawer :is(.checkout-note,.check small) { color:var(--ui-muted)!important; }
+  html[data-business-ui] .b2b-frame .drawer .checkout-note { background:var(--ui-soft)!important;border-color:var(--ui-line)!important; }
+  html[data-business-ui] .b2b-frame .b2b-retry { background:var(--ui-panel)!important;color:var(--ui-ink)!important;border-color:var(--ui-line)!important; }
+  html[data-business-ui] .b2b-frame :is(.salon-settings-error,.salon-settings-panel p[role=alert]) button { background:var(--ui-panel)!important;color:var(--ui-ink)!important;border-color:var(--ui-line)!important; }
+  html[data-business-ui] .b2b-login .login-brand h2 em { color:inherit!important; }
+  html[data-business-ui] .b2b-login .submit { background:var(--ui-ink)!important;color:var(--ui-on-accent,var(--ui-bg))!important;border-color:var(--ui-ink)!important; }
+  html[data-business-ui] .b2b-login .submit :is(span,svg) { color:inherit!important; }
+  html[data-business-ui] .b2b-login .login-brand h2 { font-size:28px!important;line-height:1.25!important;font-weight:600!important; }
+  html[data-business-ui] .b2b-login .login-card { padding:32px!important;border-radius:12px!important; }
+  html[data-business-ui] .b2b-login .login-card h1 { font-size:24px!important; }
+  html[data-business-ui] .b2b-login .login-card :is(input:not([type=checkbox]),select,.submit,.password) { min-height:44px!important;height:44px!important; }
+  html[data-business-ui] .b2b-login .password button { min-height:44px!important;height:44px!important;width:44px!important; }
+  .b2b-frame .salon-month-day { min-height:160px!important; }
+  .b2b-frame .business-product-image { height:126px!important;padding:12px!important; }
+  .b2b-frame .business-product-image img { max-height:102px!important; }
+  .b2b-frame .business-product-heading { padding:12px!important; }
+  .b2b-frame .business-product-heading h3 { margin-top:4px!important; }
+  .b2b-frame .business-product-variant { padding:12px!important;gap:8px!important; }
+  .b2b-frame .business-product-variant>div:first-child { gap:5px!important; }
+  .b2b-frame .business-product-prices strong { font-size:18px!important;font-weight:600!important; }
+  .b2b-frame .business-cart { gap:16px!important;top:16px!important; }
+  .b2b-frame .business-cart-empty { padding:12px 4px!important;gap:10px!important; }
+  .b2b-frame .business-cart footer { gap:12px!important; }
+  .b2b-frame .business-catalog-filters { grid-template-columns:minmax(160px,1.5fr) repeat(3,minmax(120px,1fr))!important; }
+  .b2b-frame .business-catalog-filters .salon-services-search { grid-column:auto!important; }
+  .b2b-frame .drawer header { padding:16px 20px!important; }
+  .b2b-frame .drawer-body { padding:20px!important;gap:16px!important; }
+  .b2b-frame .drawer-body label { gap:6px!important; }
+  .b2b-frame .drawer footer { padding:12px 20px!important; }
+  .business-team-dialog>header { padding:16px 20px!important; }
+  html[data-business-ui]:not([data-business-theme="dark"]) :is(.business-team-dialog,.profile-drawer) { --ui-panel:#fff;--ui-bg:#f5f5f5;--ui-soft:#f5f5f5;--ui-ink:#3c3c3b;--ui-muted:#65676c;--ui-line:#d4d5d8;--ui-on-accent:#fff; }
+  html[data-business-ui] .business-team-dialog { display:flex;flex-direction:column;padding:0!important;background:var(--ui-panel,#fff)!important;color:var(--ui-ink,#3c3c3b)!important;overflow:hidden; }
+  html[data-business-ui] .business-team-dialog>header { flex:none;border-bottom:1px solid var(--ui-line);background:var(--ui-panel,#fff)!important; }
+  html[data-business-ui] .business-team-dialog>form { margin:0!important;overflow:auto;min-height:0;background:var(--ui-panel,#fff)!important; }
+  html[data-business-ui] .business-team-dialog :is(input:not([type=checkbox]),select,button) { background:var(--ui-panel,#fff)!important;color:var(--ui-ink,#3c3c3b)!important;border-color:var(--ui-line,#d4d5d8)!important; }
+  html[data-business-ui] .business-team-dialog button.primary { background:var(--ui-ink,#3c3c3b)!important;color:var(--ui-on-accent,#fff)!important;border-color:var(--ui-ink,#3c3c3b)!important; }
+  html[data-business-ui] .business-invite .business-invite-tabs button[role=tab] { background:var(--ui-panel)!important;color:var(--ui-ink)!important;border-color:var(--ui-line)!important; }
+  html[data-business-ui] .business-invite .business-invite-tabs button[role=tab][aria-selected=true] { background:var(--ui-ink)!important;color:var(--ui-on-accent,var(--ui-bg))!important;border-color:var(--ui-ink)!important; }
+  .business-team-dialog>form { padding:20px!important;gap:16px!important; }
+  .business-team-dialog :is(p,label) { line-height:1.5!important; }
+  .business-team-dialog h2 { font-size:20px!important;line-height:1.3!important; }
+  .business-settings-jumps { display:flex;flex-wrap:wrap;gap:4px 8px; }
+  .business-settings-jumps a { display:inline-flex;align-items:center;min-height:40px;padding:0 12px;border:1px solid var(--ui-line);border-radius:8px;color:var(--ui-ink);background:var(--ui-panel);text-decoration:none;font-size:13px; }
+  .business-settings-jumps a:hover { background:var(--ui-soft); }
+  .business-settings-jumps a:focus-visible { outline:2px solid var(--ui-accent);outline-offset:2px; }
+  .business-settings :is(.salon-settings-panel,.salon-online-settings) { scroll-margin-top:16px; }
+  html[data-business-ui] .profile-drawer .profile-head { min-height:64px;padding:12px 20px!important;background:var(--ui-panel)!important;color:var(--ui-ink)!important;border-color:var(--ui-line)!important; }
+  html[data-business-ui] .profile-drawer .profile-head h2 { font-size:20px!important;line-height:1.3!important;color:var(--ui-ink)!important; }
+  html[data-business-ui] .profile-drawer .identity { padding:16px 20px!important; }
+  html[data-business-ui] .profile-drawer .identity .avatar { background:var(--ui-soft)!important;color:var(--ui-ink)!important;border-color:var(--ui-line)!important; }
+  html[data-business-ui] .profile-drawer .identity .avatar>span { color:var(--ui-ink)!important; }
+  html[data-business-ui] .profile-drawer .profile-content { padding:20px!important;gap:16px!important; }
+  html[data-business-ui] .profile-drawer .profile-section { padding:16px!important;gap:16px!important;border-radius:12px!important; }
+  html[data-business-ui] .profile-drawer .profile-tabs { display:flex!important;gap:0!important;margin:0!important;padding:0 16px!important;min-height:44px!important;overflow-x:auto;border-bottom:1px solid var(--ui-line)!important;background:var(--ui-panel)!important; }
+  html[data-business-ui] .profile-drawer .profile-tabs button[role=tab] { flex:1 0 auto;display:inline-flex!important;align-items:center;justify-content:center;min-height:44px!important;height:44px!important;margin:0!important;padding:0 12px!important;background:transparent!important;color:var(--ui-muted)!important;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;font-size:13px!important;font-weight:500!important;white-space:nowrap; }
+  html[data-business-ui] .profile-drawer .profile-tabs button[role=tab][aria-selected=true] { background:transparent!important;color:var(--ui-ink)!important;border-bottom-color:var(--ui-ink)!important; }
+  html[data-business-ui] .profile-drawer .profile-tabs button[role=tab]:hover { color:var(--ui-ink)!important;background:var(--ui-soft)!important; }
+  html[data-business-ui] .profile-drawer .notification-list strong { color:var(--ui-ink)!important; }
+  html[data-business-ui] .profile-drawer .notification-list small { color:var(--ui-muted)!important; }
+  .b2b-empty-cart { display:grid;gap:12px;justify-items:start;padding:20px 0; }
+  .b2b-empty-cart h3,.b2b-empty-cart p { margin:0; }
+  .b2b-empty-cart p { color:var(--ui-muted);line-height:1.6; }
+  @media(max-width:1200px) {
+    .b2b-frame .business-catalog-filters { grid-template-columns:repeat(3,minmax(0,1fr))!important; }
+    .b2b-frame .business-catalog-filters .salon-services-search { grid-column:1/-1!important; }
+  }
+  @media(max-width:800px) {
+    .b2b-frame .portal>.top { min-height:0!important;padding:16px!important;gap:12px!important; }
+    .b2b-frame .portal>.top h1 { font-size:22px!important; }
+    .b2b-frame .portal>.body { padding:16px!important; }
+    .b2b-frame .business-toolbar { padding:8px 16px!important; }
+    .b2b-frame .business-register-panel .salon-services-table :is(th,td) { padding:0!important; }
+    .b2b-frame .business-register-panel .salon-services-table .salon-service-row { padding:16px 0!important;gap:10px!important; }
+    .b2b-frame .business-register-panel .salon-person-contacts { padding-left:0!important; }
+    .b2b-frame .business-catalog-filters { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+    .b2b-frame .business-catalog-filters>select:last-child { grid-column:1/-1!important; }
+    .b2b-frame .business-product-image { height:150px!important; }
+    .b2b-frame .business-product-image img { max-height:126px!important; }
+    .b2b-frame .business-product-heading,.b2b-frame .business-product-variant { padding:14px!important; }
+    .b2b-frame .salon-settings-fields { gap:14px!important; }
+  }
+  @media(pointer:coarse),(max-width:800px) {
+    .b2b-frame .portal :is(.top-actions,.salon-calendar-tools,.salon-settings-panel,.salon-services-filters,.business-order-actions,.salon-services-total) :is(button,input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),select),
+    .b2b-frame .business-toolbar :is(select,.wn-icon-control),
+    .business-team-dialog :is(button,input:not([type=checkbox]),select),
+    .b2b-frame .salon-service-actions button,
+    .b2b-frame .business-product .business-quantity :is(button,input),
+    .b2b-frame .business-cart .business-cart-line button { min-height:44px!important;height:44px!important; }
+    .b2b-frame .salon-services-search { min-height:44px!important;height:44px!important; }
+    .b2b-frame .salon-services-search input { min-height:42px!important;height:42px!important; }
+    .b2b-frame .business-product .business-quantity button,.b2b-frame .business-cart .business-cart-line button { min-width:44px!important;width:44px!important; }
+    .b2b-frame .business-register-panel .salon-service-info .b2b-edit-link,.business-settings-jumps a,.salon-day-schedule summary { min-height:44px!important; }
+    .b2b-frame .business-register-panel .business-pagination button { min-width:44px!important;width:44px!important; }
+    .b2b-frame :is(.business-register-panel,.business-catalog-controls) .salon-services-search button { min-width:44px!important;width:44px!important; }
+    .b2b-frame .business-results-summary .business-text-control,.b2b-frame .business-workspace-overview a.business-section-link { min-height:44px!important; }
+    .b2b-frame .drawer header button { height:44px!important;min-height:44px!important;width:44px!important;min-width:44px!important; }
+    .b2b-frame .drawer .b2b-empty-cart button,.b2b-frame .salon-month-more { min-height:44px!important; }
+    .b2b-frame .business-catalog-pagination button { min-height:44px!important; }
+    .b2b-frame :is(.salon-widget-code,.salon-settings-notes) summary { min-height:44px!important;display:flex;align-items:center; }
+    html[data-business-ui] .profile-drawer :is(button,input:not([type=checkbox]):not([type=file]),select) { min-height:44px!important;height:44px!important; }
+    html[data-business-ui] .profile-drawer :is(.icon-button,.sessions button) { width:44px!important;min-width:44px!important; }
+    html[data-business-ui] .b2b-login .login-card { padding:24px 20px!important; }
+    html[data-business-ui] :is(.b2b-frame .drawer .check,.business-team-dialog .business-team-check) { min-height:44px!important;align-items:center!important; }
+  }
+}

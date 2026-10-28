@@ -68,7 +68,7 @@ watch(token,()=>{reset();departmentId.value='';search.value='';attention.value=f
 onMounted(()=>{if(props.visible)load();});onUnmounted(()=>{alive=false;reset();});
 </script>
 <template>
-  <div v-if="visible" class="crm-page-content--stack">
+  <div v-if="visible" class="crm-page-content--stack crm-timesheet-workspace">
     <form class="crm-toolbar crm-filter-form" aria-label="Фильтры табеля" @submit.prevent="load()">
       <label>Месяц табеля<input v-model="month" class="crm-input" type="month" required min="2000-01" max="2099-12" @change="load()" /></label>
       <label>Отдел<select v-model="departmentId" class="crm-input" aria-label="Отдел" @change="load()"><option value="">Все доступные</option><option v-for="row in options?.departments||[]" :key="row.id" :value="row.id">{{row.name}}{{row.archivedAt?' · архив':''}}</option></select></label>
@@ -79,13 +79,10 @@ onMounted(()=>{if(props.visible)load();});onUnmounted(()=>{alive=false;reset();}
     <label class="crm-toggle-row"><span>Только требующие проверки</span><input v-model="attention" class="crm-check" type="checkbox" @change="load()" /></label>
     <p v-if="loading" role="status">Рассчитываем табель по всей выбранной команде…</p><p v-if="error" role="alert">{{error}}</p><p v-if="notice" role="status">{{notice}}</p>
     <p v-if="exportError" role="alert">{{exportError}}</p>
-    <p v-if="data&&options?.canExport" class="crm-inline-note">Excel содержит всю выборку последнего обновления, включая остальные страницы. Открытые табели пересчитываются при скачивании.</p>
     <section v-if="data" class="crm-surface" aria-label="Табель команды">
-      <header class="crm-panel-header"><div><p>ПЛАН И ФАКТ · {{data.month}}</p><h2>Табель команды</h2></div><span class="crm-badge">Проверка и закрытие месяца</span></header>
+      <h2 class="wn-sr-only">Табель команды за {{data.month}}</h2>
       <div class="crm-register crm-page-content--stack">
-        <p class="crm-inline-note">Пояс новых отчётов: {{data.timezone}}. После начала проверки пояс закрепляется за табелем сотрудника и указан в строке. Закрытые месяцы показаны по сохранённой версии; остальные — на момент обновления. Итоги относятся ко всей выборке.</p>
         <div class="crm-summary-grid"><div><small>Сотрудников</small><strong>{{data.summary.employees}}</strong></div><div><small>План</small><strong>{{duration(data.summary.plannedMs)}}</strong></div><div><small>Факт работы</small><strong>{{duration(data.summary.workedMs)}}</strong></div><div><small>Требуют проверки</small><strong>{{data.summary.attention}}</strong></div></div>
-        <p class="crm-inline-note">Фильтр отдела — по текущей принадлежности. В закрытой версии имя и отдел сохранены на момент закрытия. {{data.scope==='COMPANY'?'Включены неактивные сотрудники.':'Доступны только табели своих текущих отделов, без чужой истории.'}} День с планом без отметок — повод проверить данные, а не автоматически считать прогул.</p>
         <p v-if="data.summary.unavailablePlan||data.summary.unavailableActual" role="status">{{data.summary.unavailablePlan?`Не рассчитан план сотрудников: ${data.summary.unavailablePlan}. `:''}}{{data.summary.unavailableActual?`Есть пересечения отметок у сотрудников: ${data.summary.unavailableActual}.`:''}} Вместо недостоверного общего итога показан прочерк.</p>
       </div>
       <div role="table" aria-label="План и факт сотрудников">
@@ -97,6 +94,7 @@ onMounted(()=>{if(props.visible)load();});onUnmounted(()=>{alive=false;reset();}
           <button class="crm-button crm-button--icon crm-responsive-action" :aria-label="'Открыть табель: '+sheetPerson(row.employee)" @click="open(row.employee.id)"><ArrowRight :size="18" /></button>
         </div>
       </div>
+      <details class="crm-ops-help crm-register"><summary>Как читать табель и выгрузку</summary><p class="crm-inline-note">Пояс новых отчётов: {{data.timezone}}. После начала проверки пояс закрепляется за табелем сотрудника и указан в строке. Закрытые месяцы показаны по сохранённой версии; остальные — на момент обновления. Итоги относятся ко всей выборке.</p><p class="crm-inline-note">Фильтр отдела — по текущей принадлежности. В закрытой версии имя и отдел сохранены на момент закрытия. {{data.scope==='COMPANY'?'Включены неактивные сотрудники.':'Доступны только табели своих текущих отделов, без чужой истории.'}} День с планом без отметок — повод проверить данные, а не автоматически считать прогул.</p><p v-if="options?.canExport" class="crm-inline-note">Excel содержит всю выборку последнего обновления, включая остальные страницы. Открытые табели пересчитываются при скачивании.</p></details>
       <div class="crm-register"><p v-if="!data.items.length">Сотрудников по выбранным условиям нет.</p><div class="crm-action-bar crm-action-bar--spread"><span>Всего: {{data.total}} · Страница {{data.page}} / {{data.pages}}</span><div class="crm-action-bar"><button class="crm-button" :disabled="data.page<=1||loading" @click="load(data.page-1)">Назад</button><button class="crm-button" :disabled="data.page>=data.pages||loading" @click="load(data.page+1)">Далее</button></div></div></div>
     </section>
   </div>

@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { BusinessCompanySettingDto, SalonPresentationDto } from './dto/salon-presentation.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateB2BBookingDto, CreateB2BClientDto, CreateB2BOrderDto, CreateB2BProfileDto, CreateB2BServiceDto, CreateB2BSupportDto, UpdateB2BBookingDto, UpdateB2BClientDto, UpdateB2BServiceDto } from './dto/b2b.dto';
+import { B2BOrderListDto, CreateB2BBookingDto, CreateB2BClientDto, CreateB2BOrderDto, CreateB2BProfileDto, CreateB2BServiceDto, CreateB2BSupportDto, RepeatB2BOrderDto, UpdateB2BBookingDto, UpdateB2BClientDto, UpdateB2BServiceDto } from './dto/b2b.dto';
 import { B2BService } from './b2b.service';
 import { SalonBookingService } from './salon-booking.service';
 import { SalonBookingSettingDto } from './dto/salon-booking.dto';
@@ -26,10 +26,11 @@ export class B2BController {
 
   @Post('profile')
   @ApiOperation({ summary: 'Подать заявку на B2B-профиль' })
-  createProfile(@Req() request: any, @Body() dto: CreateB2BProfileDto) { return this.b2b.createProfile(request.user.sub, dto); }
+  createProfile(@Req() request: any, @Body() dto: CreateB2BProfileDto) { return this.b2b.createProfile(request.user.sub, dto, { ipAddress: request.ip, userAgent: request.headers['user-agent'] }); }
 
   @Get('profile')
   profile(@Req() request: any) { return this.b2b.profile(request.user.sub); }
+  @Get('organizations') organizations(@Req() request: any) { return this.b2b.organizations(request.user.sub); }
   @Patch('company-settings') companySettings(@Req() request:any,@Body() dto:BusinessCompanySettingDto) { return this.b2b.saveCompanySettings(request.user.sub,dto); }
 
   @Get('catalog')
@@ -45,10 +46,12 @@ export class B2BController {
   @Patch('services/:id') updateService(@Req() request: any, @Param('id') id: string, @Body() dto: UpdateB2BServiceDto) { return this.b2b.updateService(request.user.sub, id, dto); }
   @Get('bookings') bookings(@Req() request: any, @Query() query: B2BBookingRangeDto) { return this.b2b.bookings(request.user.sub, query.from, query.to); }
   @Post('bookings') createBooking(@Req() request: any, @Body() dto: CreateB2BBookingDto) { return this.b2b.createBooking(request.user.sub, dto); }
+  @Get('bookings/:id/history') bookingHistory(@Req() request: any, @Param('id') id: string) { return this.b2b.bookingHistory(request.user.sub, id); }
+  @Get('bookings/:id') bookingDetail(@Req() request: any, @Param('id') id: string) { return this.b2b.bookingDetail(request.user.sub, id); }
   @Patch('bookings/:id') updateBooking(@Req() request: any, @Param('id') id: string, @Body() dto: UpdateB2BBookingDto) { return this.b2b.updateBooking(request.user.sub, id, dto); }
-  @Get('orders') orders(@Req() request: any) { return this.b2b.orders(request.user.sub); }
+  @Get('orders') orders(@Req() request: any, @Query() query: B2BOrderListDto) { return query.page === undefined ? this.b2b.orders(request.user.sub) : this.b2b.orderHistory(request.user.sub, query); }
   @Post('orders') createOrder(@Req() request: any, @Body() dto: CreateB2BOrderDto) { return this.b2b.createOrder(request.user.sub, dto); }
-  @Post('orders/:id/repeat') repeatOrder(@Req() request: any, @Param('id') id: string) { return this.b2b.repeatOrder(request.user.sub, id); }
+  @Post('orders/:id/repeat') repeatOrder(@Req() request: any, @Param('id') id: string, @Body() dto: RepeatB2BOrderDto) { return this.b2b.repeatOrder(request.user.sub, id, dto); }
   @Get('support') support(@Req() request: any) { return this.b2b.supportTickets(request.user.sub); }
   @Post('support') createSupport(@Req() request: any, @Body() dto: CreateB2BSupportDto) { return this.b2b.createSupportTicket(request.user.sub, dto); }
 }

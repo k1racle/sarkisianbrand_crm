@@ -36,6 +36,7 @@ export function useStorefrontContent() {
   function storefrontMediaUrl(url?: string | null) {
     if (!url) return '';
     if (/^https?:\/\//i.test(url) || !url.startsWith('/api/')) return url;
+    if (String(config.public.apiBase).startsWith('/')) return url;
     return new URL(url, config.public.apiBase).toString();
   }
 

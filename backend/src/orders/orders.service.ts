@@ -5,6 +5,8 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/order.dto';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
+import { holdVerifiedOneCStock, releaseUnconfirmedOneCHold } from '../common/one-c-sale-stock';
+import { customerWarehouseView } from '../oms/warehouse-execution-view';
 import { StorefrontPricingService } from './storefront-pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { moneyMinor } from '../common/storefront-utils';
@@ -107,6 +109,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       for (const item of [...cart.items].sort((a, b) => a.variantId.localeCompare(b.variantId))) {
         if (item.variant.product.productType === 'GIFT_CARD') continue;
         await tx.$queryRaw`SELECT id FROM "ProductVariant" WHERE id=${item.variantId} FOR UPDATE`;
+        await holdVerifiedOneCStock(tx, item.variantId, item.quantity);
         const rows = await tx.$queryRaw<{ id: string }[]>`
           UPDATE "ProductVariant" SET reserved = reserved + ${item.quantity}
           WHERE id = ${item.variantId} AND "isActive" = true AND stock - reserved >= ${item.quantity}
@@ -147,17 +150,17 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           status: 'SUCCEEDED', transactionId: randomUUID(), metadata: { giftCardAmount: (giftCardMinor / 100).toFixed(2), redemptionId: redemption.id } } });
         order = await this.finishPaid(tx, order, 'Оплата полностью покрыта подарочным сертификатом', true);
       }
+      if (!digital) await this.oneC.stageOrderExport(tx, order.id, actor?.sub);
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
       await tx.cart.update({ where: { id: cart.id }, data: { total: 0 } });
       return { order, created: true };
     }, { timeout: 30_000 });
-    if (result.created && !this.digitalOrder(result.order)) await this.enqueue(result.order.id, actor?.sub);
     const safe = await this.withGiftCards(result.order, actor, result.order.userId ? undefined : accessToken);
     return { ...safe, ...(result.order.userId ? {} : { accessToken }),
       canPay: ((result.order.priceSnapshot as any)?.deliveryConfirmed === true || this.digitalOrder(result.order)) && UNPAID.includes(result.order.status as any) && result.order.reservationState === 'ACTIVE' && Number(result.order.finalAmount) > 0 && !!result.order.reservationExpiresAt && result.order.reservationExpiresAt > new Date(), requiresDeliveryConfirmation: !this.digitalOrder(result.order) && (result.order.priceSnapshot as any)?.deliveryConfirmed !== true };
   }
   async getAccessible(number: string, actor?: Actor, token?: string) {
-    const order = await this.prisma.order.findUnique({ where: { orderNumber: number }, include: includes });
+    const order = await this.prisma.order.findUnique({ where: { orderNumber: number }, include: { ...includes, execution: { select: { version: true } }, warehouseExecution: true } });
     let allowed = !!order && !!actor && (order.userId === actor.sub || STAFF.includes(actor.role || ''));
     if (order && !order.userId && token && order.guestAccessHash && order.guestAccessExpiresAt && order.guestAccessExpiresAt > new Date()) {
       const expected = Buffer.from(order.guestAccessHash), actual = Buffer.from(this.hash(token));
@@ -178,7 +181,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       if (order.payments.some(p => ['CREATING', 'PENDING', 'SUCCEEDED'].includes(p.status))) throw new ConflictException('Платёж уже начат. Дождитесь итогового статуса или свяжитесь с поддержкой');
       await this.release(tx, order, 'Заказ отменён покупателем');
     }, { timeout: 30_000 });
-    await this.enqueue(accessible.id);
     return this.findOne(number, actor);
   }
   async expireReservations() {
@@ -191,7 +193,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         if (order && order.reservationState === 'ACTIVE' && order.reservationExpiresAt && order.reservationExpiresAt <= new Date() &&
           UNPAID.includes(order.status as any) && !order.payments.some(p => ['CREATING', 'PENDING', 'SUCCEEDED'].includes(p.status))) await this.release(tx, order, 'Время резервирования истекло');
       }, { timeout: 30_000 });
-      await this.enqueue(candidate.id);
     }
     return { checked: orders.length };
   }
@@ -214,12 +215,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       }
       if (metadata.paid !== true || !UNPAID.includes(order.status as any) || order.reservationState !== 'ACTIVE') throw new ConflictException('Оплата требует ручной проверки');
       await this.finishPaid(tx, order, 'Оплата проверена по данным ЮKassa');
+      if (!this.digitalOrder(order)) await this.oneC.stageOrderExport(tx, order.id);
       return { duplicate: false, orderNumber: order.orderNumber, status };
     }, { timeout: 30_000 });
-    if (!result.duplicate) {
-      const order = await this.prisma.order.findUnique({ where: { id: payment.orderId }, include: { items: true } });
-      if (order && !this.digitalOrder(order)) await this.enqueue(payment.orderId);
-    }
     return result;
   }
   async repeat(number: string, actor: Actor, session: string) {
@@ -286,13 +284,15 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     }
     for (const item of [...order.items].sort((a, b) => String(a.variantId).localeCompare(String(b.variantId)))) {
       if (!item.variantId || item.productType === 'GIFT_CARD') continue;
+      await releaseUnconfirmedOneCHold(tx, item.id, item.variantId, item.quantity);
       const released = await tx.productVariant.updateMany({ where: { id: item.variantId, reserved: { gte: item.quantity } }, data: { reserved: { decrement: item.quantity } } });
       if (released.count !== 1) throw new ConflictException('Не удалось снять резерв. Требуется проверка остатков');
     }
     await tx.promoRedemption.updateMany({ where: { orderId: order.id, status: 'RESERVED' }, data: { status: 'RELEASED' } });
-    await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.CANCELLED, paymentStatus: 'CANCELED', reservationState: 'RELEASED', reservationExpiresAt: null,
+    await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.CANCELLED, paymentStatus: 'CANCELED', reservationState: 'RELEASED', reservationExpiresAt: null, ...(!this.digitalOrder(order) ? { isSynced1C: false } : {}),
       history: { create: { fromStatus: order.status, toStatus: OrderStatus.CANCELLED, comment } } } });
     await this.mail(tx, order, 'ORDER_CANCELLED', 'Заказ отменён', comment + '. Резерв товаров снят, списанные бонусы возвращены.');
+    if (!this.digitalOrder(order)) await this.oneC.stageOrderExport(tx, order.id);
   }
   private async finishPaid(tx: Prisma.TransactionClient, order: any, comment: string, giftAlreadyApplied = false) {
     const digital = this.digitalOrder(order);
@@ -312,7 +312,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       }
     }
     await tx.promoRedemption.updateMany({ where: { orderId: order.id, status: 'RESERVED' }, data: { status: 'APPLIED' } });
-    let paid = await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.PAID, paymentStatus: 'SUCCEEDED', loyaltyAccruedAt: new Date(), reservationExpiresAt: null,
+    let paid = await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.PAID, paymentStatus: 'SUCCEEDED', loyaltyAccruedAt: new Date(), reservationExpiresAt: null, ...(!digital ? { isSynced1C: false } : {}),
       history: { create: { fromStatus: order.status, toStatus: OrderStatus.PAID, comment } } }, include: includes });
     await partnerOrderPaid(tx,paid);
     if (digital) {
@@ -370,11 +370,10 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     await tx.mailOutbox.create({ data: this.notifications.prepare({ kind, recipient: order.buyerEmail, subject: subject + ': ' + order.orderNumber,
       text: 'Здравствуйте!\n' + text + '\nНомер заказа: ' + order.orderNumber + (essential ? '.' : '. Проверить заказ можно в личном кабинете. Неоплаченный заказ без активного платежа отменяется через 30 минут.'), dedupeKey: kind + ':' + order.id }) });
   }
-  private async enqueue(id: string, userId?: string) { if (process.env.STOREFRONT_EXTERNAL_CALLS_ENABLED === 'true') await this.oneC.enqueueOrder(id, userId).catch(() => undefined); }
   private publicOrder(order: any) {
     const { checkoutKey, checkoutRequestHash, guestAccessHash, guestAccessExpiresAt, internalNotes, sourcePayload, oneCSyncError,
-      giftCards, giftCardReservations, giftCardRedemptions, giftRedemption, giftCardCode, giftCardHash, codeHash, encryptedCode, ...safe } = order;
-    return { ...safe, payments: order.payments?.map(({ metadata, ...payment }: any) => payment) };
+      giftCards, giftCardReservations, giftCardRedemptions, giftRedemption, giftCardCode, giftCardHash, codeHash, encryptedCode, warehouseExecution, execution, ...safe } = order;
+    return { ...safe, requiresWarehouse: order.items?.some((item: any) => item.productType === 'PHYSICAL') === true, warehouseStatus: customerWarehouseView(warehouseExecution, order), payments: order.payments?.map(({ metadata, ...payment }: any) => payment) };
   }
   private hash(value: string) { return createHash('sha256').update(value).digest('hex'); }
   private guestToken(key: string, session: string) {

@@ -2,16 +2,29 @@
 import { Check, CheckCircle2, ChevronRight, CircleAlert, Copy, ExternalLink, KeyRound, RefreshCw, Save, Search, X } from '@lucide/vue';
 
 const config = useRuntimeConfig();
+const route = useRoute();
 const { token } = useWorkspaceSession();
 const { openContextMenu, copyText } = useContextMenu();
 const integrations = ref<any[]>([]);
 const loading = ref(true);
+const loaded = ref(false);
 const saving = ref(false);
 const selected = ref<any>(null);
+const { panel: settingsPanel, keyboard: settingsKeys } = useCatalogDialog(computed(() => Boolean(selected.value)), () => close());
 const draft = reactive<any>({ config: {}, secrets: {}, clearSecrets: [] });
 const baseline = ref('');
 const dirty = computed(() => Boolean(selected.value) && JSON.stringify(draft) !== baseline.value);
 const category = ref('ALL');
+const categoryTabs = ref<HTMLElement | null>(null);
+function revealCategory() {
+  const nav = categoryTabs.value;
+  const button = nav?.querySelector<HTMLElement>('button.active');
+  if (!nav || !button) return;
+  const left = button.offsetLeft - nav.offsetLeft;
+  if (left < nav.scrollLeft) nav.scrollLeft = left;
+  else if (left + button.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left + button.offsetWidth - nav.clientWidth;
+}
+watch(category, () => nextTick(revealCategory));
 const audience = ref('ALL');
 const search = ref('');
 const notice = ref('');
@@ -51,6 +64,7 @@ async function load() {
   error.value = '';
   try {
     integrations.value = await $fetch<any[]>('/system-settings/integrations', { baseURL: config.public.apiBase, headers: headers.value });
+    loaded.value = true;
     if (selected.value) selected.value = integrations.value.find((item) => item.key === selected.value.key) || null;
   } catch (reason: any) {
     error.value = reason?.data?.message || 'Не удалось загрузить интеграции';
@@ -152,24 +166,30 @@ function integrationMenu(event: MouseEvent, item: any) {
     { label: 'Копировать код подключения', icon: 'copy', action: () => copyText(item.key, 'Код подключения скопирован') },
   ], `${categoryLabels[item.category]}${item.audience ? ` · ${audienceLabels[item.audience]}` : ''}`);
 }
-onMounted(load);
+onMounted(async () => {
+  await load();
+  await nextTick();
+  revealCategory();
+  document.fonts?.ready.then(revealCategory);
+});
 </script>
 
 <template>
   <section data-v-ui-1e872dee0e70 class="integration-settings">
-    <div data-v-ui-1e872dee0e70 class="integration-kpis">
+    <WorkspaceLoading v-if="loading && !loaded" label="Загружаем настройки…"/><div v-else-if="error && !loaded" class="crm-management-error" role="alert"><p>{{error}}</p><button type="button" class="crm-button" :disabled="loading" @click="load">Повторить загрузку</button></div>
+    <div data-v-ui-1e872dee0e70 v-if="loaded" class="integration-kpis">
       <article class="crm-surface" data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Подключений в реестре</span><strong data-v-ui-1e872dee0e70>{{ counts.total }}</strong><small data-v-ui-1e872dee0e70>все каналы экосистемы</small></article>
       <article class="crm-surface" data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Включено</span><strong data-v-ui-1e872dee0e70>{{ counts.enabled }}</strong><small data-v-ui-1e872dee0e70>участвуют в процессах</small></article>
       <article class="crm-surface" data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Настроено</span><strong data-v-ui-1e872dee0e70>{{ counts.configured }}</strong><small data-v-ui-1e872dee0e70>обязательные поля заполнены</small></article>
       <article class="crm-surface" data-v-ui-1e872dee0e70 :class="{ warn: counts.attention }"><span data-v-ui-1e872dee0e70>Требуют внимания</span><strong data-v-ui-1e872dee0e70>{{ counts.attention }}</strong><small data-v-ui-1e872dee0e70>включены без полной настройки</small></article>
     </div>
 
-    <article data-v-ui-1e872dee0e70 class="registry panel crm-surface">
+    <article data-v-ui-1e872dee0e70 v-if="loaded" class="registry panel crm-surface">
       <header data-v-ui-1e872dee0e70 class="registry-head">
         <div data-v-ui-1e872dee0e70><p data-v-ui-1e872dee0e70 class="kicker">ЦЕНТР ПОДКЛЮЧЕНИЙ</p><h2 data-v-ui-1e872dee0e70>Интеграции экосистемы</h2><span data-v-ui-1e872dee0e70>Ключи хранятся зашифрованно и не возвращаются из API.</span></div>
         <div data-v-ui-1e872dee0e70 class="registry-actions"><label class="crm-input-group" data-v-ui-1e872dee0e70><Search data-v-ui-1e872dee0e70 :size="15" /><input class="crm-input" data-v-ui-1e872dee0e70 v-model="search" placeholder="Найти подключение" /></label><button class="crm-button crm-button--refresh" data-v-ui-1e872dee0e70 @click="load"><RefreshCw data-v-ui-1e872dee0e70 :size="15" :class="{ spin: loading }" /> Обновить</button></div>
       </header>
-      <nav data-v-ui-1e872dee0e70 class="category-tabs"><button class="crm-button" data-v-ui-1e872dee0e70 v-for="item in categories" :key="item.id" :class="{ active: category === item.id }" @click="category = item.id">{{ item.label }}</button></nav>
+      <nav ref="categoryTabs" data-v-ui-1e872dee0e70 class="category-tabs" aria-label="Категории интеграций"><button type="button" class="crm-button" data-v-ui-1e872dee0e70 v-for="item in categories" :key="item.id" :class="{ active: category === item.id }" :aria-pressed="category === item.id" @click="category = item.id">{{ item.label }}</button></nav>
       <div data-v-ui-1e872dee0e70 v-if="category === 'BOT' || audience !== 'ALL'" class="audience-filter"><span data-v-ui-1e872dee0e70>Аудитория бота</span><button class="crm-button" data-v-ui-1e872dee0e70 v-for="item in [{id:'ALL',label:'Все'}, {id:'EMPLOYEE',label:'Сотрудники'}, {id:'B2C',label:'B2C'}, {id:'B2B',label:'B2B'}]" :key="item.id" :class="{ active: audience === item.id }" @click="audience = item.id">{{ item.label }}</button></div>
       <div data-v-ui-1e872dee0e70 v-if="loading" class="loading-state">Загружаем реестр подключений…</div>
       <div data-v-ui-1e872dee0e70 v-else class="integration-grid">
@@ -183,9 +203,9 @@ onMounted(load);
       <p data-v-ui-1e872dee0e70 v-if="error && !selected" class="form-error">{{ error }}</p>
     </article>
 
-    <aside data-v-ui-1e872dee0e70 v-if="selected" class="drawer-backdrop admin-dialog-backdrop" @click.self="close">
-      <form data-v-ui-1e872dee0e70 class="integration-drawer admin-dialog admin-dialog--drawer" @submit.prevent="save(true)">
-        <header data-v-ui-1e872dee0e70><IntegrationBrandLogo :provider="selected.provider" :size="42" /><div data-v-ui-1e872dee0e70><p data-v-ui-1e872dee0e70 class="kicker">{{ categoryLabels[selected.category] }}</p><h2 data-v-ui-1e872dee0e70>{{ selected.name }}</h2><small data-v-ui-1e872dee0e70 v-if="selected.audience">Аудитория: {{ audienceLabels[selected.audience] }}</small></div><button data-v-ui-1e872dee0e70 type="button" class="close crm-button" @click="close"><X data-v-ui-1e872dee0e70 :size="18" /></button></header>
+    <Teleport :disabled="!route.path.startsWith('/crm/')" to="body"><aside data-v-ui-1e872dee0e70 v-if="selected" class="drawer-backdrop admin-dialog-backdrop crm-management-backdrop" @click.self="close">
+      <form data-v-ui-1e872dee0e70 ref="settingsPanel" tabindex="-1" @keydown="settingsKeys" class="integration-drawer admin-dialog admin-dialog--drawer crm-management-dialog" role="dialog" aria-modal="true" aria-label="Настройки интеграции" @submit.prevent="save(true)">
+        <header data-v-ui-1e872dee0e70><IntegrationBrandLogo :provider="selected.provider" :size="42" /><div data-v-ui-1e872dee0e70><p data-v-ui-1e872dee0e70 class="kicker">{{ categoryLabels[selected.category] }}</p><h2 data-v-ui-1e872dee0e70>{{ selected.name }}</h2><small data-v-ui-1e872dee0e70 v-if="selected.audience">Аудитория: {{ audienceLabels[selected.audience] }}</small></div><button data-v-ui-1e872dee0e70 type="button" class="close crm-button crm-button--icon" aria-label="Закрыть интеграцию" @click="close"><X data-v-ui-1e872dee0e70 :size="18" /></button></header>
         <div data-v-ui-1e872dee0e70 class="drawer-scroll admin-dialog-body">
           <p data-v-ui-1e872dee0e70 class="drawer-description">{{ selected.description }}</p>
           <div data-v-ui-1e872dee0e70 class="mode-row"><label data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Режим</span><select class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.environment"><option data-v-ui-1e872dee0e70 value="TEST">Тестовый</option><option data-v-ui-1e872dee0e70 value="PRODUCTION">Рабочий</option></select></label><label data-v-ui-1e872dee0e70 class="switch-line crm-toggle-row"><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Подключение включено</b><small data-v-ui-1e872dee0e70>Разрешить фоновые процессы</small></span><input class="crm-check" data-v-ui-1e872dee0e70 v-model="draft.isEnabled" type="checkbox" /></label></div>
@@ -199,12 +219,12 @@ onMounted(load);
             </label>
           </section>
           <a data-v-ui-1e872dee0e70 class="docs-link" :href="selected.documentationUrl" target="_blank" rel="noopener noreferrer"><ExternalLink data-v-ui-1e872dee0e70 :size="15" /> Открыть документацию {{ selected.provider }}</a>
-          <div data-v-ui-1e872dee0e70 v-if="selected.lastTestMessage" class="last-check"><CheckCircle2 data-v-ui-1e872dee0e70 :size="17" /><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Последняя проверка</b><small data-v-ui-1e872dee0e70>{{ selected.lastTestMessage }}<template v-if="selected.lastTestAt"> · {{ new Date(selected.lastTestAt).toLocaleString('ru-RU') }}</template></small></span></div>
+          <div data-v-ui-1e872dee0e70 v-if="selected.lastTestMessage" class="last-check" :data-status="selected.status"><CircleAlert v-if="selected.status==='ERROR'" :size="17"/><CheckCircle2 v-else data-v-ui-1e872dee0e70 :size="17" /><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Последняя проверка</b><small data-v-ui-1e872dee0e70>{{ selected.lastTestMessage }}<template v-if="selected.lastTestAt"> · {{ new Date(selected.lastTestAt).toLocaleString('ru-RU') }}</template></small></span></div>
           <p data-v-ui-1e872dee0e70 v-if="error" class="form-error"><CircleAlert data-v-ui-1e872dee0e70 :size="15" /> {{ error }}</p>
         </div>
         <footer data-v-ui-1e872dee0e70><button class="crm-button crm-button--refresh" data-v-ui-1e872dee0e70 v-if="selected.key === 'ONE_C'" type="button" :disabled="saving" @click="runOneCExchange"><RefreshCw data-v-ui-1e872dee0e70 :size="15" /> Запустить обмен</button><button class="crm-button" data-v-ui-1e872dee0e70 type="button" :disabled="saving" @click="testCurrent"><Check data-v-ui-1e872dee0e70 :size="15" /> {{ selected.key === 'ONE_C' ? 'Проверить соединение' : 'Проверить заполнение' }}</button><button data-v-ui-1e872dee0e70 class="primary crm-button crm-button--primary" type="submit" :disabled="saving"><Save data-v-ui-1e872dee0e70 :size="15" /> {{ saving ? 'Сохраняем…' : 'Сохранить' }}</button></footer>
       </form>
-    </aside>
+    </aside></Teleport>
     <div data-v-ui-1e872dee0e70 v-if="notice" class="integration-toast">{{ notice }}</div>
   </section>
 </template>

@@ -6,6 +6,7 @@ import { OperationalContext, withOperationalAccess } from '../common/operational
 import { InventoryPageDto, InventoryQueryDto } from './dto/inventory.dto';
 import { orderAccessWhere } from './oms-read.service';
 import { loadStockComparison, stockSnapshotSelect, stockSnapshotSummary } from '../1c-sync/stock-reconciliation';
+import { oneCStockAvailability } from '../common/one-c-sale-stock';
 
 // An expired reservation still holds inventory until its release is actually committed.
 export const reservedOrders: Prisma.OrderWhereInput = { reservationState: 'ACTIVE', status: { notIn: ['CANCELLED','REFUNDED','DELIVERED','SHIPPED'] } };
@@ -21,8 +22,9 @@ export function stockQuantities(stock: number, reserved: number, allocated: numb
 const variantSelect = {
  id: true, sku: true, name: true, options: true, price: true, stock: true, reserved: true, damagedStock: true, isActive: true,
  oneCStock: { select: stockSnapshotSelect },
+ oneCWarehouseStock: { select: { warehouseId: true, externalProductId: true, sku: true, revision: true, stock: true, damagedStock: true, reserved1C: true, localPending: true, asOf: true, validUntil: true, receivedAt: true } },
  channelStocks: { select: {channel:true,quantity:true,blocked:true,revision:true,changedAt:true} },
- product: { select: { id: true, nameRu: true, sku: true, vendorCode: true, currency: true, isActive: true, externalId: true,
+ product: { select: { id: true, nameRu: true, sku: true, vendorCode: true, currency: true, isActive: true, externalId: true, productType: true,
   images: { select: { url: true, alt: true }, orderBy: { sortOrder: 'asc' as const }, take: 1 },
   categories: { select: { category: { select: { id: true, nameRu: true } } } } } },
 } satisfies Prisma.ProductVariantSelect;
@@ -45,27 +47,34 @@ export class OmsInventoryService {
    ...(query.stock === 'RESERVED' ? [{ reserved: { gt: 0 } }] : query.stock === 'AVAILABLE' ? [{ stock: { gt: fields.reserved } }] : query.stock === 'SHORTAGE' ? [{ reserved: { gt: fields.stock } }] : query.stock === 'EMPTY' ? [{ stock: { lte: 0 } }] : query.stock === 'DAMAGED' ? [{ damagedStock: { gt: 0 } }] : []),
   ] };
  }
- private row(variant: any, allocated: any, visible: any) {
+ private row(variant: any, allocated: any, visible: any, integration: any) {
   const all = pendingQuantities(allocated), permitted = pendingQuantities(visible);
+  const availability = oneCStockAvailability(variant, variant.oneCWarehouseStock, integration);
+  const warehouse = variant.oneCWarehouseStock;
   return { id: variant.id, sku: variant.sku, name: variant.product.nameRu, variantName: variant.name, options: variant.options, productId: variant.product.id, productSku: variant.product.sku, vendorCode: variant.product.vendorCode,
    image: variant.product.images[0] || null, categories: variant.product.categories.map((item: any) => item.category), active: variant.isActive && variant.product.isActive,
    price: variant.price, currency: variant.product.currency, externalId: variant.product.externalId, oneCStock: stockSnapshotSummary(variant), channelStocks:variant.channelStocks||[],
    stock: variant.stock, reserved: variant.reserved, damaged: variant.damagedStock, ...stockQuantities(variant.stock, variant.reserved, all.remaining),
+   warehouseStock: { status: availability.availabilityStatus, asOf: warehouse?.asOf || null, validUntil: warehouse?.validUntil || null,
+    reserved1C: availability.available === null ? null : warehouse.reserved1C, localPending: availability.available === null ? null : warehouse.localPending, available: availability.available },
+   // ERP reservations can include orders outside CRM, so this difference is not a reconciliation error.
+   reservationDifference: null,
    allocated: all.remaining, visibleReserved: permitted.remaining, toShip: permitted.remaining, picked: permitted.picked, toPick: permitted.toPick };
  }
  list(actor: string, query: InventoryQueryDto) { return this.run(actor, async ctx => {
   const db = ctx.db, where = this.filter(ctx, query), page = query.page || 1, limit = query.limit || 30;
   const visibleOrder = { AND: [reservedOrders, orderAccessWhere(ctx)] };
-  const [rows, total, totals, pending, categories] = await Promise.all([
+  const [rows, total, totals, pending, categories, integration] = await Promise.all([
    db.productVariant.findMany({ where, select: variantSelect, orderBy: [{ product: { nameRu: 'asc' } }, { sku: 'asc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }),
    db.productVariant.count({ where }), db.productVariant.aggregate({ where, _sum: { stock: true, reserved: true } }),
    db.orderItem.aggregate({ where: { variant: { is: where }, order: visibleOrder }, _sum: sums }),
    db.category.findMany({ where: { products: { some: { product: { productType: 'PHYSICAL' } } } }, select: { id: true, nameRu: true }, orderBy: [{ nameRu: 'asc' }, { id: 'asc' }] }),
+   db.ecosystemIntegration.findUnique({ where: { key: 'ONE_C' }, select: { isEnabled: true, configuredSecretKeys: true, config: true } }),
   ]);
   const ids = rows.map(row => row.id);
   const all = ids.length ? await db.orderItem.groupBy({ by: ['variantId'], where: { variantId: { in: ids }, order: reservedOrders }, _sum: sums }) : [];
   const visible = ctx.read.company('oms.read') ? all : ids.length ? await db.orderItem.groupBy({ by: ['variantId'], where: { variantId: { in: ids }, order: visibleOrder }, _sum: sums }) : [];
-  return { items: rows.map(row => this.row(row, all.find(item => item.variantId === row.id)?._sum, visible.find(item => item.variantId === row.id)?._sum)), total, page, pages: Math.max(1, Math.ceil(total / limit)),
+  return { items: rows.map(row => this.row(row, all.find(item => item.variantId === row.id)?._sum, visible.find(item => item.variantId === row.id)?._sum, integration)), total, page, pages: Math.max(1, Math.ceil(total / limit)),
    summary: { positions: total, stock: totals._sum.stock || 0, reserved: totals._sum.reserved || 0, toShip: pendingQuantities(pending._sum).remaining },
    categories, allOrdersVisible: ctx.read.company('oms.read'), asOf: new Date() };
  }); }
@@ -74,25 +83,26 @@ export class OmsInventoryService {
   const variant = await db.productVariant.findFirst({ where: { id, product: { productType: 'PHYSICAL' } }, select: variantSelect });
   if (!variant) throw new NotFoundException('Товарная позиция не найдена');
   const orderWhere = { AND: [reservedOrders, orderAccessWhere(ctx)] };
-  const [allocated, groups] = await Promise.all([
+  const [allocated, groups, integration] = await Promise.all([
    db.orderItem.aggregate({ where: { variantId: id, order: reservedOrders }, _sum: sums }),
    db.orderItem.groupBy({ by: ['orderId'], where: { variantId: id, order: orderWhere }, _sum: sums }),
+   db.ecosystemIntegration.findUnique({ where: { key: 'ONE_C' }, select: { isEnabled: true, configuredSecretKeys: true, config: true } }),
   ]);
   const pending = groups.map(group => ({ id: group.orderId, ...pendingQuantities(group._sum) })).filter(group => group.remaining > 0);
   const orderIds = pending.map(group => group.id);
   const orders = orderIds.length ? await db.order.findMany({ where: { AND: [orderWhere, { id: { in: orderIds } }] },
-   select: { id: true, orderNumber: true, source: true, status: true, createdAt: true, deliveryDate: true, reservationExpiresAt: true, fulfillmentManaged: true, buyerName: true, organizationId: true, shippingAddress: true, shippingProvider: true, manager: { select: { firstName: true, lastName: true } } },
+   select: { id: true, orderNumber: true, source: true, status: true, createdAt: true, deliveryDate: true, reservationExpiresAt: true, fulfillmentManaged: true, isSynced1C: true, execution: { select: { confirmedAt: true } }, buyerName: true, organizationId: true, shippingAddress: true, shippingProvider: true, manager: { select: { firstName: true, lastName: true } } },
    orderBy: [{ deliveryDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit,
   }) : [];
   const organizations = await db.organization.findMany({ where: { AND: [ctx.visible.organizations, { id: { in: orders.map(row => row.organizationId).filter((value): value is string => !!value) } }] }, select: { id: true, name: true } });
   const totals = pending.reduce((sum, item) => ({ remaining: sum.remaining + item.remaining, picked: sum.picked + item.picked }), { remaining: 0, picked: 0 });
-  const item = this.row(variant, allocated._sum, { quantity: totals.remaining, pickedQuantity: totals.picked });
+  const item = this.row(variant, allocated._sum, { quantity: totals.remaining, pickedQuantity: totals.picked }, integration);
   const reconciliation = await loadStockComparison(db, variant);
   const now = new Date();
   return { item, reconciliation, orders: orders.map(order => ({ id: order.id, orderNumber: order.orderNumber, source: order.source, status: order.status, createdAt: order.createdAt, deliveryDate: order.deliveryDate,
    destination: organizations.find(org => org.id === order.organizationId)?.name || order.buyerName || 'Получатель не указан',
    shippingAddress: order.shippingAddress, shippingProvider: order.shippingProvider, manager: [order.manager?.firstName, order.manager?.lastName].filter(Boolean).join(' ') || null,
-   fulfillmentManaged: order.fulfillmentManaged, reservationExpiresAt: order.reservationExpiresAt, reservationExpired: !!order.reservationExpiresAt && order.reservationExpiresAt <= now,
+   fulfillmentManaged: order.fulfillmentManaged, executionConfirmed: !!order.execution, isSynced1C: order.isSynced1C, reservationExpiresAt: order.reservationExpiresAt, reservationExpired: !!order.reservationExpiresAt && order.reservationExpiresAt <= now,
    ...pending.find(group => group.id === order.id),
   })), total: pending.length, page, pages: Math.max(1, Math.ceil(pending.length / limit)), allOrdersVisible: ctx.read.company('oms.read'), asOf: now };
  }); }

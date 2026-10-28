@@ -14,7 +14,7 @@ const { panel, keyboard } = useCatalogDialog(computed(() => installHelp.value), 
         <ol v-if="ios"><li>Откройте CRM в Safari.</li><li>Нажмите «Поделиться» и выберите «На экран Домой».</li><li>Подтвердите добавление.</li></ol>
         <ol v-else><li>Откройте меню браузера.</li><li>Выберите «Установить приложение» или «Добавить на главный экран», если этот пункт доступен.</li><li>Подтвердите установку.</li></ol>
         <p class="crm-install-note">Если пункта установки нет, продолжайте работу в браузере. Для загрузки клиентов и сохранения изменений требуется интернет.</p>
-        <button type="button" class="crm-primary-button" @click="installHelp = false">Понятно</button>
+        <button type="button" class="crm-primary-button crm-button crm-button--primary" @click="installHelp = false">Понятно</button>
       </section>
     </div>
   </Teleport>

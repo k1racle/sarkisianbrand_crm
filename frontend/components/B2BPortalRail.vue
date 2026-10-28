@@ -12,9 +12,13 @@ const allItems = [
 const { area, section, path: sectionPath } = useBusinessWorkspace();
 const { railCollapsed, toggleRail } = useWorkspaceLayout();
 const branding=useState<any>('salon-branding',()=>null);
-const logoSrc=computed(()=>branding.value?.logoUrl?new URL(branding.value.logoUrl,config.public.apiBase).toString():'/sarkisian-logo.png');
+const logoFailed=ref(false);
+const logoSrc=computed(()=>branding.value?.logoUrl&&!logoFailed.value?new URL(branding.value.logoUrl,config.public.apiBase).toString():'/sarkisian-logo.png');
+watch(()=>branding.value?.logoUrl,()=>{logoFailed.value=false;});
 watch(()=>user.value?.id,()=>{branding.value=null;});
 const items = computed(() => (area.value === 'salon' ? ['dashboard','calendar','clients','services','online-booking','team','support','settings'] : ['purchases','catalog','orders','team','support','settings']).map(id => ({...allItems.find(item => item.id === id)!,...(id==='settings'?{label:area.value==='salon'?'Настройки салона':'Настройки компании'}:{})})));
+const workItems = computed(() => items.value.filter(item => !['team', 'support', 'settings'].includes(item.id)));
+const managementItems = computed(() => items.value.filter(item => ['team', 'support', 'settings'].includes(item.id)));
 const mobileOpen = ref(false);
 const rail = ref<HTMLElement | null>(null);
 const mobileTrigger = ref<HTMLButtonElement | null>(null);
@@ -50,12 +54,13 @@ watch(()=>user.value?.forcePasswordChange,(required)=>{if(required)openProfile()
   <div data-v-ui-4da4dbf479f1 v-if="mobileOpen" class="ui-mobile-backdrop" @click="closeMobile" />
   <aside data-v-ui-4da4dbf479f1 id="b2b-navigation-rail" ref="rail" class="b2b-rail" :class="{ 'b2b-rail--open': mobileOpen, 'b2b-rail--collapsed': railCollapsed }" :role="mobileOpen ? 'dialog' : undefined" :aria-modal="mobileOpen ? true : undefined" aria-label="Разделы кабинета партнёра" @keydown="mobileKeys">
     <div data-v-ui-4da4dbf479f1 class="b2b-rail-head">
-      <NuxtLink data-v-ui-4da4dbf479f1 to="/b2b" class="brand"><img data-v-ui-4da4dbf479f1 :src="logoSrc" :class="{'salon-tenant-logo':branding?.logoUrl}" :alt="branding?.displayName||'SARKISIAN'" /></NuxtLink>
+      <NuxtLink data-v-ui-4da4dbf479f1 to="/b2b" class="brand"><img data-v-ui-4da4dbf479f1 :src="logoSrc" :class="{'salon-tenant-logo':branding?.logoUrl&&!logoFailed}" :alt="branding?.displayName||'SARKISIAN'" @error="logoFailed=true" /></NuxtLink>
       <button type="button" class="b2b-rail-toggle" :aria-label="railCollapsed?'Развернуть боковую панель':'Свернуть боковую панель'" :title="railCollapsed?'Развернуть боковую панель':'Свернуть боковую панель'" :aria-expanded="!railCollapsed" aria-controls="b2b-navigation-links" @click="toggleRail"><component :is="railCollapsed?PanelLeftOpen:PanelLeftClose" :size="20"/></button>
       <button data-v-ui-4da4dbf479f1 type="button" class="ui-mobile-close" aria-label="Закрыть меню кабинета" @click="closeMobile"><X data-v-ui-4da4dbf479f1 :size="22" /></button>
     </div>
     <nav data-v-ui-4da4dbf479f1 id="b2b-navigation-links" aria-label="Основная навигация партнёра" @click="closeActiveLink">
-      <NuxtLink data-v-ui-4da4dbf479f1 v-for="item in items" :key="item.id" :to="sectionPath(item.id)" :aria-label="item.id==='dashboard'?'Обзор салона':item.label" :title="item.id==='dashboard'?'Обзор салона':item.label" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined"><component data-v-ui-4da4dbf479f1 :is="item.icon" :size="18" /><span data-v-ui-4da4dbf479f1>{{ item.id === 'dashboard' ? 'Обзор салона' : item.label }}</span></NuxtLink>
+      <p class="business-rail-group-label">{{area==='salon'?'Мой салон':'Закупки'}}</p><NuxtLink data-v-ui-4da4dbf479f1 v-for="item in workItems" :key="item.id" :to="sectionPath(item.id)" :aria-label="item.id==='dashboard'?'Обзор салона':item.label" :title="item.id==='dashboard'?'Обзор салона':item.label" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined"><component data-v-ui-4da4dbf479f1 :is="item.icon" :size="18" /><span data-v-ui-4da4dbf479f1>{{ item.id === 'dashboard' ? 'Обзор салона' : item.label }}</span></NuxtLink>
+      <p class="business-rail-group-label business-rail-management">Управление</p><NuxtLink data-v-ui-4da4dbf479f1 v-for="item in managementItems" :key="item.id" :to="sectionPath(item.id)" :aria-label="item.label" :title="item.label" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined"><component data-v-ui-4da4dbf479f1 :is="item.icon" :size="18" /><span data-v-ui-4da4dbf479f1>{{item.label}}</span></NuxtLink>
     </nav>
     <div data-v-ui-4da4dbf479f1 class="bottom">
       <button data-v-ui-4da4dbf479f1 type="button" class="person" title="Открыть профиль" @click="mobileProfile">

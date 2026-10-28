@@ -3,6 +3,8 @@ const { test, expect } = require('@playwright/test');
 const { isolatedContext } = require('../../scripts/admin-design-mock.cjs');
 
 const fixtures = new Map([
+  ['/b2b/organizations', [{ id: 'qa-company', name: 'Тестовый салон', status: 'ACTIVE', role: 'OWNER', canOrder: true, canSeeFinance: true, canUseSalon: true }]],
+  ['/b2b/team', { members: [], invitations: [], canManage: true, currentMemberId: 'qa-owner' }],
   ['/b2b/profile', { id: 'qa-company', name: 'Тестовый салон', membership: { role: 'OWNER', canOrder: true, canSeeFinance: true }, members: [] }],
   ['/b2b/dashboard', { clients: 0, bookingsToday: 0, upcoming: 0, serviceRevenueMonth: 0, purchasesMonth: 0, recentOrders: [], nextBookings: [] }],
   ...['clients', 'services', 'bookings', 'catalog', 'orders', 'support'].map(id => ['/b2b/' + id, []]),

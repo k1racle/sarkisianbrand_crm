@@ -1,13 +1,14 @@
 // Executes the actual composable with isolated Vue state and inert sockets, no network.
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
 const { stripTypeScriptTypes } = require('node:module');
-const { ref } = require('vue');
+const { ref, reactive, toRef } = require('vue');
 async function main() {
-  const token = ref('first'), states = new Map(), sockets = [], requests = [];
+  const token = ref('first'), states = reactive({}), sockets = [], requests = [];
   const context = {
     useRuntimeConfig: () => ({ public: { apiBase: 'http://invalid.test/api/v1' } }),
+    window: { location: { origin: 'http://frontend.invalid' } },
     useWorkspaceSession: () => ({ token, restoreUser: async () => null }),
-    useState: (key, initial) => { if (!states.has(key)) states.set(key, ref(initial())); return states.get(key); },
+    useState: (key, initial) => { if (!(key in states)) states[key] = initial(); return toRef(states, key); },
     $fetch: () => new Promise((resolve, reject) => requests.push({ resolve, reject })),
     io: () => {
       const events = {}, socket = { on: (key, fn) => events[key] = fn, emit: () => {}, disconnect: () => {}, events };
@@ -16,7 +17,8 @@ async function main() {
   };
   const source = stripTypeScriptTypes(fs.readFileSync(path.join(__dirname, '../composables/usePlatformChat.ts'), 'utf8'))
     .replace(/^import .*;\r?$/gm, '').replace(/^export /gm, '').replaceAll('import.meta.client', 'true');
-  vm.runInNewContext(source + '\nthis.app = usePlatformChat();', context);
+  const originHelpers = stripTypeScriptTypes(fs.readFileSync(path.join(__dirname, '../shared/api-origin.ts'), 'utf8')).replace(/^export /gm, '');
+  vm.runInNewContext(originHelpers + '\n' + source + '\nthis.app = usePlatformChat();', context);
   const app = context.app;
   app.connectRealtime(); const first = sockets[0];
   first.events.connect(); assert.equal(app.connected.value, true);

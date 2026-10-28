@@ -20,8 +20,10 @@
  html[data-crm-ui] .crm-notification-item.unread {background:var(--crm-tint);}
  html[data-crm-ui] .crm-notification-open {display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left!important;border:0;background:transparent;padding:14px 12px;cursor:pointer;color:var(--crm-ink);}
  html[data-crm-ui] .crm-notification-open > i {display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:12px;background:var(--crm-bg);color:var(--crm-accent);}
- html[data-crm-ui] .crm-notification-open > span {min-width:0;flex:1;display:grid;gap:5px;}
- html[data-crm-ui] .crm-notification-open b {font-size:13px!important;line-height:1.45;}
+ html[data-crm-ui] .crm-notification-open > span {min-width:0;flex:1;display:grid;grid-template-columns:minmax(0,1fr);gap:5px;}
+ html[data-crm-ui] .crm-notification-open b {min-width:0;font-size:13px!important;line-height:1.45;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-notification-open>svg {flex:none;}
+ html[data-crm-ui] .crm-notification-unread-short {display:none;}
  html[data-crm-ui] .crm-notification-open span > span {font-size:13px!important;line-height:1.5;overflow-wrap:anywhere;}
  html[data-crm-ui] .crm-notification-open :is(time,small) {font-size:11px!important;color:var(--crm-muted);}
  html[data-crm-ui] .crm-notification-open time {padding-right:24px;}
@@ -50,6 +52,9 @@
   html[data-crm-ui] .crm-notifications-panel > header {padding:16px;}
   html[data-crm-ui] .crm-notification-filters {padding-inline:12px;}
   html[data-crm-ui] .crm-notification-tools {padding-inline:12px;gap:4px;}
+  html[data-crm-ui] .crm-notification-unread-full {display:none;}
+  html[data-crm-ui] .crm-notification-unread-short {display:inline;}
   html[data-crm-ui] .crm-notification-toasts {top:74px;right:10px;bottom:auto;max-width:calc(100vw - 20px);}
  }
+ @media(max-width:359px) {html[data-crm-ui] .crm-notification-readall-text {display:none!important;}}
 }

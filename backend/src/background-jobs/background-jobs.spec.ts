@@ -59,6 +59,17 @@ describe('Background jobs: identity, access, conservative replay (no DB/Redis/pr
     const result = await f.service.enqueue('MARKETPLACE_ORDERS_IMPORT', { secret: 'private-payload' }, 'original');
     expect(JSON.stringify(result)).not.toMatch(/private-|input|result|initiatedById/);
   });
+  it('stages durable work inside the supplied transaction without contacting Redis', async () => {
+    const f = jobFixture();
+    const run = await f.service.stage(f.db, 'MARKETPLACE_ORDERS_IMPORT', { batch: 'staged' }, 'original');
+    expect(f.db.jobRun.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      jobName: 'MARKETPLACE_ORDERS_IMPORT', input: { batch: 'staged' }, initiatedById: 'original', maxAttempts: 1,
+    }) }));
+    expect(f.queue.add).not.toHaveBeenCalled();
+    expect(f.rows.has(run.id)).toBe(true);
+    await (f.service as any).dispatchPending();
+    expect(f.queue.add).toHaveBeenCalledWith('MARKETPLACE_ORDERS_IMPORT', { jobRunId: run.id }, expect.objectContaining({ jobId: run.id }));
+  });
   it('worker executes DB input, not Redis input, and suppresses concurrent/duplicate deliveries', async () => {
     const f = jobFixture(); f.source.status = 'WAITING';
     const a = f.job(), b = f.job(); await Promise.all([f.process(a), f.process(b)]);

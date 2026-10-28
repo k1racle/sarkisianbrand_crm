@@ -1,0 +1,129 @@
+name: ${COMPOSE_PROJECT_NAME:-sarkisian-crm-production}
+x-app: &app
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  stop_grace_period: 45s
+  logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}
+x-backend-env: &backend-env
+  NODE_ENV: production
+  PORT: "3000"
+  DATABASE_URL: postgresql://sarkisian:${DB_PASSWORD:?Set DB_PASSWORD}@postgres:5432/sarkisian_brand?schema=public&connection_limit=15&pool_timeout=5
+  REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379/0
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET}
+  INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:?Set INTEGRATION_ENCRYPTION_KEY}
+  SITE_URL: https://${SITE_HOST:?Set SITE_HOST}
+  PUBLIC_APP_URL: https://${SITE_HOST:?Set SITE_HOST}
+  CORS_ORIGIN: https://${SITE_HOST:?Set SITE_HOST}
+  TRUST_PROXY_HOPS: "1"
+  API_DOCS_ENABLED: "false"
+  SEO_INDEXING_ENABLED: ${SEO_INDEXING_ENABLED:-false}
+  ECOSYSTEM_AUTOMATION_ENABLED: ${ECOSYSTEM_AUTOMATION_ENABLED:-false}
+  WB_FBS_AUTOPOLL_ENABLED: ${WB_FBS_AUTOPOLL_ENABLED:-false}
+  WB_FBS_ALLOW_SANDBOX_IMPORT: ${WB_FBS_ALLOW_SANDBOX_IMPORT:-false}
+  STOREFRONT_EXTERNAL_CALLS_ENABLED: ${STOREFRONT_EXTERNAL_CALLS_ENABLED:-false}
+  MAIL_DELIVERY_ENABLED: ${MAIL_DELIVERY_ENABLED:-false}
+  LOYALTY_MAINTENANCE_ENABLED: ${LOYALTY_MAINTENANCE_ENABLED:-false}
+  CRM_MEDIA_ENABLED: "false"
+  CRM_MEDIA_GATEWAY_ENFORCED: "false"
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: sarkisian_brand
+      POSTGRES_PASSWORD: ${DB_MIGRATION_PASSWORD:?Set DB_MIGRATION_PASSWORD}
+      APP_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes: ["postgres_data:/var/lib/postgresql/data", "./deploy/postgres-init.sh:/docker-entrypoint-initdb.d/10-application-role.sh:ro"]
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d sarkisian_brand"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    stop_grace_period: 45s
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    command: [redis-server, --appendonly, "yes", --requirepass, "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
+    volumes: ["redis_data:/data"]
+    networks: [data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    stop_grace_period: 45s
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "5"}}
+  migrations:
+    build: {context: ., dockerfile: Dockerfile.production, target: migrations}
+    image: ${RELEASE_IMAGE_PREFIX:-sarkisian-crm}/migrations:${RELEASE_TAG:-local}
+    profiles: [tools]
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_MIGRATION_PASSWORD:?Set DB_MIGRATION_PASSWORD}@postgres:5432/sarkisian_brand?schema=public
+    networks: [data]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    depends_on:
+      postgres: {condition: service_healthy}
+  backend:
+    <<: *app
+    build: {context: ., dockerfile: Dockerfile.production, target: backend}
+    image: ${RELEASE_IMAGE_PREFIX:-sarkisian-crm}/backend:${RELEASE_TAG:-local}
+    environment: *backend-env
+    volumes: ["uploads:/app/uploads", "crm_files:/app/private-crm-files"]
+    networks: [app, data]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  frontend:
+    <<: *app
+    build: {context: ., dockerfile: Dockerfile.production, target: frontend}
+    image: ${RELEASE_IMAGE_PREFIX:-sarkisian-crm}/frontend:${RELEASE_TAG:-local}
+    environment:
+      NUXT_PUBLIC_API_BASE: /api/v1
+      NUXT_PUBLIC_API_PROXY_ENABLED: "true"
+      NUXT_API_PROXY_BASE: http://backend:3000/api/v1
+      NUXT_SEO_API_BASE: http://backend:3000/api/v1
+      NUXT_PUBLIC_API_REALTIME_PORT: ""
+      NUXT_PUBLIC_SITE_URL: https://${SITE_HOST:?Set SITE_HOST}
+      NUXT_PUBLIC_SEO_INDEXING_ENABLED: ${SEO_INDEXING_ENABLED:-false}
+    networks: [app]
+    depends_on:
+      backend: {condition: service_healthy}
+  proxy:
+    <<: *app
+    build: {context: ., dockerfile: Dockerfile.production, target: proxy}
+    image: ${RELEASE_IMAGE_PREFIX:-sarkisian-crm}/proxy:${RELEASE_TAG:-local}
+    profiles: [edge]
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+    ports: ["80:8080", "443:8443", "443:8443/udp"]
+    volumes: ["caddy_data:/data", "caddy_config:/config"]
+    networks: [app]
+    depends_on:
+      backend: {condition: service_healthy}
+      frontend: {condition: service_healthy}
+networks:
+  app:
+  data:
+    internal: true
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  crm_files:
+  caddy_data:
+  caddy_config:

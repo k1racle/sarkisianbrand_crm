@@ -1,4 +1,5 @@
 import { KERI_SIZE, keriLayers, type KeriLook } from './look.ts'
+import { drawStyledKeri } from './styling'
 
 // A look is committed only when every layer is decoded. Rapid switches cannot
 // expose an unclothed base or mix old skin/face/clothing with the next look.
@@ -14,7 +15,7 @@ export function loadKeriImage(url: string): Promise<HTMLImageElement> {
       img.src = url
     }).catch(error => { images.delete(url); throw error })
     images.set(url, promise)
-    if(images.size>36)images.delete(images.keys().next().value!)
+    if(images.size>32)images.delete(images.keys().next().value!)
     return promise
   }
   const cached=images.get(url)!;images.delete(url);images.set(url,cached)
@@ -29,6 +30,8 @@ export async function renderKeriLook(look: KeriLook, assetBase: string, width = 
   if (!ctx) throw new Error('Браузер не поддерживает рисование персонажа.')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  for (const img of layers) ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  ctx.save(); ctx.scale(width / KERI_SIZE.width, width / KERI_SIZE.width)
+  drawStyledKeri(ctx, layers, look)
+  ctx.restore()
   return canvas
 }

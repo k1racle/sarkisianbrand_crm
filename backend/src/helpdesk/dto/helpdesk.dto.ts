@@ -77,4 +77,12 @@ export class CreateHelpdeskCommentDto {
   @IsOptional()
   @IsBoolean()
   isInternal?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
+
+  @IsOptional()
+  @IsUUID('4')
+  requestKey?: string;
 }

@@ -9,12 +9,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (/^\/meeting-guest\/?$/.test(to.path)) return; // Separate guest capability; never hydrate a CRM session here.
   if (to.path === '/b2b' || to.path.startsWith('/b2b/')) {
     const b2b = useB2BSession(); b2b.hydrate();
-    if (!b2b.token.value) return navigateTo({ path: '/b2b-login', query: { redirect: to.fullPath } });
+    if (!b2b.token.value && !b2b.refreshToken.value) return navigateTo({ path: '/b2b-login', query: { redirect: to.fullPath } });
     return;
   }
   if (to.path === '/b2b-login') {
     const b2b = useB2BSession(); b2b.hydrate();
-    if (b2b.token.value) return navigateTo('/b2b');
+    if ((b2b.token.value || b2b.refreshToken.value) && !useState<boolean>('b2b-signing-out', () => false).value) return navigateTo('/b2b');
     return;
   }
   const session = useWorkspaceSession();

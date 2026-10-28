@@ -40,14 +40,14 @@ const shortcuts = computed(()=>[
         <footer v-if="trend.length" class="sd-chart-dates"><span>{{date(trend[0].day)}}</span><span>{{date(trend[trend.length-1].day)}}</span></footer>
       </article>
       <article class="sd-panel"><header><h2>Заказы в работе</h2><NuxtLink v-if="allowed('orders')" to="/admin-workspace/orders">Все заказы<ArrowRight :size="16"/></NuxtLink></header>
-        <div class="sd-queue"><button v-for="stage in queue" :key="stage.status" type="button" :disabled="!allowed('orders')" @click="navigateTo({path:'/admin-workspace/orders',query:{status:stage.status}})"><component :is="stage.icon" :size="18"/><span>{{stage.label}}</span><strong>{{data.queue?.[stage.status] || 0}}</strong><ArrowRight :size="16"/></button></div>
+        <div class="sd-queue"><button class="crm-button" v-for="stage in queue" :key="stage.status" type="button" :disabled="!allowed('orders')" @click="navigateTo({path:'/admin-workspace/orders',query:{status:stage.status}})"><component :is="stage.icon" :size="18"/><span>{{stage.label}}</span><strong>{{data.queue?.[stage.status] || 0}}</strong><ArrowRight :size="16"/></button></div>
         <p v-if="issues.syncErrors" class="sd-warning"><AlertCircle :size="17"/>Не переданы в 1С из-за ошибки: {{issues.syncErrors}}</p>
         <footer>Незавершённые заказы за всё время</footer>
       </article>
     </div>
     <div class="sd-bottom-grid">
       <article class="sd-panel"><header><h2>Последние заказы</h2><NuxtLink v-if="allowed('orders')" to="/admin-workspace/orders">Все заказы<ArrowRight :size="16"/></NuxtLink></header>
-        <div v-if="data.recentOrders?.length" class="sd-recent"><button v-for="order in data.recentOrders" :key="order.id" type="button" :disabled="!allowed('orders')" @click="navigateTo({path:'/admin-workspace/orders',query:{q:order.orderNumber}})"><span><strong>{{order.orderNumber}}</strong><small>{{date(order.createdAt)}}</small></span><span><span class="sd-order-status">{{statuses[order.status] || order.status}}</span><small>{{payments[order.paymentStatus] || 'Оплата не подтверждена'}}</small></span><strong>{{money(order.finalAmount)}}</strong><ArrowRight :size="16"/></button></div>
+        <div v-if="data.recentOrders?.length" class="sd-recent"><button class="crm-button" v-for="order in data.recentOrders" :key="order.id" type="button" :disabled="!allowed('orders')" @click="navigateTo({path:'/admin-workspace/orders',query:{q:order.orderNumber}})"><span><strong>{{order.orderNumber}}</strong><small>{{date(order.createdAt)}}</small></span><span><span class="sd-order-status">{{statuses[order.status] || order.status}}</span><small>{{payments[order.paymentStatus] || 'Оплата не подтверждена'}}</small></span><strong>{{money(order.finalAmount)}}</strong><ArrowRight :size="16"/></button></div>
         <div v-else class="sd-empty"><ShoppingBag :size="28"/><strong>Заказов пока нет</strong><p>Здесь появятся последние заказы с сайта.</p></div>
       </article>
       <article class="sd-panel"><header><h2>Состояние каталога</h2><NuxtLink v-if="allowed('products')" to="/admin-workspace/products">Каталог<ArrowRight :size="16"/></NuxtLink></header>

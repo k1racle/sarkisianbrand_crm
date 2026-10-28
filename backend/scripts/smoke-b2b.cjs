@@ -31,7 +31,7 @@ async function main() {
     const booking = await request('/b2b/bookings', token, { method: 'POST', body: JSON.stringify({ clientId: client.id, serviceId: service.id, masterMemberId: profile.members[0].id, startTime: startTime.toISOString(), notes: 'Приёмочный сценарий' }) }, 201);
     created.bookingId = booking.id;
     await request('/b2b/bookings', token, { method: 'POST', body: JSON.stringify({ clientId: client.id, serviceId: service.id, masterMemberId: profile.members[0].id, startTime: startTime.toISOString() }) }, 409);
-    await request(`/b2b/bookings/${booking.id}`, token, { method: 'PATCH', body: JSON.stringify({ status: 'COMPLETED' }) });
+    await request(`/b2b/bookings/${booking.id}`, token, { method: 'PATCH', body: JSON.stringify({ version: booking.version, status: 'COMPLETED' }) });
     const updatedClient = await prisma.b2BClient.findUniqueOrThrow({ where: { id: client.id } });
     if (updatedClient.totalVisits !== 1 || Number(updatedClient.totalSpent) !== 2500) throw new Error('Завершённая запись не обновила историю клиента');
 
@@ -39,9 +39,9 @@ async function main() {
     const variant = catalog.flatMap(product => product.variants).find(item => item.available >= 2);
     if (!variant) throw new Error('Нет варианта товара с остатком для проверки B2B-заказа');
     variantBackup = await prisma.productVariant.findUniqueOrThrow({ where: { id: variant.id }, select: { id: true, stock: true, reserved: true } });
-    const order = await request('/b2b/orders', token, { method: 'POST', body: JSON.stringify({ items: [{ variantId: variant.id, quantity: 1 }], comments: 'Приёмочный сценарий B2B' }) }, 201);
+    const order = await request('/b2b/orders', token, { method: 'POST', body: JSON.stringify({ requestKey: randomUUID(), items: [{ variantId: variant.id, quantity: 1 }], comments: 'Приёмочный сценарий B2B' }) }, 201);
     created.orderIds.push(order.id);
-    const repeated = await request(`/b2b/orders/${order.id}/repeat`, token, { method: 'POST' }, 201);
+    const repeated = await request(`/b2b/orders/${order.id}/repeat`, token, { method: 'POST', body: JSON.stringify({ requestKey: randomUUID() }) }, 201);
     created.orderIds.push(repeated.id);
     if (order.source !== 'B2B' || repeated.source !== 'B2B') throw new Error('Заказы не попали в канонический B2B-контур OMS');
 

@@ -272,8 +272,10 @@ model CrmDepartment {
 }
 
 model User {
+  studioAccount StudioAccount?
   crmNotificationReads CrmNotificationRead[]
   crmNotificationPreferences CrmNotificationPreference?
+  calendarSubscription CrmCalendarSubscription?
   accessProfileMode Boolean @default(false)
   accessVersion Int @default(1)
   accessAssignments CrmAccessAssignment[]
@@ -695,6 +697,10 @@ model CrmMeeting {
   id String @id @default(uuid())
   title String
   agenda String @default("")
+  location String @default("")
+  meetingUrl String @default("")
+  reminderMinutes Int @default(30)
+  calendarSequence Int @default(1)
   kind String @default("TEAM")
   startsAt DateTime
   endsAt DateTime
@@ -705,6 +711,7 @@ model CrmMeeting {
   members CrmMeetingMember[]
   invitations CrmMeetingInvitation[]
   mediaRooms CrmMeetingMediaRoom[]
+  notifications CrmNotificationEvent[]
   version Int @default(1)
   requestKey String
   requestHash String
@@ -724,9 +731,21 @@ model CrmMeetingMember {
   userId String
   meeting CrmMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  response String @default("PENDING")
+  declineReason String @default("")
+  respondedAt DateTime?
+  responseVersion Int @default(0)
 
   @@id([meetingId, userId])
   @@index([userId, meetingId])
+}
+
+model CrmCalendarSubscription {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum CrmMeetingGuestStatus {
@@ -1027,6 +1046,7 @@ model Organization {
   lastSync1CAt     DateTime?
 
   members          OrganizationMember[]
+  teamInvitations  BusinessTeamInvitation[]
   orders           Order[]
   leads            Lead[]
   helpdeskTickets  HelpdeskTicket[]
@@ -1056,6 +1076,7 @@ model OrganizationMember {
   customerId       String?
   customer         Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
   role             OrganizationMemberRole @default(EMPLOYEE)
+  version          Int                    @default(1)
   jobTitle         String?
   canOrder         Boolean                @default(true)
   canSeeFinance    Boolean                @default(false)
@@ -1067,6 +1088,32 @@ model OrganizationMember {
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([customerId])
+}
+
+model BusinessTeamInvitation {
+  id               String                 @id @default(uuid())
+  organizationId   String
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email            String
+  role             OrganizationMemberRole
+  canOrder         Boolean                @default(false)
+  canSeeFinance    Boolean                @default(false)
+  tokenHash        String                 @unique
+  requestKey       String
+  requestHash      String
+  status           String                 @default("PENDING")
+  version          Int                    @default(1)
+  createdById      String
+  acceptedById     String?
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@unique([organizationId, requestKey])
+  @@index([organizationId, status, createdAt])
+  @@index([email, status, expiresAt])
 }
 
 model B2BClient {
@@ -1163,6 +1210,10 @@ model B2BBooking {
   masterMember   OrganizationMember? @relation("B2BBookingMaster", fields: [masterMemberId], references: [id], onDelete: SetNull)
   startTime      DateTime
   endTime        DateTime
+  priceSnapshot  Decimal             @db.Decimal(15, 2)
+  publicRequest  SalonBookingRequest?
+  version        Int                 @default(1)
+  events         SalonBookingEvent[]
   status         B2BBookingStatus    @default(NEW)
   notes          String?
   reminderSentAt DateTime?
@@ -1176,6 +1227,36 @@ model B2BBooking {
 }
 
 // ===================== CATALOG =====================
+
+model SalonBookingRequest {
+  organizationId String
+  requestKeyHash String
+  requestHash    String
+  bookingId      String     @unique
+  booking        B2BBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  response       Json
+  notificationEmail String?
+  createdAt      DateTime   @default(now())
+
+  @@id([organizationId, requestKeyHash])
+}
+
+model SalonBookingEvent {
+  id             String     @id @default(uuid())
+  organizationId String
+  bookingId      String
+  booking        B2BBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actorId        String?
+  actorLabel     String
+  action         String
+  version        Int
+  before         Json?
+  after          Json
+  createdAt      DateTime   @default(now())
+
+  @@unique([bookingId, version])
+  @@index([organizationId, bookingId, createdAt])
+}
 
 model Category {
   stockRules InventoryStockRule[]
@@ -1337,6 +1418,7 @@ model Product {
 }
 
 model ProductVariant {
+  marketplaceMappings MarketplaceVariantMapping[]
   stockRules InventoryStockRule[]
   stockRuleStates InventoryStockRuleState[]
   channelStocks InventoryChannelStock[]
@@ -1361,6 +1443,7 @@ model ProductVariant {
   orderItems OrderItem[]
   cartItems  CartItem[]
   oneCStock OneCStockSnapshot?
+  oneCWarehouseStock OneCWarehouseStock?
 
   @@index([productId])
 }
@@ -1380,6 +1463,36 @@ model OneCStockSnapshot {
   receivedAt DateTime @default(now())
   payloadHash String
   includedOperationIds Json
+}
+
+// 1C physical inventory and reservations, with local uncovered holds projected on ProductVariant.
+model OneCWarehouseStock {
+  variantId String @id
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouseId String
+  externalProductId String
+  sku String
+  revision Int
+  stock Int
+  damagedStock Int
+  reserved1C Int
+  localPending Int
+  asOf DateTime
+  validUntil DateTime
+  receivedAt DateTime @default(now())
+  payloadHash String
+  coveredEventIds Json
+}
+
+model OneCWarehouseCoverage {
+  orderItemId String @id
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  eventId String
+  revision Int
+  reserved Int
+  shipped Int
+  cancelled Int
+  @@index([eventId])
 }
 
 model InventoryStockGroup {
@@ -1534,6 +1647,8 @@ model CartItem {
 model Order {
   crmNotificationEvents CrmNotificationEvent[]
   oneCFinance OneCOrderFinance?
+  warehouseExecution OneCOrderWarehouse?
+  warehouseEvents OneCWarehouseEvent[]
   oneCRequests OneCOrderRequest[]
   financeVersion Int @default(1)
   paymentDueAt DateTime?
@@ -2062,7 +2177,44 @@ model BotWebhookEvent {
   @@index([commandId])
 }
 
+// Confirmed 1C warehouse facts are a read-only projection, not local stock movements.
+model OneCOrderWarehouse {
+  orderId String @id
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  owner String @default("ONE_C")
+  external1CId String @unique
+  warehouseId String
+  revision Int
+  executionVersion Int?
+  eventId String @unique
+  payloadHash String
+  basisHash String
+  status String
+  asOf DateTime
+  validUntil DateTime
+  receivedAt DateTime @default(now())
+  documentId String?
+  documentNumber String?
+  executorName String?
+  error String?
+  lines Json
+  documents Json
+}
+
+model OneCWarehouseEvent {
+  eventId String @id
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  revision Int
+  payloadHash String
+  payload Json
+  receivedAt DateTime @default(now())
+  @@unique([orderId, revision])
+  @@index([orderId, receivedAt])
+}
+
 model OrderItem {
+  warehouseCoverage OneCWarehouseCoverage?
   cancelledQuantity Int @default(0)
   returnedQuantity Int @default(0)
   damagedReturnedQuantity Int @default(0)
@@ -2768,6 +2920,8 @@ model IdempotencyKey {
 }
 
 model PromoCode {
+  restrictedUserId String?
+  studioPurchase StudioRewardPurchase?
   code String @id
   title String
   discountType String
@@ -2782,6 +2936,82 @@ model PromoCode {
   revision Int @default(1)
   redemptions PromoRedemption[]
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudioAccount {
+  userId String @id
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  balance Int @default(1250)
+  earned Int @default(0)
+  upgrades String[] @default([])
+  runs StudioRun[]
+  purchases StudioRewardPurchase[]
+  transactions StudioTransaction[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudioRun {
+  id String @id @default(uuid())
+  userId String
+  account StudioAccount @relation(fields:[userId],references:[userId],onDelete:Cascade)
+  briefId String
+  technique String @default("combined")
+  checkpoints String[] @default([])
+  lastCheckpointAt DateTime @default(now())
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+  reward Int @default(0)
+  @@index([userId,finishedAt])
+}
+
+model StudioRewardOffer {
+  id String @id
+  discountPercent Int
+  coinPrice Int
+  validDays Int @default(30)
+  minimumAmount Int @default(0)
+  maximumDiscount Int?
+  isActive Boolean @default(true)
+  purchases StudioRewardPurchase[]
+  updatedAt DateTime @updatedAt
+}
+
+model StudioRewardPurchase {
+  id String @id @default(uuid())
+  userId String
+  account StudioAccount @relation(fields:[userId],references:[userId],onDelete:Cascade)
+  offerId String
+  offer StudioRewardOffer @relation(fields:[offerId],references:[id])
+  requestId String
+  coinPrice Int
+  discountPercent Int
+  code String @unique
+  promo PromoCode @relation(fields:[code],references:[code])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@unique([userId,requestId])
+  @@index([userId,createdAt])
+}
+
+model StudioTransaction {
+  id String @id @default(uuid())
+  userId String
+  account StudioAccount @relation(fields:[userId],references:[userId],onDelete:Cascade)
+  requestId String
+  kind String
+  amount Int
+  balanceAfter Int
+  createdAt DateTime @default(now())
+  @@unique([userId,requestId])
+}
+
+model StudioSettings {
+  id String @id @default("default")
+  enabled Boolean @default(true)
+  dailyRunLimit Int @default(20)
+  minimumRunSeconds Int @default(60)
   updatedAt DateTime @updatedAt
 }
 
@@ -2963,6 +3193,8 @@ model CrmNotificationEvent {
   contact ContactMessage? @relation(fields: [contactId], references: [id], onDelete: Cascade)
   reminderId String?
   reminder CrmTaskReminder? @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  meetingId String?
+  meeting CrmMeeting? @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   reads CrmNotificationRead[]
 
   @@index([occurredAt, id])
@@ -2974,6 +3206,7 @@ model CrmNotificationEvent {
   @@index([messageId])
   @@index([contactId])
   @@index([reminderId])
+  @@index([meetingId])
 }
 
 model CrmNotificationRead {
@@ -2990,4 +3223,27 @@ model CrmNotificationPreference {
   userId String @id
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   popupsEnabled Boolean @default(true)
+}
+
+// Persistent, fenced marketplace polling progress. Provider credentials stay in
+// EcosystemIntegration and are never copied into this row.
+model MarketplaceSyncCursor {
+  key String @id
+  actorId String?
+  state Json?
+  leaseId String?
+  leaseUntil DateTime?
+  lastError String?
+  lastSuccessAt DateTime?
+  updatedAt DateTime @updatedAt
+}
+
+model MarketplaceVariantMapping {
+  channel String
+  externalVariantId String
+  variantId String
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+  @@id([channel, externalVariantId])
+  @@index([variantId])
 }

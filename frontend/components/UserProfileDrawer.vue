@@ -1,66 +1,95 @@
 <script setup lang="ts">
 import { Bell, Camera, Check, Laptop, LoaderCircle, LockKeyhole, MapPin, ShieldCheck, Trash2, UserRound, X } from '@lucide/vue';
+import { normalizeMediaImageUrl } from '~/shared/product-images';
 
 const props = defineProps<{ mode: 'workspace' | 'b2b' }>();
 const config = useRuntimeConfig();
 const workspace = useWorkspaceSession();
 const b2b = useB2BSession();
 const { isOpen, closeProfile } = useUserProfilePanel();
-const tab = ref<'profile' | 'security' | 'notifications'>('profile');
+const tab = ref('profile');
+const profileTabs = [['profile', 'Профиль'], ['security', 'Безопасность'], ['notifications', 'Уведомления']] as const;
 const profile = ref<any>(null);
 const loading = ref(false);
 const saving = ref(false);
 const notice = ref('');
 const error = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
+const photoFailed = ref(false);
 const basic = reactive({ city: '', country: 'RU', timezone: 'Europe/Moscow' });
 const requested = reactive({ firstName: '', lastName: '', phone: '' });
 const passwords = reactive({ currentPassword: '', newPassword: '', repeatPassword: '' });
 const notifications = reactive({ email: true, push: true, chat: true });
+const baseline = reactive({ basic: '', requested: '', notifications: '' });
+const dirty = computed(() => Boolean(profile.value) && (JSON.stringify(basic) !== baseline.basic || JSON.stringify(requested) !== baseline.requested || JSON.stringify(notifications) !== baseline.notifications || Object.values(passwords).some(Boolean)));
+const currentUserId = computed(() => props.mode === 'workspace' ? workspace.user.value?.id : b2b.user.value?.id);
+let loadGeneration = 0;
+const { panel, keyboard } = useCatalogDialog(computed(() => isOpen.value), tryClose);
 const activeToken = computed(() => props.mode === 'workspace' ? workspace.token.value : b2b.token.value);
 const currentSessionId = computed(() => {
   try { return JSON.parse(atob(activeToken.value.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sid || ''; }
   catch { return ''; }
 });
-const avatarUrl = computed(() => profile.value?.avatarUrl ? new URL(profile.value.avatarUrl, config.public.apiBase).toString() : '');
+const avatarUrl = computed(() => normalizeMediaImageUrl(profile.value?.avatarUrl, String(config.public.apiBase), String(config.public.siteUrl)));
+watch(avatarUrl, () => { photoFailed.value = false; });
 const displayName = computed(() => [profile.value?.firstName, profile.value?.lastName].filter(Boolean).join(' ') || 'Пользователь');
 const headers = computed(() => ({ Authorization: `Bearer ${activeToken.value}` }));
+const request = <T = any>(path: string, options: any = {}) => props.mode === 'b2b' ? b2b.request<T>(path, options) : workspace.request<T>(path, options);
 
 function fill(data: any) {
   profile.value = data;
   Object.assign(basic, { city: data.city || '', country: data.country || 'RU', timezone: data.timezone || 'Europe/Moscow' });
   Object.assign(requested, { firstName: data.firstName || '', lastName: data.lastName || '', phone: data.phone || '' });
   Object.assign(notifications, { email: data.notificationPreferences?.email !== false, push: data.notificationPreferences?.push !== false, chat: data.notificationPreferences?.chat !== false });
+  baseline.basic = JSON.stringify(basic); baseline.requested = JSON.stringify(requested); baseline.notifications = JSON.stringify(notifications);
   const session = props.mode === 'workspace' ? workspace : b2b;
   if (session.user.value) Object.assign(session.user.value, data);
   session.persist();
 }
 
-async function load() {
+async function load(preserveDrafts = true) {
   if (!activeToken.value) return;
+  const generation = ++loadGeneration, owner = currentUserId.value;
+  const drafts = { basic: { ...basic }, requested: { ...requested }, notifications: { ...notifications } };
+  const changed = Object.fromEntries(Object.entries(drafts).map(([key, value]) => [key, preserveDrafts && Boolean(profile.value) && JSON.stringify(value) !== baseline[key as keyof typeof baseline]]));
+  if (!preserveDrafts) { profile.value = null; notice.value = ''; Object.assign(passwords, { currentPassword: '', newPassword: '', repeatPassword: '' }); }
   loading.value = true; error.value = '';
-  try { fill(await $fetch('/auth/profile', { baseURL: config.public.apiBase, headers: headers.value })); }
-  catch (exception: any) { error.value = messageOf(exception); }
-  finally { loading.value = false; }
+  try {
+    const data = await request('/auth/profile', { baseURL: config.public.apiBase, headers: headers.value });
+    if (generation !== loadGeneration || owner !== currentUserId.value || !isOpen.value) return;
+    if (data.id && data.id !== owner) throw new Error('Не удалось проверить владельца профиля. Закройте профиль и откройте его снова.');
+    fill(data);
+    if (changed.basic) Object.assign(basic, drafts.basic);
+    if (changed.requested) Object.assign(requested, drafts.requested);
+    if (changed.notifications) Object.assign(notifications, drafts.notifications);
+  }
+  catch (exception: any) { if (generation === loadGeneration && owner === currentUserId.value) error.value = messageOf(exception); }
+  finally { if (generation === loadGeneration) loading.value = false; }
 }
 
 async function saveBasic() {
+  const payload = { ...basic };
   await act(async () => {
-    await $fetch('/auth/profile', { baseURL: config.public.apiBase, method: 'PATCH', headers: headers.value, body: basic });
+    await request('/auth/profile', { baseURL: config.public.apiBase, method: 'PATCH', headers: headers.value, body: payload });
+    baseline.basic = JSON.stringify(payload);
     await load(); showNotice('Настройки профиля сохранены');
   });
 }
 
 async function submitChangeRequest() {
+  const payload = { ...requested };
   await act(async () => {
-    await $fetch('/auth/profile/change-request', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: requested });
+    await request('/auth/profile/change-request', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: payload });
+    baseline.requested = JSON.stringify(payload);
     await load(); showNotice('Запрос отправлен администратору');
   });
 }
 
 async function saveNotifications() {
+  const payload = { ...notifications };
   await act(async () => {
-    await $fetch('/auth/profile', { baseURL: config.public.apiBase, method: 'PATCH', headers: headers.value, body: { notificationPreferences: notifications } });
+    await request('/auth/profile', { baseURL: config.public.apiBase, method: 'PATCH', headers: headers.value, body: { notificationPreferences: payload } });
+    baseline.notifications = JSON.stringify(payload);
     await load(); showNotice('Каналы уведомлений сохранены');
   });
 }
@@ -68,7 +97,7 @@ async function saveNotifications() {
 async function changePassword() {
   if (passwords.newPassword !== passwords.repeatPassword) { error.value = 'Новые пароли не совпадают'; return; }
   await act(async () => {
-    await $fetch('/auth/profile/password', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: { currentPassword: passwords.currentPassword, newPassword: passwords.newPassword } });
+    await request('/auth/profile/password', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body: { currentPassword: passwords.currentPassword, newPassword: passwords.newPassword } });
     props.mode === 'workspace' ? workspace.logout() : b2b.logout();
     closeProfile();
     await navigateTo(props.mode === 'workspace' ? '/workspace-login' : '/b2b-login');
@@ -80,7 +109,7 @@ async function uploadAvatar(event: Event) {
   if (!file) return;
   const body = new FormData(); body.append('file', file);
   await act(async () => {
-    await $fetch('/auth/profile/avatar', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body });
+    await request('/auth/profile/avatar', { baseURL: config.public.apiBase, method: 'POST', headers: headers.value, body });
     await load(); showNotice('Фотография обновлена');
   });
   if (fileInput.value) fileInput.value.value = '';
@@ -88,14 +117,14 @@ async function uploadAvatar(event: Event) {
 
 async function removeAvatar() {
   await act(async () => {
-    await $fetch('/auth/profile/avatar', { baseURL: config.public.apiBase, method: 'DELETE', headers: headers.value });
+    await request('/auth/profile/avatar', { baseURL: config.public.apiBase, method: 'DELETE', headers: headers.value });
     await load(); showNotice('Фотография удалена');
   });
 }
 
 async function revokeSession(session: any) {
   await act(async () => {
-    await $fetch(`/auth/profile/sessions/${session.id}`, { baseURL: config.public.apiBase, method: 'DELETE', headers: headers.value });
+    await request(`/auth/profile/sessions/${session.id}`, { baseURL: config.public.apiBase, method: 'DELETE', headers: headers.value });
     if (session.id === currentSessionId.value) {
       props.mode === 'workspace' ? workspace.logout() : b2b.logout();
       closeProfile();
@@ -107,13 +136,27 @@ async function revokeSession(session: any) {
 }
 
 async function act(callback: () => Promise<void>) {
+  if (saving.value) return;
   saving.value = true; error.value = '';
   try { await callback(); } catch (exception: any) { error.value = messageOf(exception); }
   finally { saving.value = false; }
 }
 function messageOf(exception: any) { return exception?.data?.message || exception?.message || 'Не удалось выполнить действие'; }
 function showNotice(value: string) { notice.value = value; setTimeout(() => notice.value = '', 2500); }
-function tryClose() { if (!profile.value?.forcePasswordChange) closeProfile(); }
+function tryClose() {
+  if (profile.value?.forcePasswordChange || saving.value) return false;
+  if (dirty.value && !window.confirm('Закрыть профиль без сохранения изменений?')) return false;
+  closeProfile(); return true;
+}
+const removeNavigationGuard = useRouter().beforeEach(() => !isOpen.value || tryClose());
+function beforeUnload(event: BeforeUnloadEvent) { if (isOpen.value && (dirty.value || saving.value)) { event.preventDefault(); event.returnValue = ''; } }
+onMounted(() => window.addEventListener('beforeunload', beforeUnload));
+onBeforeUnmount(() => { removeNavigationGuard(); window.removeEventListener('beforeunload', beforeUnload); });
+watch(currentUserId, (id, previousId) => {
+  ++loadGeneration; profile.value = null; loading.value = false;
+  if (previousId) closeProfile();
+  else if (id && isOpen.value) void load(false);
+});
 function deviceName(value?: string) {
   if (!value) return 'Неизвестное устройство';
   if (/Mobile|Android|iPhone/i.test(value)) return 'Мобильное устройство';
@@ -121,23 +164,27 @@ function deviceName(value?: string) {
   if (/Macintosh|Mac OS/i.test(value)) return 'Компьютер Mac';
   return 'Браузер';
 }
-watch(isOpen, (value) => { if (value) { tab.value = 'profile'; load(); } });
+watch(isOpen, (value) => { if (value) { tab.value = 'profile'; void load(false); } else ++loadGeneration; });
+watch([loading, error], async () => {
+  await nextTick();
+  if (isOpen.value && panel.value && !panel.value.contains(document.activeElement)) panel.value.focus({ preventScroll: true });
+});
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="profile-fade">
       <div data-v-ui-6d8134092fd8 v-if="isOpen" class="profile-backdrop admin-dialog-backdrop" @mousedown.self="tryClose">
-        <aside data-v-ui-6d8134092fd8 class="profile-drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" aria-label="Профиль пользователя">
+        <aside ref="panel" tabindex="-1" @keydown="keyboard" data-v-ui-6d8134092fd8 class="profile-drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" aria-label="Профиль пользователя">
           <header data-v-ui-6d8134092fd8 class="profile-head admin-dialog-head">
-            <div data-v-ui-6d8134092fd8><p data-v-ui-6d8134092fd8>УЧЁТНАЯ ЗАПИСЬ</p><h2 data-v-ui-6d8134092fd8>Мой профиль</h2></div>
+            <div data-v-ui-6d8134092fd8><h2 data-v-ui-6d8134092fd8>Мой профиль</h2></div>
             <button data-v-ui-6d8134092fd8 class="icon-button crm-button crm-button--icon" aria-label="Закрыть" :disabled="profile?.forcePasswordChange" @click="tryClose"><X data-v-ui-6d8134092fd8 :size="19" /></button>
           </header>
           <div data-v-ui-6d8134092fd8 v-if="loading && !profile" class="profile-loading"><LoaderCircle data-v-ui-6d8134092fd8 :size="24" class="spin" /><span data-v-ui-6d8134092fd8>Загружаем профиль</span></div>
           <template v-else-if="profile">
             <section data-v-ui-6d8134092fd8 class="identity">
-              <button data-v-ui-6d8134092fd8 class="avatar crm-button" title="Загрузить фотографию" @click="fileInput?.click()">
-                <img data-v-ui-6d8134092fd8 v-if="avatarUrl" :src="avatarUrl" alt="Фото профиля" />
+              <button data-v-ui-6d8134092fd8 class="avatar crm-button crm-card-action" title="Загрузить фотографию" @click="fileInput?.click()">
+                <img data-v-ui-6d8134092fd8 v-if="avatarUrl && !photoFailed" :src="avatarUrl" width="64" height="64" alt="Фото профиля" @error="photoFailed = true" />
                 <span data-v-ui-6d8134092fd8 v-else>{{ (profile.firstName || profile.email).slice(0, 1).toUpperCase() }}</span>
                 <Camera data-v-ui-6d8134092fd8 :size="14" />
               </button>
@@ -146,12 +193,8 @@ watch(isOpen, (value) => { if (value) { tab.value = 'profile'; load(); } });
               <input data-v-ui-6d8134092fd8 ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="uploadAvatar" />
             </section>
             <div data-v-ui-6d8134092fd8 v-if="profile.forcePasswordChange" class="profile-alert"><LockKeyhole data-v-ui-6d8134092fd8 :size="17" /><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Требуется сменить пароль</strong><small data-v-ui-6d8134092fd8>Администратор выдал временный пароль. Задайте постоянный во вкладке «Безопасность».</small></span></div>
-            <nav data-v-ui-6d8134092fd8 class="profile-tabs admin-dialog-tabs">
-              <button class="crm-button" data-v-ui-6d8134092fd8 :class="{ active: tab === 'profile' }" @click="tab='profile'"><UserRound data-v-ui-6d8134092fd8 :size="16" />Профиль</button>
-              <button class="crm-button" data-v-ui-6d8134092fd8 :class="{ active: tab === 'security' }" @click="tab='security'"><ShieldCheck data-v-ui-6d8134092fd8 :size="16" />Безопасность</button>
-              <button class="crm-button" data-v-ui-6d8134092fd8 :class="{ active: tab === 'notifications' }" @click="tab='notifications'"><Bell data-v-ui-6d8134092fd8 :size="16" />Уведомления</button>
-            </nav>
-            <div data-v-ui-6d8134092fd8 class="profile-content admin-dialog-body">
+            <CrmCardTabs v-model="tab" class="profile-tabs admin-dialog-tabs" :tabs="profileTabs" :prefix="mode + '-profile'" label="Настройки профиля" />
+            <div data-v-ui-6d8134092fd8 class="profile-content admin-dialog-body" :id="mode + '-profile-' + tab + '-panel'" role="tabpanel" :aria-labelledby="mode + '-profile-' + tab + '-tab'" tabindex="0">
               <template v-if="tab === 'profile'">
                 <section data-v-ui-6d8134092fd8 class="profile-section">
                   <div data-v-ui-6d8134092fd8 class="section-title"><div data-v-ui-6d8134092fd8><h3 data-v-ui-6d8134092fd8>Основные данные</h3><p data-v-ui-6d8134092fd8>Имя и телефон изменяются после подтверждения администратором.</p></div></div>
@@ -178,12 +221,12 @@ watch(isOpen, (value) => { if (value) { tab.value = 'profile'; load(); } });
               </template>
               <section data-v-ui-6d8134092fd8 v-else class="profile-section">
                 <div data-v-ui-6d8134092fd8 class="section-title"><div data-v-ui-6d8134092fd8><h3 data-v-ui-6d8134092fd8>Каналы уведомлений</h3><p data-v-ui-6d8134092fd8>Обязательные сообщения безопасности отключить нельзя.</p></div><Bell data-v-ui-6d8134092fd8 :size="18" /></div>
-                <div data-v-ui-6d8134092fd8 class="notification-list"><label class="crm-toggle-row" data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Email</strong><small data-v-ui-6d8134092fd8>Заказы, задачи, обращения и системные события</small></span><input class="crm-check" data-v-ui-6d8134092fd8 v-model="notifications.email" type="checkbox" /></label><label class="crm-toggle-row" data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Внутри платформы</strong><small data-v-ui-6d8134092fd8>Уведомления в рабочих кабинетах</small></span><input class="crm-check" data-v-ui-6d8134092fd8 v-model="notifications.push" type="checkbox" /></label><label class="crm-toggle-row" data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Чат платформы</strong><small data-v-ui-6d8134092fd8>Новые сообщения и упоминания</small></span><input class="crm-check" data-v-ui-6d8134092fd8 v-model="notifications.chat" type="checkbox" /></label></div>
+                <div data-v-ui-6d8134092fd8 class="notification-list"><label class="crm-toggle-row" data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Email</strong><small data-v-ui-6d8134092fd8>Заказы, задачи, обращения и системные события</small></span><input class="crm-check" data-v-ui-6d8134092fd8 v-model="notifications.email" type="checkbox" role="switch" /></label><label class="crm-toggle-row" data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Внутри платформы</strong><small data-v-ui-6d8134092fd8>Уведомления в рабочих кабинетах</small></span><input class="crm-check" data-v-ui-6d8134092fd8 v-model="notifications.push" type="checkbox" role="switch" /></label><label class="crm-toggle-row" data-v-ui-6d8134092fd8><span data-v-ui-6d8134092fd8><strong data-v-ui-6d8134092fd8>Чат платформы</strong><small data-v-ui-6d8134092fd8>Новые сообщения и упоминания</small></span><input class="crm-check" data-v-ui-6d8134092fd8 v-model="notifications.chat" type="checkbox" role="switch" /></label></div>
                 <button data-v-ui-6d8134092fd8 class="primary crm-button crm-button--primary" :disabled="saving" @click="saveNotifications">Сохранить уведомления</button>
               </section>
             </div>
           </template>
-          <p data-v-ui-6d8134092fd8 v-if="error" class="profile-error">{{ error }}</p><p data-v-ui-6d8134092fd8 v-if="notice" class="profile-notice"><Check data-v-ui-6d8134092fd8 :size="15" />{{ notice }}</p>
+          <p data-v-ui-6d8134092fd8 v-if="error" class="profile-error" role="alert">{{ error }}<button v-if="!profile && !loading" class="crm-button" @click="load(false)">Повторить</button></p><p data-v-ui-6d8134092fd8 v-if="notice" class="profile-notice" role="status"><Check data-v-ui-6d8134092fd8 :size="15" />{{ notice }}</p>
         </aside>
       </div>
     </Transition>

@@ -1,28 +1,19 @@
-/* Static guard: shared CRM components use the same element recipes. */
-const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const {parse}=require('@vue/compiler-sfc'),{baseParse}=require('@vue/compiler-dom');
-const root=path.resolve(__dirname,'..');
-const files=['pages/crm/tasks.vue','pages/crm/deals.vue','pages/crm/customers.vue','pages/crm/organizations.vue','pages/crm/files.vue','pages/crm/content-plan.vue','components/workspace/ReportsWorkspacePage.vue','components/workspace/SupportWorkspacePage.vue','components/workspace/PartnerWorkspacePage.vue','components/workspace/StoreWorkspacePage.vue','components/workspace/ContactMessagesWorkspace.vue','components/storefront/SitePromoCodesEditor.vue','components/storefront/SiteGiftCardsEditor.vue','components/CrmSubtasks.vue','components/CrmCardComments.vue','components/CrmCardTabs.vue','components/CrmChangeHistory.vue','components/CrmLeadTasks.vue','components/CrmTaskFiles.vue','components/CrmTaskAutomation.vue','components/CrmPipelineSettings.vue','components/CrmDrivePicker.vue','components/CrmFilePreview.vue','components/CrmPdfViewer.vue','components/PlatformChatDrawer.vue','components/UserProfileDrawer.vue','components/AdminOrderDrawer.vue'];
-files.push('components/AdminMediaPicker.vue','components/AdminMediaBrowser.vue');
-files.push('components/crm/CrmAccessProfiles.vue', 'components/crm/CrmEmployeeAccessReview.vue', 'components/crm/CrmSectionNavigation.vue');
-files.push("components/workspace/SystemWorkspacePage.vue","components/workspace/ChannelsWorkspacePage.vue","components/workspace/SalonSubscriptionSettings.vue","components/EcosystemAccounts.vue","components/EcosystemTrash.vue","components/EcosystemIntegrations.vue","components/BotCommandsSettings.vue","components/WorkspaceOrdersTable.vue",'pages/crm/b2b-orders.vue','pages/crm/settings/departments.vue','pages/crm/meetings.vue');
-const failures=[];let controls=0;
-files.push('components/crm/CrmMeetingGuests.vue','pages/meeting-guest.vue');
-files.push('pages/crm/payment-calendar.vue');
-files.push('pages/crm/work-schedule.vue');
-files.push('components/crm/CrmSchedulePatterns.vue');
-files.push('pages/crm/work-time.vue', 'components/crm/CrmWorkClock.vue', 'components/crm/CrmTimeCorrections.vue', 'components/crm/CrmTimesheet.vue');
-for(const file of files){const sfc=parse(fs.readFileSync(path.join(root,file),'utf8')).descriptor;assert.equal(sfc.styles.length,0,file+' must not own a visual skin');
- function walk(n){if(n.type===1){const plain=name=>n.props.find(p=>p.type===6&&p.name===name)?.value?.content||'';const cls=plain('class').split(/\s+/);let required='';
- if(n.tag==='button')required='crm-button';
- if(['input','select','textarea'].includes(n.tag)&&!['file','hidden','range','color'].includes(plain('type')))required=['checkbox','radio'].includes(plain('type'))?'crm-check':'crm-input';
- if(required){controls++;if(!cls.includes(required))failures.push(file+':'+n.loc.start.line+' '+n.tag+' missing '+required);}
- }for(const c of n.children||[])walk(c);}
- walk(baseParse(sfc.template.content));
-}
-assert.deepEqual(failures,[]);
-const css=fs.readFileSync(path.join(root,'assets/css/crm-elements.css'),'utf8');
-for(const token of ['crm-button','crm-input','crm-input-group','crm-surface','crm-item-card','crm-board-column','crm-card-tabs','crm-badge'])assert.ok(css.includes('.'+token),token);
-assert.ok(!/\.tasks-page|\.pipeline-page|\.partner-workspace|data-v-ui/.test(css),'Element recipes must not target a particular screen');
-console.log(`CRM element contract PASS: ${files.length} component owners, ${controls} controls; shared recipes, no SFC skins.`);
+/* CRM control contract: all statically reachable employee screen owners. */
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),postcss=require('postcss');
+const{parse}=require('@vue/compiler-sfc');
+const root=path.resolve(__dirname,'..'),inventory=require('./crm-interface-inventory.cjs');
+const files=inventory.owners.map(owner=>owner.file);
+assert.deepEqual(inventory.missing,[],'Every action/field uses a canonical interaction role');
+assert.deepEqual(inventory.unlabelled,[],'Visible native fields and icon actions have accessible names');
+const scopedGeometry=new Set(['pages/crm/meetings.vue','components/crm/CrmMeetingCalendar.vue']);
+for(const file of files){const d=parse(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).descriptor;for(const style of d.styles){assert.ok(scopedGeometry.has(file),'Unexpected CRM SFC style owner: '+file);assert.equal(style.scoped,true,file+' geometry must be scoped');}}
+const recipes=fs.readFileSync(path.join(root,'assets/css/crm-controls.css'),'utf8');
+for(const token of ['crm-button','crm-input','crm-input-group','crm-field','crm-tabs','crm-card-tabs','crm-badge','crm-button--primary','crm-button--text','crm-button--danger'])assert.ok(recipes.includes('.'+token),token);
+postcss.parse(recipes).walkRules(rule=>assert.ok(rule.selector.startsWith('html[data-crm-ui]'),'Control recipes must be CRM-only: '+rule.selector));
+assert.doesNotMatch(recipes,/\.tasks-page|\.pipeline-page|\.partner-workspace|data-v-ui/,'Canonical controls are independent of screen layout');
+const entry=fs.readFileSync(path.join(root,'assets/css/admin.css'),'utf8');
+assert.ok(entry.indexOf('crm-workspace.css')<entry.indexOf('crm-controls.css'));
+const config=fs.readFileSync(path.join(root,'nuxt.config.ts'),'utf8');
+assert.match(config,/key: 'workspace-layer-order', tagPriority: 'critical', innerHTML: '@layer crm-workspace,/,'Register CRM layer order before deferred styles to avoid a stale first-render cascade');
+console.log(`CRM element contract PASS: ${files.length} reachable owners; ${inventory.summary.buttons} actions / ${inventory.summary.fields} fields; canonical roles and accessible names.`);
 module.exports={files};

@@ -4,17 +4,25 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OneCFinanceDto } from './dto/finance.dto';
 import { settlementBasis } from './finance-policy';
 import { validateAdjustmentResults } from './adjustment-results';
+import { projectCoveredOrders } from '../oms/one-c-warehouse-projector';
+import { lockIntegration, VerifyLockedIntegration } from './locked-integration';
 const canonical = (value: any): any => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 export class OneCFinanceService {
  constructor(private readonly prisma: PrismaService) {}
- async receive(dto: OneCFinanceDto) {
+ async receive(dto: OneCFinanceDto, verify?: VerifyLockedIntegration) {
   const normalized = { ...dto, documents: [...dto.documents].sort((a,b) => a.id.localeCompare(b.id)), requests: [...dto.requests].sort((a,b) => a.id.localeCompare(b.id)), paymentDueAt: dto.paymentDueAt || null,
    ...(dto.adjustments !== undefined ? { adjustments: dto.adjustments.map(result => ({ ...result, documentIds: [...result.documentIds].sort() })).sort((a,b) => a.operationId.localeCompare(b.operationId)) } : {}) };
   const payloadHash = createHash('sha256').update(JSON.stringify(canonical(normalized))).digest('hex');
   return this.prisma.$transaction(async tx => {
    await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${dto.platformOrderId} FOR UPDATE`;
-   const order = await tx.order.findUnique({ where: { id: dto.platformOrderId }, include: { items: true, execution: true, executionOperations: true, oneCFinance: true, oneCRequests: true } });
+   const order = await tx.order.findUnique({ where: { id: dto.platformOrderId }, include: { items: true, execution: true, executionOperations: true, oneCFinance: true, oneCRequests: true, warehouseExecution: true } });
    if (!order) throw new NotFoundException('Заказ CRM не найден');
+   const projectWarehouse = order.source === 'B2B' && order.execution && !order.fulfillmentManaged && order.warehouseExecution;
+   if (projectWarehouse) {
+    const variantIds = [...new Set(order.items.filter(item => item.productType === 'PHYSICAL' && item.variantId).map(item => item.variantId!))].sort();
+    for (const variantId of variantIds) await tx.$queryRaw`SELECT id FROM "ProductVariant" WHERE id = ${variantId} FOR UPDATE`;
+   }
+   if (verify) await lockIntegration(tx, verify);
    if (order.externalId && order.externalId !== dto.external1CId) throw new ConflictException('Идентификатор 1С не соответствует заказу');
    if (order.oneCFinance && order.oneCFinance.revision >= dto.revision) {
     if (order.oneCFinance.revision === dto.revision && order.oneCFinance.payloadHash !== payloadHash) throw new ConflictException('Версия расчётов уже получена с другим содержимым');
@@ -55,7 +63,13 @@ export class OneCFinanceService {
    if (reviewChanged) await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: order.status, comment: review.reviewRequired ? `1С: сверка отмен и возвратов не завершена (версия ${dto.revision})` : `1С: отмены и возвраты сверены, закрытие расчётов разрешено (версия ${dto.revision})` } });
    // This does not turn an incoming accounting snapshot into a payment or a warehouse movement.
    if (!order.externalId || review.operations.length) await tx.order.update({ where: { id: order.id }, data: { externalId: dto.external1CId, updatedAt: new Date() } });
-   await tx.syncLog.create({ data: { system: '1C_KA', action: 'FINANCE_SNAPSHOT', status: 'SUCCESS', message: `Расчёты заказа ${order.orderNumber}: версия ${dto.revision}`, details: { orderId: order.id, revision: dto.revision, closeAllowed: data.closeAllowed, adjustments: data.adjustments } } });
+   // A shipment can precede approval of B2B release. Re-evaluate it now,
+   // under the same Order -> Variant -> Integration lock order as stock feed.
+   let warehouseProjection: unknown = null;
+   if (projectWarehouse) {
+    warehouseProjection = await projectCoveredOrders(tx, [order.id], new Date());
+   }
+   await tx.syncLog.create({ data: { system: '1C_KA', action: 'FINANCE_SNAPSHOT', status: 'SUCCESS', message: `Расчёты заказа ${order.orderNumber}: версия ${dto.revision}`, details: { orderId: order.id, revision: dto.revision, closeAllowed: data.closeAllowed, adjustments: data.adjustments, warehouseProjection: warehouseProjection as any } } });
    return { id: order.id, revision: dto.revision, repeated: false };
   }).catch(error => {
    if (error?.code === 'P2002') throw new ConflictException('Идентификатор 1С уже связан с другим заказом');

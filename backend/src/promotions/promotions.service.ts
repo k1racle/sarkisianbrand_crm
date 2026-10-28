@@ -7,6 +7,7 @@ import { CreatePromotionDto, DeletePromotionDto, GeneratePromoCodeDto, ListPromo
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const USED_STATUSES = ['RESERVED', 'APPLIED'];
 const PROMO_SELECT = {
+  restrictedUserId: true,
   code: true, title: true, discountType: true, amount: true, minimumAmount: true,
   maximumDiscount: true, usageLimit: true, perCustomerLimit: true, isActive: true,
   startsAt: true, endsAt: true, revision: true, createdAt: true, updatedAt: true,

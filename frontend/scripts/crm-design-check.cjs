@@ -21,7 +21,7 @@ async function main() {
   const workCss = fs.readFileSync(path.join(root,'assets/css/crm-work.css'),'utf8');
   postcss.parse(workCss).walkDecls('font-size',decl=>assert.match(decl.value,/^(var\(--crm-type-(heading|body|caption|input)\)|inherit)$/));
   postcss.parse(workCss).walkRules(rule=>assert.ok(rule.selector.startsWith('html[data-crm-ui]'),'Operational styles must stay in CRM'));
-  postcss.parse(css).walkDecls('font-size',decl=>assert.match(decl.value,/^(var\(--crm-type-(heading|body|caption|input)\)|inherit)$/));
+  postcss.parse(css).walkDecls('font-size',decl=>assert.match(decl.value,/^(var\(--crm-type-(page|metric|heading|body|caption|input)\)|inherit)$/));
   assert.match(css,/--crm-type-heading:20px/); assert.match(css,/--crm-type-body:14px/);
   assert.match(css,/--crm-type-caption:12px/); assert.match(css,/--crm-type-input:16px/);
   assert.match(css,/html\[data-crm-ui\]/); assert.doesNotMatch(css,/\.sb-storefront/);

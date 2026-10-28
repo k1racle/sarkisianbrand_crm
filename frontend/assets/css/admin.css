@@ -2,8 +2,17 @@
  * Layout, forms, dialogs and typography must be edited here or in these owners,
  * never inside Vue components. Dynamic business colors/progress remain bindings.
  */
+@layer crm-workspace, heading-typography, business-theme, crm-theme, crm-elements;
+@import "./crm-workspace.css";
+@import "./crm-controls.css";
+@import "./crm-density.css";
+@import "./crm-shared-workspace.css";
+@import "./crm-operational-workspace.css";
+@import "./crm-marketplace-exchange.css";
+@import "./business-theme.css";
 @import "./crm-theme.css";
 @import "./crm-elements.css";
+@import "./crm-legacy-layout.css";
 @import "./crm-messenger.css";
 @import "./crm-notifications.css";
 @import "./crm-knowledge.css";
@@ -13,6 +22,8 @@
 @import "./crm-pipeline-settings.css";
 @import "./crm-task-collaboration.css";
 @import "./crm-shell.css";
+@import "./crm-day.css";
+@import "./crm-orders.css";
 @import "./crm-work.css";
 @import "./crm-content.css";
 @import "./crm-inventory.css";
@@ -42,5 +53,8 @@
 @import "./workspace-mobile-navigation.css";
 @import "./workspace-shop-refinements.css";
 @import "./business-salon.css";
+@import "./business-workspace.css";
 @import "./workspace-partners.css";
+@import "./workspace-service-views.css";
+@import "./crm-management-workspace.css";
 @import "./contact-inbox.css";

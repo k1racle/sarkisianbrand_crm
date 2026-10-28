@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { PublicSalonBookingDto, SalonSlotsDto } from './dto/salon-booking.dto';
+import { PublicSalonBookingDto, PublicBookingCancelDto, PublicBookingManageSlotsDto, PublicBookingMoveDto, PublicBookingTokenDto, SalonSlotsDto } from './dto/salon-booking.dto';
 import { SalonBookingService } from './salon-booking.service';
 
 @Controller('salon-booking')
@@ -22,6 +22,28 @@ export class SalonBookingController {
   slots(@Param('organizationId', ParseUUIDPipe) id: string, @Query() query: SalonSlotsDto) { return this.salon.slots(id, query); }
 
   @Post(':organizationId/bookings')
+  @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   create(@Param('organizationId', ParseUUIDPipe) id: string, @Body() dto: PublicSalonBookingDto) { return this.salon.publicCreate(id, dto); }
+
+  // The capability stays in the POST body, never in URL/query or referrer logs.
+  @Post(':organizationId/manage/view')
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  view(@Param('organizationId', ParseUUIDPipe) id: string, @Body() dto: PublicBookingTokenDto) { return this.salon.publicManageView(id, dto.token); }
+
+  @Post(':organizationId/manage/slots')
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  manageSlots(@Param('organizationId', ParseUUIDPipe) id: string, @Body() dto: PublicBookingManageSlotsDto) { return this.salon.publicManageSlots(id, dto); }
+
+  @Post(':organizationId/manage/cancel')
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  cancel(@Param('organizationId', ParseUUIDPipe) id: string, @Body() dto: PublicBookingCancelDto) { return this.salon.publicManageCancel(id, dto); }
+
+  @Post(':organizationId/manage/move')
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  move(@Param('organizationId', ParseUUIDPipe) id: string, @Body() dto: PublicBookingMoveDto) { return this.salon.publicManageMove(id, dto); }
 }

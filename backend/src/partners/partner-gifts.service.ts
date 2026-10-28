@@ -2,20 +2,35 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { OrderSource, OrderStatus, Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
 import { executionSnapshot } from '../oms/execution-snapshot';
+import { warehouseExecutionView } from '../oms/warehouse-execution-view';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
+import { holdVerifiedOneCStock, oneCStockAvailability } from '../common/one-c-sale-stock';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePartnerGiftDto } from './partner-gifts.dto';
 
 const nameOf = (user: any) => [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.email || 'Сотрудник';
+const giftLines = (items: { variantId: string | null; quantity: number }[]) => {
+  const totals = new Map<string, number>();
+  for (const line of items) {
+    if (!line.variantId || !Number.isSafeInteger(line.quantity) || line.quantity <= 0) throw new BadRequestException('Некорректный состав подарочной отправки');
+    const quantity = (totals.get(line.variantId) || 0) + line.quantity;
+    if (!Number.isSafeInteger(quantity)) throw new BadRequestException('Некорректное количество подарков');
+    totals.set(line.variantId, quantity);
+  }
+  if (!totals.size) throw new BadRequestException('Укажите товары для подарочной отправки');
+  return [...totals].sort(([a], [b]) => a.localeCompare(b));
+};
+const giftSignature = (participantId: string, note: string, name: string, email: string | null, phone: string, address: string, deliveryService: string | null, items: { variantId: string | null; quantity: number }[]) =>
+  JSON.stringify({ participantId, note, name, email, phone, address, deliveryService, items: giftLines(items) });
 
 @Injectable()
 export class PartnerGiftsService {
   constructor(private readonly prisma: PrismaService, private readonly oneC: OneCSyncService) {}
 
   async workspace() {
-    const [participants, products, shipments] = await Promise.all([
+    const [participants, products, shipments, integration] = await Promise.all([
       this.prisma.partnerParticipant.findMany({ where: { kind: 'BLOGGER', status: 'ACTIVE' }, select: { id: true, displayName: true, code: true, user: { select: { email: true, phone: true } } }, orderBy: [{ displayName: 'asc' }, { id: 'asc' }] }),
-      this.prisma.productVariant.findMany({ where: { isActive: true, product: { isActive: true, productType: 'PHYSICAL' } }, select: { id: true, sku: true, name: true, price: true, stock: true, reserved: true, product: { select: { nameRu: true } } }, orderBy: [{ product: { nameRu: 'asc' } }, { name: 'asc' }] }),
+      this.prisma.productVariant.findMany({ where: { isActive: true, product: { isActive: true, productType: 'PHYSICAL' } }, select: { id: true, sku: true, name: true, price: true, stock: true, reserved: true, product: { select: { nameRu: true, externalId: true, productType: true } }, oneCWarehouseStock: true }, orderBy: [{ product: { nameRu: 'asc' } }, { name: 'asc' }] }),
       this.prisma.partnerGiftShipment.findMany({
         take: 100,
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
@@ -23,33 +38,46 @@ export class PartnerGiftsService {
           participant: { select: { displayName: true, code: true } },
           order: {
             select: {
-              id: true, orderNumber: true, status: true, isSynced1C: true, oneCStatus: true,
+              id: true, orderNumber: true, source: true, sourceChannel: true, status: true, isSynced1C: true, oneCStatus: true,
               oneCSyncError: true, warehouseDocumentId: true, createdAt: true, buyerName: true, shippingAddress: true,
-              items: { select: { id: true, productName: true, variantName: true, externalSku: true, quantity: true, pickedQuantity: true, shippedQuantity: true } },
+              totalAmount: true, discountAmount: true, finalAmount: true, currency: true, shippingCost: true, shippingProvider: true, paymentMethod: true,
+              execution: { select: { version: true } },
+              warehouseExecution: { select: { basisHash: true, executionVersion: true, owner: true, status: true, asOf: true, validUntil: true, receivedAt: true, revision: true, warehouseId: true, documentId: true, documentNumber: true, executorName: true, error: true, lines: true, documents: true } },
+              items: { select: { id: true, variantId: true, productName: true, variantName: true, externalSku: true, quantity: true, price: true, total: true, productType: true, pickedQuantity: true, shippedQuantity: true } },
             },
           },
         },
       }),
+      this.prisma.ecosystemIntegration.findUnique({ where: { key: 'ONE_C' }, select: { isEnabled: true, configuredSecretKeys: true, config: true } }),
     ]);
     return {
       participants,
-      products: products.map(row => ({ id: row.id, sku: row.sku, variantName: row.name, productName: row.product.nameRu, stock: row.stock, reserved: row.reserved, available: Math.max(0, row.stock - row.reserved) })),
-      shipments,
+      products: products.map(row => { const availability = oneCStockAvailability(row, row.oneCWarehouseStock, integration); return { id: row.id, sku: row.sku, variantName: row.name, productName: row.product.nameRu, stock: availability.available === null ? null : row.stock, reserved: availability.available === null ? null : row.reserved, ...availability }; }),
+      shipments: shipments.map(shipment => {
+        const { source, totalAmount, discountAmount, finalAmount, currency, shippingCost, shippingProvider, paymentMethod, execution, warehouseExecution, items, ...order } = shipment.order;
+        return { ...shipment, order: { ...order, items: items.map(({ variantId, price, total, productType, ...item }) => item), warehouseExecution: warehouseExecutionView(warehouseExecution, shipment.order) } };
+      }),
     };
   }
 
   async create(actorId: string, dto: CreatePartnerGiftDto) {
     const result = await this.prisma.$transaction(async tx => {
-      const repeated = await tx.partnerGiftShipment.findUnique({ where: { requestKey: dto.requestKey }, select: { orderId: true, order: { select: { orderNumber: true } } } });
-      if (repeated) return { id: repeated.orderId, orderNumber: repeated.order.orderNumber, repeated: true };
+      const signature = giftSignature(dto.participantId, dto.note?.trim() || '', dto.recipientName.trim(), dto.recipientEmail?.trim() || null, dto.recipientPhone.trim(), dto.deliveryAddress.trim(), dto.deliveryService?.trim() || null, dto.items);
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${'partner-gift:' + dto.requestKey}))`;
+      const repeated = await tx.partnerGiftShipment.findUnique({ where: { requestKey: dto.requestKey }, select: { participantId: true, note: true, orderId: true, order: { select: { orderNumber: true, buyerName: true, buyerEmail: true, buyerPhone: true, shippingAddress: true, shippingProvider: true, items: { select: { variantId: true, quantity: true } } } } } });
+      if (repeated) {
+        const address = repeated.order.shippingAddress && typeof repeated.order.shippingAddress === 'object' && !Array.isArray(repeated.order.shippingAddress) ? String(repeated.order.shippingAddress.address || '') : '';
+        const previous = giftSignature(repeated.participantId, repeated.note || '', repeated.order.buyerName || '', repeated.order.buyerEmail, repeated.order.buyerPhone || '', address, repeated.order.shippingProvider, repeated.order.items);
+        if (previous !== signature) throw new ConflictException('Этот ключ запроса уже использован для другой подарочной отправки');
+        return { id: repeated.orderId, orderNumber: repeated.order.orderNumber, repeated: true };
+      }
 
       const participant = await tx.partnerParticipant.findFirst({ where: { id: dto.participantId, kind: 'BLOGGER', status: 'ACTIVE' }, select: { id: true, displayName: true, code: true } });
       if (!participant) throw new NotFoundException('Активный блогер не найден');
       const actor = await tx.user.findUnique({ where: { id: actorId }, select: { firstName: true, lastName: true, email: true } });
       if (!actor) throw new NotFoundException('Сотрудник не найден');
 
-      const quantities = new Map<string, number>();
-      for (const line of dto.items) quantities.set(line.variantId, (quantities.get(line.variantId) || 0) + line.quantity);
+      const quantities = new Map(giftLines(dto.items));
       const variantIds = [...quantities.keys()].sort();
       for (const variantId of variantIds) await tx.$queryRaw`SELECT id FROM "ProductVariant" WHERE id = ${variantId} FOR UPDATE`;
       const variants = await tx.productVariant.findMany({ where: { id: { in: variantIds }, isActive: true, product: { isActive: true, productType: 'PHYSICAL' } }, include: { product: { select: { nameRu: true, isActive: true, productType: true } } } });
@@ -58,6 +86,7 @@ export class PartnerGiftsService {
       for (const variantId of variantIds) {
         const row = byId.get(variantId)!;
         const quantity = quantities.get(variantId)!;
+        await holdVerifiedOneCStock(tx, variantId, quantity);
         if (row.stock - row.reserved < quantity) throw new ConflictException(`Недостаточно остатка для ${row.product.nameRu} · ${row.name}. Доступно: ${Math.max(0, row.stock - row.reserved)}`);
         const reserved = await tx.productVariant.updateMany({ where: { id: variantId, stock: { gte: row.reserved + quantity } }, data: { reserved: { increment: quantity } } });
         if (reserved.count !== 1) throw new ConflictException('Остаток изменился во время создания отправки. Обновите страницу.');
@@ -79,9 +108,9 @@ export class PartnerGiftsService {
           shippingProvider: dto.deliveryService?.trim() || null, shippingCost: 0, totalAmount: 0, discountAmount: 0, finalAmount: 0, currency: 'RUB',
           paymentStatus: 'NOT_REQUIRED', paymentMethod: null, reservationState: 'ACTIVE', reservationExpiresAt: null,
           managerId: actorId, internalNotes: note || `Подарок блогеру ${participant.displayName} (${participant.code})`, comments: `Подарочная отправка блогеру ${participant.displayName}`,
-          fulfillmentManaged: true, isSynced1C: false,
+          fulfillmentManaged: false, isSynced1C: false,
           items: { create: selectedItems },
-          history: { create: { toStatus: OrderStatus.CONFIRMED, changedBy: actorId, comment: `Подарочная отправка блогеру ${participant.displayName}. Сумма продажи: 0 ₽. Создано задание на сборку.` } },
+          history: { create: { toStatus: OrderStatus.CONFIRMED, changedBy: actorId, comment: `Подарочная отправка блогеру ${participant.displayName}. Сумма продажи: 0 ₽. Подготовлена передача в 1С.` } },
         }, include: { items: true },
       });
       const deliveryTerms = `${dto.deliveryService?.trim() || 'Служба доставки не указана'} · ${dto.deliveryAddress.trim()}`;
@@ -92,10 +121,10 @@ export class PartnerGiftsService {
       } });
       await tx.partnerGiftShipment.create({ data: { requestKey: dto.requestKey, orderId, participantId: participant.id, createdById: actorId, createdByName: nameOf(actor), note } });
       await tx.auditLog.create({ data: { actorId, resource: 'partner-gift', resourceId: orderId, action: 'PARTNER_GIFT_CREATED', payload: { participantId: participant.id, requestKey: dto.requestKey, items: selectedItems.map(({ variantId, quantity }) => ({ variantId, quantity })), finalAmount: 0 } } });
+      await this.oneC.stageOrderExport(tx, order.id, actorId);
       return { id: order.id, orderNumber: order.orderNumber, repeated: false };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 30000 });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 30000 });
 
-    if (!result.repeated) await this.oneC.enqueueOrder(result.id, actorId);
-    return { ...result, message: 'Заказ на 0 ₽ и задание на сборку созданы. Передача в 1С выполняется через обмен заказами; расход товара будет отражён при отгрузке задания.' };
+    return { ...result, message: 'Подарочная отправка подготовлена. Состояние передачи и задание склада появятся после подтверждения 1С.' };
   }
 }

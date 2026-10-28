@@ -1,125 +1,187 @@
-/* Customer registry and editor. Deliberately scoped to this screen. */
+/* Customer working register and record; navigation and tokens belong to CrmShell. */
+@layer crm-workspace {
+ html[data-crm-ui] .crm-customer-dialog :is(.crm-directory-status,.crm-directory-segment) {font-size:12px!important;}
+ @media(min-width:1024px) and (pointer:fine) {
+  html[data-crm-ui][data-crm-density='compact'] .crm-customers-page .crm-page-header {gap:16px!important;}
+  html[data-crm-ui][data-crm-density='compact'] :is(.crm-customer-views,.crm-customer-record-tabs) {padding-bottom:6px!important;margin-bottom:12px!important;}
+  html[data-crm-ui][data-crm-density='compact'] .crm-customer-row {min-height:60px!important;padding-block:8px!important;}
+  html[data-crm-ui][data-crm-density='compact'] .crm-customer-columns {min-height:36px!important;padding-block:6px!important;}
+  html[data-crm-ui][data-crm-density='compact'] .crm-customer-preview {padding:16px!important;}
+  html[data-crm-ui][data-crm-density='compact'] .crm-customer-preview :is(.crm-customer-next,.crm-customer-preview-order) {padding-block:12px!important;margin-block:12px!important;}
+  html[data-crm-ui][data-crm-density='compact'] .crm-customer-event {padding-block:12px!important;}
+  html[data-crm-ui][data-crm-density='compact'] .crm-customer-next {padding:14px!important;}
+ }
+}
 @layer crm-elements {
- html[data-crm-ui] .crm-customers-page .crm-page-header {margin-bottom:24px!important;}
- html[data-crm-ui] .crm-customers-page h1 {display:flex;align-items:center;gap:10px;}
- html[data-crm-ui] .crm-customer-title-count {display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 7px;border-radius:8px;background:var(--crm-line);font-size:13px!important;}
- html[data-crm-ui] .crm-customer-header-actions {display:flex;align-items:center;gap:8px;}
- html[data-crm-ui] .crm-customer-register {padding:0!important;min-width:0;overflow:hidden;}
- html[data-crm-ui] .crm-customer-register-head {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--crm-line);}
- html[data-crm-ui] .crm-customer-segments {display:flex;align-items:stretch;gap:24px;min-width:0;}
- /* Override inherited legacy admin button skins, never other CRM pages. */
- html[data-crm-ui] :is(.crm-customer-name,.crm-customer-assign,.crm-customer-stat,.crm-customer-segments > button) {display:flex;align-items:center;gap:8px;min-height:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--crm-ink)!important;text-align:left!important;font:inherit;line-height:1.5!important;cursor:pointer;}
- html[data-crm-ui] .crm-customer-segments > button {min-height:58px!important;border-bottom:3px solid transparent!important;padding-top:3px!important;white-space:nowrap;color:var(--crm-muted)!important;}
- html[data-crm-ui] .crm-customer-segments > button[aria-pressed=true] {border-bottom-color:var(--crm-accent)!important;color:var(--crm-ink)!important;}
- html[data-crm-ui] .crm-customer-segments > button:hover {color:var(--crm-ink)!important;}
- html[data-crm-ui] .crm-customer-segment-short {display:none;}
- html[data-crm-ui] .crm-customer-new-count {display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px!important;color:var(--crm-muted);}
- html[data-crm-ui] .crm-customer-dot {width:6px;height:6px;border-radius:50%;background:var(--crm-success);}
- html[data-crm-ui] .crm-customer-tools {display:grid;grid-template-columns:minmax(200px,1fr) 155px 195px 225px;gap:10px;padding:16px 20px;}
- html[data-crm-ui] .crm-customer-search {min-width:0;}
- html[data-crm-ui] .crm-customer-search input {min-height:42px!important;}
- html[data-crm-ui] .crm-customer-tools > select {width:100%;min-width:0;}
- html[data-crm-ui] .crm-button.crm-customer-filter-toggle {display:none!important;position:relative;}
- html[data-crm-ui] .crm-button.crm-customer-filter-toggle > span {position:absolute;top:0;right:0;min-width:16px;padding:0 3px;border-radius:20px;background:var(--crm-accent);color:#fff!important;font-size:11px!important;}
- html[data-crm-ui] .crm-customer-filter-summary {display:flex;align-items:center;gap:12px;padding:0 20px 12px;color:var(--crm-muted);}
- html[data-crm-ui] :is(.crm-customer-columns,.crm-customer-row) {display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.15fr) minmax(0,1.2fr) minmax(145px,.65fr);align-items:center;gap:20px;padding:16px 20px;min-width:0!important;}
- html[data-crm-ui] .crm-customer-columns {padding-block:10px;background:var(--crm-bg);border-block:1px solid var(--crm-line);color:var(--crm-muted);}
- html[data-crm-ui] .crm-customer-columns > span {font-size:12px!important;}
- html[data-crm-ui] .crm-customer-row {position:relative;min-height:96px;border-bottom:1px solid var(--crm-line);background:var(--crm-surface);cursor:pointer;transition:background .15s;}
- html[data-crm-ui] .crm-customer-row:last-child {border-bottom:0;}
- html[data-crm-ui] .crm-customer-row:hover, html[data-crm-ui] .crm-customer-row:focus-within {background:var(--crm-bg);}
- html[data-crm-ui] .crm-customer-row > * {min-width:0;}
- html[data-crm-ui] .crm-customer-person {display:flex;align-items:center;gap:12px;}
- html[data-crm-ui] .crm-customer-person-details {display:grid;gap:7px;min-width:0;flex:1;}
- html[data-crm-ui] .crm-customer-name, html[data-crm-ui] .crm-customer-name > strong {white-space:normal!important;max-width:100%;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-customer-name:hover {text-decoration:underline;text-underline-offset:3px;}
- html[data-crm-ui] .crm-customer-contacts {display:grid;gap:4px;}
- html[data-crm-ui] .crm-customer-contact {display:flex;align-items:center;gap:8px;min-height:24px;width:fit-content;max-width:100%;color:var(--crm-ink);text-decoration:none;}
- html[data-crm-ui] .crm-customer-contact > span {min-width:0;overflow-wrap:anywhere;}
- html[data-crm-ui] :is(.crm-customer-contact,.crm-customer-relations,.crm-customer-stat) svg {flex:none;width:15px!important;height:15px!important;color:var(--crm-muted);}
- html[data-crm-ui] .crm-customer-contact:hover {text-decoration:underline;text-underline-offset:3px;}
- html[data-crm-ui] .crm-customer-relations {display:grid;gap:6px;align-content:center;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-customer-relations .crm-directory-icon-line {align-items:flex-start;}
- html[data-crm-ui] .crm-customer-owner {color:var(--crm-muted);}
- html[data-crm-ui] .crm-customer-assign {min-height:26px!important;color:#8a5618!important;white-space:normal;}
- html[data-crm-ui] .crm-customer-assign svg {color:inherit!important;}
- html[data-crm-ui] .crm-customer-assign:hover {text-decoration:underline;text-underline-offset:3px;}
- html[data-crm-ui] .crm-customer-activity {display:grid;gap:4px;}
- html[data-crm-ui] .crm-customer-stat {width:100%;min-width:0;min-height:28px!important;padding:2px 6px!important;border-radius:6px!important;}
- html[data-crm-ui] .crm-customer-stat > span {flex:1;}
- html[data-crm-ui] .crm-customer-stat:hover {background:var(--crm-tint)!important;}
- html[data-crm-ui] .crm-customer-footer {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-top:1px solid var(--crm-line);color:var(--crm-muted);}
- html[data-crm-ui] .crm-customer-footer > span {font-size:12px!important;}
- html[data-crm-ui] .crm-customer-dialog {height:100dvh!important;max-height:100dvh!important;border-radius:0!important;}
- html[data-crm-ui] .crm-customer-dialog > header {display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex:none;}
- html[data-crm-ui] .crm-customer-dialog > header > div {min-width:0;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-customer-dialog > header h2 {margin:4px 0 10px!important;}
- html[data-crm-ui] .crm-customer-card-tabs {display:flex;gap:8px;padding:0 var(--crm-detail-gutter);border-bottom:1px solid var(--crm-line);flex:none;}
- html[data-crm-ui] .crm-customer-card-tabs > button {display:flex;justify-content:center;align-items:center;gap:6px;min-height:48px;flex:1 1 auto;min-width:0;padding:8px 4px!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--crm-muted)!important;font:inherit;cursor:pointer;}
- html[data-crm-ui] .crm-customer-card-tabs > button[aria-selected=true] {border-bottom-color:var(--crm-accent)!important;color:var(--crm-ink)!important;}
- html[data-crm-ui] .crm-customer-card-tabs button > span {padding:1px 6px;border-radius:5px;background:var(--crm-tint);}
- html[data-crm-ui] .crm-customer-card-contacts {display:flex;gap:8px 16px;flex-wrap:wrap;padding:12px 16px;background:var(--crm-bg);border-radius:10px;}
- html[data-crm-ui] .crm-customer-card-contacts a {display:flex;align-items:center;gap:8px;min-height:36px;overflow-wrap:anywhere;max-width:100%;}
- html[data-crm-ui] .crm-customer-card-contacts svg {flex:none;}
- html[data-crm-ui] .crm-customer-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;}
- html[data-crm-ui] .crm-customer-fields > .crm-field {grid-column:1/-1;}
- html[data-crm-ui] .crm-customer-form-intro h3 {margin:0 0 8px!important;}
- html[data-crm-ui] .crm-customer-form-intro p {margin:0;color:var(--crm-muted);}
- html[data-crm-ui] .crm-customer-form-note {padding:14px 16px;margin:0;border-radius:10px;background:var(--crm-bg);color:var(--crm-muted);font-size:12px!important;}
- html[data-crm-ui] .crm-customer-form-error {padding:14px 16px;margin-bottom:20px;border:1px solid var(--crm-danger);border-radius:10px;color:var(--crm-danger);background:var(--crm-danger-bg);}
- html[data-crm-ui] .crm-customer-form-error p {margin:0 0 8px;}
- html[data-crm-ui] .crm-customer-card-section {display:grid;gap:12px;border-top:1px solid var(--crm-line);padding-top:20px;}
- html[data-crm-ui] .crm-customer-card-section h3 {display:flex;align-items:center;gap:8px;margin:0!important;}
- html[data-crm-ui] .crm-customer-card-section article {display:grid;gap:5px;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-customer-history-row {display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:16px 0;border-bottom:1px solid var(--crm-line);}
- html[data-crm-ui] .crm-customer-history-row > div {display:grid;gap:6px;min-width:0;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-customer-dialog .crm-detail-footer {flex:none;}
- @container (max-width:1000px) {
-  html[data-crm-ui] .crm-customer-tools {grid-template-columns:minmax(0,1fr) 44px;}
-  html[data-crm-ui] .crm-button.crm-customer-filter-toggle {display:inline-flex!important;}
-  html[data-crm-ui] .crm-customer-register:not(.is-filters-open) .crm-customer-extra-filter {display:none!important;}
-  html[data-crm-ui] .crm-customer-extra-filter {grid-column:1/-1;}
-  html[data-crm-ui] .crm-customer-new-count {display:none;}
-  html[data-crm-ui] .crm-customer-columns {display:none;}
-  html[data-crm-ui] .crm-customer-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;}
-  html[data-crm-ui] .crm-customer-relations {grid-column:1;grid-row:2;}
-  html[data-crm-ui] .crm-customer-activity {grid-column:2;grid-row:2;}
-  html[data-crm-ui] .crm-customer-segment-full {display:none;}
-  html[data-crm-ui] .crm-customer-segment-short {display:inline;}
-  html[data-crm-ui] .crm-customer-list-hint {display:none;}
+ html[data-crm-ui] .crm-customers-page{min-width:0;color:var(--crm-ink);font:400 14px/1.55 Montserrat,Arial,sans-serif;}
+ html[data-crm-ui] .crm-customers-page .crm-page-header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:var(--crm-space-section,16px)!important;}
+ html[data-crm-ui] .crm-customers-page .crm-page-header h1{display:block;font-size:var(--crm-type-page,24px)!important;line-height:1.3!important;letter-spacing:-.6px;margin:0!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customers-page .crm-page-header p{margin:6px 0 0;color:var(--crm-muted);font-size:14px!important;}
+ html[data-crm-ui] .crm-customer-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+ html[data-crm-ui] :is(.crm-customer-plain,.crm-customer-name,.crm-customer-order-count,.crm-customer-views>button,.crm-customer-record-tabs>button){display:inline-flex;align-items:center;gap:8px;border:0!important;box-shadow:none!important;background:transparent!important;color:var(--crm-ink)!important;font:inherit;text-align:left;padding:0!important;border-radius:0!important;cursor:pointer;}
+ html[data-crm-ui] .crm-customer-plain{min-height:var(--crm-control-height,44px)!important;}
+ html[data-crm-ui] .crm-customer-plain:hover{color:var(--crm-accent)!important;}
+ html[data-crm-ui] :is(.crm-customer-views,.crm-customer-record-tabs){display:flex;gap:6px;overflow:auto;scrollbar-width:none;padding-bottom:10px;border-bottom:1px solid var(--crm-line);margin-bottom:var(--crm-space-section,16px);}
+ html[data-crm-ui] :is(.crm-customer-views>button,.crm-customer-record-tabs>button){flex:none;min-height:var(--crm-control-height,44px)!important;padding:var(--crm-control-y,10px) var(--crm-control-padding,14px)!important;border-radius:7px!important;white-space:nowrap;color:var(--crm-muted)!important;font-size:14px!important;}
+ html[data-crm-ui] :is(.crm-customer-views>button[aria-pressed=true],.crm-customer-record-tabs>button[aria-selected=true]){background:var(--crm-accent-soft,var(--crm-tint))!important;color:var(--crm-accent)!important;font-weight:600;}
+ html[data-crm-ui] :is(.crm-customer-views>button,.crm-customer-record-tabs>button):hover{background:var(--crm-tint)!important;}
+ html[data-crm-ui] :is(.crm-customer-views,.crm-customer-record-tabs) button>span{font-size:12px!important;padding-left:4px;}
+ html[data-crm-ui] .crm-customer-workspace{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--crm-space-section,16px);align-items:start;}
+ html[data-crm-ui] .crm-customer-register{padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;min-width:0;}
+ html[data-crm-ui] .crm-customer-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+ html[data-crm-ui] .crm-customer-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;height:var(--crm-control-height,44px);padding:0 12px;border:1px solid var(--crm-line);background:var(--crm-surface)!important;border-radius:7px;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-search>svg{flex:none;}
+ html[data-crm-ui] .crm-customer-search input{width:100%;min-width:0;min-height:calc(var(--crm-control-height,44px) - 4px)!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;font-size:14px!important;}
+ html[data-crm-ui] .crm-customer-search input:focus{outline:0!important;}
+ html[data-crm-ui] .crm-customer-search:focus-within{outline:2px solid var(--crm-accent);outline-offset:2px;}
+ html[data-crm-ui] .crm-customer-chip{display:inline-flex;justify-content:center;align-items:center;min-width:20px;height:20px;border-radius:4px;background:var(--crm-accent-soft,var(--crm-tint));color:var(--crm-accent);font-size:12px;}
+ html[data-crm-ui] .crm-customer-filter-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px;margin-bottom:16px;background:var(--crm-tint);border-radius:8px;}
+ html[data-crm-ui] .crm-customer-filter-bar label{display:grid;gap:6px;font-size:12px!important;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-filter-bar select{width:100%;min-width:0;}
+ html[data-crm-ui] .crm-customer-filter-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;color:var(--crm-muted);font-size:12px;}
+ html[data-crm-ui] .crm-customer-table{border:1px solid var(--crm-line);border-radius:8px;overflow:hidden;background:var(--crm-surface);}
+ html[data-crm-ui] :is(.crm-customer-columns,.crm-customer-row){display:grid;grid-template-columns:minmax(190px,1fr) 82px 108px 110px 54px;gap:12px;align-items:center;padding:14px 16px;min-width:0!important;}
+ html[data-crm-ui] .crm-customer-columns{min-height:46px;padding-block:10px;background:var(--crm-tint);color:var(--crm-muted);font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-columns>span:last-child{text-align:right;}
+ html[data-crm-ui] .crm-customer-row{min-height:72px;border-top:1px solid var(--crm-line);cursor:pointer;background:var(--crm-surface);}
+ html[data-crm-ui] .crm-customer-row:hover{background:var(--crm-tint);}
+ html[data-crm-ui] .crm-customer-row.is-selected{background:var(--crm-accent-soft,var(--crm-tint));}
+ html[data-crm-ui] .crm-customer-row:focus-visible{outline:2px solid var(--crm-accent);outline-offset:-2px;}
+ html[data-crm-ui] .crm-customer-row>*{min-width:0;}
+ html[data-crm-ui] .crm-customer-person{display:flex;align-items:center;gap:10px;min-width:0;}
+ html[data-crm-ui] .crm-customer-person>div{min-width:0;}
+ html[data-crm-ui] .crm-customer-avatar{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;background:var(--crm-tint);color:var(--crm-muted);font-size:12px!important;font-weight:600;}
+ html[data-crm-ui] .crm-customer-avatar--large{width:52px;height:52px;font-size:16px!important;}
+ html[data-crm-ui] .crm-customer-avatar--small{width:28px;height:28px;font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-name{min-height:28px!important;max-width:100%;font-size:14px!important;font-weight:500;line-height:1.5!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-name:hover{text-decoration:underline;text-underline-offset:3px;color:var(--crm-accent)!important;}
+ html[data-crm-ui] .crm-customer-subline{display:block;max-width:100%;color:var(--crm-muted);font-size:12px!important;line-height:1.5;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-owner{font-size:12px!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-date{font-size:12px!important;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-order-count{justify-content:flex-end;min-height:var(--crm-control-height,44px)!important;font-size:14px!important;}
+ html[data-crm-ui] .crm-customer-order-count>svg{color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-badges{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;}
+ html[data-crm-ui] .crm-customer-badge{display:inline-flex;align-items:center;width:fit-content;max-width:100%;gap:5px;padding:2px 8px;min-height:24px;border-radius:5px;background:var(--crm-tint);color:var(--crm-muted);font-size:12px!important;font-weight:500;line-height:20px;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-badge[data-status=ACTIVE]{color:var(--crm-success);background:var(--crm-success-bg);}
+ html[data-crm-ui] .crm-customer-badge[data-status=BLOCKED]{color:var(--crm-danger);background:var(--crm-danger-bg);}
+ html[data-crm-ui] .crm-customer-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px;color:var(--crm-muted);font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-pagination{display:flex;align-items:center;gap:10px;}
+ html[data-crm-ui] .crm-customer-preview{border-left:1px solid var(--crm-line);padding-left:24px;min-width:0;}
+ html[data-crm-ui] .crm-customer-preview-top{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:var(--crm-control-height,44px);color:var(--crm-muted);font-size:12px;margin-bottom:18px;}
+ html[data-crm-ui] .crm-customer-preview-identity{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
+ html[data-crm-ui] .crm-customer-preview-identity>div{min-width:0;}
+ html[data-crm-ui] .crm-customer-preview-identity h2{font-size:21px!important;line-height:1.35!important;letter-spacing:-.3px;margin:0 0 8px!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-preview-contacts{display:grid;gap:8px;}
+ html[data-crm-ui] .crm-customer-preview-contacts a{display:flex;align-items:center;gap:10px;min-height:32px;color:var(--crm-ink);font-size:14px;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-preview-contacts svg{flex:none;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-preview-owner{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:22px;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-customer-preview-owner small{display:block;color:var(--crm-muted);font-size:12px;}
+ html[data-crm-ui] .crm-customer-preview-owner strong{font-weight:500;font-size:14px;}
+ html[data-crm-ui] .crm-customer-next{padding:20px;border-radius:8px;background:var(--crm-tint);margin-bottom:var(--crm-space-section,16px);}
+ html[data-crm-ui] .crm-customer-preview .crm-customer-next{padding:16px;margin-top:24px;}
+ html[data-crm-ui] .crm-customer-next-label{display:flex;align-items:center;gap:8px;font-size:12px!important;font-weight:600;}
+ html[data-crm-ui] .crm-customer-next :is(h2,h3){font-size:18px!important;line-height:1.5!important;margin:12px 0 16px!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-preview .crm-customer-next h3{font-size:16px!important;margin-bottom:6px!important;}
+ html[data-crm-ui] .crm-customer-next>p{font-size:14px!important;color:var(--crm-muted);margin:8px 0 16px;}
+ html[data-crm-ui] .crm-customer-preview .crm-customer-next>.crm-button{width:100%;margin-top:10px;}
+ html[data-crm-ui] .crm-customer-preview-order{margin:24px 0;}
+ html[data-crm-ui] .crm-customer-preview-order h3{font-size:14px!important;margin-bottom:14px!important;}
+ html[data-crm-ui] .crm-customer-preview-order>.crm-customer-badge{margin-top:12px;}
+ html[data-crm-ui] .crm-customer-preview-order p{font-size:12px!important;margin-top:10px;}
+ html[data-crm-ui] .crm-customer-between{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+ html[data-crm-ui] .crm-customer-money{white-space:nowrap;font-variant-numeric:tabular-nums;}
+ html[data-crm-ui] .crm-customer-open{width:100%;}
+ html[data-crm-ui] .crm-customer-preview-empty{padding:40px 8px;display:grid;justify-items:center;gap:16px;text-align:center;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-profile-identity{display:flex;align-items:center;gap:14px;min-width:0;}
+ html[data-crm-ui] .crm-customer-profile-identity>div{min-width:0;}
+ html[data-crm-ui] .crm-customer-profile-identity h1{margin-bottom:8px!important;}
+ html[data-crm-ui] .crm-customer-record-layout{display:grid;grid-template-columns:228px minmax(0,1fr) 228px;gap:var(--crm-space-section,16px);align-items:start;}
+ html[data-crm-ui] .crm-customer-facts{min-width:0;}
+ html[data-crm-ui] .crm-customer-facts summary{display:flex;align-items:center;justify-content:space-between;list-style:none;min-height:36px;cursor:pointer;}
+ html[data-crm-ui] .crm-customer-facts summary::-webkit-details-marker{display:none;}
+ html[data-crm-ui] .crm-customer-facts summary>svg{display:none;}
+ html[data-crm-ui] .crm-customer-facts h2{font-size:16px!important;margin:0!important;}
+ html[data-crm-ui] .crm-customer-facts dl{display:grid;gap:20px;margin:20px 0 24px;}
+ html[data-crm-ui] .crm-customer-facts dt{color:var(--crm-muted);font-size:12px!important;margin-bottom:4px;}
+ html[data-crm-ui] .crm-customer-facts dd{margin:0;font-size:14px;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-facts dd small{display:block;font-size:12px;color:var(--crm-muted);margin:4px 0 10px;}
+ html[data-crm-ui] .crm-customer-record-stats{border-top:1px solid var(--crm-line);padding-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+ html[data-crm-ui] .crm-customer-record-stats strong{font-size:24px!important;display:block;}
+ html[data-crm-ui] .crm-customer-record-stats span{display:block;color:var(--crm-muted);font-size:12px;}
+ html[data-crm-ui] .crm-customer-record-main{min-width:0;}
+ html[data-crm-ui] .crm-customer-record-main h2{font-size:18px!important;line-height:1.5!important;margin:0 0 16px!important;}
+ html[data-crm-ui] .crm-customer-history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+ html[data-crm-ui] .crm-customer-history-heading h2{margin:0!important;}
+ html[data-crm-ui] .crm-customer-history-heading select{width:auto!important;max-width:180px;font-size:12px!important;}
+ html[data-crm-ui] .crm-customer-event{display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:18px 0;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-customer-event-icon{display:flex;justify-content:center;align-items:center;width:32px;height:32px;border-radius:7px;background:var(--crm-tint);color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-event-meta{display:flex;align-items:start;justify-content:space-between;gap:12px;color:var(--crm-muted);font-size:12px;margin-bottom:6px;}
+ html[data-crm-ui] .crm-customer-event-meta>time{text-align:right;}
+ html[data-crm-ui] .crm-customer-event h3{font-size:14px!important;line-height:1.5!important;margin:0 0 6px!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-event h3>a{display:inline-flex;align-items:center;gap:6px;}
+ html[data-crm-ui] .crm-customer-event p{font-size:14px!important;white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 8px;}
+ html[data-crm-ui] .crm-customer-event .crm-customer-badge{margin-top:8px;}
+ html[data-crm-ui] .crm-customer-event .crm-customer-money{display:block;}
+ html[data-crm-ui] .crm-customer-related{border-left:1px solid var(--crm-line);padding-left:24px;min-width:0;}
+ html[data-crm-ui] .crm-customer-related section+section{border-top:1px solid var(--crm-line);margin-top:24px;padding-top:22px;}
+ html[data-crm-ui] .crm-customer-related section>header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;}
+ html[data-crm-ui] .crm-customer-related h2{font-size:14px!important;margin:0!important;}
+ html[data-crm-ui] .crm-customer-related :is(p,small){color:var(--crm-muted);font-size:12px!important;margin:10px 0;}
+ html[data-crm-ui] .crm-customer-related>section>strong{font-size:14px!important;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-related-amount{display:block;font-size:24px!important;margin:12px 0;white-space:nowrap;}
+ html[data-crm-ui] .crm-customer-related-task{display:flex;align-items:start;gap:8px;margin-top:16px;font-size:14px;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-related-task>svg{flex:none;margin-top:3px;color:var(--crm-accent);}
+ html[data-crm-ui] .crm-customer-related-task small{display:block;margin-top:4px;}
+ html[data-crm-ui] .crm-customer-history-row{display:flex;justify-content:space-between;align-items:start;gap:20px;padding:20px 0;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-customer-history-row>div{display:grid;gap:8px;min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-history-row a{display:inline-flex;align-items:center;gap:6px;}
+ html[data-crm-ui] .crm-customer-history-row small{font-size:12px!important;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-mobile-actions{display:none;}
+ html[data-crm-ui] .crm-customer-dialog{height:100dvh!important;max-height:100dvh!important;border-radius:0!important;}
+ html[data-crm-ui] .crm-customer-dialog>header{display:flex;justify-content:space-between;gap:16px;align-items:start;}
+ html[data-crm-ui] .crm-customer-dialog>header>div{min-width:0;overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-card-tabs{display:flex;gap:8px;padding:0 24px;border-bottom:1px solid var(--crm-line);}
+ html[data-crm-ui] .crm-customer-card-tabs>button{min-height:var(--crm-control-height,44px)!important;flex:1;padding:10px 4px!important;background:transparent!important;color:var(--crm-muted)!important;border:0!important;border-radius:0!important;}
+ html[data-crm-ui] .crm-customer-card-tabs>button[aria-selected=true]{color:var(--crm-accent)!important;border-bottom:2px solid var(--crm-accent)!important;}
+ html[data-crm-ui] .crm-customer-card-tabs>button>span{margin-left:6px;}
+ html[data-crm-ui] .crm-customer-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;}
+ html[data-crm-ui] .crm-customer-fields>.crm-field{grid-column:1/-1;}
+ html[data-crm-ui] .crm-customer-card-contacts{display:flex;gap:12px;flex-wrap:wrap;padding-bottom:20px;}
+ html[data-crm-ui] .crm-customer-card-contacts a{display:flex;align-items:center;gap:8px;min-height:var(--crm-control-height,44px);overflow-wrap:anywhere;}
+ html[data-crm-ui] .crm-customer-form-note{font-size:12px!important;color:var(--crm-muted);padding:14px 0;}
+ html[data-crm-ui] .crm-customer-form-error{border:1px solid var(--crm-danger);color:var(--crm-danger);padding:14px;border-radius:8px;margin-bottom:20px;}
+ html[data-crm-ui] .crm-customer-card-section{display:grid;gap:14px;margin-top:24px;border-top:1px solid var(--crm-line);padding-top:20px;}
+ html[data-crm-ui] .crm-customer-card-section h3{display:flex;align-items:center;gap:8px;}
+ html[data-crm-ui] .crm-customer-card-section article{display:grid;gap:6px;}
+ html[data-crm-ui] .crm-customer-composer{max-width:540px!important;width:calc(100vw - 32px)!important;}
+ html[data-crm-ui] .crm-customer-composer>header{display:flex;justify-content:space-between;gap:16px;padding:24px!important;}
+ html[data-crm-ui] .crm-customer-composer>header p{color:var(--crm-muted);margin-top:8px;}
+ html[data-crm-ui] .crm-customer-composer form{display:grid;gap:20px;padding:0 24px 24px;}
+ html[data-crm-ui] .crm-customer-composer label{display:grid;gap:8px;font-size:14px!important;}
+ html[data-crm-ui] .crm-customer-composer small{font-size:12px!important;color:var(--crm-muted);}
+ html[data-crm-ui] .crm-customer-composer footer{display:flex;justify-content:flex-end;gap:8px;}
+ @container(max-width:1120px){html[data-crm-ui] .crm-customer-workspace{display:block;}html[data-crm-ui] .crm-customer-preview{display:none;}html[data-crm-ui] .crm-customer-record-layout{grid-template-columns:200px minmax(0,1fr);gap:24px;}html[data-crm-ui] .crm-customer-related{display:none;}}
+ @media(max-width:1200px){html[data-crm-ui] .crm-customer-workspace{display:block;}html[data-crm-ui] .crm-customer-preview{display:none;}html[data-crm-ui] .crm-customer-record-layout{grid-template-columns:200px minmax(0,1fr);}html[data-crm-ui] .crm-customer-related{display:none;}}
+ @media(max-width:800px){
+  html[data-crm-ui] .crm-customers-page .crm-page-header{display:flex!important;align-items:start;flex-wrap:wrap;gap:18px!important;}
+  html[data-crm-ui] .crm-customers-page .crm-page-header h1{font-size:24px!important;}
+  html[data-crm-ui] .crm-customer-header-actions{width:100%;}html[data-crm-ui] .crm-customer-add{flex:1;}
+  html[data-crm-ui] .crm-customer-filter-button>span:not(.crm-customer-chip){display:none;}
+  html[data-crm-ui] .crm-customer-search input{font-size:13px!important;}
+  html[data-crm-ui] .crm-customer-columns{display:none;}html[data-crm-ui] .crm-customer-table{border:0;border-radius:0;overflow:visible;background:transparent;}
+  html[data-crm-ui] .crm-customer-row{grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:16px 12px;border:1px solid var(--crm-line);border-radius:8px;margin-bottom:10px;}
+  html[data-crm-ui] .crm-customer-person{grid-column:1/-1;}html[data-crm-ui] .crm-customer-row>.crm-customer-segment{grid-column:1;}
+  html[data-crm-ui] .crm-customer-row>.crm-customer-order-count{grid-column:2;min-width:44px;}html[data-crm-ui] .crm-customer-row>:is(.crm-customer-owner,.crm-customer-date){display:none;}
+  html[data-crm-ui] .crm-customer-subline{min-height:26px;display:flex;align-items:center;}html[data-crm-ui] .crm-customer-footer{flex-wrap:wrap;}
+  html[data-crm-ui] .crm-customer-profile-identity{gap:10px;}html[data-crm-ui] .crm-customer-profile-identity>.crm-customer-avatar{display:none;}
+  html[data-crm-ui] .crm-customer-profile-header .crm-customer-header-actions{justify-content:flex-end;}html[data-crm-ui] .crm-customer-profile-header .crm-customer-header-actions>.crm-button--primary{display:none;}
+  html[data-crm-ui] .crm-customer-record-layout{display:flex;flex-direction:column;gap:24px;}html[data-crm-ui] :is(.crm-customer-facts,.crm-customer-record-main){width:100%;}
+  html[data-crm-ui] .crm-customer-facts{border-bottom:1px solid var(--crm-line);padding-bottom:16px;}html[data-crm-ui] .crm-customer-facts summary{min-height:var(--crm-control-height,44px);}html[data-crm-ui] .crm-customer-facts summary>svg{display:block;}
+  html[data-crm-ui] .crm-customer-facts dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}html[data-crm-ui] .crm-customer-facts dd a{display:inline-flex;align-items:center;min-height:var(--crm-control-height,44px);}html[data-crm-ui] .crm-customer-facts dl>div:nth-child(2){grid-column:1/-1;}
+  html[data-crm-ui] .crm-customer-record-stats{display:none;}html[data-crm-ui] .crm-customer-next{padding:16px;}html[data-crm-ui] .crm-customer-next>.crm-customer-between:last-child{flex-wrap:wrap;}html[data-crm-ui] .crm-customer-next>.crm-customer-between:last-child>.crm-button{width:100%;}
+  html[data-crm-ui] .crm-customer-event-meta{flex-wrap:wrap;gap:4px;}html[data-crm-ui] .crm-customer-history-row{flex-wrap:wrap;gap:12px;}
+  html[data-crm-ui] .crm-customer-mobile-actions{display:flex!important;align-items:center;gap:8px;position:sticky;bottom:76px;z-index:5;padding:12px 0;background:var(--crm-surface);border-top:1px solid var(--crm-line);margin-top:24px;}html[data-crm-ui] .crm-customer-mobile-actions>.crm-button--primary{flex:1;}
+  html[data-crm-ui] .crm-customer-fields{grid-template-columns:minmax(0,1fr);}
  }
- @container (max-width:600px) {
-  html[data-crm-ui] .crm-customer-register-head {padding-inline:14px;}
-  html[data-crm-ui] .crm-customer-segments {width:100%;justify-content:space-between;gap:8px;}
-  html[data-crm-ui] .crm-customer-segments > button {justify-content:center;min-width:44px;min-height:50px!important;}
-  html[data-crm-ui] .crm-customer-tools {padding:12px;}
-  html[data-crm-ui] .crm-customer-filter-summary {padding:0 12px 10px;}
-  html[data-crm-ui] .crm-customer-filter-summary .crm-button {font-size:12px!important;}
-  html[data-crm-ui] .crm-customer-rows {display:grid;gap:10px;padding:0 12px 12px;}
-  html[data-crm-ui] .crm-customer-row {grid-template-columns:minmax(0,1fr);gap:10px;padding:14px;border:1px solid var(--crm-line)!important;border-radius:12px;}
-  html[data-crm-ui] .crm-customer-person {grid-column:1;grid-row:1;gap:10px;}
-  html[data-crm-ui] .crm-customer-person .crm-directory-avatar {width:34px;height:34px;}
-  html[data-crm-ui] .crm-customer-contacts {grid-column:1/-1;grid-row:2;gap:0;}
-  html[data-crm-ui] .crm-customer-contact {min-height:44px;}
-  html[data-crm-ui] .crm-customer-relations {grid-column:1/-1;grid-row:3;}
-  html[data-crm-ui] .crm-customer-private {display:none;}
-  html[data-crm-ui] .crm-customer-assign {min-height:44px!important;}
-  html[data-crm-ui] .crm-customer-activity {grid-column:1;grid-row:4;display:flex;flex-wrap:wrap;gap:4px 12px;}
-  html[data-crm-ui] .crm-customer-stat {width:auto;min-height:44px!important;padding:0!important;gap:5px;}
-  html[data-crm-ui] .crm-customer-stat > svg {display:none;}
-  html[data-crm-ui] .crm-customer-stat > span {flex:none;font-size:12px!important;}
-  html[data-crm-ui] .crm-customer-stat > strong {font-size:12px!important;}
-  html[data-crm-ui] .crm-customer-footer {flex-wrap:wrap;padding:12px;}
- }
- @media (max-width:600px) {
-  html[data-crm-ui] .crm-customers-page .crm-page-header {display:grid!important;grid-template-columns:minmax(0,1fr) 44px;gap:12px!important;margin-bottom:16px!important;}
-  html[data-crm-ui] .crm-customers-page .crm-page-header h1 {margin:0!important;}
-  html[data-crm-ui] .crm-customers-page .crm-page-header > div:first-child > span {display:none;}
-  html[data-crm-ui] .crm-customer-header-actions {display:contents;}
-  html[data-crm-ui] .crm-customer-header-actions > .crm-button--icon {grid-column:2;grid-row:1;}
-  html[data-crm-ui] .crm-customer-add {grid-column:1/-1;width:100%;}
-  html[data-crm-ui] .crm-customer-fields {grid-template-columns:minmax(0,1fr);gap:16px;}
-  html[data-crm-ui] .crm-customer-card-contacts a {min-height:44px;}
-  html[data-crm-ui] .crm-customer-dialog .crm-detail-footer {padding-bottom:calc(12px + env(safe-area-inset-bottom))!important;}
- }
+ @media(max-width:390px){html[data-crm-ui] .crm-customer-filter-bar{grid-template-columns:minmax(0,1fr);}html[data-crm-ui] .crm-customer-history-heading{flex-wrap:wrap;}html[data-crm-ui] .crm-customer-history-heading select{width:100%!important;max-width:none;}}
 }

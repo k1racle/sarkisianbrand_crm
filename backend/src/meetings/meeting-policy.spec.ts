@@ -30,7 +30,7 @@ describe('Meeting policy and DTO contract', () => {
     expect(await validate(plainToInstance(CreateMeetingDto,{...payload,startsAt:'2030-09-24T13:00:00+03:00'}))).toHaveLength(0);
     expect((await validate(plainToInstance(CreateMeetingDto,{...payload,requestKey:undefined}))).length).toBeGreaterThan(0);
   });
-  it.each([{ title:' ' },{ title:'a'.repeat(161) },{ startsAt:'2030-09-24T10:00' },{ startsAt:'2030-02-31T10:00:00Z' },{ agenda:'a'.repeat(5001) },{ kind:'GUEST' },{ memberIds:[randomUUID(), 'invalid'] },{ memberIds:Array.from({length:10},()=>randomUUID()) }])('rejects invalid input %j', async overrides => {
+  it.each([{ title:' ' },{ title:'a'.repeat(161) },{ startsAt:'2030-09-24T10:00' },{ startsAt:'2030-02-31T10:00:00Z' },{ agenda:'a'.repeat(5001) },{ kind:'GUEST' },{ memberIds:[randomUUID(), 'invalid'] },{ memberIds:Array.from({length:200},()=>randomUUID()) }])('rejects invalid input %j', async overrides => {
     expect((await validate(plainToInstance(CreateMeetingDto,{...payload,...overrides}))).length).toBeGreaterThan(0);
   });
   it('rejects duplicate participants, missing/stale-shape versions and empty cancellation', async () => {

@@ -10,6 +10,8 @@ backups/
 dist/
 build/
 target/
+frontend/.nuxt/
+frontend/.output/
 
 # TypeScript/JavaScript
 *.tsbuildinfo
@@ -23,6 +25,7 @@ target/
 .env.local
 *.env
 *.env.*
+!.env.production.example
 
 # Logs
 *.log

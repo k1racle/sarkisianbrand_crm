@@ -7,7 +7,7 @@ import { resolveProductBadges } from '../common/product-merchandising';
 import { BulkProductsDto } from './dto/admin.dto';
 import { OneCSyncService } from '../1c-sync/1c-sync.service';
 import { CreateStorefrontMenuItemDto, UpdateStorefrontMenuItemDto, CreateStorefrontPageDto, UpdateStorefrontPageDto } from './dto/admin.dto';
-import { applyStorefrontTransition } from '../common/storefront-order-transition';
+import { applyStorefrontTransition, assertLocalWarehouseTransition } from '../common/storefront-order-transition';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MediaService } from '../media/media.service';
 import { AdminListQueryDto, ReorderStorefrontDto } from './dto/admin.dto';
@@ -16,6 +16,13 @@ import { appearanceRevision, saveAppearance } from './storefront-appearance';
 import { storeDashboard } from './store-dashboard';
 import { SalonSubscriptionDto } from '../b2b/dto/salon-presentation.dto';
 import { siteContentUrlValid } from './site-content.dto';
+import { warehouseExecutionView } from '../oms/warehouse-execution-view';
+
+const warehouseSelect = { owner: true, status: true, warehouseId: true, revision: true, executionVersion: true, basisHash: true, asOf: true, validUntil: true, receivedAt: true, documentId: true, documentNumber: true, executorName: true, error: true, lines: true, documents: true } as const;
+function adminWarehouseOrder(order: any) {
+  const { warehouseExecution, execution, ...safe } = order;
+  return { ...safe, warehouseExecution: warehouseExecutionView(warehouseExecution, order) };
+}
 
 @Injectable()
 export class AdminService {
@@ -114,9 +121,9 @@ export class AdminService {
     const where: Prisma.OrderWhereInput = { source: 'WEB', ...(query.status ? { status: query.status } : {}), ...(q ? { OR: [{ orderNumber: { contains: q, mode: 'insensitive' } }, { user: { email: { contains: q, mode: 'insensitive' } } }, { customer: { email: { contains: q, mode: 'insensitive' } } }] } : {}) };
     const [total, items] = await this.prisma.$transaction([
       this.prisma.order.count({ where }),
-      this.prisma.order.findMany({ where, include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, customer: true, organization: true, items: true, marketplaceStaging: true, history: { orderBy: { createdAt: 'desc' } } }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (query.page - 1) * query.limit, take: query.limit }),
+      this.prisma.order.findMany({ where, include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, customer: true, organization: true, items: true, execution: { select: { version: true } }, warehouseExecution: { select: warehouseSelect }, marketplaceStaging: true, history: { orderBy: { createdAt: 'desc' } } }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (query.page - 1) * query.limit, take: query.limit }),
     ]);
-    return { items, total, page: query.page, limit: query.limit };
+    return { items: items.map(adminWarehouseOrder), total, page: query.page, limit: query.limit };
   }
 
   categories() {
@@ -259,12 +266,13 @@ export class AdminService {
     if (!product) throw new NotFoundException('Товар не найден');
     if (dto.variantId && !product.variants.length) throw new NotFoundException('Вариант товара не найден. Обновите список товаров');
     if (product.productType === 'GIFT_CARD' && (dto.price !== undefined || dto.stock !== undefined || dto.salePrice !== undefined || dto.saleStartsAt !== undefined || dto.saleEndsAt !== undefined)) throw new BadRequestException('Номиналы подарочной карты изменяются в разделе «Подарочные карты»; скидка на номинал недоступна');
+    if (product.productType === 'PHYSICAL' && dto.stock !== undefined && (!product.variants[0] || dto.stock !== product.variants[0].stock)) throw new ConflictException('Остатки физических товаров изменяются в 1С. Обновите данные из 1С.');
     const sale=product.productType==='GIFT_CARD'?{}:this.saleData(dto,product.variants[0]||{price:product.basePrice});
     return this.prisma.$transaction(async (tx) => {
       await this.validateBadgeIds(dto.badgeIds,tx);
       const updated = await tx.product.update({ where: { id }, data: { ...(dto.badgeIds !== undefined ? {badgeIds:dto.badgeIds} : {}), ...(dto.price !== undefined ? { basePrice: dto.price } : {}), ...(dto.purposes !== undefined ? { purposes: dto.purposes } : {}), ...(dto.features !== undefined ? { features: dto.features } : {}), ...(dto.nameRu !== undefined ? { nameRu: dto.nameRu } : {}), ...(dto.descriptionRu !== undefined ? { descriptionRu: dto.descriptionRu } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } });
-      if (product.variants[0] && (dto.price !== undefined || dto.stock !== undefined || Object.keys(sale).length)) {
-        await tx.productVariant.update({ where: { id: product.variants[0].id }, data: { ...(dto.price !== undefined ? { price: dto.price } : {}), ...(dto.stock !== undefined ? { stock: dto.stock } : {}), ...sale } });
+      if (product.variants[0] && (dto.price !== undefined || (dto.stock !== undefined && product.productType !== 'PHYSICAL') || Object.keys(sale).length)) {
+        await tx.productVariant.update({ where: { id: product.variants[0].id }, data: { ...(dto.price !== undefined ? { price: dto.price } : {}), ...(dto.stock !== undefined && product.productType !== 'PHYSICAL' ? { stock: dto.stock } : {}), ...sale } });
       }
       if (dto.images) {
         await tx.productImage.deleteMany({ where: { productId: id } });
@@ -314,8 +322,9 @@ export class AdminService {
     return this.prisma.product.update({ where: { id }, data: { isActive: false }, select: { id: true, sku: true, isActive: true } });
   }
 
-  orders() {
-    return this.prisma.order.findMany({ where: { source: 'WEB' }, include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, customer: true, organization: true, items: true, marketplaceStaging: true, history: { orderBy: { createdAt: 'desc' } } }, orderBy: { createdAt: 'desc' }, take: 100 });
+  async orders() {
+    const orders = await this.prisma.order.findMany({ where: { source: 'WEB' }, include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, customer: true, organization: true, items: true, execution: { select: { version: true } }, warehouseExecution: { select: warehouseSelect }, marketplaceStaging: true, history: { orderBy: { createdAt: 'desc' } } }, orderBy: { createdAt: 'desc' }, take: 100 });
+    return orders.map(adminWarehouseOrder);
   }
 
   async updateOrderStatus(orderNumber: string, dto: UpdateOrderStatusDto, changedBy: string) {
@@ -323,6 +332,7 @@ export class AdminService {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE "orderNumber" = ${orderNumber} FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { orderNumber }, include: { items: true, payments: true } });
       if (!order || order.source !== 'WEB') throw new NotFoundException('Заказ магазина не найден');
+      assertLocalWarehouseTransition(order, dto.status);
       const lifecycle = await applyStorefrontTransition(tx, order, dto.status, this.notifications);
       const result = await tx.order.update({ where: { id: order.id }, data: { status: dto.status, isSynced1C: false, ...lifecycle } });
       if (order.status !== dto.status) await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: dto.status, comment: dto.comment, changedBy } });

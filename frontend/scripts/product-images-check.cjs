@@ -16,6 +16,7 @@ for(const photo of JSON.parse(fs.readFileSync(path.resolve(__dirname,'../public/
 }
 assert.equal(normalize('/catalog/nozhnitsy-pro-levsha.jpg',api),'/catalog/nozhnitsy-pro-levsha.jpg','Display fallback never rejects or rewrites a valid saved path');
 assert.equal(resolve('/api/v1/media/files/image.png',api),'http://localhost:3000/api/v1/media/files/image.png');
+assert.equal(resolve('/api/v1/media/files/image.png','/api/v1','http://old-ip.invalid:3001'),'/api/v1/media/files/image.png','SSR media must stay on the requesting site when the API is proxied');
 assert.equal(resolve('/storefront/hero.jpg',api),'/storefront/hero.jpg');
 assert.equal(resolve('https://images.example.invalid/photo.jpg',api),'https://images.example.invalid/photo.jpg');
 for(const value of [null,{},'','//example.invalid/photo.jpg','javascript:alert(1)','data:image/png;base64,abc','https://user:pass@example.invalid/photo.jpg','/bad\\photo.jpg'])assert.equal(resolve(value,api),'');

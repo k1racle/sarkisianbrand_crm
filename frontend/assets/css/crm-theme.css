@@ -5,13 +5,13 @@
   color-scheme:light;
   --crm-background-image:url('/crm/backgrounds/light.png');
   --crm-on-accent:#fff;
-  --crm-background-veil:rgb(245 245 245 / .22);
+  --crm-background-veil:rgb(245 245 245 / .72);
   --crm-border:var(--crm-line);
  }
  html[data-crm-ui][data-crm-theme="dark"] {
   color-scheme:dark;
   --crm-background-image:url('/crm/backgrounds/dark.png');
-  --crm-background-veil:rgb(34 36 39 / .32);
+  --crm-background-veil:rgb(34 36 39 / .64);
   --brand-graphite:#eeeeec!important; --brand-muted:#b8babd!important; --brand-gray:#4b4d51!important;
   --brand-bg:#222427!important; --brand-soft:#35373b!important; --brand-gray-soft:#303236!important;
   --brand-action:#d6d6d6!important; --brand-action-hover:#fff!important;
@@ -60,7 +60,7 @@
  ) {background:var(--crm-surface)!important;color:var(--crm-ink)!important;border-color:var(--crm-line)!important;}
  html[data-crm-ui][data-crm-theme="dark"] :is(.crm-app-sidebar,.crm-brand,.crm-sidebar-footer) {border-color:var(--crm-line)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-app-sidebar {background:#242629!important;}
- html[data-crm-ui][data-crm-theme="dark"] :is(.crm-brand,.crm-sidebar-footer) {background:#2b2d30!important;}
+ html[data-crm-ui][data-crm-theme="dark"] :is(.crm-brand,.crm-sidebar-footer) {background:#242629!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-messenger .messenger-date > span {background:var(--crm-surface)!important;}
  html[data-crm-ui][data-crm-theme="dark"] :is(.crm-app,.crm-app-login,.admin-dialog,.profile-drawer,.workspace-context) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),select,textarea) {
   color:var(--crm-ink)!important;background-color:var(--crm-surface)!important;border-color:var(--crm-line)!important;caret-color:var(--crm-ink);
@@ -86,7 +86,7 @@
  html[data-crm-ui][data-crm-theme="dark"] .crm-messenger .active .chat-dialog-meta em {background:#3c3c3b!important;color:#fff!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-messenger .chat-dialog-meta em {color:var(--crm-on-accent)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-customer-assign {color:var(--crm-warning)!important;}
- html[data-crm-ui][data-crm-theme="dark"] :is(input[type=checkbox]:checked,input[type=checkbox]:indeterminate)::after,
+ html[data-crm-ui][data-crm-theme="dark"] input[type=checkbox][role=switch]:checked::after,
  html[data-crm-ui][data-crm-theme="dark"] .crm-notification-switch.active::after {background:var(--crm-on-accent)!important;}
  html[data-crm-ui][data-crm-theme="dark"] .crm-unread {background:#b43a50!important;color:#fff!important;}
  html[data-crm-ui][data-crm-theme="dark"] .sb-gift-preview-art {background:linear-gradient(130deg,#3c3c3b,#555554 75%,#555554)!important;}

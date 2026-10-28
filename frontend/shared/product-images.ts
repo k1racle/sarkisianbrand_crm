@@ -16,7 +16,7 @@ export function normalizeMediaImageUrl(value: unknown, apiBase: string, siteUrl 
   const raw = value.trim();
   if (!raw || /[\x00-\x20\\]/.test(raw) || !/^(?:\/(?!\/)|https?:\/\/)/i.test(raw)) return '';
   try {
-    if (/^\/api(?:\/|$)/.test(raw)) return new URL(raw, new URL(apiBase, siteUrl).origin).href;
+    if (/^\/api(?:\/|$)/.test(raw)) return apiBase.startsWith('/') ? raw : new URL(raw, new URL(apiBase, siteUrl).origin).href;
     if (raw.startsWith('/')) return raw;
     const parsed = new URL(raw);
     return parsed.username || parsed.password ? '' : parsed.href;

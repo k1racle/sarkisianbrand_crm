@@ -41,6 +41,8 @@
 .sk-account .sa-summary .sa-panel > svg { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--site-text); }
 .sk-account .sa-summary b { grid-column: 1/-1; align-self: end; margin: 0; font-size: clamp(28px,3.1vw,46px); line-height: 1.1; font-weight: 700; letter-spacing: -.04em; overflow-wrap: anywhere; }
 .sk-account .sa-summary .sk-club-card { background: linear-gradient(140deg,#8a624344,#353535b8); }
+.sa-order-warehouse { display:grid;gap:8px; }
+.sa-order-warehouse h3,.sa-order-warehouse p { margin:0; }
 .sk-account .sk-club-link { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0; background: none; border: 0; color: var(--site-text); font-size: 12px; text-align: left; }
 .sk-account .sk-club-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .sk-account .sk-entry { max-width: 880px; padding: clamp(28px,4vw,56px); }

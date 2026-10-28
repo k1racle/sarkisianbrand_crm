@@ -1,13 +1,22 @@
-import { Type } from 'class-transformer';
-import { Matches } from 'class-validator';
-import { B2BBookingStatus, B2BClientStatus, TicketPriority } from '@prisma/client';
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsHexColor, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { Equals, Matches } from 'class-validator';
+import { B2BBookingStatus, B2BClientStatus, OrderStatus, TicketPriority } from '@prisma/client';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsHexColor, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+
+export class B2BOrderListDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) page?: number;
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsEnum(OrderStatus) status?: OrderStatus;
+  @IsOptional() @IsEnum({ newest: 'newest', oldest: 'oldest' }) sort?: 'newest' | 'oldest';
+}
 
 export class CreateB2BProfileDto {
+  @Transform(({ obj }) => obj.acceptedTerms) @Equals(true) acceptedTerms!: boolean;
+  @IsString() @Matches(/^[a-f0-9]{64}$/) termsVersion!: string;
   @IsOptional() @IsString() @Matches(/^[a-f0-9]{64}$/) partnerToken?: string;
   @IsString() @MinLength(2) @MaxLength(160) companyName!: string;
-  @IsOptional() @IsString() @MaxLength(12) inn?: string;
-  @IsOptional() @IsString() @MaxLength(9) kpp?: string;
+  @IsOptional() @IsString() @Matches(/^(?:\d{10}|\d{12})$/) inn?: string;
+  @IsOptional() @IsString() @Matches(/^\d{9}$/) kpp?: string;
   @IsOptional() @IsString() @MaxLength(500) legalAddress?: string;
 }
 
@@ -65,6 +74,7 @@ export class B2BBookingRangeDto {
 }
 
 export class UpdateB2BBookingDto {
+  @IsInt() @Min(1) version!: number;
   @IsOptional() @IsEnum(B2BBookingStatus) status?: B2BBookingStatus;
   @IsOptional() @IsUUID() masterMemberId?: string | null;
   @IsOptional() @IsDateString() startTime?: string;
@@ -77,9 +87,14 @@ export class B2BOrderItemDto {
 }
 
 export class CreateB2BOrderDto {
-  @IsArray() @ValidateNested({ each: true }) @Type(() => B2BOrderItemDto) items!: B2BOrderItemDto[];
+  @IsUUID() requestKey!: string;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => B2BOrderItemDto) items!: B2BOrderItemDto[];
   @IsOptional() @IsObject() shippingAddress?: Record<string, unknown>;
   @IsOptional() @IsString() @MaxLength(1000) comments?: string;
+}
+
+export class RepeatB2BOrderDto {
+  @IsUUID() requestKey!: string;
 }
 
 export class CreateB2BSupportDto {

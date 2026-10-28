@@ -15,9 +15,24 @@ function helper(file, exports) {
   return context.result;
 }
 const h = helper('shared/web-order-actions.ts', ['webOrderNextStatuses', 'WEB_ORDER_OPERATOR_ROLES']);
+const customerWarehouse = helper('shared/customer-warehouse-status.ts', ['customerWarehouseLabel', 'customerWarehouseAsOf', 'customerWarehouseApplies']);
+const availability = helper('shared/confirmed-availability.ts', ['confirmedOneCAvailable', 'confirmedAvailabilityLabel', 'cartAvailabilityProblem']);
 const { marketplaceWorkspaceSection } = helper('shared/marketplace-workspace.ts', ['marketplaceWorkspaceSection']);
 const order = { source: 'WEB', status: 'NEW', paymentStatus: 'PENDING', reservationState: 'ACTIVE' };
 const next = patch => Array.from(h.webOrderNextStatuses({ ...order, ...patch }));
+check('customer progress uses only current safe warehouse projection', () => {
+  assert.equal(customerWarehouse.customerWarehouseLabel({stage:'SHIPPED',asOf:'2026-10-28T09:00:00Z',isCurrent:true}), 'Отгружен');
+  assert.equal(customerWarehouse.customerWarehouseLabel({stage:'NEEDS_ATTENTION',isCurrent:true}), 'Уточняем заказ');
+  for (const value of [null,{stage:'SHIPPED',isCurrent:false},{stage:'PRIVATE_INTERNAL_ERROR',isCurrent:true}]) assert.equal(customerWarehouse.customerWarehouseLabel(value), 'Статус склада уточняется');
+  assert.equal(customerWarehouse.customerWarehouseAsOf({stage:null,asOf:'2026-10-28T09:00:00Z',isCurrent:false}), '');
+  assert.equal(customerWarehouse.customerWarehouseApplies({requiresWarehouse:false,items:[{}]}),false);
+});
+check('unknown 1C availability is distinct from confirmed zero and blocks existing carts', () => {
+  for (const variant of [{available:999},{availabilityStatus:'UNAVAILABLE',available:999}]) { assert.equal(availability.confirmedOneCAvailable(variant),null);assert.equal(availability.confirmedAvailabilityLabel(variant),'Остатки 1С уточняются');assert.ok(availability.cartAvailabilityProblem([{variant,quantity:1}])); }
+  assert.equal(availability.confirmedAvailabilityLabel({availabilityStatus:'CURRENT',available:0}),'Нет в наличии');
+  assert.equal(availability.cartAvailabilityProblem([{variant:{availabilityStatus:'CURRENT',available:2},quantity:2}]),'');
+  assert.ok(availability.cartAvailabilityProblem([{variant:{availabilityStatus:'CURRENT',available:2},quantity:3}]));
+});
 check('marketplace overview and legacy dashboard render the same section', () => {
   for (const section of ['overview', 'dashboard', undefined, 'unknown']) assert.equal(marketplaceWorkspaceSection(section), 'dashboard');
   for (const section of ['settings', 'integrations']) assert.equal(marketplaceWorkspaceSection(section), 'integrations');
@@ -32,15 +47,16 @@ check('terminal and released orders have no direct status actions', () => {
   assert.deepEqual(next({ reservationState: 'RELEASED' }), []);
 });
 check('unpaid orders cannot be marked paid or shipped by list position', () => {
-  assert.deepEqual(next({}), ['CONFIRMED', 'CANCELLED']);
-  assert.deepEqual(next({ status: 'CONFIRMED' }), ['CANCELLED']);
-  assert.deepEqual(next({ status: 'PAYMENT_WAITING' }), ['CANCELLED']);
+  assert.deepEqual(next({}), ['CONFIRMED']);
+  assert.deepEqual(next({ status: 'CONFIRMED' }), []);
+  assert.deepEqual(next({ status: 'PAYMENT_WAITING' }), []);
   assert.deepEqual(next({ status: 'ASSEMBLING' }), []);
+  assert.deepEqual(next({ reservationState: 'LEGACY' }), ['CONFIRMED', 'CANCELLED']);
+  for (const state of [{ execution: {} }, { warehouseExecution: {} }, { isSynced1C: true }, { items: [{ productType: 'PHYSICAL' }] }]) assert.deepEqual(next({ reservationState: 'LEGACY', ...state }), ['CONFIRMED']);
 });
-check('verified physical payment enables fulfillment in order', () => {
-  for (const [status, target] of [['PAID', 'ASSEMBLING'], ['ASSEMBLING', 'SHIPPED'], ['SHIPPED', 'DELIVERED']]) {
-    assert.deepEqual(next({ status, paymentStatus: 'SUCCEEDED' }), [target]);
-  }
+check('physical warehouse operations are never offered as manual statuses', () => {
+  for (const status of ['PAID', 'ASSEMBLING', 'SHIPPED']) assert.deepEqual(next({ status, paymentStatus: 'SUCCEEDED' }), []);
+  assert.deepEqual(next({ status: 'SHIPPED', paymentStatus: 'SUCCEEDED', reservationState: 'CONSUMED' }), [], 'Shipment alone is not delivery');
 });
 check('digital paid orders bypass physical shipping', () => {
   assert.deepEqual(next({ status: 'PAID', paymentStatus: 'SUCCEEDED', reservationState: 'DIGITAL' }), ['DELIVERED']);

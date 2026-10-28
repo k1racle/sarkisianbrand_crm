@@ -3,10 +3,11 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const { stripTypeScriptTypes } = require('node:module');
 const vue = require('vue');
 function setup() {
-  const state = new Map(), requests = [];
-  const session = { user:vue.ref({ id:'fake-a' }), token:vue.ref('not-a-jwt-a') };
+  const state = vue.reactive({}), requests = [], app = {};
+  const session = { user:vue.ref({ id:'fake-a' }), token:vue.ref('not-a-jwt-a'), refreshToken:vue.ref(''), generation:vue.ref(0), request:() => new Promise((resolve, reject) => requests.push({ resolve, reject })) };
   const ctx = { computed:vue.computed, watch:vue.watch, useWorkspaceSession:() => session, useRuntimeConfig:() => ({ public:{ apiBase:'http://invalid.test' } }),
-    useState:(key, init) => { if (!state.has(key)) state.set(key, vue.ref(init())); return state.get(key); },
+    useNuxtApp:() => app,
+    useState:(key, init) => { if (!(key in state)) state[key] = init(); return vue.toRef(state, key); },
     $fetch:() => new Promise((resolve, reject) => requests.push({ resolve, reject })),
   };
   const source = stripTypeScriptTypes(fs.readFileSync(path.resolve(__dirname, '../composables/useWorkspaceAccess.ts'), 'utf8')).replace(/^export /gm, '');
@@ -37,7 +38,7 @@ async function main() {
   f.requests[1].resolve({ permissions:['crm.read','partners.payouts','payment_calendar.read'] });
   await Promise.all([refresh, waiting]); assert.ok(f.access.can('partners.payouts'));
   assert.equal(f.access.can('payment_calendar.read'),true,'Verified financial grant is respected');
-  f.session.user.value = { id:'fake-b' }; f.session.token.value = 'not-a-jwt-b';
+  f.session.generation.value++; f.session.user.value = { id:'fake-b' }; f.session.token.value = 'not-a-jwt-b';
   assert.ok(!f.access.ready.value, 'Old identity permissions do not become current');
   for (const permission of protectedPermissions) assert.equal(f.access.can(permission),false,`New identity never inherits ${permission}`);
   const changed = f.access.ensure(); f.requests[2].resolve({ permissions:[] }); await changed;
@@ -50,11 +51,11 @@ async function main() {
   assert.equal(f.access.can('work_schedule.read'),false,'Failed access check hides schedules');
   const retry = f.access.ensure(); f.requests[4].resolve({ permissions:[] }); await retry;
   assert.ok(f.access.ready.value); assert.equal(f.access.error.value, '');
-  f.session.token.value = ''; await f.access.ensure(); assert.equal(f.requests.length, 5);
+  f.session.generation.value++; f.session.token.value = ''; await f.access.ensure(); assert.equal(f.requests.length, 5);
   for (const permission of protectedPermissions) assert.equal(f.access.can(permission),false,`Logout rejects ${permission}`);
   const race = setup();
   const old = race.access.ensure();
-  race.session.user.value = { id:'replacement' }; race.session.token.value = 'replacement-token';
+  race.session.generation.value++; race.session.user.value = { id:'replacement' }; race.session.token.value = 'replacement-token';
   const replacement = race.access.ensure();
   race.requests[1].resolve({permissions:[]}); await replacement;
   race.requests[0].resolve({permissions:['crm.write']}); await old;

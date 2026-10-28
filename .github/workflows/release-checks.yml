@@ -1,0 +1,192 @@
+name: Release checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      warehouse-fixture:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: warehouse_fixture
+          POSTGRES_PASSWORD: warehouse_fixture_only
+          POSTGRES_DB: warehouse_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U warehouse_fixture -d warehouse_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      wb-fixture:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: wb_fixture
+          POSTGRES_PASSWORD: wb_fixture_only
+          POSTGRES_DB: wb_fixture
+        ports:
+          - 55433:5432
+        options: >-
+          --health-cmd "pg_isready -U wb_fixture -d wb_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      salon-fixture:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: salon_fixture
+          POSTGRES_PASSWORD: salon_fixture_only
+          POSTGRES_DB: salon_fixture
+        ports:
+          - 55434:5432
+        options: >-
+          --health-cmd "pg_isready -U salon_fixture -d salon_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.3
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: backend
+      - run: npx prisma generate && npm run build
+        working-directory: backend
+      - name: Prepare isolated 1C, Wildberries and salon test databases
+        working-directory: backend
+        run: |
+          DATABASE_URL='postgresql://warehouse_fixture:warehouse_fixture_only@127.0.0.1:55432/warehouse_test?schema=public' npx prisma migrate deploy
+          DATABASE_URL='postgresql://wb_fixture:wb_fixture_only@127.0.0.1:55433/wb_fixture?schema=public' npx prisma migrate deploy
+          DATABASE_URL='postgresql://salon_fixture:salon_fixture_only@127.0.0.1:55434/salon_fixture?schema=public' npx prisma migrate deploy
+      - run: npm test -- --runInBand --silent
+        working-directory: backend
+        env:
+          WAREHOUSE_TEST_DATABASE_URL: postgresql://warehouse_fixture:warehouse_fixture_only@127.0.0.1:55432/warehouse_test?schema=public
+          WB_FBS_TEST_DATABASE_URL: postgresql://wb_fixture:wb_fixture_only@127.0.0.1:55433/wb_fixture?schema=public
+          SALON_MANAGEMENT_TEST_DATABASE_URL: postgresql://salon_fixture:salon_fixture_only@127.0.0.1:55434/salon_fixture?schema=public
+      - run: node scripts/dependency-security-check.cjs
+        working-directory: backend
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run prebuild && npm run check:ui-css && npm run check:workspace-routes
+        working-directory: frontend
+      - run: npm run check:crm-design
+        working-directory: frontend
+      - run: node scripts/workspace-session-check.cjs && node scripts/b2b-session-check.cjs && node scripts/crm-chat-session-check.cjs && node scripts/salon-calendar-period-check.cjs && node scripts/workspace-operations-check.cjs
+        working-directory: frontend
+      - run: node scripts/dependency-audit.cjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: dependency-audit
+          path: |
+            .screenshots/release-backend-audit-current.json
+            .screenshots/release-frontend-audit-current.json
+          if-no-files-found: ignore
+          retention-days: 14
+  interface:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.3
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - name: Check rendered interfaces with isolated API fixtures
+        working-directory: frontend
+        env:
+          HOST: 127.0.0.1
+          PORT: 3001
+        run: |
+          mkdir -p ../.screenshots
+          node .output/server/index.mjs > ../.screenshots/design-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          node --input-type=module <<'NODE'
+          import { setTimeout } from 'node:timers/promises';
+          let ready = false;
+          for (let attempt = 0; attempt < 45; attempt++) {
+            try { if ((await fetch('http://127.0.0.1:3001/__health')).ok) { ready = true; break; } } catch {}
+            await setTimeout(1000);
+          }
+          if (!ready) throw new Error('Built frontend did not become ready');
+          NODE
+          npm run smoke:workspace-design
+          npm run smoke:crm-unified
+          npm run smoke:crm-density
+          npm run smoke:crm-comfort-shared
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/marketplace-exchange-ui.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/b2b-orders-pagination-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/helpdesk-email-ui.cjs
+          SALON_MANAGEMENT_TEST_ORIGIN=http://127.0.0.1:3001 node scripts/salon-booking-management-mock.cjs
+          WORKSPACE_DESIGN_BATCH=ci-unified node scripts/workspace-design-review.cjs --crm-all --after
+          npx playwright test salon-booking.spec.cjs salon-subscription.spec.cjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: interface-acceptance
+          path: |
+            frontend/.screenshots/workspace-controls-after
+            frontend/.screenshots/business-workspace-design
+            frontend/.screenshots/crm-partner-design
+            frontend/.screenshots/salon-booking-experience
+            frontend/.screenshots/crm-workspace
+            frontend/.screenshots/crm-day-workspace
+            frontend/.screenshots/crm-day-widgets
+            frontend/.screenshots/crm-customer-workspace
+            frontend/.screenshots/crm-order-workspace
+            frontend/.screenshots/crm-elements
+            frontend/.screenshots/crm-operational-workspace
+            frontend/.screenshots/crm-management-workspace
+            frontend/.screenshots/crm-comfort-shell
+            frontend/.screenshots/marketplace-exchange-1440-light.png
+            frontend/.screenshots/marketplace-exchange-390-dark.png
+            frontend/.screenshots/workspace-design-ci-unified-all-after
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+  packaging:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.3
+      - run: node scripts/release-smoke.cjs --build
+      - run: node scripts/production-tools-check.cjs
+      - name: Validate Portainer and Nginx Proxy Manager route
+        run: |
+          docker build -f deploy/Dockerfile.portainer-gateway -t codex-portainer-gateway-check:local .
+          node scripts/portainer-proxy-check.cjs
+          node scripts/portainer-stack-check.cjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: production-packaging-acceptance
+          path: .screenshots/release-packaging.json
+          if-no-files-found: ignore
+          retention-days: 14

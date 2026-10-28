@@ -1,12 +1,19 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, TicketPriority, TicketSource, TicketStatus } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { isEmail } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrmReadAccess } from '../crm/read-access';
 import { OperationalContext, withOperationalAccess } from '../common/operational-access';
 import { CreateHelpdeskCommentDto, CreateHelpdeskTicketDto, PublicHelpdeskTicketDto, UpdateHelpdeskTicketDto } from './dto/helpdesk.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const person = { id: true, firstName: true, lastName: true, email: true } as const;
+const mailKey = (commentId: string) => createHash('sha256').update(`helpdesk-reply:${commentId}`).digest('hex');
+function commentIdFor(actor: string, ticketId: string, requestKey: string) {
+  const hash = createHash('sha256').update(JSON.stringify(['helpdesk-reply:v1', actor, ticketId, requestKey.toLowerCase()])).digest('hex');
+  return `${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
+}
 const ticketSelect = {
   id: true, number: true, subject: true, description: true, source: true, status: true, priority: true, queue: true,
   requesterUserId: true, requesterUser: { select: person }, requesterName: true, requesterEmail: true,
@@ -18,7 +25,7 @@ const ticketSelect = {
 
 @Injectable()
 export class HelpdeskService {
-  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess, @Optional() private readonly notifications?: NotificationsService) {}
   private run<T>(actor: string, write: boolean, action: (ctx: OperationalContext) => Promise<T>) {
     return withOperationalAccess(this.prisma, this.access, actor, 'helpdesk', write, action);
   }
@@ -28,7 +35,8 @@ export class HelpdeskService {
   private async views(ctx: OperationalContext, rows: any[]) {
     if (!rows.length) return [];
     const ids = (field: string) => [...new Set<string>(rows.map(row => row[field]).filter(Boolean))];
-    const [customers, organizations, orders, writable] = await Promise.all([
+    const commentIds = [...new Set<string>(rows.flatMap(row => (row.comments || []).map((comment: any) => comment.id)))];
+    const [customers, organizations, orders, writable, delivery] = await Promise.all([
       ctx.db.customer.findMany({ where: { AND: [ctx.visible.customers, { id: { in: ids('customerId') } }] }, select: { id: true, firstName: true, lastName: true, email: true, phone: true, segment: true } }),
       ctx.db.organization.findMany({ where: { AND: [ctx.visible.organizations, { id: { in: ids('organizationId') } }] }, select: { id: true, name: true, inn: true } }),
       ctx.db.order.findMany({ where: { AND: [ctx.visible.orders, { id: { in: ids('orderId') } }] }, select: { id: true, orderNumber: true } }),
@@ -36,11 +44,13 @@ export class HelpdeskService {
         const write = ctx.write || await this.access.resolve(ctx.db, ctx.read.actorId, 'helpdesk.write');
         return ctx.db.helpdeskTicket.findMany({ where: { AND: [ctx.visible.tickets, write.tickets('helpdesk.write'), { id: { in: ids('id') } }] }, select: { id: true } });
       })() : [] as { id: string }[],
+      commentIds.length ? ctx.db.mailOutbox.findMany({ where: { dedupeKey: { in: commentIds.map(mailKey) }, kind: 'HELPDESK_REPLY' }, select: { dedupeKey: true, status: true, sentAt: true } }) : [],
     ]);
+    const deliveries = delivery as { dedupeKey: string; status: string; sentAt: Date | null }[];
     const byId = (items: any[], id: string) => items.find(item => item.id === id) || null;
     return rows.map(row => {
       const customer = byId(customers, row.customerId), organization = byId(organizations, row.organizationId), order = byId(orders, row.orderId);
-      return { ...row, customer, organization, order, customerId: customer?.id || null, organizationId: organization?.id || null, orderId: order?.id || null,
+      return { ...row, comments: (row.comments || []).map((comment: any) => { const mail = deliveries.find(item => item.dedupeKey === mailKey(comment.id)); return { ...comment, emailDelivery: mail ? { status: mail.status, sentAt: mail.sentAt } : null }; }), customer, organization, order, customerId: customer?.id || null, organizationId: organization?.id || null, orderId: order?.id || null,
         organizationRef: row.organizationId && !organization ? null : row.organizationRef, canWrite: writable.some(item => item.id === row.id) };
     });
   }
@@ -119,11 +129,32 @@ export class HelpdeskService {
     return result;
   }); }
   addComment(actor: string, id: string, dto: CreateHelpdeskCommentDto) { return this.run(actor, true, async ctx => {
-    await this.card(ctx, id);
+    await ctx.db.$queryRaw`SELECT id FROM "HelpdeskTicket" WHERE id = ${id} FOR UPDATE`;
+    const ticket = await this.card(ctx, id);
     if (!dto.body.trim()) throw new BadRequestException('Введите комментарий');
-    const comment = await ctx.db.helpdeskComment.create({ data: { ticketId: id, authorId: actor, body: dto.body.trim(), isInternal: dto.isInternal || false }, select: { id: true, body: true, isInternal: true, createdAt: true, author: { select: person } } });
+    if (dto.sendEmail && (dto.isInternal || !dto.requestKey)) throw new BadRequestException('Для письма клиенту нужен отдельный запрос; внутренний комментарий отправить нельзя');
+    const recipient = ticket.requesterEmail?.trim().toLowerCase();
+    if (dto.sendEmail && (!recipient || !isEmail(recipient))) throw new BadRequestException('В заявке нет корректного email получателя');
+    const commentId = dto.requestKey ? commentIdFor(actor, id, dto.requestKey) : randomUUID();
+    if (dto.requestKey) {
+      const previous = await ctx.db.helpdeskComment.findUnique({ where: { id: commentId }, select: { id: true, ticketId: true, authorId: true, body: true, isInternal: true, createdAt: true, author: { select: person } } });
+      if (previous) {
+        const mail = await ctx.db.mailOutbox.findUnique({ where: { dedupeKey: mailKey(commentId) }, select: { status: true, sentAt: true } });
+        if (previous.ticketId !== id || previous.authorId !== actor || previous.body !== dto.body.trim() || previous.isInternal !== Boolean(dto.isInternal) || Boolean(mail) !== Boolean(dto.sendEmail)) throw new ConflictException('Этот запрос уже использован с другим содержимым');
+        const { ticketId: _ticketId, authorId: _authorId, ...safe } = previous;
+        return { ...safe, emailDelivery: mail || null };
+      }
+    }
+    const comment = await ctx.db.helpdeskComment.create({ data: { id: commentId, ticketId: id, authorId: actor, body: dto.body.trim(), isInternal: dto.isInternal || false }, select: { id: true, body: true, isInternal: true, createdAt: true, author: { select: person } } });
+    let emailDelivery: { status: string; sentAt: Date | null } | null = null;
+    if (dto.sendEmail) {
+      if (!this.notifications) throw new BadRequestException('Очередь писем недоступна');
+      const data = this.notifications.prepare({ kind: 'HELPDESK_REPLY', recipient, subject: `Ответ на обращение ${ticket.number}`, text: dto.body.trim(), dedupeKey: `helpdesk-reply:${comment.id}`, helpdeskCommentId: comment.id, helpdeskTicketId: id });
+      const mail = await ctx.db.mailOutbox.create({ data, select: { status: true, sentAt: true } });
+      emailDelivery = mail;
+    }
     await this.audit(ctx, id, 'Добавлен комментарий');
-    return comment;
+    return { ...comment, emailDelivery };
   }); }
   agents(actor: string) { return this.run(actor, false, async ctx => {
     if (!ctx.read.allowed('helpdesk.write')) return [];

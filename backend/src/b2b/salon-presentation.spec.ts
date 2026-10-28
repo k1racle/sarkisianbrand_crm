@@ -9,7 +9,8 @@ import { publicPresentation, presentationSelect } from './salon-presentation';
 describe('Salon identity — local fixtures, no providers or database writes',()=>{
  const value={displayName:'Салон',address:'Москва',phones:['+7 999 1234567'],emails:['salon@example.ru'],socialLinks:[{label:'VK',url:'https://vk.com/salon'}]};
  function fixture(role='OWNER'){
-  const db:any={organizationMember:{findFirst:jest.fn().mockResolvedValue({organizationId:'org',role})},salonPresentation:{findUnique:jest.fn().mockResolvedValue(null),upsert:jest.fn(async({create,update}:any)=>({...create,...update})),updateMany:jest.fn().mockResolvedValue({count:1})}};
+  const db:any={organizationMember:{findFirst:jest.fn().mockResolvedValue({organizationId:'org',role}),findMany:jest.fn()},salonPresentation:{findUnique:jest.fn().mockResolvedValue(null),upsert:jest.fn(async({create,update}:any)=>({...create,...update})),updateMany:jest.fn().mockResolvedValue({count:1})}};
+  db.organizationMember.findMany.mockImplementation(async()=>[await db.organizationMember.findFirst()]);
   return {db,service:new SalonBookingService(db)};
  }
  it('uses presentation defaults and never exposes image bytes',async()=>{
@@ -36,9 +37,18 @@ describe('Salon identity — local fixtures, no providers or database writes',()
  it('creates a new logo revision without altering contact settings',async()=>{
   const f=fixture();const result=await f.service.uploadLogo('user',{buffer:Buffer.from([137,80,78,71,13,10,26,10]),mimetype:'image/png',size:8});expect(result.logoUrl).toMatch(/^\/api\/v1\/salon-booking\/org\/logo\?v=/);expect(f.db.salonPresentation.upsert.mock.calls[0][0].update).not.toHaveProperty('displayName');expect(result).not.toHaveProperty('logoBytes');
  });
+ it.each(['','application/octet-stream'])('accepts a missing or generic browser MIME %p using the actual image header',async mimetype=>{
+  const f=fixture();await f.service.uploadLogo('user',{buffer:Buffer.from([137,80,78,71,13,10,26,10]),mimetype,size:8});
+  expect(f.db.salonPresentation.upsert.mock.calls[0][0].update.logoMime).toBe('image/png');
+ });
+ it('rejects a mismatching declared MIME and checks actual bytes against the size limit',async()=>{
+  const f=fixture();await expect(f.service.uploadLogo('user',{buffer:Buffer.from([137,80,78,71,13,10,26,10]),mimetype:'image/jpeg',size:8})).rejects.toThrow(BadRequestException);
+  await expect(f.service.uploadLogo('user',{buffer:Buffer.alloc(3*1024*1024+1),mimetype:'image/png',size:8})).rejects.toThrow(BadRequestException);
+  expect(f.db.salonPresentation.upsert).not.toHaveBeenCalled();
+ });
  it('requires the current revision to serve an image',async()=>{const f=fixture();f.db.salonPresentation.findUnique.mockResolvedValue({logoBytes:Buffer.from('image'),logoMime:'image/png',logoVersion:'new'});await expect(f.service.logo('org','old')).rejects.toThrow(NotFoundException);await expect(f.service.logo('org','new')).resolves.toMatchObject({mime:'image/png'});});
  it('allows only the owner to update permitted company fields',async()=>{
-  const db:any={organizationMember:{findFirst:jest.fn().mockResolvedValue({organizationId:'org',role:'OWNER'})},organization:{update:jest.fn().mockResolvedValue({name:'Company'})}};const service=new B2BService(db,{} as any,{} as any),dto={name:' Company ',legalName:'Legal',legalAddress:'Address'};
+  const db:any={organizationMember:{findFirst:jest.fn().mockResolvedValue({organizationId:'org',role:'OWNER'}),findMany:jest.fn()},organization:{update:jest.fn().mockResolvedValue({name:'Company'})}};db.organizationMember.findMany.mockImplementation(async()=>[await db.organizationMember.findFirst()]);const service=new B2BService(db,{} as any,{} as any),dto={name:' Company ',legalName:'Legal',legalAddress:'Address'};
   await service.saveCompanySettings('user',{...dto,discountTier:100,status:'ACTIVE'} as any);expect(db.organization.update.mock.calls[0][0]).toEqual({where:{id:'org'},data:{name:'Company',legalName:'Legal',legalAddress:'Address'},select:{name:true,legalName:true,legalAddress:true}});
   db.organizationMember.findFirst.mockResolvedValue({organizationId:'org',role:'BUYER'});await expect(service.saveCompanySettings('user',dto)).rejects.toThrow(ForbiddenException);
   const violations=await validate(plainToInstance(BusinessCompanySettingDto,{...dto,creditLimit:100}),{whitelist:true,forbidNonWhitelisted:true});expect(violations.length).toBeGreaterThan(0);

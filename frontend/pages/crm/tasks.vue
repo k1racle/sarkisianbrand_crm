@@ -24,7 +24,7 @@ import {
 const config = useRuntimeConfig(),
   route = useRoute();
 const router = useRouter();
-const { token } = useWorkspaceSession();
+const { token, user } = useWorkspaceSession();
 const { openContextMenu } = useContextMenu();
 const tasks = ref<any[]>([]),
   team = ref<any[]>([]),
@@ -44,6 +44,7 @@ const error = ref("");
 const selectedBaseline = ref("");
 const cardTab = ref('general');
 const {panel:taskPanel,keyboard:taskKeys}=useCatalogDialog(computed(()=>!!selected.value),()=>{closeTask(true);});
+const {panel:createPanel,keyboard:createKeys}=useCatalogDialog(computed(()=>dialog.value),closeCreate);
 const createBaseline = ref("");
 const subtaskTitle = ref(''), subtaskAssignee = ref(''), attachmentBusy = ref(false), commentLoading = ref(false);
 const { can } = useWorkspaceAccess();
@@ -126,8 +127,16 @@ const priorityLabels: any = {
   HIGH: "Высокий",
   CRITICAL: "Критичный",
 };
+const taskSavedView = ref('all');
+function matchesTaskView(task:any, view=taskSavedView.value) {
+  if(view==='mine')return Boolean(user.value?.id) && (task.assignedToId===user.value?.id || (task.participants || []).some((p:any)=>(p.userId || p.user?.id)===user.value?.id));
+  if(view==='overdue')return !['DONE','CANCELLED'].includes(task.status) && Boolean(task.dueDate) && new Date(task.dueDate).getTime()<Date.now();
+  return true;
+}
+const taskSavedViews = computed(()=>[{id:'all',label:'Все задачи',count:tasks.value.length},{id:'mine',label:'Мои задачи',count:tasks.value.filter(t=>matchesTaskView(t,'mine')).length},{id:'overdue',label:'Просроченные',count:tasks.value.filter(t=>matchesTaskView(t,'overdue')).length}]);
+function resetTaskSearch(){search.value='';taskSavedView.value='all';}
 const filtered = computed(() =>
-  tasks.value.filter(
+  tasks.value.filter(task => matchesTaskView(task)).filter(
     (t) =>
       !search.value ||
       `${t.title} ${t.description || ""} ${person(t.assignedTo)} ${t.assignedTo?.email || ""} ${(t.participants || []).map((row: any) => person(row.user)).join(' ')}`
@@ -501,7 +510,7 @@ onMounted(async () => {
 });
 </script>
 <template>
-  <main data-v-ui-acc13851dfa0 class="tasks-page crm-standard">
+  <main data-v-ui-acc13851dfa0 class="tasks-page crm-standard crm-operational-page crm-ops-tasks">
     <div data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }} <button class="crm-button" data-v-ui-acc13851dfa0 v-if="!selected && !dialog" :disabled="loading || saving" @click="load">Повторить загрузку</button></div>
     <WorkspaceLoading
       v-if="loading"
@@ -509,9 +518,7 @@ onMounted(async () => {
     /><template v-else
       ><header data-v-ui-acc13851dfa0 class="page-head crm-page-header">
         <div data-v-ui-acc13851dfa0>
-          <p data-v-ui-acc13851dfa0>CRM / ЗАДАЧИ</p>
           <h1 data-v-ui-acc13851dfa0>Задачи</h1>
-          <span data-v-ui-acc13851dfa0>Канбан, сроки, загрузка и контроль выполнения</span>
         </div>
         <div data-v-ui-acc13851dfa0>
           <button v-if="writable" data-v-ui-acc13851dfa0 class="light crm-button" @click="automationOpen = true">
@@ -524,8 +531,10 @@ onMounted(async () => {
           </button>
         </div>
       </header>
+      <nav class="crm-ops-views" aria-label="Представления задач"><button v-for="item in taskSavedViews" :key="item.id" class="crm-button crm-button--quiet" :aria-pressed="taskSavedView===item.id" @click="taskSavedView=item.id">{{ item.label }}<span>{{ item.count }}</span></button></nav>
+      <div class="crm-task-controls">
       <section class="crm-toolbar crm-task-pipeline-toolbar" aria-label="Воронки задач">
-        <label class="crm-field">Воронка задач<select aria-label="Воронка задач" class="crm-input" :value="pipelineId" :disabled="saving" @change="changePipeline"><option v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">{{ pipeline.name }}{{ pipeline.department ? ` · ${pipeline.department.name}` : '' }}</option></select></label>
+        <label class="crm-field"><span class="wn-sr-only">Воронка задач</span><select aria-label="Воронка задач" class="crm-input" :value="pipelineId" :disabled="saving" @change="changePipeline"><option v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">{{ pipeline.name }}{{ pipeline.department ? ` · ${pipeline.department.name}` : '' }}</option></select></label>
         <button v-if="canManagePipelines" class="crm-button" :disabled="saving" @click="editPipeline()">Настроить статусы</button>
         <button v-if="canManagePipelines" class="crm-button" :disabled="saving" @click="editPipeline(true)"><Plus :size="16" />Новая воронка</button>
       </section>
@@ -545,14 +554,17 @@ onMounted(async () => {
               { id: 'calendar', l: 'Календарь', i: CalendarDays },
               { id: 'list', l: 'Список', i: List },
             ]"
-            :class="{ active: view === v.id }"
+            :class="{ active: view === v.id }" :aria-pressed="view === v.id"
             @click="view = v.id"
           >
             <component data-v-ui-acc13851dfa0 :is="v.i" :size="14" />{{ v.l }}
           </button>
         </nav>
       </section>
-      <section data-v-ui-acc13851dfa0 v-if="view === 'kanban'" class="kanban crm-board">
+      </div>
+      <div v-if="!error" class="crm-ops-result"><span role="status">Найдено задач: {{ filtered.length }}</span><button v-if="search || taskSavedView!=='all'" class="crm-button crm-button--text" @click="resetTaskSearch">Сбросить фильтры</button></div>
+      <section v-if="!error && !filtered.length" class="crm-ops-empty" aria-label="Нет подходящих задач"><ListChecks :size="28" /><h2>{{ search || taskSavedView!=='all'?'Задачи не найдены':'Запланируйте работу команды' }}</h2><p>{{ search || taskSavedView!=='all'?'Измените запрос или выберите другое представление.':'Создайте задачу, назначьте ответственного и укажите срок.' }}</p><button v-if="search || taskSavedView!=='all'" class="crm-button" @click="resetTaskSearch">Показать все задачи</button><button v-else-if="writable" class="crm-button crm-button--primary" @click="openCreate()">Создать задачу</button></section>
+      <section data-v-ui-acc13851dfa0 v-if="view === 'kanban'" v-show="!error" class="kanban crm-board">
         <article class="crm-board-column crm-surface" data-v-ui-acc13851dfa0
           v-for="col in columns"
           :key="col.id"
@@ -571,7 +583,7 @@ onMounted(async () => {
             <div data-v-ui-acc13851dfa0
               v-for="t in boardTasks.filter((t) => t.status === col.id)"
               :key="t.id"
-              class="task-card crm-item-card"
+              class="task-card crm-item-card crm-card-action"
               :class="{ 'crm-card-lifted': cardDrag.active.value === t.id }"
               :draggable="!saving && writable"
               :data-crm-card="t.id"
@@ -616,7 +628,7 @@ onMounted(async () => {
           </div>
         </article>
       </section>
-      <section data-v-ui-acc13851dfa0 v-else-if="view === 'gantt'" class="gantt panel crm-surface">
+      <section data-v-ui-acc13851dfa0 v-else-if="view === 'gantt'" v-show="!error" class="gantt panel crm-surface">
         <header data-v-ui-acc13851dfa0>
           <span data-v-ui-acc13851dfa0>Задача и ответственный</span
           ><b data-v-ui-acc13851dfa0
@@ -624,7 +636,7 @@ onMounted(async () => {
             {{ ganttRange.end.toLocaleDateString("ru-RU") }}</b
           >
         </header>
-        <div data-v-ui-acc13851dfa0 v-for="t in filtered" class="gantt-row" @click="openTask(t)">
+        <div data-v-ui-acc13851dfa0 v-for="t in filtered" class="gantt-row crm-card-action" role="button" tabindex="0" @keydown.enter.self="openTask(t)" @keydown.space.self.prevent="openTask(t)" @click="openTask(t)">
           <span data-v-ui-acc13851dfa0
             ><strong data-v-ui-acc13851dfa0>{{ t.title }}</strong
             ><small data-v-ui-acc13851dfa0>{{ person(t.assignedTo) }}</small></span
@@ -636,11 +648,11 @@ onMounted(async () => {
           </div>
         </div>
       </section>
-      <section data-v-ui-acc13851dfa0 v-else-if="view === 'calendar'" class="calendar panel crm-surface">
+      <section data-v-ui-acc13851dfa0 v-else-if="view === 'calendar'" v-show="!error" class="calendar panel crm-surface">
         <header data-v-ui-acc13851dfa0>
-          <button class="crm-button" data-v-ui-acc13851dfa0 @click="shiftMonth(-1)"><ChevronLeft data-v-ui-acc13851dfa0 :size="16" /></button>
+          <button class="crm-button crm-button--icon" aria-label="Предыдущий месяц" data-v-ui-acc13851dfa0 @click="shiftMonth(-1)"><ChevronLeft data-v-ui-acc13851dfa0 :size="16" /></button>
           <h2 data-v-ui-acc13851dfa0>{{ monthLabel }}</h2>
-          <button class="crm-button" data-v-ui-acc13851dfa0 @click="shiftMonth(1)"><ChevronRight data-v-ui-acc13851dfa0 :size="16" /></button>
+          <button class="crm-button crm-button--icon" aria-label="Следующий месяц" data-v-ui-acc13851dfa0 @click="shiftMonth(1)"><ChevronRight data-v-ui-acc13851dfa0 :size="16" /></button>
         </header>
         <div data-v-ui-acc13851dfa0 class="week">
           <b data-v-ui-acc13851dfa0 v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']">{{ d }}</b>
@@ -657,7 +669,7 @@ onMounted(async () => {
             ><button class="crm-button" data-v-ui-acc13851dfa0
               v-for="t in day.tasks.slice(0, 3)"
               @click="openTask(t)"
-              :class="t.status.toLowerCase()"
+              :class="t.status.toLowerCase()" :title="t.title"
             >
               {{ t.title }}</button
             ><small data-v-ui-acc13851dfa0 v-if="day.tasks.length > 3"
@@ -666,14 +678,14 @@ onMounted(async () => {
           </article>
         </div>
       </section>
-      <section data-v-ui-acc13851dfa0 v-else class="list panel crm-surface">
+      <section data-v-ui-acc13851dfa0 v-else v-show="!error" class="list panel crm-surface">
         <div data-v-ui-acc13851dfa0 class="list-row head crm-table-head">
           <span data-v-ui-acc13851dfa0>Задача</span><span data-v-ui-acc13851dfa0>Ответственный</span><span data-v-ui-acc13851dfa0>Статус</span
           ><span data-v-ui-acc13851dfa0>Приоритет</span><span data-v-ui-acc13851dfa0>Срок</span><span data-v-ui-acc13851dfa0>Прогресс</span>
         </div>
         <div data-v-ui-acc13851dfa0
           v-for="t in filtered"
-          class="list-row"
+          class="list-row crm-card-action" role="button" tabindex="0" @keydown.enter.self="openTask(t)" @keydown.space.self.prevent="openTask(t)"
             @click="openTask(t)"
           @contextmenu.prevent="menu($event, t)"
         >
@@ -703,18 +715,18 @@ onMounted(async () => {
           <p data-v-ui-acc13851dfa0 v-if="dirty" role="status">Есть несохранённые изменения</p>
           <section v-show="cardTab==='general'" id="task-general-panel" role="tabpanel" aria-labelledby="task-general-tab" class="crm-card-general crm-detail-general">
           <label class="crm-field">Воронка<select v-model="selected.pipelineId" class="crm-input" :disabled="!writable || !!selected.parentId || !!selected._count?.children"><option v-for="pipeline in pipelines" :key="pipeline.id" :value="pipeline.id">{{ pipeline.name }}</option></select><small v-if="selected.parentId || selected._count?.children">Задачи с подзадачами остаются в одной воронке.</small></label>
-          <label data-v-ui-acc13851dfa0>Название<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.title" /></label
-          ><label data-v-ui-acc13851dfa0
+          <label class="crm-field" data-v-ui-acc13851dfa0>Название<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.title" /></label
+          ><label class="crm-field" data-v-ui-acc13851dfa0
             >Описание<textarea :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.description" rows="4" />
           </label>
           <div data-v-ui-acc13851dfa0 class="two">
-            <label data-v-ui-acc13851dfa0
+            <label class="crm-field" data-v-ui-acc13851dfa0
               >Статус<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.status">
                 <option data-v-ui-acc13851dfa0 v-for="c in selectedColumns" :value="c.id">
                   {{ c.label }}
                 </option>
               </select></label
-            ><label data-v-ui-acc13851dfa0
+            ><label class="crm-field" data-v-ui-acc13851dfa0
               >Приоритет<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.priority">
                 <option data-v-ui-acc13851dfa0 v-for="(l, k) in priorityLabels" :value="k">
                   {{ l }}
@@ -722,15 +734,15 @@ onMounted(async () => {
               </select></label
             >
           </div>
-          <label data-v-ui-acc13851dfa0
+          <label class="crm-field" data-v-ui-acc13851dfa0
             >Ответственный<select :disabled="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.assignedToId">
               <option data-v-ui-acc13851dfa0 v-for="u in team" :value="u.id">{{ person(u) }}</option>
             </select></label
           >
           <div data-v-ui-acc13851dfa0 class="two">
-            <label data-v-ui-acc13851dfa0
+            <label class="crm-field" data-v-ui-acc13851dfa0
               >Начало<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.startDate" type="date" /></label
-            ><label data-v-ui-acc13851dfa0>Срок<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.dueDate" type="date" /></label>
+            ><label class="crm-field" data-v-ui-acc13851dfa0>Срок<input :readonly="!writable" class="crm-input" data-v-ui-acc13851dfa0 v-model="selected.dueDate" type="date" /></label>
           </div>
           <CrmTaskParticipants :key="selected.id" :model-value="selected.participants || []" :task-id="selected.id" :writable="writable" :disabled="saving" @update:model-value="updateParticipants" @busy="attachmentBusy = $event" />
           <button v-if="selected.parent" class="crm-work-button crm-button" @click="openTask(tasks.find(t => t.id === selected.parent.id))"><CornerDownRight :size="16" />{{ selected.parent.title }}</button>
@@ -760,11 +772,10 @@ onMounted(async () => {
       </div>
     </aside>
     <div data-v-ui-acc13851dfa0 v-if="dialog" class="backdrop admin-dialog-backdrop crm-detail-backdrop" @click.self="closeCreate">
-      <form data-v-ui-acc13851dfa0 class="drawer create admin-dialog admin-dialog--drawer crm-detail-card" @submit.prevent="createTask">
+      <form data-v-ui-acc13851dfa0 ref="createPanel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="task-create-title" class="drawer create admin-dialog admin-dialog--drawer crm-detail-card" @keydown="createKeys" @submit.prevent="createTask">
         <header data-v-ui-acc13851dfa0>
           <div data-v-ui-acc13851dfa0>
-            <p data-v-ui-acc13851dfa0>НОВАЯ РАБОТА</p>
-            <h2 data-v-ui-acc13851dfa0>Создать задачу</h2>
+            <h2 data-v-ui-acc13851dfa0 id="task-create-title">Создать задачу</h2>
           </div>
           <button class="crm-button crm-button--icon" data-v-ui-acc13851dfa0 type="button" :disabled="saving" aria-label="Закрыть создание задачи" @click="closeCreate">
             <X data-v-ui-acc13851dfa0 :size="18" />
@@ -772,16 +783,16 @@ onMounted(async () => {
         </header>
         <fieldset data-v-ui-acc13851dfa0 ui-inline-i-acc13851dfa0-2 class="body fields admin-dialog-body crm-detail-body" :disabled="saving" >
           <p data-v-ui-acc13851dfa0 v-if="error" class="operation-error" role="alert">{{ error }}</p>
-          <label data-v-ui-acc13851dfa0>Название<input class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.title" required /></label
-          ><label data-v-ui-acc13851dfa0
+          <label class="crm-field" data-v-ui-acc13851dfa0>Название<input class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.title" required /></label
+          ><label class="crm-field" data-v-ui-acc13851dfa0
             >Описание<textarea class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.description" rows="4" />
           </label>
           <div data-v-ui-acc13851dfa0 class="two">
-            <label data-v-ui-acc13851dfa0
+            <label class="crm-field" data-v-ui-acc13851dfa0
               >Ответственный<select class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.assignedToId">
                 <option data-v-ui-acc13851dfa0 v-for="u in team" :value="u.id">{{ person(u) }}</option>
               </select></label
-            ><label data-v-ui-acc13851dfa0
+            ><label class="crm-field" data-v-ui-acc13851dfa0
               >Приоритет<select class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.priority">
                 <option data-v-ui-acc13851dfa0 v-for="(l, k) in priorityLabels" :value="k">
                   {{ l }}
@@ -789,7 +800,7 @@ onMounted(async () => {
               </select></label
             >
           </div>
-          <label data-v-ui-acc13851dfa0
+          <label class="crm-field" data-v-ui-acc13851dfa0
             >Связанная сделка<select class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.leadId">
               <option data-v-ui-acc13851dfa0 value="">Без сделки</option>
               <option data-v-ui-acc13851dfa0 v-for="l in leads" :value="l.id">
@@ -799,20 +810,20 @@ onMounted(async () => {
           >
           <CrmTaskParticipants v-model="draft.participants" :writable="writable" :disabled="saving" />
           <div data-v-ui-acc13851dfa0 class="two">
-            <label data-v-ui-acc13851dfa0
+            <label class="crm-field" data-v-ui-acc13851dfa0
               >Начало<input class="crm-input" data-v-ui-acc13851dfa0
                 v-model="draft.startDate"
                 type="datetime-local" /></label
-            ><label data-v-ui-acc13851dfa0
+            ><label class="crm-field" data-v-ui-acc13851dfa0
               >Срок<input class="crm-input" data-v-ui-acc13851dfa0 v-model="draft.dueDate" type="datetime-local"
             /></label>
           </div>
-          <label data-v-ui-acc13851dfa0
+          <label class="crm-field" data-v-ui-acc13851dfa0
             >Метки<input class="crm-input" data-v-ui-acc13851dfa0
               v-model="draft.labels"
               placeholder="Важно, звонок, документы"
           /></label>
-          <label data-v-ui-acc13851dfa0
+          <label class="crm-field" data-v-ui-acc13851dfa0
             >Напомнить до срока<select class="crm-input" data-v-ui-acc13851dfa0 v-model.number="draft.reminderBeforeMinutes">
               <option data-v-ui-acc13851dfa0 :value="0">В момент наступления срока</option>
               <option data-v-ui-acc13851dfa0 :value="15">За 15 минут</option>

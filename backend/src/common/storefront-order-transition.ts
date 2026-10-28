@@ -7,6 +7,17 @@ import { applyB2BStockTransition } from '../b2b/b2b-order-lifecycle';
 import { partnerOrderDelivered } from '../partners/partner-lifecycle';
 import { isOrderAdjusted, oneCClosureState } from '../1c-sync/finance-policy';
 
+/** Manual status updates must not claim a physical warehouse operation that 1С has not confirmed. */
+export function assertLocalWarehouseTransition(order: any, target: OrderStatus): void {
+  if (target === order.status || !([OrderStatus.ASSEMBLING, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.REFUNDED] as OrderStatus[]).includes(target)) return;
+  const usesOurWarehouse = ['ACTIVE', 'CONSUMED'].includes(order.reservationState) || Boolean(order.execution) || Boolean(order.fulfillmentManaged) || order.source === 'ONE_C' || (['WEB', 'B2B'].includes(order.source) && order.items?.some((item: any) => item.productType === 'PHYSICAL'));
+  const digital = order.reservationState === 'DIGITAL' || (order.items?.length > 0 && order.items.every((item: any) => item.productType === 'GIFT_CARD'));
+  if (usesOurWarehouse && !digital) {
+    if (target === OrderStatus.DELIVERED && order.status === OrderStatus.SHIPPED && order.reservationState === 'CONSUMED') return;
+    throw new ConflictException('Складская операция выполняется в 1С. Дождитесь подтверждения 1С или оформите изменение через склад.');
+  }
+}
+
 /** Order must be locked first. Releases only unspent certificate reservations,
  * using a conditional redemption claim so concurrent/replayed releases cannot
  * credit the balance or release somebody else's reservation twice.

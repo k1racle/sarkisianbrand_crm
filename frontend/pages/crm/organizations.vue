@@ -113,7 +113,7 @@ onMounted(load);
 </script>
 
 <template>
-  <main class="org-page crm-standard crm-directory crm-organizations-page">
+  <main class="org-page crm-standard crm-directory crm-organizations-page crm-operational-page crm-ops-organizations">
     <header class="crm-page-header">
       <div><h1>Организации <span v-if="pageLoaded" class="crm-org-count">{{ filteredOrganizations.length }}</span></h1><span>Компании, представители и история работы</span></div>
       <div class="crm-org-header-actions">
@@ -121,15 +121,15 @@ onMounted(load);
         <button v-if="canEdit" class="crm-button crm-button--primary crm-org-add" :disabled="actionBusy" @click="openNewOrganization"><Plus :size="18" /> Добавить организацию</button>
       </div>
     </header>
-    <p v-if="error && !selected" class="operation-error" role="alert">{{ error }}</p>
+    <p v-if="error && !selected" class="operation-error" role="alert">{{ error }} <button class="crm-button" :disabled="loading" @click="load">Повторить загрузку</button></p>
     <WorkspaceLoading v-if="loading && !pageLoaded" label="Загружаем организации" />
     <div v-else-if="pageLoaded" class="crm-page-content crm-directory-content">
       <section class="crm-surface crm-org-register" :class="{ 'is-filters-open': filtersExpanded }" aria-label="Список организаций" :aria-busy="loading">
-        <nav class="crm-org-statuses" aria-label="Статусы организаций">
-          <button v-for="filter in statusFilters" :key="filter.value" :aria-pressed="status === filter.value" @click="status = filter.value">{{ filter.label }}</button>
+        <nav class="crm-org-statuses" aria-label="Представления организаций">
+          <button class="crm-button crm-button--quiet" :aria-pressed="!assignment" @click="assignment=''">Все организации</button><button class="crm-button crm-button--quiet" :aria-pressed="assignment==='mine'" @click="assignment='mine'">Мои организации</button><button class="crm-button crm-button--quiet" :aria-pressed="assignment==='unassigned'" @click="assignment='unassigned'">Без ответственного</button>
         </nav>
         <div class="crm-org-tools">
-          <div class="crm-input-group crm-org-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск организаций" placeholder="Название или ИНН…" title="Поиск по названию, юридическому лицу или ИНН" /><button v-if="search" class="crm-directory-clear" aria-label="Очистить поиск" @click="search = ''"><X :size="16" /></button></div>
+          <div class="crm-input-group crm-org-search"><Search :size="18" aria-hidden="true" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск организаций" placeholder="Название или ИНН…" title="Поиск по названию, юридическому лицу или ИНН" /><button v-if="search" class="crm-directory-clear crm-button crm-button--icon" aria-label="Очистить поиск" @click="search = ''"><X :size="16" /></button></div>
           <button class="crm-button crm-button--icon crm-org-filter-toggle" :aria-expanded="filtersExpanded" :aria-label="'Фильтры и сортировка' + (extraFilterCount ? ': ' + extraFilterCount : '')" aria-controls="organization-status organization-owner organization-sort" @click="filtersExpanded = !filtersExpanded"><SlidersHorizontal :size="18" /><span v-if="extraFilterCount">{{ extraFilterCount }}</span></button>
           <select id="organization-status" v-model="status" class="crm-input crm-org-status-select crm-org-extra-filter" aria-label="Статус организации"><option v-for="filter in statusFilters" :key="filter.value" :value="filter.value">{{ filter.label }}</option></select>
           <select id="organization-owner" v-model="assignment" class="crm-input crm-org-extra-filter" aria-label="Ответственный менеджер"><option value="">Все ответственные</option><option value="mine">Мои организации</option><option value="unassigned">Без менеджера</option></select>
@@ -138,23 +138,23 @@ onMounted(load);
         <div v-if="hasFilters" class="crm-org-filter-summary"><span role="status">Найдено: {{ filteredOrganizations.length }}<template v-if="status"> · {{ statusFilters.find(filter => filter.value === status)?.label }}</template></span><button class="crm-button crm-button--text" @click="resetFilters"><X :size="14" /> Сбросить фильтры</button></div>
         <div v-if="filteredOrganizations.length" class="crm-org-columns" aria-hidden="true"><span>Организация</span><span>Реквизиты</span><span>Ответственный</span><span>История</span></div>
         <div class="crm-org-rows">
-          <article v-for="item in visibleOrganizations" :key="item.id" class="org-row crm-org-row" :aria-label="item.name" @click="openRow($event, item)" @contextmenu.prevent="organizationMenu($event, item)">
+          <article v-for="item in visibleOrganizations" :key="item.id" class="org-row crm-org-row crm-card-action" :aria-label="item.name" role="button" tabindex="0" @keydown.enter.self="openOrganization(item)" @keydown.space.self.prevent="openOrganization(item)" @click="openRow($event, item)" @contextmenu.prevent="organizationMenu($event, item)">
             <div class="crm-org-person">
               <span class="crm-directory-avatar crm-directory-avatar--organization" aria-hidden="true"><Building2 :size="21" /></span>
-              <div class="crm-org-stack"><button class="crm-org-name" :disabled="actionBusy" :aria-label="'Открыть организацию: ' + item.name" @click="openOrganization(item)"><strong>{{ item.name }}</strong></button><small v-if="item.legalName">{{ item.legalName }}</small><span class="crm-directory-status" :data-status="item.status">{{ statusLabels[item.status] || item.status }}</span></div>
+              <div class="crm-org-stack"><button class="crm-org-name crm-card-action" :disabled="actionBusy" :aria-label="'Открыть организацию: ' + item.name" @click="openOrganization(item)"><strong>{{ item.name }}</strong></button><small v-if="item.legalName">{{ item.legalName }}</small><span class="crm-directory-status" :data-status="item.status">{{ statusLabels[item.status] || item.status }}</span></div>
             </div>
             <div class="crm-org-stack crm-org-requisites"><span><span class="crm-org-label">ИНН</span> {{ item.inn || 'не указан' }}</span><small v-if="item.kpp">КПП {{ item.kpp }}</small></div>
             <div class="crm-org-owner">
-              <button v-if="canWriteRecord(item)" class="crm-org-assign" :disabled="actionBusy" @click="openOrganization(item, 'profile', true)"><UserRound v-if="item.accountManager" :size="16" /><UserPlus v-else :size="16" /><span>{{ item.accountManager ? managerName(item) : 'Назначить менеджера' }}</span></button>
+              <button v-if="canWriteRecord(item)" class="crm-org-assign crm-card-action" :disabled="actionBusy" @click="openOrganization(item, 'profile', true)"><UserRound v-if="item.accountManager" :size="16" /><UserPlus v-else :size="16" /><span>{{ item.accountManager ? managerName(item) : 'Назначить менеджера' }}</span></button>
               <span v-else class="crm-directory-icon-line"><UserRound :size="16" /><span>{{ managerName(item) }}</span></span>
             </div>
             <div class="crm-org-history">
-              <button class="crm-org-stat" :disabled="actionBusy" @click="openOrganization(item, 'orders')"><ShoppingBag :size="15" /><span>Заказы</span><strong>{{ item._count?.orders || 0 }}</strong></button>
-              <button class="crm-org-stat" :disabled="actionBusy" @click="openOrganization(item, 'members')"><Users :size="15" /><span>Представители</span><strong>{{ item._count?.members || 0 }}</strong></button>
+              <button class="crm-org-stat crm-card-action" :disabled="actionBusy" @click="openOrganization(item, 'orders')"><ShoppingBag :size="15" /><span>Заказы</span><strong>{{ item._count?.orders || 0 }}</strong></button>
+              <button class="crm-org-stat crm-card-action" :disabled="actionBusy" @click="openOrganization(item, 'members')"><Users :size="15" /><span>Представители</span><strong>{{ item._count?.members || 0 }}</strong></button>
             </div>
           </article>
         </div>
-        <div v-if="!filteredOrganizations.length && !loading" class="crm-directory-empty">
+        <div v-if="!filteredOrganizations.length && !loading && !error" class="crm-directory-empty">
           <Search v-if="hasFilters" :size="28" /><Building2 v-else :size="28" />
           <strong>{{ hasFilters ? 'Организации не найдены' : 'Добавьте первую организацию' }}</strong>
           <p>{{ hasFilters ? 'Измените поисковый запрос или сбросьте фильтры.' : 'Реквизиты, представители и заказы компании будут собраны в одной карточке.' }}</p>
@@ -172,24 +172,24 @@ onMounted(load);
       <div v-if="selected" class="crm-detail-backdrop admin-dialog-backdrop" @click.self="closeEditor">
         <section ref="entityPanel" class="admin-dialog admin-dialog--drawer crm-detail-card crm-org-dialog" role="dialog" aria-modal="true" aria-labelledby="organization-card-title" tabindex="-1" @keydown="entityKeys">
           <header><div><p class="eyebrow">{{ creating ? 'Клиентская база' : 'Карточка организации' }}</p><h2 id="organization-card-title">{{ creating ? 'Новая организация' : selected.name }}</h2><span v-if="!creating" class="crm-directory-status" :data-status="selected.status">{{ statusLabels[selected.status] }}</span></div><button class="crm-button crm-button--icon" :disabled="actionBusy" aria-label="Закрыть карточку" @click="closeEditor"><X :size="20" /></button></header>
-          <nav class="crm-org-card-tabs" role="tablist" aria-label="Разделы организации" @keydown="tabKeys"><button v-for="tab in organizationTabs" :id="'organization-tab-' + tab.value" :key="tab.value" role="tab" :aria-selected="organizationTab === tab.value" :tabindex="organizationTab === tab.value ? 0 : -1" :aria-controls="'organization-panel-' + tab.value" @click="organizationTab = tab.value">{{ tab.label }}</button></nav>
+          <nav class="crm-org-card-tabs" role="tablist" aria-label="Разделы организации" @keydown="tabKeys"><button class="crm-button" v-for="tab in organizationTabs" :id="'organization-tab-' + tab.value" :key="tab.value" role="tab" :aria-selected="organizationTab === tab.value" :tabindex="organizationTab === tab.value ? 0 : -1" :aria-controls="'organization-panel-' + tab.value" @click="organizationTab = tab.value">{{ tab.label }}</button></nav>
           <form id="organization-editor-form" class="crm-detail-body" @submit.prevent="saveOrganization" @invalid.capture="revealInvalid">
             <p v-if="error" class="operation-error" role="alert">{{ error }}</p>
             <section id="organization-panel-profile" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-profile" :hidden="organizationTab !== 'profile'">
               <p v-if="creating" class="crm-org-form-note">Для начала достаточно названия. Реквизиты можно заполнить позже.</p>
               <fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected">
-                <label class="crm-org-wide">Название компании<input class="crm-input" name="organizationName" v-model="selected.name" placeholder="Например, Студия красоты «Форма»" autocomplete="organization" :required="organizationTab === 'profile'" maxlength="180" /></label>
-                <label>Статус<select class="crm-input" v-model="selected.status"><option value="PROSPECT">Потенциальный клиент</option><option value="ACTIVE">Активна</option><option value="ON_HOLD">Приостановлена</option><option value="ARCHIVED">В архиве</option></select></label>
+                <label class="crm-org-wide crm-field">Название компании<input class="crm-input" name="organizationName" v-model="selected.name" placeholder="Например, Студия красоты «Форма»" autocomplete="organization" :required="organizationTab === 'profile'" maxlength="180" /></label>
+                <label class="crm-field">Статус<select class="crm-input" v-model="selected.status"><option value="PROSPECT">Потенциальный клиент</option><option value="ACTIVE">Активна</option><option value="ON_HOLD">Приостановлена</option><option value="ARCHIVED">В архиве</option></select></label>
                 <CrmAccountManagerField v-model="selected.accountManagerId" :people="managers" :current="selected.accountManager" />
               </fieldset>
-              <details class="crm-org-conditions"><summary>Коммерческие условия</summary><fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected"><label>Скидка, %<input class="crm-input" v-model.number="selected.discountTier" type="number" min="0" max="100" /></label><label>Кредитный лимит, ₽<input class="crm-input" v-model.number="selected.creditLimit" type="number" min="0" /></label></fieldset></details>
+              <details class="crm-org-conditions"><summary>Коммерческие условия</summary><fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected"><label class="crm-field">Скидка, %<input class="crm-input" v-model.number="selected.discountTier" type="number" min="0" max="100" /></label><label class="crm-field">Кредитный лимит, ₽<input class="crm-input" v-model.number="selected.creditLimit" type="number" min="0" /></label></fieldset></details>
             </section>
             <section id="organization-panel-details" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-details" :hidden="organizationTab !== 'details'">
               <fieldset class="ui-fieldset-reset crm-org-fields" :disabled="actionBusy || !canEditSelected">
-                <label class="crm-org-wide">Юридическое название<input class="crm-input" v-model="selected.legalName" placeholder="ООО «Название компании»" /></label>
-                <label>ИНН<input class="crm-input" v-model="selected.inn" inputmode="numeric" placeholder="Не указан" /></label>
-                <label>КПП<input class="crm-input" v-model="selected.kpp" inputmode="numeric" placeholder="Не указан" /></label>
-                <label class="crm-org-wide">Юридический адрес<textarea class="crm-input" v-model="selected.legalAddress" rows="3" placeholder="Индекс, город, улица, дом" /></label>
+                <label class="crm-org-wide crm-field">Юридическое название<input class="crm-input" v-model="selected.legalName" placeholder="ООО «Название компании»" /></label>
+                <label class="crm-field">ИНН<input class="crm-input" v-model="selected.inn" inputmode="numeric" placeholder="Не указан" /></label>
+                <label class="crm-field">КПП<input class="crm-input" v-model="selected.kpp" inputmode="numeric" placeholder="Не указан" /></label>
+                <label class="crm-org-wide crm-field">Юридический адрес<textarea class="crm-input" v-model="selected.legalAddress" rows="3" placeholder="Индекс, город, улица, дом" /></label>
               </fieldset>
             </section>
             <section v-if="!creating" id="organization-panel-members" class="crm-order-tab-panel" role="tabpanel" aria-labelledby="organization-tab-members" :hidden="organizationTab !== 'members'">

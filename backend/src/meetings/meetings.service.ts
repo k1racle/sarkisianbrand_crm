@@ -4,11 +4,11 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { internalWorkspaceRoles } from '../auth/workspace-role-catalog';
 import { employeeAccess } from '../auth/employee-access';
-import { CancelMeetingDto, CreateMeetingDto, MeetingFieldsDto, MeetingListDto, UpdateMeetingDto } from './meeting.dto';
+import { CancelMeetingDto, CreateMeetingDto, MeetingFieldsDto, MeetingListDto, RespondMeetingDto, UpdateMeetingDto } from './meeting.dto';
 import { canManageMeeting, companyMeetings, MeetingActor, meetingVisibility, validateMeetingTimes } from './meeting-policy';
 
 const person = { id: true, firstName: true, lastName: true, isActive: true } as const;
-const include = { organizer: { select: person }, members: { select: { user: { select: person } }, orderBy: { userId: 'asc' as const } } };
+const include = { organizer: { select: person }, members: { include: { user: { select: person } }, orderBy: { userId: 'asc' as const } } };
 type MeetingRow = Prisma.CrmMeetingGetPayload<{ include: typeof include }>;
 
 @Injectable()
@@ -28,14 +28,34 @@ export class MeetingsService {
   }
   private view(row: MeetingRow, actor: MeetingActor) {
     const { requestHash, requestKey, members, ...safe } = row;
-    return { ...safe, members: members.map(member => member.user), canManage: row.status === 'SCHEDULED' && canManageMeeting(actor, row.organizerId), videoAvailable: false };
+    const mine=members.find(member=>member.userId===actor.id), manager=canManageMeeting(actor,row.organizerId);
+    return { ...safe, members: members.map(member => ({...member.user,response:member.response,declineReason:manager||member.userId===actor.id?member.declineReason:'',respondedAt:member.respondedAt})),
+      myResponse:mine?.response??null, myDeclineReason:mine?.declineReason??'', canRespond:!!mine&&row.status==='SCHEDULED'&&row.endsAt>new Date(),
+      responses:{accepted:members.filter(m=>m.response==='ACCEPTED').length,pending:members.filter(m=>m.response==='PENDING').length,declined:members.filter(m=>m.response==='DECLINED').length},
+      canManage: row.status === 'SCHEDULED' && manager, videoAvailable: false };
+  }
+  private details(dto:MeetingFieldsDto){
+    const location=(dto.location??'').trim(),meetingUrl=(dto.meetingUrl??'').trim(),reminderMinutes=dto.reminderMinutes??30;
+    if(meetingUrl){try{const url=new URL(meetingUrl);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||/[\r\n]/.test(meetingUrl))throw new Error();}catch{throw new BadRequestException('Укажите ссылку на онлайн-встречу, начинающуюся с https:// или http://');}}
+    if(['MEETING','EVENT'].includes(dto.kind)&&!location&&!meetingUrl)throw new BadRequestException('Укажите место проведения или ссылку на онлайн-встречу');
+    return {location,meetingUrl,reminderMinutes};
+  }
+  private async notify(db:Prisma.TransactionClient,meetingId:string,kind:string,actorId:string|null,edition:string|number,recipients:string[],occurredAt=new Date()){
+    const ids=[...new Set(recipients)].filter(id=>id!==actorId);
+    if(ids.length)await db.crmNotificationEvent.createMany({data:ids.map(recipientId=>({sourceKey:`meeting:${meetingId}:${kind}:${edition}:${recipientId}`,category:'CALENDAR',kind,meetingId,actorId,recipientId,occurredAt})),skipDuplicates:true});
+  }
+  private async reminders(db:Prisma.TransactionClient,row:MeetingRow){
+    const now=new Date();
+    await db.crmNotificationEvent.deleteMany({where:{meetingId:row.id,kind:'MEETING_REMINDER',occurredAt:{gt:now}}});
+    const at=new Date(+row.startsAt-row.reminderMinutes*60000);
+    if(row.reminderMinutes>0&&at>now)await this.notify(db,row.id,'MEETING_REMINDER',null,row.version,[row.organizerId,...row.members.map(m=>m.userId)],at);
   }
   private staffWhere(actor: MeetingActor): Prisma.UserWhereInput {
     return { isActive: true, role: { in: internalWorkspaceRoles }, ...(companyMeetings(actor) ? {} : { OR: [{ id: actor.id }, ...(actor.departmentId ? [{ departmentId: actor.departmentId, department: { archivedAt: null } }] : [])] }) };
   }
   private async members(db: Prisma.TransactionClient, actor: MeetingActor, dto: MeetingFieldsDto, organizerId = actor.id) {
     const ids = [...new Set(dto.memberIds)].sort();
-    if (ids.length > 9 || ids.includes(organizerId)) throw new BadRequestException('Организатор включён автоматически; добавьте не больше 9 сотрудников');
+    if (ids.length > 199 || ids.includes(organizerId)) throw new BadRequestException('Организатор включён автоматически; добавьте не больше 199 сотрудников');
     const count = await db.user.count({ where: { AND: [this.staffWhere(actor), { id: { in: ids } }] } });
     if (count !== ids.length) throw new BadRequestException('Часть участников недоступна: выберите активных сотрудников из разрешённого отдела');
     return ids;
@@ -52,7 +72,7 @@ export class MeetingsService {
     if (!Number.isFinite(+from) || !Number.isFinite(+to) || to <= from || +to - +from > 93 * 86400000) throw new BadRequestException('Выберите период до 93 дней');
     return this.transaction(async db => {
       const actor = await this.actor(db, actorId), page = query.page || 1, limit = query.limit || 30;
-      const where: Prisma.CrmMeetingWhereInput = { AND: [meetingVisibility(actor), { startsAt: { lt: to }, endsAt: { gt: from }, ...(query.status === 'ALL' ? {} : { status: query.status === 'CANCELLED' ? 'CANCELLED' : 'SCHEDULED' }), ...(query.q?.trim() ? { title: { contains: query.q.trim(), mode: 'insensitive' } } : {}) }] };
+      const where: Prisma.CrmMeetingWhereInput = { AND: [meetingVisibility(actor), ...(query.mine==='true'?[{OR:[{organizerId:actor.id},{members:{some:{userId:actor.id}}}]}]:[]), { startsAt: { lt: to }, endsAt: { gt: from }, ...(query.status === 'ALL' ? {} : { status: query.status === 'CANCELLED' ? 'CANCELLED' : 'SCHEDULED' }), ...(query.q?.trim() ? { title: { contains: query.q.trim(), mode: 'insensitive' } } : {}) }] };
       const [items, total] = await Promise.all([db.crmMeeting.findMany({ where, include, orderBy: [{ startsAt: 'asc' }, { id: 'asc' }], take: limit, skip: (page - 1) * limit }), db.crmMeeting.count({ where })]);
       return { items: items.map(row => this.view(row, actor)), total, page, pages: Math.max(1, Math.ceil(total / limit)), canCreate: actor.permissions.has('meetings.write'), videoAvailable: false };
     });
@@ -78,19 +98,23 @@ export class MeetingsService {
     return this.transaction(async db => {
       const actor = await this.actor(db, actorId);
       if (!actor.permissions.has('meetings.write')) throw new ForbiddenException('Нет права планировать встречи');
+      const details=this.details(dto);
       await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`meeting-create:${actor.id}`}))`;
-      const hash = createHash('sha256').update(JSON.stringify({ title: dto.title.trim(), agenda: dto.agenda.trim(), kind: dto.kind, startsAt: dto.startsAt, endsAt: dto.endsAt, timezone: dto.timezone, memberIds: [...dto.memberIds].sort() })).digest('hex');
+      const hash = createHash('sha256').update(JSON.stringify({ title: dto.title.trim(), agenda: dto.agenda.trim(), kind: dto.kind, startsAt: dto.startsAt, endsAt: dto.endsAt, timezone: dto.timezone, memberIds: [...dto.memberIds].sort(),...(details.location?{location:details.location}:{}),...(details.meetingUrl?{meetingUrl:details.meetingUrl}:{}),...(details.reminderMinutes!==30?{reminderMinutes:details.reminderMinutes}:{}) })).digest('hex');
       const existing = await db.crmMeeting.findUnique({ where: { organizerId_requestKey: { organizerId: actor.id, requestKey: dto.requestKey } }, include });
       if (existing) { if (existing.requestHash !== hash) throw new ConflictException('Ключ запроса уже использован для другой встречи'); return this.view(existing, actor); }
       const times = validateMeetingTimes(dto.startsAt, dto.endsAt, dto.timezone), ids = await this.members(db, actor, dto);
-      const row = await db.crmMeeting.create({ data: { title: dto.title.trim(), agenda: dto.agenda.trim(), kind: dto.kind, ...times, timezone: dto.timezone, organizerId: actor.id, requestKey: dto.requestKey, requestHash: hash, members: { create: ids.map(userId => ({ userId })) } }, include });
+      const row = await db.crmMeeting.create({ data: { title: dto.title.trim(), agenda: dto.agenda.trim(), kind: dto.kind, ...details, ...times, timezone: dto.timezone, organizerId: actor.id, requestKey: dto.requestKey, requestHash: hash, members: { create: ids.map(userId => ({ userId })) } }, include });
       await this.audit(db, actor, row.id, 'CREATE', { version: row.version, memberIds: ids });
+      await this.notify(db,row.id,'MEETING_INVITED',actor.id,row.version,ids);
+      await this.reminders(db,row);
       return this.view(row, actor);
     });
   }
   async update(actorId: string, id: string, dto: UpdateMeetingDto) {
     return this.transaction(async db => {
       const actor = await this.actor(db, actorId), row = await this.editable(db, actor, id, dto.version);
+      const details=this.details(dto);
       const times = validateMeetingTimes(dto.startsAt, dto.endsAt, dto.timezone);
       // When an admin edits another organizer's meeting, the organizer is still automatic.
       if (dto.memberIds.includes(row.organizerId)) throw new BadRequestException('Организатор уже включён во встречу');
@@ -99,12 +123,19 @@ export class MeetingsService {
       if (moved) await this.revokeGuests(db, id);
       else {
         const reserved = await db.crmMeetingInvitation.count({ where: { meetingId: id, revokedAt: null, expiresAt: { gt: new Date() } } });
-        if (ids.length + reserved > 9) throw new BadRequestException('Всего до 10 участников, включая организатора и гостевые приглашения. Сначала отзовите лишние приглашения.');
+        if (reserved>0&&ids.length + reserved > 9) throw new BadRequestException('Гостевые приглашения по PIN рассчитаны на 10 мест. Для расширения состава сначала отзовите гостевые приглашения.');
       }
-      await db.crmMeetingMember.deleteMany({ where: { meetingId: id } });
+      const previous=await db.crmMeetingMember.findMany({where:{meetingId:id}}),oldIds=new Set(previous.map(m=>m.userId));
+      const changed=moved||row.timezone!==dto.timezone||row.title!==dto.title.trim()||row.agenda!==dto.agenda.trim()||row.kind!==dto.kind||row.location!==details.location||row.meetingUrl!==details.meetingUrl;
+      await db.crmMeetingMember.deleteMany({ where: { meetingId: id,userId:{notIn:ids} } });
+      if(changed)await db.crmMeetingMember.updateMany({where:{meetingId:id},data:{response:'PENDING',declineReason:'',respondedAt:null,responseVersion:{increment:1}}});
+      await db.crmMeetingMember.createMany({data:ids.filter(userId=>!oldIds.has(userId)).map(userId=>({meetingId:id,userId})),skipDuplicates:true});
       await this.closeMedia(db, id, 'MEETING_CHANGED');
-      const updated = await db.crmMeeting.update({ where: { id }, data: { title: dto.title.trim(), agenda: dto.agenda.trim(), kind: dto.kind, ...times, timezone: dto.timezone, version: { increment: 1 }, members: { create: ids.map(userId => ({ userId })) } }, include });
+      const updated = await db.crmMeeting.update({ where: { id }, data: { title: dto.title.trim(), agenda: dto.agenda.trim(), kind: dto.kind, ...details, ...times, timezone: dto.timezone, version: { increment: 1 },calendarSequence:{increment:1} }, include });
       await this.audit(db, actor, id, 'UPDATE', { fromVersion: row.version, version: updated.version, fields: ['title', 'agenda', 'kind', 'startsAt', 'endsAt', 'timezone', 'members'] });
+      await this.notify(db,id,'MEETING_UPDATED',actor.id,updated.version,[row.organizerId,...ids.filter(userId=>oldIds.has(userId))]);
+      await this.notify(db,id,'MEETING_INVITED',actor.id,updated.version,ids.filter(userId=>!oldIds.has(userId)));
+      await this.reminders(db,updated);
       return this.view(updated, actor);
     });
   }
@@ -113,9 +144,30 @@ export class MeetingsService {
       const actor = await this.actor(db, actorId), row = await this.editable(db, actor, id, dto.version);
       await this.revokeGuests(db, id);
       await this.closeMedia(db, id, 'MEETING_CANCELLED');
-      const updated = await db.crmMeeting.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: dto.reason.trim(), version: { increment: 1 } }, include });
+      const updated = await db.crmMeeting.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: dto.reason.trim(), version: { increment: 1 },calendarSequence:{increment:1} }, include });
       await this.audit(db, actor, id, 'CANCEL', { fromVersion: row.version, version: updated.version });
+      await db.crmNotificationEvent.deleteMany({where:{meetingId:id,kind:'MEETING_REMINDER',occurredAt:{gt:new Date()}}});
+      await this.notify(db,id,'MEETING_CANCELLED',actor.id,updated.version,[row.organizerId,...updated.members.map(m=>m.userId)]);
       return this.view(updated, actor);
+    });
+  }
+  async respond(actorId:string,id:string,dto:RespondMeetingDto){
+    return this.transaction(async db=>{
+      const actor=await this.actor(db,actorId);
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`meeting:${id}`}))`;
+      const row=await db.crmMeeting.findFirst({where:{id,members:{some:{userId:actor.id}}},include});
+      if(!row)throw new NotFoundException('Приглашение не найдено');
+      if(row.status!=='SCHEDULED'||row.endsAt<=new Date())throw new ConflictException('Событие отменено или уже завершилось');
+      if(row.version!==dto.version)throw new ConflictException('Условия события изменились. Обновите карточку перед ответом.');
+      const reason=dto.response==='DECLINED'?(dto.reason??'').trim():'';
+      if(dto.response==='DECLINED'&&!reason)throw new BadRequestException('Напишите причину, почему не сможете участвовать');
+      const current=row.members.find(m=>m.userId===actor.id)!;
+      if(current.response===dto.response&&current.declineReason===reason)return this.view(row,actor);
+      const member=await db.crmMeetingMember.update({where:{meetingId_userId:{meetingId:id,userId:actor.id}},data:{response:dto.response,declineReason:reason,respondedAt:new Date(),responseVersion:{increment:1}}});
+      const updated=await db.crmMeeting.update({where:{id},data:{calendarSequence:{increment:1}},include});
+      await this.notify(db,id,dto.response==='ACCEPTED'?'MEETING_ACCEPTED':'MEETING_DECLINED',actor.id,`${actor.id}:${member.responseVersion}`,[row.organizerId]);
+      await this.audit(db,actor,id,'RSVP',{response:dto.response,version:row.version});
+      return this.view(updated,actor);
     });
   }
   private async revokeGuests(db: Prisma.TransactionClient, meetingId: string) {

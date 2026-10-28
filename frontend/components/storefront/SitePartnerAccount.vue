@@ -8,7 +8,7 @@ const documentWorkspace=ref<any>(null),taxStatus=ref('SELF_EMPLOYED'),legalFullN
 const link=computed(()=>data.value?.participant&&import.meta.client?`${location.origin}/r/${data.value.participant.code}`:'');
 const number=(v:any)=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2});
 const sum=(unit:string,status:string)=>number(data.value?.summary?.totals?.find((v:any)=>v.unit===unit&&v.status===status)?._sum.amount);
-const statuses:Record<string,string>={INVITED:'Вы приглашены',PENDING:'На проверке',ACTIVE:'Активен',SUSPENDED:'Приостановлен',REJECTED:'Отклонено',APPROVED:'Подтверждено',REQUESTED:'Запрошено',PAID:'Выплачено',CANCELLED:'Отменено',REVERSED:'Сторнировано'};
+const statuses:Record<string,string>={INVITED:'Вы приглашены',PENDING:'На проверке',ACTIVE:'Активен',SUSPENDED:'Приостановлен',REJECTED:'Отклонено',APPROVED:'Подтверждено',REQUESTED:'Запрошено',PAID:'Перевод отмечен',CANCELLED:'Отменено',REVERSED:'Сторнировано'};
 const api=(path:string,options:any={})=>$fetch<any>('/partners/'+path,{baseURL:config.public.apiBase,headers:authHeaders.value,timeout:15000,...options});
 const message=(e:any)=>Array.isArray(e?.data?.message)?e.data.message.join(' · '):e?.data?.message||'Не удалось выполнить действие. Повторите запрос.';
 async function load(){loading.value=true;error.value='';try{data.value=await api(`me/${props.kind}`);if(data.value.participant?.status==='INVITED'){const p=data.value.participant;name.value=p.displayName;description.value=p.description||'';channelLabel.value=p.channels?.[0]?.label||'';channelUrl.value=p.channels?.[0]?.url||'';}}catch(e){error.value=message(e);}finally{loading.value=false;}}

@@ -140,6 +140,9 @@
 .sb-storefront .sb-checkout-gift-code { border: 1px solid var(--sf-line); border-radius: var(--sf-radius-control); margin-bottom: 24px; }
 .sb-storefront .sb-order-gift-list { display: grid; gap: 16px; }
 .sb-storefront .sb-order-gift-card { display: grid; gap: 12px; padding: 20px; border: 1px solid var(--sf-glass-border); border-radius: var(--sf-radius-control); background: var(--sf-glass); }
+.sb-order-warehouse { display:grid;gap:8px;margin-top:20px;padding-top:20px;border-top:1px solid var(--site-line,rgba(255,255,255,.25)); }
+.sb-order-warehouse h3,.sb-order-warehouse p { margin:0; }
+.sb-order-warehouse h3 { font-size:var(--sb-type-body);line-height:var(--sb-leading-body); }
 .sb-storefront .sb-order-gift-card strong { font-size: var(--sb-type-body); }
 .sb-storefront .sb-order-gift-card p { margin: 0; color: var(--sf-muted); font-size: var(--sb-type-small); line-height: var(--sb-leading-body); }
 .sb-storefront .sb-order-gift-card code { display: block; user-select: all; overflow-wrap: anywhere; color: var(--sf-black); font: var(--sb-weight-medium) var(--sb-type-body)/var(--sb-leading-body) var(--sb-font); font-variant-numeric: tabular-nums; letter-spacing: .04em; }

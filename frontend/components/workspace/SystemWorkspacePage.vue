@@ -31,6 +31,7 @@ const logs = ref<any>({
   queue: { connected: false, counts: {} },
 });
 const busy = ref(false);
+const mutating = ref(false), mutationError = ref('');
 const loadError = ref('');
 const pageLoaded = ref(false);
 let loadVersion = 0;
@@ -40,6 +41,7 @@ const notice = ref("");
 const retrying = ref<string[]>([]);
 const search = ref("");
 const showCreate = ref(false);
+const ownsRefresh = computed(() => ['overview', 'staff', 'access', 'audit', 'logs'].includes(section.value));
 const selectedEmployeeId = ref("");
 const showAccessReview = ref(false);
 const employee = reactive({
@@ -142,7 +144,9 @@ function reviewEmployee(item: any) {
   showAccessReview.value = true;
 }
 async function createEmployee() {
-  await $fetch("/system-settings/staff", {
+  if (mutating.value) return;
+  mutating.value = true; mutationError.value = '';
+  try { await $fetch("/system-settings/staff", {
     baseURL: config.public.apiBase,
     method: "POST",
     headers: headers.value,
@@ -158,9 +162,13 @@ async function createEmployee() {
   showCreate.value = false;
   await load();
   showNotice("Сотрудник создан");
+  } catch (error: any) { mutationError.value = actionError(error); }
+  finally { mutating.value = false; }
 }
 async function changeEmployee(item: any, change: any) {
-  await $fetch(`/system-settings/staff/${item.id}`, {
+  if (mutating.value || busy.value) return;
+  mutating.value = true; mutationError.value = '';
+  try { await $fetch(`/system-settings/staff/${item.id}`, {
     baseURL: config.public.apiBase,
     method: "PATCH",
     headers: headers.value,
@@ -172,9 +180,13 @@ async function changeEmployee(item: any, change: any) {
       ? "Доступ сотрудника заблокирован"
       : "Данные сотрудника обновлены",
   );
+  } catch (error: any) { mutationError.value = actionError(error); }
+  finally { mutating.value = false; }
 }
 async function revokeSessions(item: any) {
-  const result = await $fetch<any>(
+  if (mutating.value || busy.value) return;
+  mutating.value = true; mutationError.value = '';
+  try { const result = await $fetch<any>(
     `/system-settings/staff/${item.id}/sessions`,
     {
       baseURL: config.public.apiBase,
@@ -184,7 +196,15 @@ async function revokeSessions(item: any) {
   );
   await load();
   showNotice(`Отозвано сессий: ${result.revoked}`);
+  } catch (error: any) { mutationError.value = actionError(error); }
+  finally { mutating.value = false; }
 }
+const actionError = (error: any) => Array.isArray(error?.data?.message) ? error.data.message.join(' · ') : error?.data?.message || 'Изменение не подтверждено. Проверьте данные и повторите попытку.';
+async function changeRole(event: Event, item: any) { const input = event.target as HTMLSelectElement; await changeEmployee(item, { role: input.value }); input.value = staff.value.find(row => row.id === item.id)?.role || item.role; }
+const createDirty = computed(() => Boolean(employee.firstName || employee.lastName || employee.email || employee.password));
+function closeCreate() { if (!mutating.value && (!createDirty.value || window.confirm('Закрыть форму без создания сотрудника?'))) showCreate.value = false; }
+const { panel: createPanel, keyboard: createKeys } = useCatalogDialog(computed(() => showCreate.value), closeCreate);
+onBeforeRouteLeave(() => !mutating.value && (!showCreate.value || !createDirty.value || window.confirm('Уйти без создания сотрудника?')));
 function canRetryJob(entry: any) {
   return componentAlive && !loadError.value && entry.canRetry === true
     && logs.value.jobs.some((row: any) => row.id === entry.id && row.canRetry === true)
@@ -316,17 +336,18 @@ watch(section, () => {
 </script>
 
 <template>
-  <main data-v-ui-c4cc81726fbf class="system-console crm-standard">
+  <main data-v-ui-c4cc81726fbf class="system-console crm-standard crm-management-workspace">
     <header data-v-ui-c4cc81726fbf class="system-header crm-page-header">
       <div data-v-ui-c4cc81726fbf>
         <p data-v-ui-c4cc81726fbf class="kicker">{{ title.kicker }}</p>
         <h1 data-v-ui-c4cc81726fbf>{{ title.title }}</h1>
         <span data-v-ui-c4cc81726fbf>{{ title.description }}</span>
       </div>
-      <button class="crm-button crm-button--refresh" data-v-ui-c4cc81726fbf v-if="!['integrations', 'bot-commands'].includes(section)" @click="load">
+      <button class="crm-button crm-button--refresh" data-v-ui-c4cc81726fbf v-if="ownsRefresh" :disabled="busy || mutating" @click="load">
         <RefreshCw data-v-ui-c4cc81726fbf :size="16" :class="{ spin: busy }" /> Обновить
       </button>
     </header>
+    <p v-if="mutationError" class="operation-error" role="alert">{{ mutationError }}</p>
     <WorkspaceLoading
       v-if="busy && !pageLoaded"
       label="Загружаем настройки экосистемы"
@@ -441,8 +462,8 @@ watch(section, () => {
             <label data-v-ui-c4cc81726fbf class="search crm-input-group"
               ><Search data-v-ui-c4cc81726fbf :size="16" /><input class="crm-input" data-v-ui-c4cc81726fbf
                 v-model="search"
-                placeholder="Имя, email или роль" /></label
-            ><button data-v-ui-c4cc81726fbf class="primary crm-button crm-button--primary" @click="showCreate = true">
+                  type="search" aria-label="Поиск сотрудников" placeholder="Имя, email или роль" /></label
+            ><button data-v-ui-c4cc81726fbf class="primary crm-button crm-button--primary" :disabled="mutating || busy" @click="mutationError = ''; showCreate = true">
               <Plus data-v-ui-c4cc81726fbf :size="16" /> Добавить
             </button>
           </div>
@@ -467,17 +488,13 @@ watch(section, () => {
                   [item.firstName, item.lastName].filter(Boolean).join(" ") ||
                   "Без имени"
                 }}</strong
-                ><small data-v-ui-c4cc81726fbf>{{ item.email }}</small></span
+                ><small data-v-ui-c4cc81726fbf :title="item.email">{{ item.email }}</small></span
               >
             </div>
             <select class="crm-input" data-v-ui-c4cc81726fbf
               :value="item.role"
-              :disabled="item.id === user?.id"
-              @change="
-                changeEmployee(item, {
-                  role: ($event.target as HTMLSelectElement).value,
-                })
-              "
+              :disabled="mutating || busy || item.id === user?.id" aria-label="Роль сотрудника"
+              @change="changeRole($event, item)"
             >
               <option data-v-ui-c4cc81726fbf v-for="role in access.roles" :key="role" :value="role">
                 {{ roleLabels[role] }}
@@ -490,11 +507,11 @@ watch(section, () => {
               <button type="button" class="crm-button" title="Проверить права сотрудника" aria-label="Проверить права сотрудника" @click="reviewEmployee(item)">
                 <ShieldCheck :size="18" />
               </button>
-              <button class="crm-button" data-v-ui-c4cc81726fbf title="Отозвать сессии" @click="revokeSessions(item)">
+              <button class="crm-button" data-v-ui-c4cc81726fbf :disabled="mutating || busy" title="Отозвать сессии" :aria-label="'Отозвать сессии: ' + (item.firstName || item.email)" @click="revokeSessions(item)">
                 <KeyRound data-v-ui-c4cc81726fbf :size="15" /></button
               ><button class="crm-button" data-v-ui-c4cc81726fbf
                 v-if="item.id !== user?.id"
-                :title="item.isActive ? 'Заблокировать' : 'Разблокировать'"
+                  :disabled="mutating || busy" :aria-label="(item.isActive ? 'Заблокировать: ' : 'Разблокировать: ') + (item.firstName || item.email)" :title="item.isActive ? 'Заблокировать' : 'Разблокировать'"
                 @click="changeEmployee(item, { isActive: !item.isActive })"
               >
                 <UserRoundX data-v-ui-c4cc81726fbf v-if="item.isActive" :size="15" /><UserRoundCheck data-v-ui-c4cc81726fbf
@@ -505,6 +522,7 @@ watch(section, () => {
             </div>
           </div>
         </div>
+        <p v-if="!filteredStaff.length" class="crm-management-empty" role="status">{{ search ? 'Сотрудники не найдены. Измените запрос.' : 'Сотрудников пока нет. Добавьте первую учётную запись.' }}</p>
       </section>
       <section v-else-if="section === 'access'" class="crm-stack">
         <CrmCardTabs v-model="accessTab" prefix="access-settings" :tabs="[['matrix', 'Действующие роли'], ['profiles', 'Профили доступа']]" label="Настройка ролей" />
@@ -687,14 +705,14 @@ watch(section, () => {
         </article>
       </section>
     </div>
-    <aside data-v-ui-c4cc81726fbf
+    <Teleport :disabled="!route.path.startsWith('/crm/')" to="body"><aside data-v-ui-c4cc81726fbf
       v-if="showCreate"
-      class="drawer-backdrop admin-dialog-backdrop"
-      @click.self="showCreate = false"
+      class="drawer-backdrop admin-dialog-backdrop crm-management-backdrop"
+      @click.self="closeCreate"
     >
-      <form data-v-ui-c4cc81726fbf class="drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" aria-label="Добавить сотрудника" @submit.prevent="createEmployee">
-        <header data-v-ui-c4cc81726fbf><div data-v-ui-c4cc81726fbf><p data-v-ui-c4cc81726fbf class="kicker">НОВАЯ УЧЁТНАЯ ЗАПИСЬ</p><h2 data-v-ui-c4cc81726fbf>Добавить сотрудника</h2></div><button class="crm-button crm-button--icon" data-v-ui-c4cc81726fbf type="button" aria-label="Закрыть создание сотрудника" @click="showCreate = false"><X data-v-ui-c4cc81726fbf :size="18" /></button></header>
-        <div data-v-ui-c4cc81726fbf class="admin-dialog-body fields">
+      <form data-v-ui-c4cc81726fbf ref="createPanel" tabindex="-1" @keydown="createKeys" class="drawer admin-dialog admin-dialog--drawer crm-management-dialog" role="dialog" aria-modal="true" aria-label="Добавить сотрудника" @submit.prevent="createEmployee">
+        <header data-v-ui-c4cc81726fbf><div data-v-ui-c4cc81726fbf><p data-v-ui-c4cc81726fbf class="kicker">НОВАЯ УЧЁТНАЯ ЗАПИСЬ</p><h2 data-v-ui-c4cc81726fbf>Добавить сотрудника</h2></div><button class="crm-button crm-button--icon" data-v-ui-c4cc81726fbf type="button" aria-label="Закрыть создание сотрудника" :disabled="mutating" @click="closeCreate"><X data-v-ui-c4cc81726fbf :size="18" /></button></header>
+        <div data-v-ui-c4cc81726fbf class="admin-dialog-body fields"><p v-if="mutationError" class="operation-error" role="alert">{{ mutationError }}</p><fieldset class="ui-fieldset-reset crm-stack" :disabled="mutating">
         <label data-v-ui-c4cc81726fbf>Имя<input class="crm-input" data-v-ui-c4cc81726fbf v-model="employee.firstName" required /></label
         ><label data-v-ui-c4cc81726fbf>Фамилия<input class="crm-input" data-v-ui-c4cc81726fbf v-model="employee.lastName" /></label
         ><label data-v-ui-c4cc81726fbf
@@ -711,9 +729,9 @@ watch(section, () => {
               {{ roleLabels[role] }}
             </option>
           </select></label
-        ></div><footer data-v-ui-c4cc81726fbf><button class="crm-button" data-v-ui-c4cc81726fbf type="button" @click="showCreate=false">Отмена</button><button data-v-ui-c4cc81726fbf class="primary crm-button crm-button--primary" type="submit">Создать сотрудника</button></footer>
+        ></fieldset></div><footer data-v-ui-c4cc81726fbf><button class="crm-button" data-v-ui-c4cc81726fbf type="button" :disabled="mutating" @click="closeCreate">Отмена</button><button data-v-ui-c4cc81726fbf class="primary crm-button crm-button--primary" type="submit" :disabled="mutating">{{ mutating ? 'Создаём…' : 'Создать сотрудника' }}</button></footer>
       </form>
-    </aside>
+    </aside></Teleport>
     <div data-v-ui-c4cc81726fbf v-if="notice" class="toast">{{ notice }}</div>
     <CrmEmployeeAccessReview v-if="showAccessReview && selectedEmployeeId" :employee-id="selectedEmployeeId" @close="showAccessReview = false" />
   </main>

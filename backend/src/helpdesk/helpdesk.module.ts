@@ -6,9 +6,10 @@ import { HelpdeskService } from './helpdesk.service';
 import { CrmReadAccess } from '../crm/read-access';
 import { KnowledgeController } from './knowledge.controller';
 import { KnowledgeService } from './knowledge.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, NotificationsModule],
   controllers: [HelpdeskController, HelpdeskPublicController, KnowledgeController],
   providers: [HelpdeskService, RolesGuard, CrmReadAccess, KnowledgeService],
 })

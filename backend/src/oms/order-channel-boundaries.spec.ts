@@ -27,7 +27,7 @@ describe('CRM order channel boundaries', () => {
       marketplaceOrder: { update: jest.fn().mockResolvedValue({}) },
     };
     const db = { $transaction: jest.fn(async (fn: any) => fn(tx)) };
-    const oneC = { enqueueOrder: jest.fn().mockResolvedValue({}) };
+    const oneC = { enqueueOrder: jest.fn().mockResolvedValue({}), stageOrderExport: jest.fn().mockResolvedValue({}) };
     const service = new OmsService(db as any, oneC as any, undefined, operationAccess());
     const admin = new AdminService(db as any, oneC as any, {} as any);
     function noWrites() {
@@ -77,7 +77,7 @@ describe('CRM order channel boundaries', () => {
     expect(result).toMatchObject({ id: 'order-1', channel: source, status: 'CONFIRMED' });
     expect(f.tx.orderStatusHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ fromStatus: 'NEW', toStatus: 'CONFIRMED', changedBy: 'actor' }) });
     expect(f.tx.marketplaceOrder.update).toHaveBeenCalledWith({ where: { id: 'staging-1' }, data: { status: 'CONFIRMED', trackingNumber: 'tracking', internalNote: 'note' } });
-    expect(f.oneC.enqueueOrder).toHaveBeenCalledWith('order-1', 'actor');
+    expect(f.oneC.stageOrderExport).toHaveBeenCalledWith(f.tx, 'order-1', 'actor');
     expect(f.db.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 30000, isolationLevel: 'Serializable' });
   });
 

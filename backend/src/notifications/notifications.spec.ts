@@ -20,6 +20,9 @@ describe('Durable notifications (mocked database and SMTP only)', () => {
     const prisma = {
       mailOutbox: { upsert: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       passwordResetToken: { findFirst: jest.fn().mockResolvedValue({ id: 'token-id' }) },
+      businessTeamInvitation: { findFirst: jest.fn().mockResolvedValue({ organizationId: 'org', createdById: 'owner' }) },
+      organizationMember: { findFirst: jest.fn().mockResolvedValue({ id: 'owner-member' }) },
+      helpdeskComment: { findFirst: jest.fn().mockResolvedValue({ id: 'comment-id' }) },
       $queryRaw: jest.fn(),
     };
     const smtp = { deliveryEnabled: jest.fn().mockReturnValue(true), send: jest.fn().mockResolvedValue(undefined) };
@@ -125,6 +128,17 @@ describe('Durable notifications (mocked database and SMTP only)', () => {
     expect(prisma.mailOutbox.updateMany.mock.calls.at(-1)![0].data.status).toBe('CANCELLED');
   });
 
+  it('cancels a queued support email when its ticket, comment or recipient is no longer valid', async () => {
+    const { service, prisma, smtp } = setup();
+    const mail = service.prepare({ ...input, kind: 'HELPDESK_REPLY', helpdeskCommentId: 'comment-id', helpdeskTicketId: 'ticket-id' });
+    prisma.$queryRaw.mockResolvedValue([{ ...mail, attempts: 1 }]);
+    prisma.helpdeskComment.findFirst.mockResolvedValue(null);
+    await service.processQueue(1);
+    expect(prisma.helpdeskComment.findFirst).toHaveBeenCalledWith({ where: { id: 'comment-id', ticketId: 'ticket-id', isInternal: false, ticket: { requesterEmail: { equals: 'test@example.test', mode: 'insensitive' } } }, select: { id: true } });
+    expect(smtp.send).not.toHaveBeenCalled();
+    expect(prisma.mailOutbox.updateMany.mock.calls.at(-1)![0].data.status).toBe('CANCELLED');
+  });
+
   it('prevents overlapping local queue processing', async () => {
     const { service, prisma } = setup();
     let release: (value: []) => void = () => undefined;
@@ -135,5 +149,15 @@ describe('Durable notifications (mocked database and SMTP only)', () => {
     release([]);
     await first;
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+  it.each(['expired', 'former-owner', 'valid'])('revalidates a %s business invitation immediately before delivery', async scenario => {
+    const { service, prisma, smtp } = setup();
+    const mail = service.prepare({ ...input, kind: 'BUSINESS_TEAM_INVITE', text: `https://example.test/b2b-invite#token=${'a'.repeat(43)}\n` });
+    prisma.$queryRaw.mockResolvedValue([{ ...mail, attempts: 1 }]);
+    if (scenario === 'expired') prisma.businessTeamInvitation.findFirst.mockResolvedValue(null as any);
+    if (scenario === 'former-owner') prisma.organizationMember.findFirst.mockResolvedValue(null as any);
+    await service.processQueue(1);
+    if (scenario === 'valid') expect(smtp.send).toHaveBeenCalledTimes(1);
+    else { expect(smtp.send).not.toHaveBeenCalled(); expect(prisma.mailOutbox.updateMany.mock.calls.at(-1)![0].data.status).toBe('CANCELLED'); }
   });
 });

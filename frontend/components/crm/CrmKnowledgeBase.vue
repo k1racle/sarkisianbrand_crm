@@ -125,7 +125,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="crm-standard crm-knowledge">
+  <main class="crm-standard crm-knowledge crm-management-workspace">
     <header class="crm-page-header">
       <div><h1>База знаний</h1><p>Инструкции, рабочие процессы и ответы на частые вопросы</p></div>
       <button v-if="data?.canWrite" type="button" class="crm-button crm-button--primary" :disabled="saving" @click="create"><Plus :size="18" />Новая статья</button>
@@ -134,9 +134,9 @@ onUnmounted(() => {
       <aside class="crm-knowledge-sections crm-surface" aria-label="Разделы базы знаний">
         <div class="crm-knowledge-sections-heading"><BookOpen :size="19" /><strong>Разделы</strong></div>
         <nav class="crm-knowledge-section-list" aria-label="Выбрать раздел">
-          <button type="button" :aria-current="!category ? 'true' : undefined" :disabled="saving" @click="chooseCategory('')"><BookOpen :size="18" /><span>Все статьи</span><small>{{ categoryTotal }}</small></button>
-          <button v-for="item in categories" :key="item.name" type="button" :aria-current="category === item.name ? 'true' : undefined" :disabled="saving" @click="chooseCategory(item.name)"><FolderOpen :size="18" /><span>{{ item.name }}</span><small>{{ item.count }}</small></button>
-          <button v-if="category && !categories.some(item => item.name === category)" type="button" aria-current="true" :disabled="saving" @click="chooseCategory(category)"><FolderOpen :size="18" /><span>{{ category }}</span><small>0</small></button>
+          <button class="crm-button" type="button" :aria-current="!category ? 'true' : undefined" :disabled="saving" @click="chooseCategory('')"><BookOpen :size="18" /><span>Все статьи</span><small>{{ categoryTotal }}</small></button>
+          <button class="crm-button" v-for="item in categories" :key="item.name" type="button" :aria-current="category === item.name ? 'true' : undefined" :disabled="saving" @click="chooseCategory(item.name)"><FolderOpen :size="18" /><span>{{ item.name }}</span><small>{{ item.count }}</small></button>
+          <button class="crm-button" v-if="category && !categories.some(item => item.name === category)" type="button" aria-current="true" :disabled="saving" @click="chooseCategory(category)"><FolderOpen :size="18" /><span>{{ category }}</span><small>0</small></button>
         </nav>
         <select class="crm-input crm-knowledge-mobile-sections" aria-label="Раздел базы знаний" :value="category" :disabled="saving" @change="selectCategory">
           <option value="">Все разделы · {{ categoryTotal }}</option><option v-for="item in categories" :key="item.name" :value="item.name">{{ item.name }} · {{ item.count }}</option><option v-if="category && !categories.some(item => item.name === category)" :value="category">{{ category }} · 0</option>
@@ -147,7 +147,7 @@ onUnmounted(() => {
       <div class="crm-knowledge-content">
         <template v-if="!reading">
           <form class="crm-knowledge-toolbar crm-surface" aria-label="Поиск по базе знаний" @submit.prevent="load()">
-            <label class="crm-input-group crm-knowledge-search"><Search :size="18" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск по статьям" maxlength="100" placeholder="Найти инструкцию по названию или тексту" /><button v-if="search" type="button" class="crm-knowledge-clear" aria-label="Очистить поиск" @click="search = ''"><X :size="17" /></button></label>
+            <label class="crm-input-group crm-knowledge-search"><Search :size="18" /><input v-model="search" class="crm-input" type="search" aria-label="Поиск по статьям" maxlength="100" placeholder="Найти инструкцию по названию или тексту" /><button v-if="search" type="button" class="crm-knowledge-clear crm-button" aria-label="Очистить поиск" @click="search = ''"><X :size="17" /></button></label>
             <select v-if="data?.canWrite || status !== 'PUBLISHED'" v-model="status" class="crm-input" aria-label="Состояние статей"><option value="PUBLISHED">Опубликованные</option><option value="DRAFT">Черновики</option><option value="ARCHIVED">Архив</option><option value="ALL">Все состояния</option></select>
             <button type="submit" class="crm-button crm-button--icon" aria-label="Обновить статьи" title="Обновить статьи" :disabled="loading"><RefreshCw :size="18" /></button>
           </form>
@@ -157,7 +157,7 @@ onUnmounted(() => {
             <div v-if="!data" class="crm-knowledge-empty crm-surface"><BookOpen :size="30" /><p>Загружаем статьи…</p></div>
             <div v-else-if="!data.items.length && !loading" class="crm-knowledge-empty crm-surface"><Search :size="30" /><h2>Статьи не найдены</h2><p>Попробуйте другое название или выберите другой раздел.</p><button v-if="search || category || status !== 'PUBLISHED'" class="crm-button" @click="clearFilters">Сбросить фильтры</button><button v-else-if="data.canWrite" class="crm-button" @click="create"><Plus :size="18" />Создать первую статью</button></div>
             <div v-else class="crm-knowledge-grid">
-              <button v-for="row in data.items" :id="'knowledge-' + row.id" :key="row.id" type="button" class="crm-knowledge-card crm-surface" :disabled="loading" @click="open(row.id)">
+              <button v-for="row in data.items" :id="'knowledge-' + row.id" :key="row.id" type="button" class="crm-knowledge-card crm-surface crm-button crm-card-action" :disabled="loading" @click="open(row.id)">
                 <span class="crm-knowledge-card-top"><span class="crm-knowledge-card-icon"><FileText :size="20" /></span><span class="crm-knowledge-category">{{ row.category }}</span><span v-if="row.status !== 'PUBLISHED'" class="crm-badge">{{ labels[row.status] }}</span></span>
                 <strong>{{ row.title }}</strong><span class="crm-knowledge-excerpt">{{ row.excerpt }}</span>
                 <span class="crm-knowledge-card-bottom"><small>Обновлена {{ date(row.updatedAt) }}</small><ChevronRight :size="18" /></span>

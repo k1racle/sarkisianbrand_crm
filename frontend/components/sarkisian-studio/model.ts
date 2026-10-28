@@ -2,27 +2,15 @@ import { DEFAULT_APPEARANCE, parseAppearance, type Appearance } from './characte
 import { DEFAULT_KERI_LOOK, parseKeriLook, type KeriLook } from './keri/look.ts'
 import { freshProgression, restoreProgression, recordVisit, loyaltyTip, type Progression } from './atelier/progression.ts'
 import { freshSupplies, restoreSupplies, supplyById, supplyBonus, STOCK_LIMIT, type Supplies, type SupplyId } from './atelier/supplies.ts'
-export const COLORS = [
-  { id: 'rose', name: 'Пудровый нюд', hex: '#d9a394' },
-  { id: 'milk', name: 'Молочная вуаль', hex: '#eee4d8' },
-  { id: 'peach', name: 'Персиковый шёлк', hex: '#d99b7e' },
-  { id: 'mauve', name: 'Пыльная роза', hex: '#b98089' },
-  { id: 'red', name: 'Красный бархат', hex: '#af3037' },
-  { id: 'wine', name: 'Вишнёвый вечер', hex: '#642d3b' },
-  { id: 'sage', name: 'Шалфей', hex: '#8f9a84' },
-  { id: 'black', name: 'Чёрный шёлк', hex: '#28282c' },
-  { id: 'lavender', name: 'Лавандовый сон', hex: '#b0a2cf' },
-  { id: 'blue', name: 'Небесный шёлк', hex: '#9fbec9' },
-] as const
-export type ColorId = typeof COLORS[number]['id']
-export const PATTERNS = [
-  { id: 'plain', name: 'Однотонный' }, { id: 'french', name: 'Френч' },
-  { id: 'dots', name: 'Жемчуг' }, { id: 'gold', name: 'Золотой акцент' },
-] as const
-export type PatternId = typeof PATTERNS[number]['id']
-export type Nail = { color: ColorId | null; pattern: PatternId }
-export const NAIL_SHAPES = [{ id: 'almond', name: 'Миндаль' }, { id: 'oval', name: 'Овал' }, { id: 'square', name: 'Мягкий квадрат' }] as const
-export const NAIL_LENGTHS = [{ id: 'natural', name: 'Естественная' }, { id: 'extended', name: 'Удлинённая' }] as const
+import { COLORS, PATTERNS, FINISHES, NAIL_SHAPES, NAIL_LENGTHS, colorHex, isColor, isPattern, isFinish, type ColorId, type PatternId, type FinishId } from './manicure-catalog.ts'
+import { freshPreparation, parsePreparation, preparedNails, type Preparation } from './atelier/preparation.ts'
+export { COLORS, PATTERNS, FINISHES, NAIL_SHAPES, NAIL_LENGTHS, colorHex }
+export type { ColorId, PatternId, FinishId }
+export type Nail = { color: ColorId | null; pattern: PatternId; accentColor?: ColorId; finish?: FinishId }
+export function parseNail(raw: Partial<Nail> | null | undefined): Nail {
+  return { color: isColor(raw?.color) ? raw.color : null, pattern: isPattern(raw?.pattern) ? raw.pattern : 'plain',
+    accentColor: isColor(raw?.accentColor) ? raw.accentColor : 'porcelain', finish: isFinish(raw?.finish) ? raw.finish : 'glossy' }
+}
 export type NailShape = typeof NAIL_SHAPES[number]['id']
 export type NailLength = typeof NAIL_LENGTHS[number]['id']
 export type Design = { kind: 'manicure' | 'pedicure'; nails: Nail[]; shape?: NailShape; length?: NailLength }
@@ -68,7 +56,7 @@ export function parseState(raw: unknown): StudioState {
   if (!raw || typeof raw !== 'object' || !('version' in raw) || raw.version !== 1) return fallback
   const data = raw as Partial<StudioState>
   const validNail = (n: any): n is Nail => n && COLORS.some(c => c.id === n.color) && PATTERNS.some(p => p.id === n.pattern)
-  const designs = Array.isArray(data.designs) ? data.designs.filter((d): d is SavedDesign => !!d && typeof d.id === 'string' && typeof d.name === 'string' && typeof d.createdAt === 'string' && Number.isFinite(Date.parse(d.createdAt)) && ['manicure', 'pedicure'].includes(d.kind) && Array.isArray(d.nails) && d.nails.length === 5 && d.nails.every(validNail)).slice(0, 24).map(d => ({ ...d, ...parseNailFit(d), name: d.name.slice(0, 60) })) : []
+  const designs = Array.isArray(data.designs) ? data.designs.filter((d): d is SavedDesign => !!d && typeof d.id === 'string' && typeof d.name === 'string' && typeof d.createdAt === 'string' && Number.isFinite(Date.parse(d.createdAt)) && ['manicure', 'pedicure'].includes(d.kind) && Array.isArray(d.nails) && d.nails.length === 5 && d.nails.every(validNail)).slice(0, 24).map(d => ({ ...d, nails: d.nails.map(parseNail), ...parseNailFit(d), name: d.name.slice(0, 60) })) : []
   const completed = Array.isArray(data.completed) ? [...new Set(data.completed.filter(id => QUESTS.some(q => q.id === id)))] : []
   const career = parseCareer(data.career)
   const supplies = restoreSupplies(data.supplies, coinBalance({ ...fallback, career, completed }))
@@ -81,7 +69,6 @@ export function parseState(raw: unknown): StudioState {
 export function localStorageAdapter(): StorageAdapter {
   return { load() { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return null; try { return parseState(JSON.parse(raw)) } catch { return freshState() } }, save(state) { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } }
 }
-export const colorHex = (id: ColorId | null) => COLORS.find(c => c.id === id)?.hex ?? '#e5bbac'
 
 export type UpgradeId = 'organizer' | 'lamp' | 'pastel'
 export type OrderTicket = { serial: number; briefId: string; fitted?: boolean }
@@ -107,6 +94,18 @@ export const ORDERS: OrderBrief[] = [
   { id: 'nina-blue', customer: 'Нина', title: 'Выше облаков', wish: 'Небесный педикюр с френчем на каждом ногте.', kind: 'pedicure', color: 'blue', pattern: 'french', accent: null, reward: 280, requires: 'pastel' },
   { id: 'dasha-shoot', customer: 'Даша', title: 'Съёмка новой коллекции', wish: 'Для съёмки нужен красный маникюр. Один золотой акцент — на ногте № 3.', kind: 'manicure', color: 'red', pattern: 'gold', accent: 2, reward: 340, shape: 'square', length: 'extended', reputation: 20 },
   { id: 'olga-wedding', customer: 'Ольга', title: 'Тот самый день', wish: 'Нежный молочный маникюр с жемчугом на каждом ногте. Хочу сохранить его на свадебных фотографиях.', kind: 'manicure', color: 'milk', pattern: 'dots', accent: null, reward: 360, shape: 'oval', length: 'extended', reputation: 50 },
+  { id: 'vika-marble', customer: 'Вика', title: 'Камень и шёлк', wish: 'Латте и мрамор на каждом ногте. Форма — балерина, удлинённая.', kind: 'manicure', color: 'latte', pattern: 'marble', accent: null, reward: 310, shape: 'coffin', length: 'extended' },
+  { id: 'alice-flowers', customer: 'Алиса', title: 'Цветочное настроение', wish: 'Балетная роза и цветы на каждом ногте. Короткий круг.', kind: 'manicure', color: 'ballet', pattern: 'flowers', accent: null, reward: 300, shape: 'round', length: 'short' },
+  { id: 'polina-sky', customer: 'Полина', title: 'Переход цвета', wish: 'Барвинок с градиентом на всех ногтях. Удлинённый овал.', kind: 'manicure', color: 'periwinkle', pattern: 'ombre', accent: null, reward: 320, shape: 'oval', length: 'extended' },
+  { id: 'rita-swirl', customer: 'Рита', title: 'Ритм города', wish: 'Яркая фуксия и волны на каждом ногте. Длинный стилет.', kind: 'manicure', color: 'fuchsia', pattern: 'swirl', accent: null, reward: 350, shape: 'stiletto', length: 'long' },
+  { id: 'zoya-moon', customer: 'Зоя', title: 'Лунная дорожка', wish: 'Изумрудный лунный маникюр. Миндаль естественной длины.', kind: 'manicure', color: 'emerald', pattern: 'moon', accent: null, reward: 300, shape: 'almond', length: 'natural' },
+  { id: 'lisa-hearts', customer: 'Лиза', title: 'Тёплые чувства', wish: 'Малиновый цвет и сердца только на ногте № 4. Короткий квадрат.', kind: 'manicure', color: 'raspberry', pattern: 'hearts', accent: 3, reward: 310, shape: 'square', length: 'short' },
+  { id: 'taya-geometric', customer: 'Тая', title: 'Чистая геометрия', wish: 'Графит и геометрия на всех ногтях. Балерина, экстра-длина.', kind: 'manicure', color: 'graphite', pattern: 'diagonal', accent: null, reward: 350, shape: 'coffin', length: 'long' },
+  { id: 'masha-summer', customer: 'Маша', title: 'Лето близко', wish: 'Коралловый педикюр с цветным френчем на всех ногтях.', kind: 'pedicure', color: 'coral', pattern: 'colored-french', accent: null, reward: 290 },
+  { id: 'yana-leopard', customer: 'Яна', title: 'Дикий акцент', wish: 'Песочный цвет, леопард только на ногте № 3. Длинный миндаль.', kind: 'manicure', color: 'sand', pattern: 'leopard', accent: 2, reward: 330, shape: 'almond', length: 'long' },
+  { id: 'kira-stars', customer: 'Кира', title: 'Звёздная ночь', wish: 'Полночь и звёзды на всех ногтях. Длинный стилет.', kind: 'manicure', color: 'midnight', pattern: 'stars', accent: null, reward: 380, shape: 'stiletto', length: 'long', reputation: 20 },
+  { id: 'nelli-checker', customer: 'Нелли', title: 'Смелые сочетания', wish: 'Лайм и шахматный рисунок на всех ногтях. Короткий квадрат.', kind: 'manicure', color: 'lime', pattern: 'checker', accent: null, reward: 340, shape: 'square', length: 'short' },
+  { id: 'dina-aura', customer: 'Дина', title: 'Мягкое свечение', wish: 'Сиреневая дымка с аурой на каждом ногте. Естественный овал.', kind: 'manicure', color: 'lilac', pattern: 'aura', accent: null, reward: 330, shape: 'oval', length: 'natural' },
 ]
 export function freshCareer(): Career { return { ...freshProgression(), served: 0, earnings: 0, stars: 0, upgrades: [], active: null } }
 export function studioLevel(state: StudioState) { return 1 + Math.floor(state.career.served / 3) }
@@ -136,18 +135,18 @@ export function acceptOrder(state: StudioState, briefId: string): StudioState {
   if (!availableOrders(state).some(o => o.id === briefId)) throw new Error('Этот запрос сейчас недоступен.')
   return { ...state, career: { ...state.career, active: { serial: state.career.served + 1, briefId, fitted: true } } }
 }
-export function buyUpgrade(state: StudioState, id: UpgradeId): StudioState {
+export function buyUpgrade(state: StudioState, id: UpgradeId, balance = coinBalance(state)): StudioState {
   const upgrade = UPGRADES.find(u => u.id === id)
   if (!upgrade) throw new Error('Улучшение не найдено.')
   if (state.career.upgrades.includes(id)) throw new Error('Улучшение уже установлено.')
-  if (coinBalance(state) < upgrade.price) throw new Error('Пока не хватает монет. Выполни ещё один запрос.')
+  if (balance < upgrade.price) throw new Error('Пока не хватает монет. Выполни ещё один запрос.')
   return { ...state, career: { ...state.career, upgrades: [...state.career.upgrades, id] } }
 }
-export function buySupply(state: StudioState, id: SupplyId): StudioState {
+export function buySupply(state: StudioState, id: SupplyId, balance = coinBalance(state)): StudioState {
   const item = supplyById(id)
   if (!item) throw new Error('Материал не найден.')
   if (state.supplies.stock[id] + item.pack > STOCK_LIMIT) throw new Error('На полке уже достаточно этого материала.')
-  if (coinBalance(state) < item.price) throw new Error('Не хватает игровых монет. Базовый набор всегда доступен бесплатно.')
+  if (balance < item.price) throw new Error('Не хватает игровых монет. Базовый набор всегда доступен бесплатно.')
   return { ...state, supplies: { spent: state.supplies.spent + item.price, stock: { ...state.supplies.stock, [id]: state.supplies.stock[id] + item.pack } } }
 }
 export function chooseSupply(state: StudioState, id: SupplyId | null): StudioState {
@@ -195,11 +194,12 @@ export function completeOrder(state: StudioState, serial: number, design: Design
 }
 
 export type WorkSession = {
-  serial: number | null; design: Design; prepared: number[];
+  rewardRunId?: string; rewardUserId?: string;
+  serial: number | null; design: Design; prepared: number[]; preparation: Preparation;
   stage: 'prepare' | 'design' | 'finish'; accuracy: number | null; supply?: SupplyId | null;
 }
 export function newWork(kind: Design['kind'], serial: number | null = null): WorkSession {
-  return { serial, design: blankDesign(kind), prepared: [], stage: 'prepare', accuracy: null, supply: null }
+  return { serial, design: blankDesign(kind), prepared: [], preparation: freshPreparation(), stage: 'prepare', accuracy: null, supply: null }
 }
 // Restore only a draft belonging to the current appointment. Invalid stages
 // regress to the first unfinished step; a reload never fabricates a result.
@@ -212,14 +212,13 @@ export function parseWork(raw: unknown, career: Career): WorkSession | null {
   if (kind !== 'manicure' && kind !== 'pedicure') return null
   if (career.active && ORDERS.find(o => o.id === career.active!.briefId)?.kind !== kind) return null
   if (!Array.isArray(w.design?.nails) || w.design.nails.length !== 5) return null
-  const nails = w.design.nails.map(n => ({
-    color: COLORS.some(c => c.id === n?.color) ? n.color : null,
-    pattern: PATTERNS.some(p => p.id === n?.pattern) ? n.pattern : 'plain' as PatternId,
-  }))
-  const prepared = Array.isArray(w.prepared) ? [...new Set(w.prepared.filter(i => Number.isInteger(i) && i >= 0 && i < 5))] : []
+  const nails = w.design.nails.map(parseNail)
+  const legacyPrepared = Array.isArray(w.prepared) ? [...new Set(w.prepared.filter(i => Number.isInteger(i) && i >= 0 && i < 5))] : []
+  const preparation = parsePreparation(w.preparation, legacyPrepared)
+  const prepared = preparedNails(preparation)
   const stage = prepared.length < 5 ? 'prepare' : w.stage === 'finish' && nails.every(n => n.color) ? 'finish' : w.stage === 'prepare' ? 'prepare' : 'design'
   const accuracy = stage === 'finish' && typeof w.accuracy === 'number' && Number.isFinite(w.accuracy) && w.accuracy >= 0 && w.accuracy <= 100 ? w.accuracy : null
-  return { serial: w.serial ?? null, design: { kind, nails, ...parseNailFit(w.design) }, prepared, stage, accuracy, supply: w.serial !== null ? supplyById(w.supply)?.id ?? null : null }
+  return { serial: w.serial ?? null, design: { kind, nails, ...parseNailFit(w.design) }, prepared, preparation, stage, accuracy, supply: w.serial !== null ? supplyById(w.supply)?.id ?? null : null, rewardRunId:typeof w.rewardRunId==='string'?w.rewardRunId:undefined, rewardUserId:typeof w.rewardUserId==='string'?w.rewardUserId:undefined }
 }
 export function parseNailFit(raw: unknown): Pick<Design, 'shape' | 'length'> {
   const d: Partial<Design> = raw && typeof raw === 'object' ? raw as Design : {}

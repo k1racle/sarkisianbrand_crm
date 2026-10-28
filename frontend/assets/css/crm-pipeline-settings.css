@@ -42,7 +42,7 @@
  html[data-crm-ui] .crm-pipeline-stage-dot {height:28px;width:4px;border-radius:4px;flex:none;}
  html[data-crm-ui] .crm-pipeline-stage-description {display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
  html[data-crm-ui] .crm-pipeline-stage-description strong {flex:1;min-width:0;overflow-wrap:anywhere;}
- html[data-crm-ui] .crm-pipeline-settings .crm-pipeline-stage-kind {flex:none;padding:2px 7px;border-radius:5px;background:var(--crm-bg);color:var(--crm-muted);font-size:11px!important;}
+ html[data-crm-ui] .crm-pipeline-settings .crm-pipeline-stage-kind {flex:none;padding:2px 7px;border-radius:5px;background:var(--crm-bg);color:var(--crm-muted);font-size:12px!important;}
  html[data-crm-ui] .crm-pipeline-settings .crm-pipeline-stage-kind[data-kind=won] {color:#246747!important;background:#eaf6ef;}
  html[data-crm-ui] .crm-pipeline-settings .crm-pipeline-stage-kind[data-kind=lost] {color:#ad3041!important;background:#fff0f1;}
  html[data-crm-ui] .crm-pipeline-settings .crm-pipeline-stage-chance {width:42px;text-align:right;flex:none;color:var(--crm-muted);font-size:12px!important;}

@@ -54,7 +54,8 @@ $localProcessEnvironment = @{
     MAIL_DELIVERY_ENABLED = 'false'; LOYALTY_MAINTENANCE_ENABLED = 'false';
     CRM_MEDIA_ENABLED = 'false'; CRM_MEDIA_GATEWAY_ENFORCED = 'false';
     REDIS_URL = 'redis://127.0.0.1:6379';
-    NUXT_PUBLIC_API_BASE = 'http://localhost:3000/api/v1'; NUXT_SEO_API_BASE = 'http://localhost:3000/api/v1';
+    NUXT_PUBLIC_API_BASE = '/api/v1'; NUXT_SEO_API_BASE = 'http://localhost:3000/api/v1';
+    NUXT_PUBLIC_API_PROXY_ENABLED = 'true'; NUXT_API_PROXY_BASE = 'http://localhost:3000/api/v1'; NUXT_PUBLIC_API_REALTIME_PORT = '3000';
     NUXT_PUBLIC_SITE_URL = 'http://localhost:3001'; NUXT_PUBLIC_SEO_INDEXING_ENABLED = 'false';
     PORT = '3000'; HOST = '0.0.0.0';
 }

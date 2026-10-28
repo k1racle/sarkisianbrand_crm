@@ -33,7 +33,7 @@ onBeforeUnmount(() => { clearTimeout(timer); ++sequence; });
     <p v-if="error" class="crm-work-error" role="alert">{{ error }} <button type="button" class="crm-button" @click="load">Повторить</button></p>
     <p v-else-if="loading" class="crm-muted" role="status">Ищем сотрудников…</p>
     <div v-else :id="listId" role="listbox" aria-label="Сотрудники" class="crm-task-people-results">
-      <button v-for="(user, index) in people" :id="`${listId}-${index}`" :key="user.id" type="button" role="option" :aria-selected="index === active" class="crm-task-person-option" :disabled="disabled" @click="choose(user)">
+      <button v-for="(user, index) in people" :id="`${listId}-${index}`" :key="user.id" type="button" role="option" :aria-selected="index === active" class="crm-task-person-option crm-card-action" :disabled="disabled" @click="choose(user)">
         <span class="crm-avatar">{{ person(user).slice(0, 1) }}</span><span><strong>{{ person(user) }}</strong><small>{{ user.department?.name || user.email }}</small></span>
       </button>
       <p v-if="!people.length" class="crm-muted">Сотрудники не найдены. Показаны сотрудники с доступом к задаче.</p>

@@ -71,6 +71,7 @@ const fixtures = new Map([
   ['/gift-cards', { items: [card], total: 1, page: 1, limit: 30 }],
   [`/gift-cards/${card.id}/history`, { card, items: [{ id: 'mock-redemption', amount: '250', status: 'APPLIED', createdAt: now, appliedAt: now, releasedAt: null, orderNumber: 'SB-DESIGN-001' }], total: 1, page: 1, limit: 30 }],
   ['/platform-chat/unread', { total: 0 }], ['/platform-chat/channels', []], ['/platform-chat/team', []], ['/crm/reminders', []],
+  ['/staff-notifications', { items: [], fresh: [], unreadCount: 0, popupsEnabled: true, through: now, nextCursor: null }],
 ]);
 
 const sections = [
@@ -83,21 +84,25 @@ const sections = [
 const primarySelector = '.cs-primary,.submit,.appearance-save,.loyalty-save,.sb-cms-primary,.sb-promo-button:not(.sb-promo-button--white),.sb-gift-button:not(.sb-gift-button--white),.sb-cma-button:not(.sb-cma-button--white),.aml-button:not(.aml-button--white),.save-product,.create-product,.editor-drawer .save,.new-drawer .save,.new-product,.admin-load-error button';
 
 async function isolatedContext(browser, width, anonymous, catalogOnly = false, options = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 960 }, deviceScaleFactor: 1, isMobile: width < 800, hasTouch: width < 800, serviceWorkers: 'block' });
+  const context = await browser.newContext({ viewport: { width, height: 960 }, deviceScaleFactor: 1, isMobile: width < 800, hasTouch: options.touch === true || width < 800, serviceWorkers: 'block' });
   const traffic = { mockedReads: [], mockedPreflights: [], prohibitedWrites: [], unknownReads: [], externalRequests: [], credentialLeaks: [] };
   const actor = { ...(catalogOnly ? { ...user, role: 'CONTENT_MANAGER' } : user), ...(options.actor || {}) };
   const responses = new Map([...fixtures, ...(options.fixtures || [])]);
   if(!options.fixtures?.has?.('/auth/access')){
     const access=responses.get('/auth/access');responses.set('/auth/access',{...access,permissions:[...access.permissions,'customers.read','customers.write']});
   }
-  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, preserveGuestSession, b2b, allowFixtureForms }) => {
+  await context.addInitScript(({ anonymous, token, user, preserveLayoutPreference, preserveDayWidgets, preserveGuestSession, b2b, allowFixtureForms }) => {
     // Retain only this non-sensitive layout choice for the explicit reload test.
     const savedLayout = preserveLayoutPreference ? localStorage.getItem('sarkisian-workspace-rail-collapsed') : null;
+    // Only explicitly requested employee display preferences survive a fixture reload.
+    // Sessions, tokens and business data still follow the normal isolated reset.
+    const dayWidgets = preserveDayWidgets ? Object.keys(localStorage).filter(key => key.startsWith('sarkisian-crm-day-widgets:v1:')).map(key => [key, localStorage.getItem(key)]) : [];
     const savedGuest = preserveGuestSession ? sessionStorage.getItem('sarkisian-meeting-guest') : null;
     localStorage.clear(); sessionStorage.clear();
     // Only this isolated browser's synthetic guest capability; never a CRM session.
     if (savedGuest) sessionStorage.setItem('sarkisian-meeting-guest', savedGuest);
     if (savedLayout === 'true' || savedLayout === 'false') localStorage.setItem('sarkisian-workspace-rail-collapsed', savedLayout);
+    for (const [key, value] of dayWidgets) if (value !== null) localStorage.setItem(key, value);
     if (!anonymous) {
       localStorage.setItem('sarkisian-workspace-token', token);
       localStorage.setItem('sarkisian-workspace-user', JSON.stringify(user));
@@ -119,7 +124,7 @@ async function isolatedContext(browser, width, anonymous, catalogOnly = false, o
     HTMLFormElement.prototype.submit = function () { window.__adminMockSubmitAttempts++; };
     HTMLFormElement.prototype.requestSubmit = function () { window.__adminMockSubmitAttempts++; };
     navigator.sendBeacon = () => false;
-  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, preserveGuestSession: options.preserveGuestSession === true, b2b: options.b2b === true, allowFixtureForms: options.allowFixtureForms === true });
+  }, { anonymous, token, user: actor, preserveLayoutPreference: options.preserveLayoutPreference === true, preserveDayWidgets: options.preserveDayWidgets === true, preserveGuestSession: options.preserveGuestSession === true, b2b: options.b2b === true, allowFixtureForms: options.allowFixtureForms === true });
   await context.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());

@@ -5,7 +5,9 @@ import KeriAvatar from './KeriAvatar.vue'
 import KeriChoice from './KeriChoice.vue'
 import { DEFAULT_KERI_LOOK, KERI_PRESETS, KERI_STORAGE_KEY, HAIR_COLORS, SKIN_COLORS, EYE_COLORS, HAIR_NAMES, TOP_NAMES, BOTTOM_NAMES, parseKeriLook, type KeriLook } from './look.ts'
 import { renderKeriLook } from './render'
+import { LOOK_LIMITS, OUTFIT_COLORS, LIP_COLORS, BLUSH_COLORS, SHADOW_COLORS, ACCESSORIES } from './look'
 import './wardrobe.css'
+import './wardrobe-theme.css'
 
 const props = withDefaults(defineProps<{ assetBase?: string; embedded?:boolean; initialLook?:KeriLook; saveLook?:(look:KeriLook)=>Promise<void> }>(), { assetBase: '/studio-assets/',embedded:false })
 const root = computed(() => props.assetBase.replace(/\/?$/, '/'))
@@ -16,14 +18,17 @@ const tab = ref('clothes')
 const closeUp=ref(false)
 const optionsPanel = ref<HTMLElement>()
 watch(tab, async () => {
-  closeUp.value=tab.value==='hair'||tab.value==='face'
+  closeUp.value=['hair','face','makeup','accessories'].includes(tab.value)
   await nextTick()
   if (optionsPanel.value) optionsPanel.value.scrollTop = 0
 })
 const tabs = [
   { id: 'presets', label: 'Образы', icon: Sparkles }, { id: 'clothes', label: 'Одежда', icon: Shirt },
   { id: 'hair', label: 'Волосы', icon: Scissors }, { id: 'face', label: 'Лицо', icon: UserRound },
+  { id: 'makeup', label: 'Макияж', icon: Sparkles }, { id: 'accessories', label: 'Детали', icon: Shirt },
 ]
+const makeupGroups = [{ key:'lipstick',name:'Помада',colors:LIP_COLORS }, { key:'blush',name:'Румяна',colors:BLUSH_COLORS }, { key:'eyeshadow',name:'Тени',colors:SHADOW_COLORS }] as const
+const accessoryGroups = [{ key:'glasses',name:'Очки' },{ key:'earrings',name:'Серьги' },{ key:'necklace',name:'Украшения' },{ key:'hairAccessory',name:'Аксессуары для волос' }] as const
 const loading = ref(true)
 const ready = ref(false)
 const error = ref('')
@@ -65,7 +70,7 @@ function reset() {
 }
 function randomize() {
   const pick = (n: number) => 1 + Math.floor(Math.random() * n)
-  update({ hair: pick(5), hairColor: pick(7), top: pick(5), topColor: pick(6), bottom: pick(3), bottomColor: pick(6) })
+  update(Object.fromEntries(Object.entries(LOOK_LIMITS).map(([key,limit]) => [key,pick(limit)])))
 }
 async function download() {
   exporting.value = true
@@ -121,7 +126,7 @@ async function download() {
 
           <div ref="optionsPanel" class="kw-options">
             <template v-if="tab === 'presets'">
-              <div class="kw-section-title"><h2>С чего начнём?</h2><span>04 образа</span></div>
+              <div class="kw-section-title"><h2>С чего начнём?</h2><span>{{ KERI_PRESETS.length }} образов</span></div>
               <p class="kw-section-description">Выбери основу и добавь свои детали.</p>
               <div class="kw-preset-grid">
                 <KeriChoice v-for="preset in KERI_PRESETS" :key="preset.name" :look="preset.look" :asset-base="assets" :label="preset.name" :selected="JSON.stringify(look) === JSON.stringify(preset.look)" crop="look" @select="update(preset.look)" />
@@ -129,25 +134,26 @@ async function download() {
             </template>
 
             <template v-else-if="tab === 'clothes'">
-              <div class="kw-section-title"><h2>Верх</h2><span>05 вариантов</span></div>
+              <div class="kw-section-title"><h2>Верх</h2><span>{{ TOP_NAMES.length }} вариантов</span></div>
               <div class="kw-item-grid">
                 <KeriChoice v-for="(name, index) in TOP_NAMES" :key="name" :look="preview({ top: index + 1 })" :asset-base="assets" :label="name" :selected="look.top === index + 1" crop="top" @select="update({ top: index + 1 })" />
               </div>
               <fieldset class="kw-variants"><legend>Расцветка верха</legend><div>
-                <button v-for="n in 6" :key="n" :aria-label="`Расцветка верха ${n}`" :aria-pressed="look.topColor === n" :class="{ selected: look.topColor === n }" @click="update({ topColor: n })"><img :src="`${assets}Tops/top${look.top}_${n}.png`" alt="" /></button>
+                <button v-for="(color,index) in OUTFIT_COLORS" :key="color[0]" :style="{background:color[1]}" :aria-label="`Верх: ${color[0]}`" :aria-pressed="look.topColor === index+1" :class="{ selected: look.topColor === index+1 }" @click="update({ topColor: index+1 })"><Check v-if="look.topColor===index+1" :size="15"/></button>
               </div></fieldset>
               <div class="kw-divider"></div>
-              <div class="kw-section-title"><h2>Низ</h2><span>03 варианта</span></div>
+              <fieldset class="kw-text-options"><legend>Рисунок на одежде</legend><div><button v-for="(name,index) in ACCESSORIES.outfitPattern" :key="name" :aria-pressed="look.outfitPattern===index+1" @click="update({outfitPattern:index+1})">{{ name }}</button></div></fieldset>
+              <div class="kw-section-title"><h2>Низ</h2><span>{{ BOTTOM_NAMES.length }} вариантов</span></div>
               <div class="kw-item-grid kw-bottom-grid">
                 <KeriChoice v-for="(name, index) in BOTTOM_NAMES" :key="name" :look="preview({ bottom: index + 1 })" :asset-base="assets" :label="name" :selected="look.bottom === index + 1" crop="bottom" @select="update({ bottom: index + 1 })" />
               </div>
               <fieldset class="kw-variants"><legend>Расцветка низа</legend><div>
-                <button v-for="n in 6" :key="n" :aria-label="`Расцветка низа ${n}`" :aria-pressed="look.bottomColor === n" :class="{ selected: look.bottomColor === n }" @click="update({ bottomColor: n })"><img class="kw-bottom-swatch" :src="`${assets}Bottoms/bottom${look.bottom}_${n}.png`" alt="" /></button>
+                <button v-for="(color,index) in OUTFIT_COLORS" :key="color[0]" :style="{background:color[1]}" :aria-label="`Низ: ${color[0]}`" :aria-pressed="look.bottomColor === index+1" :class="{ selected: look.bottomColor === index+1 }" @click="update({ bottomColor: index+1 })"><Check v-if="look.bottomColor===index+1" :size="15"/></button>
               </div></fieldset>
             </template>
 
             <template v-else-if="tab === 'hair'">
-              <div class="kw-section-title"><h2>Причёска</h2><span>05 вариантов</span></div>
+              <div class="kw-section-title"><h2>Причёска</h2><span>{{ HAIR_NAMES.length }} вариантов</span></div>
               <div class="kw-hair-grid">
                 <KeriChoice v-for="(name, index) in HAIR_NAMES" :key="name" :look="preview({ hair: index + 1 })" :asset-base="assets" :label="name" :selected="look.hair === index + 1" crop="hair" @select="update({ hair: index + 1 })" />
               </div>
@@ -156,8 +162,18 @@ async function download() {
               </div></fieldset>
             </template>
 
+            <template v-else-if="tab === 'makeup'">
+              <fieldset v-for="group in makeupGroups" :key="group.key" class="kw-swatches"><legend>{{ group.name }} <span>{{ group.colors[look[group.key]-1]?.[0] }}</span></legend><div><button v-for="(color,index) in group.colors" :key="color[0]" :style="{'--swatch':color[1]}" :title="color[0]" :aria-label="`${group.name}: ${color[0]}`" :aria-pressed="look[group.key]===index+1" :class="{selected:look[group.key]===index+1}" @click="update({[group.key]:index+1})"><Check v-if="look[group.key]===index+1" :size="15"/></button></div></fieldset>
+              <fieldset class="kw-text-options"><legend>Подводка</legend><div><button v-for="(name,index) in ['Без подводки','Тонкая стрелка','Выразительная стрелка']" :key="name" :aria-pressed="look.eyeliner===index+1" @click="update({eyeliner:index+1})">{{ name }}</button></div></fieldset>
+              <fieldset class="kw-text-options"><legend>Веснушки</legend><div><button v-for="(name,index) in ['Без веснушек','С веснушками']" :key="name" :aria-pressed="look.freckles===index+1" @click="update({freckles:index+1})">{{ name }}</button></div></fieldset>
+            </template>
+            <template v-else-if="tab === 'accessories'">
+              <fieldset v-for="group in accessoryGroups" :key="group.key" class="kw-text-options"><legend>{{ group.name }}</legend><div><KeriChoice v-for="(name,index) in ACCESSORIES[group.key]" :key="name" :look="preview({[group.key]:index+1})" :asset-base="assets" :label="name" :selected="look[group.key]===index+1" crop="hair" @select="update({[group.key]:index+1})"/></div></fieldset>
+            </template>
             <template v-else>
               <div class="kw-section-title"><h2>Твои черты</h2><span>В деталях</span></div>
+              <fieldset class="kw-text-options"><legend>Овал лица</legend><div><button v-for="(name,index) in ['Овальный','Мягкий','Удлинённый']" :key="name" :aria-pressed="look.faceShape===index+1" @click="update({faceShape:index+1})">{{ name }}</button></div></fieldset>
+              <fieldset class="kw-text-options"><legend>Брови</legend><div><button v-for="(name,index) in ['Естественные','Тонкие','Выразительные']" :key="name" :aria-pressed="look.brow===index+1" @click="update({brow:index+1})">{{ name }}</button></div></fieldset>
               <fieldset class="kw-swatches"><legend>Тон кожи <span>{{ SKIN_COLORS[look.skin - 1]?.[0] }}</span></legend><div>
                 <button v-for="(color, index) in SKIN_COLORS" :key="color[0]" :style="{ '--swatch': color[1] }" :aria-label="`Кожа: ${color[0]}`" :aria-pressed="look.skin === index + 1" :class="{ selected: look.skin === index + 1 }" @click="update({ skin: index + 1 })"><Check v-if="look.skin === index + 1" :size="15" /></button>
               </div></fieldset>

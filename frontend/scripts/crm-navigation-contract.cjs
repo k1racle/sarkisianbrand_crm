@@ -25,7 +25,8 @@ check('each-primary-leaf-exactly-once-and-no-empty-folders', () => {
     return e.children || [e.item];
   }));
   assert.equal(new Set(leaves.map(i => i.id)).size, leaves.length);
-  assert.deepEqual(plain(leaves.map(i => i.id)), plain(h.crmPrimaryItems(all).map(i => i.id)));
+  // Group order is intentional; registry insertion order is not the sidebar order.
+  assert.deepEqual(plain(leaves.map(i => i.id).sort()), plain(h.crmPrimaryItems(all).map(i => i.id).sort()));
 });
 check('program-settings-are-inside-programs-not-top-level', () => {
   for (const [id, parent] of [['loyalty-settings', 'loyalty'], ['referral-settings', 'referrals'], ['bloggers-settings', 'bloggers']]) {
@@ -55,7 +56,7 @@ check('roles-and-explicit-deny-are-not-expanded-by-grouping', () => {
     if (role !== 'ADMIN') assert.ok(!itemsFor(role).some(i => i.to.startsWith('/crm/settings/')));
   }
   for (const role of ['B2C', 'B2B', 'CUSTOMER_B2B', 'UNKNOWN', null]) assert.equal(itemsFor(role).length, 0);
-  const restricted = itemsFor('ADMIN', permission => !['partners.read','partners.payouts','marketplace.read'].includes(permission));
+  const restricted = itemsFor('ADMIN', permission => !['partners.read','partners.write','partners.payouts','marketplace.read'].includes(permission));
   assert.ok(!h.crmNavigationGroups(restricted).flatMap(g => g.entries).some(e => ['referrals','bloggers','marketplaces'].includes(e.id)));
   assert.equal(h.searchCrmNavigation(restricted, 'блогеры').length, 0);
   const groups = h.buildWorkspaceNavigation('ADMIN', p => p !== 'partners.payouts');
@@ -73,7 +74,10 @@ check('executive-read-navigation-does-not-imply-operational-grants', () => {
   for (const id of ['content-plan','bloggers-payouts','access','web-orders']) assert.ok(!readOnly.some(item => item.id === id), id);
   const denied = itemsFor('EXECUTIVE', key => key === 'customers.read');
   for (const id of ['crm-dashboard','pipeline','tasks','crm-files']) assert.ok(!denied.some(item => item.id === id), id);
-  assert.ok(read('pages/crm/index.vue').match(/v-if="can\('crm.write'\)"/g)?.length === 2);
+  const day = parse(read('pages/crm/index.vue')).descriptor.template.content;
+  const creationLinks = [...day.matchAll(/<NuxtLink\b[^>]*\bto="\/crm\/(?:tasks|deals)\?create=1"[^>]*>/g)].map(match => match[0]);
+  assert.ok(creationLinks.length >= 2, 'Day exposes task and deal creation');
+  assert.ok(creationLinks.every(link => link.includes('v-if="can(\'crm.write\')"')), 'Every creation action requires crm.write');
 });
 check('search-by-program-operation-old-label-and-yo', () => {
   for (const [query, id] of [['блогеры настройки','bloggers-settings'],['рекомендации начисления','referral-rewards'],['ОТЧЕТ ПРОДАЖ','sales-report'],['Клиенты 360','customers'],['канал подключ','channel-integrations']]) {

@@ -13,12 +13,13 @@ export type CrmDestination = {
   screen?: string; section?: string; kind?: string;
 };
 export const CRM_DESTINATIONS: CrmDestination[] = [
+  {id:'studio-rewards',path:'/crm/studio-rewards',label:'Награды игры',group:'Маркетинг и партнёры',icon:'TicketPercent'},
   { id: 'crm-dashboard', path: '/crm/', label: 'Мой день', group: 'Мой день', icon: 'CalendarDays' },
   { id: 'pipeline', path: '/crm/deals', label: 'Воронка продаж', group: 'Клиенты и продажи', icon: 'Kanban' },
   { id: 'customers', path: '/crm/customers', label: 'Клиенты', group: 'Клиенты и продажи', icon: 'ContactRound' },
   { id: 'organizations', path: '/crm/organizations', label: 'Организации', group: 'Клиенты и продажи', icon: 'Building2' },
   // Keep this legacy screen addressable without promising a storefront-only filter it does not implement.
-  { id: 'web-customers', path: '/crm/buyers', label: 'Клиенты — прежний экран', group: 'Клиенты и продажи', icon: 'UserRound', sidebarFallbackFor: 'customers', screen: 'store', section: 'customers' },
+  { id: 'web-customers', path: '/crm/buyers', label: 'Покупатели', group: 'Клиенты и продажи', icon: 'UserRound', sidebarFallbackFor: 'customers', screen: 'store', section: 'customers' },
   { id: 'web-orders', path: '/crm/orders', label: 'Заказы сайта', group: 'Заказы и исполнение', icon: 'ShoppingBag', screen: 'store', section: 'orders' },
   { id: 'b2b-orders', path: '/crm/b2b-orders', label: 'Заказы B2B', group: 'Заказы и исполнение', icon: 'PackageCheck' },
   { id: 'order-fulfillment', path: '/crm/fulfillment', label: 'Сборка и отгрузка', group: 'Заказы и исполнение', icon: 'Truck' },
@@ -30,14 +31,14 @@ export const CRM_DESTINATIONS: CrmDestination[] = [
   { id: 'crm-files', path: '/crm/files', label: 'Файлы', group: 'Команда', icon: 'FolderOpen' },
   { id: 'work-schedule', path: '/crm/work-schedule', label: 'Графики работы', group: 'Команда', icon: 'CalendarFold' },
   { id: 'work-time', path: '/crm/work-time', label: 'Рабочее время', group: 'Команда', icon: 'Clock3' },
-  { id: 'crm-meetings', path: '/crm/meetings', label: 'Встречи', group: 'Команда', icon: 'CalendarClock' },
+  { id: 'crm-meetings', path: '/crm/meetings', label: 'Календарь событий', group: 'Команда', icon: 'CalendarClock' },
   { id: 'crm-chat', path: '/crm/chat', label: 'Чат команды', group: 'Команда', icon: 'MessageSquareText' },
   { id: 'content-plan', path: '/crm/content-plan', label: 'Контент-план', group: 'Маркетинг и партнёры', icon: 'Clapperboard' },
   { id: 'loyalty-members', path: '/crm/loyalty/members', label: 'Участники клуба', group: 'Маркетинг и партнёры', parent: 'loyalty', icon: 'BadgeCheck', screen: 'store', section: 'loyalty-members' },
   { id: 'loyalty-settings', path: '/crm/loyalty/settings', label: 'Правила клуба', group: 'Маркетинг и партнёры', parent: 'loyalty', icon: 'NotebookPen', screen: 'store', section: 'loyalty-settings' },
   ...(['participants', 'rewards', 'settings'] as const).map(section => ({ id: `referral-${section}`, path: `/crm/referrals/${section}`, label: { participants: 'Участники рекомендаций', rewards: 'Начисления за рекомендации', settings: 'Настройки рекомендаций' }[section], group: 'Маркетинг и партнёры' as const, parent: 'referrals' as const, icon: { participants: 'Network', rewards: 'Coins', settings: 'SlidersHorizontal' }[section], screen: 'partner', section, kind: 'REFERRAL' })),
   ...(['overview', 'participants', 'registrations', 'rewards', 'payouts', 'settings'] as const).map(section => ({ id: `bloggers-${section}`, path: `/crm/bloggers/${section}`, label: { overview: 'Обзор блогеров', participants: 'Заявки и партнёры', registrations: 'Привлечённые организации', rewards: 'Начисления блогерам', payouts: 'Выплаты блогерам', settings: 'Настройки блогеров' }[section], group: 'Маркетинг и партнёры' as const, parent: 'bloggers' as const, icon: { overview: 'Video', participants: 'UsersRound', registrations: 'Handshake', rewards: 'BadgeDollarSign', payouts: 'Wallet', settings: 'Settings2' }[section], screen: 'partner', section, kind: 'BLOGGER' })),
-  { id: 'bloggers-gifts', path: '/crm/bloggers/gifts', label: 'Подарки блогерам', group: 'Маркетинг и партнёры', parent: 'bloggers', icon: 'Gift', screen: 'partner-gifts' },
+  { id: 'bloggers-gifts', path: '/crm/bloggers/gifts', label: 'Подарки блогерам', group: 'Маркетинг и партнёры', parent: 'bloggers', icon: 'PackagePlus', screen: 'partner-gifts' },
   { id: 'partner-documents-settings', path: '/crm/partners/documents', label: 'Документы партнёров', group: 'Маркетинг и партнёры', icon: 'FileSignature', screen: 'partner-documents-settings', section: 'documents' },
   { id: 'promotions', path: '/crm/promotions', label: 'Промокоды', group: 'Маркетинг и партнёры', icon: 'Megaphone', screen: 'store', section: 'promotions' },
   { id: 'gift-cards', path: '/crm/gift-cards', label: 'Подарочные карты', group: 'Маркетинг и партнёры', icon: 'Gift', screen: 'store', section: 'gift-cards' },

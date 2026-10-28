@@ -8,7 +8,7 @@ const customer={id:client,firstName:'Елена',lastName:'Тестовая',pho
 const member={id:master,role:'OWNER',user:{firstName:'Анна',lastName:'Мастер',email:'qa@example.invalid'}};
 const profile={id:company,name:'Тестовый салон',status:'ACTIVE',membership:{role:'OWNER',canOrder:true,canSeeFinance:true},members:[member]};
 const settings={organizationId:company,enabled:false,timeZone:'Europe/Moscow',startMinute:540,endMinute:1200,slotStep:15,horizonDays:30,workingDays:[1,2,3,4,5,6],masterIds:[master],canEdit:true};
-const fixtureLogo=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII=','base64');
+const fixtureLogo=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1sAAAAASUVORK5CYII=','base64');
 for(const width of [1440,390])test(`Salon logo upload updates cabinet and widget, removal restores brand ${width}`,async({browser})=>{
  const f=await isolated(browser,width);try{
   await f.page.goto('/b2b?section=settings&area=salon');const panel=f.page.getByRole('form',{name:'Оформление салона'});await expect(panel.getByLabel('Название салона для клиентов')).toBeVisible();await panel.getByLabel('Загрузить логотип салона',{exact:true}).setInputFiles({name:'logo.png',mimeType:'image/png',buffer:fixtureLogo});await expect(panel.getByRole('status')).toContainText('Логотип обновлён');await expect(f.page.locator('.b2b-rail .brand img')).toHaveClass('salon-tenant-logo');await expect(f.page.locator('.b2b-rail .brand img')).toHaveAttribute('src',new RegExp('qa-revision'));expect(await f.page.locator('.b2b-rail .brand img').evaluate(el=>getComputedStyle(el).filter)).toBe('none');await f.page.goto(`/booking/${company}?embed=1`);await expect(f.page.locator('.public-salon-logo')).toBeVisible();await expect(f.page.locator('.public-salon-logo')).toHaveAttribute('src',new RegExp('qa-revision'));await f.page.goto('/b2b?section=settings&area=salon');await panel.getByRole('button',{name:'Удалить логотип салона',exact:true}).click();await expect(panel.getByRole('status')).toContainText('Логотип удалён');await expect(f.page.locator('.b2b-rail .brand img')).toHaveAttribute('src','/sarkisian-logo.png');expect(f.writes.map(item=>item.method)).toEqual(['POST','DELETE']);expect(f.errors).toEqual([]);expect(f.unexpected).toEqual([]);
@@ -32,7 +32,7 @@ test('Early opening and late closing expand the calendar and appear on the publi
   expect(f.errors).toEqual([]);expect(f.unexpected).toEqual([]);
  }finally{await f.context.close();}
 });
-const initial={id:'qa-visit',clientId:client,serviceId,masterMemberId:master,startTime:'2026-09-19T06:00:00.000Z',endTime:'2026-09-19T07:00:00.000Z',status:'NEW',client:customer,service,masterMember:member};
+const initial={id:'qa-visit',version:1,priceSnapshot:'1800',clientId:client,serviceId,masterMemberId:master,startTime:'2026-09-19T06:00:00.000Z',endTime:'2026-09-19T07:00:00.000Z',status:'NEW',client:customer,service,masterMember:member};
 for(const width of [1440,390,320])test(`Purchasing dashboard, catalog quantities, order filters and settings ${width}`,async({browser},info)=>{
  const f=await isolated(browser,width,{purchasing:true});try{
   await f.page.goto('/b2b?section=purchases');await expect(f.page.locator('.business-purchases-overview')).toBeVisible();await expect(f.page.locator('.business-dashboard-order')).toHaveCount(2);await expect(f.page.locator('.salon-organization')).toBeVisible();await info.attach('business-purchases',{body:await f.page.screenshot(),contentType:'image/png'});
@@ -50,7 +50,7 @@ for(const width of [1440,390])test(`Salon settings last in navigation and daily 
 });
 for(const width of [1440,390,320])test(`Salon management lists, organization and support ${width}`,async({browser},info)=>{
  const f=await isolated(browser,width,{management:true});try{
-  await f.page.goto('/b2b');await expect(f.page.locator('.salon-overview>:first-child')).toHaveClass('salon-organization');await expect(f.page.locator('.salon-organization')).toContainText('150');
+  await f.page.goto('/b2b');await expect(f.page.locator('.salon-overview>:first-child')).toHaveClass(/business-overview-metrics/);await expect(f.page.locator('.salon-overview .salon-organization')).toHaveCount(1);await expect(f.page.locator('.salon-organization')).toContainText('150');
   await f.page.goto('/b2b?section=services');await expect(f.page.locator('.salon-service-row')).toHaveCount(2);await f.page.getByLabel('Доступность услуг',{exact:true}).selectOption('inactive');await expect(f.page.locator('.salon-service-row')).toHaveCount(1);await expect(f.page.locator('.salon-service-row')).toContainText('Дизайн');await f.page.getByLabel('Доступность услуг',{exact:true}).selectOption('all');await f.page.getByLabel('Поиск услуг',{exact:true}).fill('покрытием');await expect(f.page.locator('.salon-service-row')).toHaveCount(1);await f.page.getByLabel('Очистить поиск услуг',{exact:true}).click();
   await f.page.getByLabel('Редактировать Маникюр с покрытием',{exact:true}).click();const dialog=f.page.getByRole('dialog');await expect(dialog.getByLabel('Услуга доступна для записи')).toBeChecked();await dialog.getByLabel('Услуга доступна для записи').uncheck();await dialog.getByRole('button',{name:'Сохранить',exact:true}).click();await expect(dialog).toHaveCount(0);expect(f.writes.at(-1)).toMatchObject({method:'PATCH',path:`/b2b/services/${serviceId}`,body:{isActive:false}});await expect(f.page.locator('.salon-service-row')).toHaveCount(2);
   await info.attach('salon-services',{body:await f.page.screenshot(),contentType:'image/png'});
@@ -81,6 +81,8 @@ async function isolated(browser,width,{publicClosed=false,conflict=false,busines
  await context.addInitScript(actor=>{localStorage.clear();localStorage.setItem('sarkisian-b2b-token','fixture-not-a-jwt');localStorage.setItem('sarkisian-b2b-user',JSON.stringify(actor));},actor);
  const fixtures=new Map([['/auth/me',actor],['/b2b/profile',{...profile,inn:'7700123456',legalAddress:'Москва, Тестовая улица, 1',discountTier:15,creditLimit:150000,members:management?[{...member,canOrder:true,canSeeFinance:true},{id:'qa-buyer',role:'BUYER',canOrder:true,canSeeFinance:false,user:{firstName:'Иван',lastName:'Закупщик',email:'buyer@example.invalid'}}]:profile.members,membership:{...profile.membership,role:businessRole,canSeeFinance:finance},capabilities:{salon:['OWNER','EMPLOYEE'].includes(businessRole)}}],['/b2b/clients',clientList],['/b2b/services',serviceList],['/b2b/dashboard',{clients:1,bookingsToday:1,upcoming:1,recentOrders:[],nextBookings:[],purchaseOrdersMonth:0}],['/b2b/orders',[]],['/b2b/catalog',[]],['/b2b/support',[]]]);
  if(purchasing){fixtures.set('/b2b/catalog',[{id:'qa-gel',nameRu:'Гель QA',sku:'QA-GEL',images:[],categories:[{category:{id:'gels',nameRu:'Гели'}}],variants:[{id:'qa-variant',sku:'QA-GEL-15',name:'15 г',b2bPrice:850,retailPrice:1000,available:5}]},{id:'qa-tools',nameRu:'Ножницы QA',sku:'QA-TOOLS',images:[],categories:[{category:{id:'tools',nameRu:'Инструменты'}}],variants:[{id:'qa-tools-variant',sku:'QA-TOOLS',b2bPrice:1700,retailPrice:2000,available:0}]}]);fixtures.set('/b2b/orders',[{id:'qa-order',orderNumber:'SB-QA-001',createdAt:'2026-09-18T10:00:00Z',status:'NEW',finalAmount:1700,isSynced1C:false,items:[{productName:'Гель QA',quantity:2,total:1700,externalSku:'QA-GEL-15'}]},{id:'qa-delivered',orderNumber:'SB-QA-002',createdAt:'2026-09-17T10:00:00Z',status:'DELIVERED',finalAmount:850,isSynced1C:true,items:[{productName:'Гель QA',quantity:1,total:850}]}]);}
+ fixtures.set('/b2b/organizations',[{id:profile.id,name:profile.name,status:'ACTIVE',role:businessRole,canOrder:true,canSeeFinance:finance,canUseSalon:['OWNER','EMPLOYEE'].includes(businessRole)}]);
+ fixtures.set('/b2b/team',{members:fixtures.get('/b2b/profile').members.map(item=>({...item,version:1,isActive:true})),invitations:[],canManage:businessRole==='OWNER',currentMemberId:master});
  await context.route('**/*',async route=>{
   const req=route.request(),url=new URL(req.url()),path=url.pathname.replace(/^\/api\/v1/,'');
   const headers={'Access-Control-Allow-Origin':'http://127.0.0.1:3001','Access-Control-Allow-Methods':'GET, POST, PATCH, OPTIONS','Access-Control-Allow-Headers':'authorization,content-type'};
@@ -88,6 +90,8 @@ async function isolated(browser,width,{publicClosed=false,conflict=false,busines
    if(req.method()==='OPTIONS')return route.fulfill({status:204,headers});
    if(req.method()==='GET'){
     reads.push(path);
+    if(/^\/b2b\/bookings\/[^/]+\/history$/.test(path))return route.fulfill({headers,json:[]});
+    if(path==='/b2b/bookings/qa-visit')return route.fulfill({headers,json:visits.find(v=>v.id==='qa-visit')});
     if(path==='/b2b/bookings')return route.fulfill({headers,json:visits});
     if(path==='/b2b/booking-settings')return route.fulfill({headers,json:online});
     if(path==='/b2b/salon-presentation')return route.fulfill({headers,json:presentation});
@@ -106,7 +110,7 @@ async function isolated(browser,width,{publicClosed=false,conflict=false,busines
     if(path.startsWith('/b2b/services/')){const i=serviceList.findIndex(item=>item.id===path.split('/').pop());if(i>=0){serviceList[i]={...serviceList[i],...body};return route.fulfill({headers,json:serviceList[i]});}}
     if(path.startsWith('/b2b/clients/')){const i=clientList.findIndex(item=>item.id===path.split('/').pop());if(i>=0){clientList[i]={...clientList[i],...body};return route.fulfill({headers,json:clientList[i]});}}
     if(path==='/b2b/bookings'){const value={...initial,...body,id:'qa-created',endTime:new Date(Date.parse(body.startTime)+60*60000).toISOString(),client:customer,service,masterMember:member};visits.push(value);return route.fulfill({headers,json:value});}
-    if(path==='/b2b/bookings/qa-visit'){visits=visits.map(v=>v.id==='qa-visit'?{...v,...body,...(body.startTime?{endTime:new Date(Date.parse(body.startTime)+60*60000).toISOString()}:{})}:v);return route.fulfill({headers,json:visits[0]});}
+    if(path==='/b2b/bookings/qa-visit'){visits=visits.map(v=>v.id==='qa-visit'?{...v,...body,version:v.version+1,...(body.startTime?{endTime:new Date(Date.parse(body.startTime)+60*60000).toISOString()}:{})}:v);return route.fulfill({headers,json:visits[0]});}
     if(path===`/salon-booking/${company}/bookings`){if(conflict){conflict=false;return route.fulfill({status:409,headers,json:{message:'Это время уже недоступно. Выберите другой слот.'}});}return route.fulfill({headers,json:{id:'qa-public',startTime:body.startTime,endTime:'2026-09-19T07:00:00.000Z',status:'NEW',serviceName:service.name,timeZone:'Europe/Moscow'}});}
    }
    unexpected.push(`${req.method()} ${path}`);return route.fulfill({status:403,headers,json:{message:'Unexpected fixture request'}});
@@ -114,7 +118,7 @@ async function isolated(browser,width,{publicClosed=false,conflict=false,busines
   if(url.origin==='http://127.0.0.1:3001'&&(req.resourceType()==='document'||/^\/(_nuxt|fonts)\//.test(url.pathname)||['/sarkisian-logo.png','/favicon.ico'].includes(url.pathname)))return route.continue();
   unexpected.push(req.url());return route.abort();
  });
- const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+ const page=await context.newPage();await page.clock.install({time:new Date('2026-09-18T03:00:00Z')});page.on('pageerror',e=>errors.push(e.message));
  return {context,page,writes,reads,errors,unexpected};
 }
 for(const width of [1440,390]){
@@ -129,9 +133,9 @@ for(const width of [1440,390]){
    await expect(f.page.locator('.business-toolbar-actions').getByRole('link',{name:'Открыть сайт'})).toHaveAttribute('target','_blank');
    await expect(f.page.locator('.business-toolbar-actions>:last-child')).toHaveAccessibleName('Выйти');
    const theme=await f.page.getByLabel('Рабочее пространство бизнеса').evaluate(el=>({background:getComputedStyle(el).backgroundImage,color:getComputedStyle(el).color}));
-   expect(theme.color).toBe('rgb(255, 255, 255)');expect(theme.background).toBe(await f.page.locator('.b2b-rail').evaluate(el=>getComputedStyle(el).backgroundImage));
+   expect(theme.color).toBe(await f.page.locator('.b2b-rail').evaluate(el=>getComputedStyle(el).color));expect(theme.background).toBe(await f.page.locator('.b2b-rail').evaluate(el=>getComputedStyle(el).backgroundImage));
    const controls=await f.page.locator('.salon-calendar-tools>button,.salon-calendar-tools>input,.salon-calendar-modes>button,.business-toolbar .wn-icon-control').evaluateAll(els=>els.map(el=>({height:el.getBoundingClientRect().height,radius:getComputedStyle(el).borderRadius})));
-   for(const control of controls)expect(control).toEqual({height:44,radius:'8px'});
+   for(const control of controls)expect(control).toEqual({height:44,radius:'10px'});
    if(width===1440){const row=await f.page.locator('.salon-calendar-tools>*').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().top));expect(new Set(row).size).toBe(1);}
    expect(await f.page.locator('.salon-calendar-slot').first().evaluate(el=>({radius:getComputedStyle(el).borderRadius,height:el.getBoundingClientRect().height}))).toEqual({radius:'0px',height:24});
    if(width===1440)expect(await f.page.getByLabel('Рабочее пространство бизнеса').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(260);
@@ -180,7 +184,7 @@ for(const width of [1440,390]){
    await f.page.locator('.salon-widget-code summary').click();await expect(f.page.getByLabel('Код виджета')).toBeVisible();
    expect(await f.page.locator('.salon-day-options label').count()).toBe(7);
    await expect(f.page.getByLabel('Пн',{exact:true})).toBeChecked();await expect(f.page.getByLabel('Вс',{exact:true})).not.toBeChecked();
-   expect(await f.page.locator('.salon-day-options input:checked+span').first().evaluate(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}))).toEqual({background:'rgb(32, 33, 39)',color:'rgb(255, 255, 255)'});
+   expect(await f.page.locator('.salon-day-options input:checked+span').first().evaluate(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}))).toEqual({background:'rgb(60, 60, 59)',color:'rgb(255, 255, 255)'});
    expect(await f.page.getByRole('button',{name:'Сохранить настройки',exact:true}).count()).toBe(1);
    await f.page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__qaCopiedText=text;}}}));
    await f.page.getByRole('button',{name:'Скопировать ссылку',exact:true}).click();expect(await f.page.evaluate(()=>window.__qaCopiedText)).toBe(await f.page.getByLabel('Ссылка онлайн-записи').inputValue());
@@ -234,6 +238,43 @@ test('A purchasing-only employee is redirected before any salon client API read'
   expect(f.reads).not.toContain('/b2b/clients');expect(f.reads).not.toContain('/b2b/bookings');expect(f.reads).not.toContain('/b2b/booking-settings');expect(f.writes).toEqual([]);expect(f.unexpected).toEqual([]);expect(f.errors).toEqual([]);
  }finally{await f.context.close();}
 });
+for(const width of [1440,390])test(`Salon month grid, month navigation, Monday week and shared filters ${width}`,async({browser},info)=>{
+ const f=await isolated(browser,width);const ranges=[];
+ try{
+  await f.context.route('**/api/v1/b2b/bookings?*',route=>{
+   ranges.push(new URL(route.request().url()).searchParams);
+   return route.fulfill({json:[initial,{...initial,id:'qa-cancelled',status:'CANCELLED',masterMemberId:'another-master'}]});
+  });
+  await f.page.goto('/b2b?section=calendar');
+  await f.page.getByLabel('Дата календаря',{exact:true}).fill('2026-09-19');
+  await f.page.getByRole('button',{name:'Месяц',exact:true}).click();
+  await expect(f.page.locator('.salon-month-day')).toHaveCount(42);
+  await expect(f.page.locator('.salon-month-weekday')).toHaveText(['Пн','Вт','Ср','Чт','Пт','Сб','Вс']);
+  await expect.poll(()=>ranges.at(-1)?.get('from')).toBe('2026-08-30T21:00:00.000Z');
+  expect(ranges.at(-1).get('to')).toBe('2026-10-11T21:00:00.000Z');
+  await expect(f.page.locator('.salon-month-visit')).toHaveCount(2);
+  await f.page.getByLabel('Фильтр мастера',{exact:true}).selectOption(master);
+  await expect(f.page.locator('.salon-month-visit')).toHaveCount(1);
+  await f.page.getByLabel('Фильтр мастера',{exact:true}).selectOption('');
+  await f.page.getByLabel('Фильтр статуса записи',{exact:true}).selectOption('CANCELLED');
+  await expect(f.page.locator('.salon-month-visit')).toHaveCount(1);
+  await f.page.getByLabel('Фильтр статуса записи',{exact:true}).selectOption('');
+  await f.page.getByRole('button',{name:'Следующий период',exact:true}).click();
+  await expect(f.page.getByLabel('Дата календаря',{exact:true})).toHaveValue('2026-10-19');
+  await expect.poll(()=>ranges.at(-1)?.get('from')).toBe('2026-09-27T21:00:00.000Z');
+  expect(ranges.at(-1).get('to')).toBe('2026-11-08T21:00:00.000Z');
+  await f.page.getByRole('button',{name:'Открыть день 31 октября',exact:true}).click();
+  await expect(f.page.getByRole('button',{name:'День',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(f.page.getByLabel('Дата календаря',{exact:true})).toHaveValue('2026-10-31');
+  await f.page.getByRole('button',{name:'Неделя',exact:true}).click();
+  await expect(f.page.locator('.salon-calendar-heading').first()).toContainText('26');
+  await f.page.getByRole('button',{name:'Месяц',exact:true}).click();
+  await info.attach('salon-month',{body:await f.page.screenshot(),contentType:'image/png'});
+  expect(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+  expect(f.errors).toEqual([]);expect(f.unexpected).toEqual([]);
+ }finally{await f.context.close();}
+});
+
 test('A visit crossing midnight remains visible on the following day',async({browser})=>{
  const f=await isolated(browser,390);try{
   await f.context.route('**/api/v1/b2b/bookings?*',route=>route.fulfill({headers:{'Access-Control-Allow-Origin':'http://127.0.0.1:3001'},json:[{...initial,id:'qa-night',startTime:'2026-09-18T20:00:00.000Z',endTime:'2026-09-18T22:00:00.000Z'}]}));

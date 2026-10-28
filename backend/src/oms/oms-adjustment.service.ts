@@ -9,7 +9,7 @@ import { executionSnapshot } from './oms-execution.service';
 import { OrderAdjustmentDto } from './dto/order-adjustment.dto';
 
 export class OmsAdjustmentService {
-  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess, private readonly legacyAdjustmentAllowed = false) {}
 
   adjust(actor: string, id: string, dto: OrderAdjustmentDto) {
     return withOperationalAccess(this.prisma, this.access, actor, 'oms', true, async ctx => {
@@ -24,6 +24,7 @@ export class OmsAdjustmentService {
         if (previous.requestHash !== requestHash) throw new ConflictException('Ключ запроса уже использован для другой операции');
         return { operationId: previous.id, repeated: true };
       }
+      if (!this.legacyAdjustmentAllowed) throw new ConflictException('Отмена складского остатка и приёмка возврата выполняются в 1С. Дождитесь подтверждения склада.');
       if (!order.fulfillmentManaged || !order.execution || (!['WEB', 'B2B'].includes(order.source) && !marketplaceSources.includes(order.source))) throw new ConflictException('Операция доступна для заказа с заданием на сборку CRM');
       if (order.execution.version !== dto.expectedVersion || order.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime()) throw new ConflictException('Заказ изменился. Обновите карточку');
       if (order.execution.snapshotHash !== executionSnapshot(order)) throw new ConflictException('Состав или условия заказа изменились. Требуется сверка');

@@ -79,7 +79,7 @@ export function useCrmNotifications() {
       if (identity !== token.value) return;
       open.value = false; dismissToast(row.id);
       if (current.channelId) chat.openChat(current.channelId);
-      else if (/^\/crm\/(tasks|fulfillment|support\/tickets|messages)\?/.test(current.url)) await navigateTo(current.url);
+      else if (/^\/crm\/(tasks|fulfillment|support\/tickets|messages|meetings)\?/.test(current.url)) await navigateTo(current.url);
     });
     if (identity === token.value) { if (!ok) { dismissToast(row.id); items.value = items.value.filter(item => item.id !== row.id); open.value = true; } else await load(); }
   }

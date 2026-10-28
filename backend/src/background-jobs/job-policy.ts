@@ -48,7 +48,12 @@ export class JobPolicy {
     if (definition.system === 'ORDER_EXPORT') {
       const id = run.input?.orderId;
       if (typeof id !== 'string' || !id) throw new NotFoundException('Исходный заказ недоступен');
-      const order = await db.order.findFirst({ where: { id, source: { not: 'ONE_C' } }, select: { id: true } });
+      // Orders originating in 1C must not be echoed back as new orders, but
+      // an explicit pending CRM request on that order must reach accounting.
+      const order = await db.order.findFirst({ where: { id, OR: [
+        { source: { not: 'ONE_C' } },
+        { source: 'ONE_C', oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } },
+      ] }, select: { id: true } });
       if (!order) throw new NotFoundException('Исходный заказ недоступен');
       return;
     }

@@ -1,0 +1,37 @@
+<script setup lang="ts">
+import {Save, RefreshCw, Gift} from '@lucide/vue';
+import type {StudioOffer} from '~/composables/useStudioRewards';
+useHead({title:'Награды игры — SARKISIAN CRM'});
+const {token,user}=useWorkspaceSession(),config=useRuntimeConfig();
+const data=ref<any>(null),busy=ref(false),error=ref(''),message=ref(''),baseline=ref(''),tab=ref('settings');
+const tabs=[['settings','Условия наград'],['history','История обменов']] as const;
+const canWrite=computed(()=>['ADMIN','SUPERVISOR'].includes(user.value?.role||''));
+const payload=()=>data.value?{enabled:data.value.settings.enabled,dailyRunLimit:data.value.settings.dailyRunLimit,minimumRunSeconds:data.value.settings.minimumRunSeconds,offers:data.value.offers.map((o:StudioOffer)=>({id:o.id,discountPercent:o.discountPercent,coinPrice:o.coinPrice,validDays:o.validDays,minimumAmount:o.minimumAmount,maximumDiscount:o.maximumDiscount||null,isActive:o.isActive}))}:null;
+const dirty=computed(()=>Boolean(data.value)&&JSON.stringify(payload())!==baseline.value);
+const api=(options:any={})=>$fetch<any>('/studio/admin'+(options.method?'/settings':''),{baseURL:config.public.apiBase,headers:{Authorization:`Bearer ${token.value}`},...options});
+async function load(){if(busy.value||(dirty.value&&!window.confirm('Обновить данные и отменить несохранённые изменения наград?')))return;busy.value=true;error.value='';try{data.value=await api();baseline.value=JSON.stringify(payload());}catch(e:any){error.value=e?.data?.message||'Не удалось загрузить настройки. Попробуйте ещё раз.';}finally{busy.value=false;}}
+async function save(){if(busy.value||!canWrite.value||!dirty.value)return;const sent=payload();busy.value=true;error.value='';message.value='';try{data.value=await api({method:'PATCH',body:sent});baseline.value=JSON.stringify(payload());message.value='Настройки сохранены. Уже выданные промокоды сохраняют прежние условия.';}catch(e:any){error.value=Array.isArray(e?.data?.message)?e.data.message.join('; '):e?.data?.message||'Не удалось сохранить. Изменения остались в форме.';}finally{busy.value=false;}}
+function add(){data.value.offers.push({id:`discount-${crypto.randomUUID().slice(0,8)}`,discountPercent:5,coinPrice:15000,validDays:30,minimumAmount:0,maximumDiscount:null,isActive:false});}
+onBeforeRouteLeave(()=>!busy.value&&(!dirty.value||window.confirm('Уйти без сохранения изменений наград?')));
+function beforeUnload(event:BeforeUnloadEvent){if(dirty.value||busy.value){event.preventDefault();event.returnValue='';}}
+onMounted(()=>{void load();window.addEventListener('beforeunload',beforeUnload);});onBeforeUnmount(()=>window.removeEventListener('beforeunload',beforeUnload));
+const number=(value:number)=>new Intl.NumberFormat('ru-RU').format(value);
+const date=(value:string)=>Number.isFinite(new Date(value).getTime())?new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(new Date(value)):'—';
+</script>
+<template>
+ <main class="crm-standard crm-page-content studio-crm">
+  <header class="crm-page-header"><div><h1>Награды игры</h1><p>Скидки за игровые монеты и история обменов.</p></div><div class="crm-action-bar"><button class="crm-button" :disabled="busy" @click="load"><RefreshCw :size="16"/>Обновить</button><button v-if="canWrite&&tab==='settings'" type="submit" form="studio-rewards-settings-panel" class="crm-button crm-button--primary" :disabled="busy||!dirty"><Save :size="17"/>{{busy?'Сохраняем…':'Сохранить'}}</button></div></header>
+  <p v-if="error" role="alert" class="studio-crm-notice">{{error}}<button v-if="!data" class="crm-button" :disabled="busy" @click="load">Повторить</button></p><p v-if="message" role="status" class="studio-crm-notice">{{message}}</p><p v-if="busy&&!data" role="status">Загружаем настройки наград…</p>
+  <template v-if="data">
+   <div class="studio-crm-stats"><span><Gift :size="17"/>Выдано наград: <strong>{{number(data.issued)}}</strong></span><span>Игроков: <strong>{{number(data.accounts)}}</strong></span><span v-if="dirty" class="studio-crm-dirty" role="status">Есть несохранённые изменения</span></div>
+   <CrmCardTabs v-model="tab" :tabs="tabs" prefix="studio-rewards" label="Награды игры"/>
+   <form v-show="tab==='settings'" id="studio-rewards-settings-panel" role="tabpanel" aria-labelledby="studio-rewards-settings-tab" @submit.prevent="save">
+    <fieldset :disabled="!canWrite||busy" class="studio-crm-basics"><legend>Начисление монет</legend><label class="studio-crm-check"><input class="crm-check" v-model="data.settings.enabled" type="checkbox"/>Включить начисление и обмен монет</label><div class="studio-crm-grid studio-crm-grid--basics"><label class="crm-field">Приёмов с наградой за сутки<input v-model.number="data.settings.dailyRunLimit" class="crm-input" type="number" min="1" max="100" required/><small>Лимит на аккаунт, сутки по UTC.</small></label><label class="crm-field">Минимальная длительность, секунд<input v-model.number="data.settings.minimumRunSeconds" class="crm-input" type="number" min="30" max="600" required/><small>Минимум 30 секунд; все этапы приёма должны быть пройдены.</small></label></div></fieldset>
+    <div class="studio-crm-section-title"><h2>Скидки для обмена</h2><button v-if="canWrite" type="button" class="crm-button" :disabled="busy" @click="add">Добавить награду</button></div>
+    <fieldset v-for="offer in data.offers" :key="offer.id" :disabled="!canWrite||busy" class="studio-crm-offer"><legend>Скидка {{offer.discountPercent}}%</legend><div class="studio-crm-grid"><label class="crm-field">Скидка, %<input v-model.number="offer.discountPercent" class="crm-input" type="number" min="1" max="50" required/></label><label class="crm-field">Цена в монетах<input v-model.number="offer.coinPrice" class="crm-input" type="number" min="1000" max="10000000" required/></label><label class="crm-field">Срок, дней<input v-model.number="offer.validDays" class="crm-input" type="number" min="1" max="365" required/></label><label class="crm-field">Мин. заказ, ₽<input v-model.number="offer.minimumAmount" class="crm-input" type="number" min="0" max="1000000" required/></label><label class="crm-field">Макс. скидка, ₽<input v-model.number="offer.maximumDiscount" class="crm-input" type="number" min="1" max="1000000" placeholder="Без ограничения"/></label></div><label class="studio-crm-check"><input class="crm-check" v-model="offer.isActive" type="checkbox"/>Показывать в магазине наград</label></fieldset>
+    <details class="studio-crm-help"><summary>Как работают условия наград</summary><p>Промокод выдаётся только аккаунту игрока, действует один раз и имеет собственный срок. Новые условия применяются к следующим обменам. Уже выданные промокоды сохраняют прежние условия. Практика доступна без ограничений, но учебные и локальные бонусы смены не дают скидок.</p></details>
+   </form>
+   <section v-show="tab==='history'" id="studio-rewards-history-panel" role="tabpanel" aria-labelledby="studio-rewards-history-tab"><p v-if="!data.recent.length" class="studio-crm-empty">Пока никто не обменял монеты на скидку.</p><div v-else class="studio-crm-table"><table class="crm-data-table"><thead><tr><th scope="col">Дата</th><th scope="col">Аккаунт</th><th scope="col">Награда</th><th scope="col">Монеты</th><th scope="col">Промокод</th></tr></thead><tbody><tr v-for="row in data.recent" :key="row.code"><td>{{date(row.createdAt)}}</td><td>{{row.email}}</td><td>{{row.discountPercent}}%</td><td>{{number(row.coinPrice)}}</td><td>{{row.code}}</td></tr></tbody></table></div></section>
+  </template>
+ </main>
+</template>

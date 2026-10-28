@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { AdminService } from './admin.service';
 import { AdminListQueryDto } from './dto/admin.dto';
+import { executionSnapshot } from '../oms/execution-snapshot';
 
 describe('Admin paginated lists', () => {
   const prisma: any = { dataTrashEntry: { findMany: jest.fn() }, product: { count: jest.fn(), findMany: jest.fn() }, productVariant: { count: jest.fn(), fields: { reserved: 'reserved-column' } }, customer: { count: jest.fn() }, order: { count: jest.fn(), findMany: jest.fn(), aggregate: jest.fn(), groupBy: jest.fn() }, $queryRaw: jest.fn(), $transaction: jest.fn() };
@@ -48,6 +49,17 @@ describe('Admin paginated lists', () => {
     prisma.order.count.mockResolvedValue(115); prisma.order.findMany.mockResolvedValue([]);
     await service.orderList(plainToInstance(AdminListQueryDto, { page: 5, limit: 24, status: 'NEW', q: 'example' }));
     expect(prisma.order.findMany.mock.calls[0][0]).toMatchObject({ skip: 96, take: 24, where: { source: 'WEB', status: 'NEW' } });
+  });
+  it('exposes fresh warehouse progress to the order drawer without internal basis hashes', async () => {
+    const order: any = { id: 'order', source: 'WEB', totalAmount: 100, discountAmount: 0, finalAmount: 100, currency: 'RUB', shippingAddress: {}, shippingCost: 0, shippingProvider: null, paymentMethod: null, items: [{ id: 'line', variantId: 'variant', quantity: 1, price: 100, total: 100, productType: 'PHYSICAL' }], execution: { version: 2 } };
+    order.warehouseExecution = { status: 'PICKING', executionVersion: 2, basisHash: executionSnapshot(order), validUntil: new Date(Date.now()+60000), asOf: new Date() };
+    prisma.order.count.mockResolvedValue(1); prisma.order.findMany.mockResolvedValue([order]);
+    const result = await service.orderList(plainToInstance(AdminListQueryDto, { page: 1, limit: 24 }));
+    expect(result.items[0].warehouseExecution).toMatchObject({ status: 'PICKING', isCurrent: true });
+    expect(result.items[0].warehouseExecution).not.toHaveProperty('basisHash');
+    expect(result.items[0]).not.toHaveProperty('execution');
+    order.execution.version++;
+    expect((await service.orderList(plainToInstance(AdminListQueryDto, { page: 1, limit: 24 }))).items[0].warehouseExecution).toMatchObject({ isCurrent: false, staleReason: 'ORDER_CHANGED' });
   });
   it.each([{ page: 0 }, { limit: 101 }, { page: 'abc' }, { status: 'INVALID' }, { q: 'x'.repeat(201) }])('rejects invalid query %j', query => {
     expect(validateSync(plainToInstance(AdminListQueryDto, query)).length).toBeGreaterThan(0);

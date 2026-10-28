@@ -1,0 +1,6 @@
+FROM nginx:1.30.6-alpine
+COPY deploy/portainer-gateway.conf /etc/nginx/nginx.conf
+COPY deploy/portainer-api.conf /etc/nginx/portainer-api.conf
+USER nginx
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]

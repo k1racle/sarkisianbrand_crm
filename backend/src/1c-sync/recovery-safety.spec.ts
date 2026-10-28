@@ -20,6 +20,22 @@ describe('1C recovery boundary (no provider/network)', () => {
     await new OneCSyncService(db, {} as any, {} as any).logs();
     expect(db.syncLog.findMany.mock.calls[0][0].select).toEqual({ id: true, system: true, action: true, status: true, createdAt: true });
   });
+  it('continues past a page of failed orders and revisits the start after reaching the end', async () => {
+    const createdAt = new Date('2026-01-01T00:00:00Z');
+    const page = Array.from({ length: 100 }, (_, i) => ({ id: String(i).padStart(3, '0'), createdAt }));
+    const db: any = {
+      order: { findMany: jest.fn().mockResolvedValueOnce(page).mockResolvedValueOnce([{ id: '100', createdAt }]).mockResolvedValueOnce([]) },
+      jobRun: { findFirst: jest.fn(async ({ where }: any) => where.input.equals === '100' ? null : { id: 'uncertain', status: 'FAILED' }) },
+    };
+    const service = new OneCSyncService(db, {} as any, { status: async () => ({ enabled: true, configured: true }) } as any);
+    const enqueue = jest.spyOn(service, 'enqueueOrder').mockResolvedValue(null);
+    await (service as any).recoverPendingOrders();
+    await (service as any).recoverPendingOrders();
+    expect(enqueue).toHaveBeenCalledTimes(1); expect(enqueue).toHaveBeenCalledWith('100');
+    expect(db.order.findMany.mock.calls[1][0].where.AND[2]).toEqual({ OR: [{ createdAt: { gt: createdAt } }, { createdAt, id: { gt: '099' } }] });
+    await (service as any).recoverPendingOrders();
+    expect(db.order.findMany.mock.calls[2][0].where.AND).toHaveLength(2);
+  });
   it('alternate HTTP exchange cannot bypass source domain COMPANY permissions', () => {
     expect(Reflect.getMetadata(COMPANY_SCOPE, OneCSyncController)).toEqual(['integrations.read']);
     expect(Reflect.getMetadata(COMPANY_SCOPE, OneCSyncController.prototype.syncProducts)).toEqual(['integrations.write', 'catalog.read', 'catalog.write']);

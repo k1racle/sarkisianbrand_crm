@@ -11,5 +11,7 @@ assert.doesNotMatch(css, /Mont-HeavyDEMO|Intro|font-weight:\s*400\s+700/, 'Mont 
 assert.doesNotMatch(css, /font-size:|line-height:|letter-spacing:|padding:|margin:/, 'Font roles do not resize the UI');
 for (const scope of ['html[data-crm-ui]', '.sb-storefront', '.sb-glass-layer', '.b2b-frame', '.workspace-frame', '.admin-dialog']) assert.ok(css.includes(scope), scope);
 assert.match(css, /font-family: var\(--brand-font-ui\) !important;/, 'Controls use Montserrat');
-assert.ok(fs.readFileSync(path.join(root, 'assets/css/foundation.css'), 'utf8').startsWith('@import "./heading-typography.css";'));
+const foundation = fs.readFileSync(path.join(root, 'assets/css/foundation.css'), 'utf8');
+assert.equal(require('postcss').parse(foundation).nodes.find(node => node.type === 'atrule' && node.name === 'import').params, '"./heading-typography.css"', 'Brand fonts remain the first imported stylesheet');
+assert.ok(foundation.indexOf('@layer crm-workspace;') < foundation.indexOf('@import'), 'Approved CRM roles precede legacy important typography');
 console.log('PASS: local Mont Regular/Bold WOFF2; static weights; shared heading/control roles across site, CRM and B2B');

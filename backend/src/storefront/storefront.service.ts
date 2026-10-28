@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { StorefrontAddressDto } from './dto/storefront.dto';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { customerWarehouseView } from '../oms/warehouse-execution-view';
 
 @Injectable()
 export class StorefrontService {
@@ -15,7 +16,10 @@ export class StorefrontService {
         where: { userId },
         select: {
           id: true, orderNumber: true, status: true, createdAt: true, finalAmount: true,
-          items: { select: { id: true, variantId: true, productName: true, variantName: true, quantity: true, price: true, total: true } },
+          source: true, totalAmount: true, discountAmount: true, currency: true, shippingAddress: true, shippingCost: true, shippingProvider: true, paymentMethod: true,
+          execution: { select: { version: true } },
+          warehouseExecution: { select: { status: true, executionVersion: true, basisHash: true, asOf: true, validUntil: true } },
+          items: { select: { id: true, variantId: true, productName: true, variantName: true, quantity: true, price: true, total: true, productType: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 30,
@@ -45,7 +49,10 @@ export class StorefrontService {
     const level = loyalty ? this.loyaltyView(loyalty.balance, settings) : null;
     return {
       summary: { orders: orderCount, spent: Number(paid._sum.finalAmount || 0), favoriteCount },
-      orders,
+      orders: orders.map(order => {
+        const { source, totalAmount, discountAmount, currency, shippingAddress, shippingCost, shippingProvider, paymentMethod, execution, warehouseExecution, items, ...safe } = order;
+        return { ...safe, items: items.map(({ productType, ...item }) => item), requiresWarehouse: items.some(item => item.productType === 'PHYSICAL'), warehouseStatus: customerWarehouseView(warehouseExecution, order) };
+      }),
       addresses,
       giftCards: giftCards.flatMap(card => {
         const orderNumber = card.sourceOrder?.orderNumber;

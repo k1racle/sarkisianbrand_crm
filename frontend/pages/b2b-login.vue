@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ArrowRight, Building2, Eye, EyeOff } from '@lucide/vue';
 import { safeInternalRedirect } from '~/shared/internal-redirect';
-const { login, hydrate, token }=useB2BSession(); const route=useRoute(); const email=ref(''); const password=ref(''); const show=ref(false); const loading=ref(false); const error=ref('');
-onMounted(()=>{hydrate();if(token.value)navigateTo('/b2b')});
+const { login, hydrate, token, logoutWarning }=useB2BSession(); const route=useRoute(); const email=ref(''); const password=ref(''); const show=ref(false); const loading=ref(false); const error=ref('');
+const signingOut=useState<boolean>('b2b-signing-out',()=>false);
+onMounted(()=>{hydrate();if(token.value&&!signingOut.value)navigateTo('/b2b')});
 async function submit(){if(loading.value)return;loading.value=true;error.value='';try{await login(email.value,password.value);await navigateTo(safeInternalRedirect(route.query.redirect,'/b2b'))}catch(e:any){error.value=e?.data?.message||e?.message||'Не удалось войти'}finally{loading.value=false}}
 </script>
 <template>
@@ -19,6 +20,7 @@ async function submit(){if(loading.value)return;loading.value=true;error.value='
         <label data-v-ui-9238ae0be0ec for="b2b-email">Email</label><input data-v-ui-9238ae0be0ec id="b2b-email" v-model.trim="email" type="email" name="username" autocomplete="username" autocapitalize="none" :spellcheck="false" inputmode="email" placeholder="name@company.ru" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'b2b-login-error' : 'b2b-login-hint'" required />
         <label data-v-ui-9238ae0be0ec for="b2b-password">Пароль</label><div data-v-ui-9238ae0be0ec class="password"><input data-v-ui-9238ae0be0ec id="b2b-password" v-model="password" :type="show ? 'text' : 'password'" name="password" autocomplete="current-password" placeholder="Введите пароль" :disabled="loading" :aria-invalid="Boolean(error)" :aria-describedby="error ? 'b2b-login-error' : undefined" required /><button data-v-ui-9238ae0be0ec type="button" :disabled="loading" :aria-label="show ? 'Скрыть пароль' : 'Показать пароль'" :aria-pressed="show" aria-controls="b2b-password" @click="show=!show"><EyeOff data-v-ui-9238ae0be0ec v-if="show" :size="20" aria-hidden="true" /><Eye data-v-ui-9238ae0be0ec v-else :size="20" aria-hidden="true" /></button></div>
         <p data-v-ui-9238ae0be0ec v-if="error" id="b2b-login-error" class="login-error" role="alert">{{ error }}</p>
+        <p v-if="logoutWarning" class="login-error" role="status">{{logoutWarning}}</p>
         <button data-v-ui-9238ae0be0ec class="submit" type="submit" :disabled="loading"><span data-v-ui-9238ae0be0ec>{{ loading ? 'Проверяем данные…' : 'Войти в кабинет' }}</span><ArrowRight data-v-ui-9238ae0be0ec :size="20" aria-hidden="true" /></button>
         <small data-v-ui-9238ae0be0ec>Нет B2B-доступа? <NuxtLink to="/business-registration">Зарегистрировать салон или бизнес</NuxtLink></small><NuxtLink data-v-ui-9238ae0be0ec to="/" class="login-site-link">Вернуться на сайт <ArrowRight data-v-ui-9238ae0be0ec :size="16" aria-hidden="true" /></NuxtLink>
       </form>

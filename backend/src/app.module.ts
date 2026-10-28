@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { HealthController, HealthService } from './health/health.controller';
+import { StudioModule } from './studio/studio.module';
 import { PaymentCalendarModule } from './payment-calendar/payment-calendar.module';
 import { WorkScheduleModule } from './work-schedule/work-schedule.module';
 import { WorkTimeModule } from './work-time/work-time.module';
@@ -42,6 +44,7 @@ import { MeetingsModule } from './meetings/meetings.module';
 
 @Module({
   imports: [
+    StudioModule,
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
@@ -93,6 +96,7 @@ import { MeetingsModule } from './meetings/meetings.module';
     WorkTimeModule,
     StaffNotificationsModule,
   ],
-  providers: [{ provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
+  controllers: [HealthController],
+  providers: [HealthService, { provide: APP_INTERCEPTOR, useExisting: AuditInterceptor }],
 })
 export class AppModule {}

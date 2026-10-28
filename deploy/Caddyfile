@@ -1,0 +1,37 @@
+{
+  admin 127.0.0.1:2019
+  email {$ACME_EMAIL}
+  http_port 8080
+  https_port 8443
+}
+
+{$SITE_HOST} {
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=15552000"
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    -Server
+  }
+  request_body {
+    max_size 85MB
+  }
+  @private path_regexp internalRoutes (?i)^/(?:api/v1/health(?:/.*)?|__health|docs(?:/.*|-json)?)$
+  handle @private {
+    respond 404
+  }
+  @api path /api/v1 /api/v1/* /socket.io /socket.io/*
+  handle @api {
+    reverse_proxy backend:3000 {
+      # This is the sole public proxy. Discard client-supplied forwarded IPs.
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+    }
+  }
+  handle {
+    reverse_proxy frontend:3000 {
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+    }
+  }
+}

@@ -1,6 +1,7 @@
-/* Three text sizes for the entire employee workspace, including teleported UI.
+﻿/* Base text sizes for the employee workspace, including teleported UI.
  * Important layered declarations override legacy scoped resets, not storefront UI.
- * 20px headings/metrics, 14px body/controls, 12px secondary information.
+ * 20px sections, 14px body/controls, 12px captions. CRM/business owners add
+ * explicit 24/28px page titles and 28px numeric metrics, never larger body text.
  */
 @layer workspace-typography {
   /* Partner legacy aliases must resolve to the same workspace text palette.
@@ -30,7 +31,7 @@
     font-weight:var(--brand-weight-body)!important; font-style:normal!important; line-height:1.5!important;
     letter-spacing:0!important; font-synthesis:none; -webkit-font-smoothing:antialiased;
   }
-  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login) :where(*) {
+  :where(.workspace-frame,.b2b-frame,.b2b-rail,.b2b-login,.studio-rail,.wn-rail-dock,.admin-dialog,.workspace-context,.context-notice,.reminder-center,.workspace-login):not(.crm-frame) :where(*) {
     font-family:var(--ws-font)!important; font-size:var(--ws-type-body)!important;
     font-weight:var(--brand-weight-body)!important; font-style:normal!important; line-height:1.5!important;
     letter-spacing:0!important; text-transform:none!important;

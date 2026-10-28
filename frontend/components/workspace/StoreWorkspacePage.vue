@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { orderTransfer, warehouseExecution, warehouseStatusLabel } from '~/shared/warehouse-execution';
 import { crmDestination } from '~/shared/crm-workspace';
 import { Award, Check, Coins, Eye, Gift, GripVertical, ImagePlus, Pencil, Plus, RefreshCw, Save, Search, Trash2, X } from "@lucide/vue";
 import { inlineProductPrices } from '~/shared/inline-product-prices';
@@ -103,6 +104,8 @@ const loyaltySettings = reactive({
   premiumThreshold: 10000, proMultiplierPercent: 120, premiumMultiplierPercent: 150,
 });
 const savingLoyalty = ref(false);
+function closeLoyaltyAccount() { if (!savingLoyalty.value && (!loyaltyAdjustment.reason.trim() || window.confirm('Закрыть без проведения бонусной операции?'))) loyaltyAccountEditor.value = null; }
+const { panel: loyaltyPanel, keyboard: loyaltyKeys } = useCatalogDialog(computed(() => Boolean(loyaltyAccountEditor.value)), closeLoyaltyAccount);
 const savingAppearance = ref(false);
 const uploadingMedia = ref(false);
 const busy = ref(false);
@@ -225,12 +228,9 @@ const oneCErrors = computed(
   () => orders.value.filter((order) => order.oneCSyncError).length,
 );
 function oneCLabel(order: any) {
-  if (order.oneCSyncError) return "Ошибка передачи";
-  if (order.packedAt) return "Упакован";
-  if (order.pickedAt) return "Товар отобран";
-  if (order.pickingStartedAt) return "Сборка на ТСД";
-  if (order.isSynced1C) return "Передан в 1С";
-  return "В очереди";
+  const snapshot = warehouseExecution(order);
+  if (snapshot) return (snapshot.isCurrent === false ? 'История 1С: ' : '') + warehouseStatusLabel(snapshot.status);
+  return orderTransfer(order).label;
 }
 async function load() {
   if(savingAppearance.value)return;
@@ -746,9 +746,9 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <main data-v-ui-642ff821094a class="site-admin-console crm-standard">
+  <main data-v-ui-642ff821094a class="site-admin-console crm-standard crm-management-workspace">
     <WorkspaceLoading v-if="!pageLoaded && !loadError" label="Загружаем раздел" />
-    <section data-v-ui-642ff821094a v-else-if="!pageLoaded && loadError" class="panel admin-load-error crm-surface" role="alert"><h1 data-v-ui-642ff821094a>Управление платформой</h1><p data-v-ui-642ff821094a>{{ loadError }}</p><button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="busy" @click="load">Повторить загрузку</button></section>
+    <section data-v-ui-642ff821094a v-else-if="!pageLoaded && loadError" class="panel admin-load-error crm-surface" role="alert"><h1 data-v-ui-642ff821094a>{{crmDestination(route.path)?.label || menu.find(m => m.id === active)?.label || 'Управление платформой'}}</h1><p data-v-ui-642ff821094a>{{ loadError }}</p><button class="crm-button" data-v-ui-642ff821094a type="button" :disabled="busy" @click="load">Повторить загрузку</button></section>
     <template v-else
       ><header data-v-ui-642ff821094a
         class="site-admin-header crm-page-header"
@@ -836,8 +836,8 @@ onBeforeUnmount(() => {
               <div data-v-ui-642ff821094a v-if="!storefrontBanners.length" class="appearance-empty"><ImagePlus data-v-ui-642ff821094a :size="28" /><span data-v-ui-642ff821094a>Баннеров пока нет</span><button class="crm-button" data-v-ui-642ff821094a @click="addStorefrontBanner">Создать первый баннер</button></div>
             </div>
             <Teleport to="body">
-              <div data-v-ui-642ff821094a v-if="bannerEditor" class="banner-editor-backdrop admin-dialog-backdrop" @click.self="closeBannerEditor">
-                <form data-v-ui-642ff821094a ref="bannerPanel" class="banner-editor-drawer admin-dialog admin-dialog--drawer" role="dialog" aria-modal="true" aria-labelledby="banner-editor-title" :aria-busy="savingAppearance" tabindex="-1" @keydown="bannerKeyboard" @submit.prevent="saveBannerEditor">
+              <div data-v-ui-642ff821094a v-if="bannerEditor" class="banner-editor-backdrop admin-dialog-backdrop crm-management-backdrop" @click.self="closeBannerEditor">
+                <form data-v-ui-642ff821094a ref="bannerPanel" class="banner-editor-drawer admin-dialog admin-dialog--drawer crm-management-dialog" role="dialog" aria-modal="true" aria-labelledby="banner-editor-title" :aria-busy="savingAppearance" tabindex="-1" @keydown="bannerKeyboard" @submit.prevent="saveBannerEditor">
                   <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="eyebrow">Сайт / Баннеры</p><h2 data-v-ui-642ff821094a id="banner-editor-title">{{bannerEditor._new?'Новый баннер':'Настройки баннера'}}</h2><p data-v-ui-642ff821094a class="editor-subtitle">{{bannerEditorDirty?'Есть несохранённые изменения':'Главный экран сайта'}}</p></div><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" :disabled="savingAppearance" aria-label="Закрыть настройки баннера" @click="closeBannerEditor"><X data-v-ui-642ff821094a :size="20"/></button></header>
                   <div data-v-ui-642ff821094a class="admin-dialog-body">
                     <fieldset data-v-ui-642ff821094a class="banner-admin-fields" :disabled="savingAppearance">
@@ -880,7 +880,7 @@ onBeforeUnmount(() => {
                 <label data-v-ui-642ff821094a>Иконка<select class="crm-input" data-v-ui-642ff821094a v-model="social.iconKey"><option data-v-ui-642ff821094a value="vk">ВКонтакте</option><option data-v-ui-642ff821094a value="telegram">Telegram</option><option data-v-ui-642ff821094a value="max">MAX</option><option data-v-ui-642ff821094a value="link">Другая ссылка</option></select></label>
                 <label data-v-ui-642ff821094a class="social-url">Ссылка<input class="crm-input" data-v-ui-642ff821094a v-model="social.url" placeholder="https://..." /></label>
                 <label data-v-ui-642ff821094a class="banner-active crm-toggle-row"><input class="crm-check" data-v-ui-642ff821094a v-model="social.isActive" type="checkbox" /> Показывать</label>
-                <div data-v-ui-642ff821094a class="social-admin-actions"><button data-v-ui-642ff821094a class="danger crm-button crm-button--danger" @click="deleteStorefrontSocialLink(social)"><Trash2 data-v-ui-642ff821094a :size="15" /></button></div>
+                <div data-v-ui-642ff821094a class="social-admin-actions"><button data-v-ui-642ff821094a class="danger crm-button crm-button--danger"   type="button" :aria-label="'Удалить социальную ссылку: ' + (social.name || social.url)" @click="deleteStorefrontSocialLink(social)"><Trash2 data-v-ui-642ff821094a :size="15" /></button></div>
               </section>
               <div data-v-ui-642ff821094a v-if="!storefrontSocialLinks.length" class="appearance-empty"><span data-v-ui-642ff821094a>Социальные сети пока не добавлены</span><button class="crm-button" data-v-ui-642ff821094a @click="addStorefrontSocialLink"><Plus data-v-ui-642ff821094a :size="15" /> Добавить первую</button></div>
             </div>
@@ -1031,9 +1031,9 @@ onBeforeUnmount(() => {
     </template>
     <div data-v-ui-642ff821094a v-if="notice" class="toast">{{ notice }}</div>
   </main>
-  <aside data-v-ui-642ff821094a v-if="loyaltyAccountEditor" class="drawer-backdrop loyalty-drawer-backdrop admin-dialog-backdrop" @click.self="loyaltyAccountEditor = null">
-    <div data-v-ui-642ff821094a class="drawer loyalty-drawer admin-dialog admin-dialog--drawer">
-      <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">БОНУСНЫЙ СЧЁТ</p><h2 data-v-ui-642ff821094a>{{ [loyaltyAccountEditor.firstName, loyaltyAccountEditor.lastName].filter(Boolean).join(' ') || 'Клиент' }}</h2><span data-v-ui-642ff821094a class="loyalty-client-email">{{ loyaltyAccountEditor.email }}</span></div><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" aria-label="Закрыть бонусный счёт" @click="loyaltyAccountEditor = null"><X data-v-ui-642ff821094a :size="18" /></button></header>
+  <aside data-v-ui-642ff821094a v-if="loyaltyAccountEditor" class="drawer-backdrop loyalty-drawer-backdrop admin-dialog-backdrop crm-management-backdrop" @click.self="closeLoyaltyAccount">
+    <div data-v-ui-642ff821094a ref="loyaltyPanel" tabindex="-1" @keydown="loyaltyKeys" class="drawer loyalty-drawer admin-dialog admin-dialog--drawer crm-management-dialog" role="dialog" aria-modal="true" aria-label="Бонусный счёт клиента">
+      <header data-v-ui-642ff821094a><div data-v-ui-642ff821094a><p data-v-ui-642ff821094a class="kicker">БОНУСНЫЙ СЧЁТ</p><h2 data-v-ui-642ff821094a>{{ [loyaltyAccountEditor.firstName, loyaltyAccountEditor.lastName].filter(Boolean).join(' ') || 'Клиент' }}</h2><span data-v-ui-642ff821094a class="loyalty-client-email">{{ loyaltyAccountEditor.email }}</span></div><button class="crm-button crm-button--icon" data-v-ui-642ff821094a type="button" aria-label="Закрыть бонусный счёт" @click="closeLoyaltyAccount"><X data-v-ui-642ff821094a :size="18" /></button></header>
       <div data-v-ui-642ff821094a class="admin-dialog-body">
       <div data-v-ui-642ff821094a class="loyalty-drawer-balance"><small data-v-ui-642ff821094a>Доступно</small><strong data-v-ui-642ff821094a>{{ Number(loyaltyAccountEditor.balance).toLocaleString('ru-RU') }}</strong><span data-v-ui-642ff821094a>бонусов · {{ loyaltyLevelLabel(loyaltyAccountEditor.level) }}</span></div>
       <div data-v-ui-642ff821094a class="loyalty-operation-tabs"><button class="crm-button" data-v-ui-642ff821094a :class="{ active: loyaltyAdjustment.type === 'ACCRUAL' }" @click="loyaltyAdjustment.type = 'ACCRUAL'">Начислить</button><button class="crm-button" data-v-ui-642ff821094a :class="{ active: loyaltyAdjustment.type === 'WRITE_OFF' }" @click="loyaltyAdjustment.type = 'WRITE_OFF'">Списать</button></div>

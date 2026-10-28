@@ -7,9 +7,10 @@ import { orderAccessWhere } from './oms-read.service';
 import { ReceivablesQueryDto } from './dto/order-finance.dto';
 import { CreateOneCRequestDto } from '../1c-sync/dto/finance.dto';
 import { oneCClosureState, oneCFinanceState, settlementBasis } from '../1c-sync/finance-policy';
+import { OneCSyncService } from '../1c-sync/1c-sync.service';
 const include = { items: true, execution: true, oneCFinance: true, oneCRequests: { orderBy: [{ createdAt: 'desc' as const }, { id: 'asc' as const }] }, executionOperations: true, _count: { select: { financeEntries: true } } };
 export class OmsFinanceService {
- constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess) {}
+ constructor(private readonly prisma: PrismaService, private readonly access: CrmReadAccess, private readonly oneC?: Pick<OneCSyncService, 'stageOrderExport'>) {}
  private run<T>(actor: string, write: boolean, fn: (ctx: OperationalContext) => Promise<T>) {
   return withOperationalAccess(this.prisma, this.access, actor, 'oms', write, async ctx => {
    await this.access.resolve(ctx.db, actor, 'order_finance.read');
@@ -46,6 +47,7 @@ export class OmsFinanceService {
   const requestHash = createHash('sha256').update(JSON.stringify({ kind: dto.kind, comment: dto.comment.trim(), operationId: dto.operationId || null, expectedUpdatedAt: dto.expectedUpdatedAt })).digest('hex');
   const previous = order.oneCRequests.find(r => r.requestKey === dto.requestKey);
   if (previous) { if (previous.requestHash !== requestHash) throw new ConflictException('Ключ запроса уже использован'); return { id: previous.id, repeated: true }; }
+  if (!this.oneC) throw new ConflictException('Очередь обмена с 1С недоступна');
   if (order.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime()) throw new ConflictException('Заказ изменился. Обновите карточку');
   if (!dto.comment.trim()) throw new BadRequestException('Укажите основание запроса');
   if (dto.operationId && (dto.kind !== 'RETURN_REVIEW' || !order.executionOperations.some(op => op.id === dto.operationId && ['RETURN','CANCEL_REMAINDER'].includes(op.kind)))) throw new BadRequestException('Документ отмены или возврата недоступен');
@@ -55,6 +57,7 @@ export class OmsFinanceService {
   const request = await tx.oneCOrderRequest.create({ data: { orderId: id, kind: dto.kind, requestKey: dto.requestKey, requestHash, comment: dto.comment.trim(), operationId: dto.operationId, basisHash, sourceRevision: order.oneCFinance?.revision || 0, actorId: actor, actorName: [actorRow.firstName, actorRow.lastName].filter(Boolean).join(' ') || 'Сотрудник' } });
   await tx.order.update({ where: { id }, data: { isSynced1C: false } });
   await tx.auditLog.create({ data: { actorId: actor, resource: 'oms', resourceId: id, action: 'ONE_C_REQUEST', payload: { requestId: request.id, kind: request.kind } } });
+  await this.oneC.stageOrderExport(tx, id, actor);
   return { id: request.id, repeated: false };
  }); }
 }

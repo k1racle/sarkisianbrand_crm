@@ -1,0 +1,20 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const out=path.resolve(__dirname,'../.screenshots/keri-art');fs.mkdirSync(out,{recursive:true});
+(async()=>{const browser=await chromium.launch({headless:true});try{for(const width of [1440,390]){
+  const context=await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'}),p=await context.newPage(),errors=[],missing=[];
+  p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.status()>=400&&r.url().includes('studio-assets'))missing.push(r.url())});
+  await p.goto('http://localhost:3001/studio',{waitUntil:'domcontentloaded'});await p.locator('.at-loading').waitFor({state:'hidden'});
+  await p.getByRole('button',{name:'Мой образ',exact:true}).click();await p.locator('.kw-avatar-frame canvas[data-ready=true]').waitFor();
+  await p.getByRole('button',{name:'Жакет',exact:true}).click();await p.getByRole('button',{name:'Верх: Молочный',exact:true}).click();
+  await p.getByRole('button',{name:'Длинная юбка плиссе',exact:true}).click();await p.getByRole('button',{name:'Низ: Бордовый',exact:true}).click();
+  await p.locator('.kw-avatar-frame canvas[data-ready=true]').waitFor();await p.locator('.kw-preview').screenshot({path:path.join(out,`${width}-jacket.png`)});
+  await p.getByRole('button',{name:'Макияж',exact:true}).click();await p.getByRole('button',{name:'Помада: Винный',exact:true}).click();await p.getByRole('button',{name:'Румяна: Роза',exact:true}).click();await p.getByRole('button',{name:'Тени: Изумрудный',exact:true}).click();await p.getByRole('button',{name:'Выразительная стрелка',exact:true}).click();
+  await p.getByRole('button',{name:'Лицо',exact:true}).click();await p.getByRole('button',{name:'Форма 3',exact:true}).click();await p.getByRole('button',{name:'Макияж',exact:true}).click();
+  await p.locator('.kw-preview').screenshot({path:path.join(out,`${width}-makeup.png`)});
+  const bounds=await p.locator('.kw-avatar-frame canvas').boundingBox();await p.getByRole('button',{name:'Весь образ',exact:true}).click();const state=await p.locator('.kw-avatar-frame canvas').evaluate(el=>getComputedStyle(el).transform);assert.equal(state,'none');
+  const downloaded=p.waitForEvent('download');await p.getByRole('button',{name:'Скачать PNG',exact:true}).click();await (await downloaded).saveAs(path.join(out,`${width}-corrected-look.png`));
+  await p.getByRole('button',{name:'Сохранить образ',exact:true}).click();
+  await p.reload({waitUntil:'domcontentloaded'});await p.locator('.at-loading').waitFor({state:'hidden'});await p.getByRole('button',{name:'Мой образ',exact:true}).click();assert.equal(await p.getByRole('button',{name:'Жакет',exact:true}).getAttribute('aria-pressed'),'true');
+  await p.getByRole('button',{name:'Макияж',exact:true}).click();assert.equal(await p.getByRole('button',{name:'Помада: Винный',exact:true}).getAttribute('aria-pressed'),'true');
+  const metrics=await p.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(metrics.scroll<=metrics.width+2,JSON.stringify(metrics));assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log(`PASS ${width}: clothes, makeup, close-up, PNG, saved look restored, no errors/overflow`);await context.close();
+}}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

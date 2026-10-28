@@ -26,7 +26,7 @@
  html[data-crm-ui] .crm-messenger .channels .chat-dialog-meta {align-self:center;gap:8px;}
  html[data-crm-ui] .crm-messenger .channels .chat-dialog-meta em {display:grid!important;place-items:center;min-width:20px;height:20px;padding:0 5px;background:var(--crm-accent)!important;color:#fff!important;border-radius:20px;}
  html[data-crm-ui] .crm-messenger .channels .active .chat-dialog-meta em {background:#fff!important;color:var(--crm-accent)!important;}
- html[data-crm-ui] .crm-messenger .chat-avatar {display:grid!important;place-items:center;flex:none;width:48px!important;height:48px!important;border-radius:50%!important;background:var(--chat-avatar-color,var(--crm-accent))!important;color:#fff!important;font-size:17px!important;font-weight:600!important;line-height:1!important;}
+ html[data-crm-ui] .crm-messenger .chat-avatar {display:grid!important;place-items:center;flex:none;width:48px!important;height:48px!important;border-radius:50%!important;background:var(--chat-avatar-color,var(--crm-accent))!important;color:#fff!important;font-size:18px!important;font-weight:600!important;line-height:1!important;}
  html[data-crm-ui] .crm-messenger .chat-avatar--0 {--chat-avatar-color:var(--brand-graphite-soft);}
  html[data-crm-ui] .crm-messenger .chat-avatar--1 {--chat-avatar-color:var(--brand-graphite-soft);}
  html[data-crm-ui] .crm-messenger .chat-avatar--2 {--chat-avatar-color:var(--brand-graphite-soft);}
@@ -47,13 +47,13 @@
  html[data-crm-ui] .crm-messenger .messenger-date > span {padding:5px 12px;border-radius:20px;background:#ffffffb8;color:var(--crm-muted);font-size:12px!important;}
  html[data-crm-ui] .crm-messenger .message {display:flex!important;align-items:flex-end;justify-content:flex-start;gap:8px;width:100%;margin:4px 0 8px;padding:0;}
  html[data-crm-ui] .crm-messenger .message.mine {justify-content:flex-end;}
- html[data-crm-ui] .crm-messenger .message > .chat-avatar {width:30px!important;height:30px!important;font-size:11px!important;}
+ html[data-crm-ui] .crm-messenger .message > .chat-avatar {width:30px!important;height:30px!important;font-size:12px!important;}
  html[data-crm-ui] .crm-messenger .message > section {flex:0 1 auto;width:fit-content;max-width:min(80%,580px);min-width:60px;padding:9px 12px 5px!important;margin:0;border:0!important;border-radius:16px 16px 16px 5px!important;background:#fff!important;box-shadow:0 1px 2px #3c3c3b0d;overflow-wrap:anywhere;}
  html[data-crm-ui] .crm-messenger .message.mine > section {background:var(--brand-soft)!important;border-radius:16px 16px 5px 16px!important;}
  html[data-crm-ui] .crm-messenger .message section > header {display:block;margin:0 0 4px;padding:0;border:0;}
  html[data-crm-ui] .crm-messenger .message section > header b {font-size:12px!important;color:var(--crm-accent-ink)!important;}
  html[data-crm-ui] .crm-messenger .message section > p {margin:0!important;white-space:pre-wrap;line-height:1.55!important;color:var(--crm-ink)!important;}
- html[data-crm-ui] .crm-messenger .messenger-message-time {display:block;text-align:right;margin:3px 0 0;color:var(--crm-muted)!important;font-size:11px!important;}
+ html[data-crm-ui] .crm-messenger .messenger-message-time {display:block;text-align:right;margin:3px 0 0;color:var(--crm-muted)!important;font-size:12px!important;}
  html[data-crm-ui] .crm-messenger .message .attachments {display:grid;gap:6px;min-width:0;margin:3px 0;}
  html[data-crm-ui] .crm-messenger .message .attachments :is(.entity-card,.file-card) {display:grid!important;grid-template-columns:30px minmax(0,1fr) 18px!important;width:100%;min-width:0;text-align:left!important;justify-content:stretch!important;background:#ffffffc9!important;padding:10px!important;border:0!important;border-radius:10px!important;}
  html[data-crm-ui] .crm-messenger .message .attachments :is(.entity-card,.file-card) > span {min-width:0;text-align:left!important;}

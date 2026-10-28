@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { hashCartSession, hashShippingDestination, moneyMinor } from '../common/storefront-utils';
@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { replayLoyaltyLedger } from '../loyalty/loyalty-core.helpers';
 import { giftCodeHash, giftMoneyMinor, giftNominal, giftValidityDays } from '../gift-cards/gift-cards.helpers';
 import { salesQuantity, salesStockInclude } from '../common/sales-stock';
+import { oneCStockAvailability } from '../common/one-c-sale-stock';
 import { pricedCart } from '../common/product-merchandising';
 
 const DEFAULT_SETTINGS = {
@@ -27,7 +28,7 @@ export class StorefrontPricingService {
       where: { sessionId },
       include: {
         user: { include: { customer: true, b2bProfile: true, organizationMemberships: { where: { isActive: true }, take: 1 } } },
-        items: { include: { variant: { include: { product: true, channelStocks: salesStockInclude } } } },
+        items: { include: { variant: { include: { product: true, channelStocks: salesStockInclude, oneCWarehouseStock: true } } } },
       },
     });
     const cart=rawCart?pricedCart(rawCart):null;
@@ -40,6 +41,7 @@ export class StorefrontPricingService {
     if (productTypes.some(type => type !== 'PHYSICAL' && type !== 'GIFT_CARD')) throw new BadRequestException('Неизвестный тип товара');
     if (new Set(productTypes).size > 1) throw new BadRequestException('Подарочные сертификаты и физические товары оформляются отдельными заказами. Разделите корзину');
     const digitalDelivery = productTypes.every(type => type === 'GIFT_CARD');
+    const integration = digitalDelivery ? null : await db.ecosystemIntegration.findUnique({ where: { key: 'ONE_C' }, select: { isEnabled: true, configuredSecretKeys: true, config: true } });
     if (digitalDelivery && (String(dto?.promoCode || '').trim() || dto?.useBonuses === true || String(dto?.giftCardCode || '').trim())) {
       throw new BadRequestException('Подарочные сертификаты нельзя покупать с промокодом, бонусами или другим сертификатом');
     }
@@ -58,8 +60,10 @@ export class StorefrontPricingService {
         if (unitMinor <= 0 || BigInt(unitMinor) !== BigInt(nominal) * 100n) {
           throw new BadRequestException('У подарочного сертификата некорректно настроены номинал, цена или срок действия');
         }
-      } else if (!Number.isSafeInteger(variant.stock) || !Number.isSafeInteger(variant.reserved) || variant.reserved < 0 || salesQuantity(variant,'WEB') < quantity) {
-        throw new BadRequestException(`Недостаточно товара: ${variant.product.nameRu}`);
+      } else {
+        const availability = oneCStockAvailability(variant, variant.oneCWarehouseStock, integration);
+        if (availability.available === null) throw new ConflictException(availability.availabilityMessage);
+        if (!Number.isSafeInteger(variant.stock) || !Number.isSafeInteger(variant.reserved) || variant.reserved < 0 || salesQuantity(variant,'WEB') < quantity) throw new BadRequestException(`Недостаточно товара: ${variant.product.nameRu}`);
       }
       subtotalMinor = this.safe(BigInt(subtotalMinor) + BigInt(unitMinor) * BigInt(quantity));
     }
@@ -82,6 +86,7 @@ export class StorefrontPricingService {
         throw new BadRequestException('Промокод недействителен или срок его действия истёк');
       }
       if (subtotalMinor < this.minor(promo.minimumAmount)) throw new BadRequestException('Сумма товаров меньше минимальной для этого промокода');
+      if (promo.restrictedUserId && promo.restrictedUserId !== actor?.sub) throw new BadRequestException('Этот промокод доступен только владельцу награды. Войдите в свой аккаунт.');
       const where = { code: promo.code, status: { in: ['RESERVED', 'APPLIED'] } };
       const [used, customerUsed] = await Promise.all([
         db.promoRedemption.count({ where }),

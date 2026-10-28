@@ -15,11 +15,30 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { OneCStockService } from './one-c-stock.service';
 import { OneCStockSnapshotsDto } from './dto/stock.dto';
+import { OneCWarehouseSnapshotDto } from './dto/warehouse.dto';
+import { OneCWarehouseService } from './one-c-warehouse.service';
+import { OneCWarehouseStocksDto } from './dto/warehouse-stock.dto';
+import { OneCWarehouseStockService } from './one-c-warehouse-stock.service';
+import { executionSnapshot } from '../oms/execution-snapshot';
+
+const marketplaceSources: OrderSource[] = [OrderSource.OZON, OrderSource.WILDBERRIES, OrderSource.YANDEX_MARKET, OrderSource.MEGAMARKET];
+const needsMarketplaceMapping = (order: any) => marketplaceSources.includes(order.source) &&
+  (!order.items?.length || order.items.some((item: any) => item.productType === 'PHYSICAL' && !item.variantId));
+const missingMarketplaceMapping = 'Сопоставьте все товары заказа площадки перед передачей в 1С';
+const mappedMarketplaceOrder: Prisma.OrderWhereInput = { OR: [
+  { source: { notIn: marketplaceSources } },
+  { items: { some: {}, none: { productType: 'PHYSICAL', variantId: null } } },
+] };
+const unmappedMarketplaceOrder: Prisma.OrderWhereInput = { source: { in: marketplaceSources }, OR: [
+  { items: { none: {} } }, { items: { some: { productType: 'PHYSICAL', variantId: null } } },
+] };
 
 @Injectable()
 export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OneCSyncService.name);
   private recoveryTimer?: NodeJS.Timeout;
+  private recoveryCursor?: { createdAt: Date; id: string };
+  private recovering = false;
 
   constructor(private readonly prisma: PrismaService, private readonly jobs: BackgroundJobsService, private readonly client: OneCClientService,
     @Optional() private readonly notifications?: NotificationsService) {}
@@ -57,14 +76,28 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     }
   }
 
+  /** The order/reservation and its export intent commit together; Redis is never called here. */
+  async stageOrderExport(tx: Prisma.TransactionClient, orderId: string, initiatedById?: string) {
+    const integration = await tx.ecosystemIntegration.findUnique({ where: { key: 'ONE_C' } });
+    if (!integration?.isEnabled || !(integration.config as any)?.baseUrl || !integration.configuredSecretKeys.includes('password')) return null;
+    return this.jobs.stage(tx, '1C_ORDER_EXPORT', { orderId }, initiatedById);
+  }
+
   private async recoverPendingOrders() {
+    if (this.recovering) return;
+    this.recovering = true;
     try {
       const status = await this.client.status();
       if (!status.enabled || !status.configured) return;
+      const cursor = this.recoveryCursor;
       const pending = await this.prisma.order.findMany({
-        where: { isSynced1C: false, OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] },
-        select: { id: true },
-        orderBy: { createdAt: 'asc' },
+        where: { isSynced1C: false, AND: [
+          { OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] },
+          mappedMarketplaceOrder,
+          ...(cursor ? [{ OR: [{ createdAt: { gt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { gt: cursor.id } }] }] : []),
+        ] },
+        select: { id: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: 100,
       });
       for (const order of pending) {
@@ -80,9 +113,12 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
         // Subsequent deliberate order changes enqueue a fresh export through their own workflow.
         if (!recentRun || recentRun.status === 'COMPLETED') await this.enqueueOrder(order.id);
       }
+      // A failed/uncertain export must not starve later orders forever. Resume
+      // after this page next tick and loop back after reaching the end.
+      this.recoveryCursor = pending.length === 100 ? pending[pending.length - 1] : undefined;
     } catch (error: any) {
       this.logger.warn(`Не удалось восстановить очередь заказов 1С: ${error?.message || error}`);
-    }
+    } finally { this.recovering = false; }
   }
 
   async importOrderStatuses(dto: OneCOrderStatusesDto) {
@@ -95,9 +131,18 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
       const found = await this.prisma.$transaction(async tx => {
         await tx.$queryRaw`SELECT id FROM "Order" WHERE (${item.platformOrderId || null}::text IS NOT NULL AND id = ${item.platformOrderId || null})
           OR (${item.external1CId || null}::text IS NOT NULL AND "externalId" = ${item.external1CId || null}) ORDER BY id FOR UPDATE`;
-        const order = await tx.order.findFirst({ where: { OR: candidates }, include: { marketplaceStaging: true, items: true, payments: true } });
+        const order = await tx.order.findFirst({ where: { OR: candidates }, include: { marketplaceStaging: true, items: true, payments: true, warehouseExecution: true } });
         if (!order) return false;
         if ((item.platformOrderId && order.id !== item.platformOrderId) || (item.external1CId && order.externalId !== item.external1CId)) throw new ConflictException('Идентификаторы заказа CRM и 1С не совпадают');
+        // This old payload has no per-line facts, revision or document version.
+        // Never turn it into a local stock movement or unverified warehouse status.
+        const physical = order.reservationState !== 'DIGITAL' && (!order.items.length || order.items.some(line => line.productType !== 'GIFT_CARD'));
+        const warehouseStatus = item.status.toUpperCase();
+        // A repeated legacy status is only an acknowledgement; never use it to
+        // overwrite tracking, documents, inventory, or the confirmed projection.
+        if (physical && warehouseStatus === 'SHIPPED' && order.status === 'SHIPPED' && order.reservationState === 'CONSUMED' && !order.fulfillmentManaged && order.warehouseExecution?.owner === 'ONE_C' && order.warehouseExecution.status === 'SHIPPED') return true;
+        const unsafeDelivery = warehouseStatus === 'DELIVERED' && (order.reservationState !== 'CONSUMED' || !['SHIPPED', 'DELIVERED'].includes(order.status));
+        if (physical && (unsafeDelivery || ['RESERVING', 'RESERVED', 'PARTIAL_RESERVE', 'READY_FOR_PICKING', 'PICKING', 'PICKED', 'CHECKING', 'CHECKED', 'PACKED', 'READY_TO_SHIP', 'PARTIALLY_SHIPPED', 'SHIPPED', 'CANCELLED', 'REFUNDED', 'PARTIALLY_RETURNED', 'RETURNED'].includes(warehouseStatus))) throw new ConflictException('Складской статус физического заказа принимается только с версионными данными по строкам из 1С');
         const nextStatus = this.toOrderStatus(item.status, order.status);
         const lifecycle = await applyStorefrontTransition(tx, order, nextStatus, this.notifications);
         await tx.order.update({
@@ -119,10 +164,12 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
 
   async verifyInboundSecret(value?: string) { return this.client.verifyInboundSecret(value); }
   importStock(dto: OneCStockSnapshotsDto) { return new OneCStockService(this.prisma).receive(dto); }
-  async importFinance(dto: OneCFinanceDto) {
+  importWarehouse(dto: OneCWarehouseSnapshotDto, key?: string) { return new OneCWarehouseService(this.prisma).receive(dto, integration => this.client.verifyInboundSecretForRecord(key, integration)); }
+  importWarehouseStock(dto: OneCWarehouseStocksDto, key?: string) { return new OneCWarehouseStockService(this.prisma).receive(dto, integration => this.client.verifyInboundSecretForRecord(key, integration)); }
+  async importFinance(dto: OneCFinanceDto, key?: string) {
     const value = plainToInstance(OneCFinanceDto, dto);
     if ((await validate(value, { whitelist: true, forbidNonWhitelisted: true })).length) throw new BadRequestException('Некорректный формат расчётов 1С');
-    return new OneCFinanceService(this.prisma).receive(value);
+    return new OneCFinanceService(this.prisma).receive(value, key === undefined ? undefined : integration => this.client.verifyInboundSecretForRecord(key, integration));
   }
 
   private async processProducts(dto: OneCProductsSyncDto, progress: JobProgress) {
@@ -136,17 +183,18 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
         const variant = variants.length > 1 ? await tx.productVariant.findUnique({ where: { sku: item.sku } }) : variants[0];
         if (variants.length > 1 && (!variant || variant.productId !== product.id)) throw new ConflictException('1С должна указать точный SKU варианта: ' + item.sku);
         if (variant) {
-          const localExecution = item.stock !== undefined && await tx.orderItem.count({ where: { variantId: variant.id, order: { fulfillmentManaged: true } } }) > 0;
-          if (localExecution) stockSkipped.push(item.sku);
-          // Unversioned absolute stock snapshots cannot overwrite CRM document movements.
-          const changed = await tx.productVariant.updateMany({ where: { id: variant.id, ...(!localExecution && item.stock !== undefined ? { reserved: { lte: item.stock } } : {}) }, data: { price: item.price, ...(!localExecution && item.stock !== undefined ? { stock: item.stock } : {}) } });
+          const confirmedStock = item.stock !== undefined && await tx.oneCWarehouseStock.findUnique({ where: { variantId: variant.id }, select: { variantId: true } });
+          const protectedStock = item.stock !== undefined && (Boolean(confirmedStock) || await tx.orderItem.count({ where: { variantId: variant.id, order: { OR: [{ fulfillmentManaged: true }, { reservationState: 'ACTIVE' }] } } }) > 0);
+          if (protectedStock) stockSkipped.push(item.sku);
+          // Unversioned stock must not replace stock behind a local movement or temporary hold.
+          const changed = await tx.productVariant.updateMany({ where: { id: variant.id, ...(!protectedStock && item.stock !== undefined ? { reserved: { lte: item.stock } } : {}) }, data: { price: item.price, ...(!protectedStock && item.stock !== undefined ? { stock: item.stock } : {}) } });
           if (changed.count !== 1) throw new ConflictException('Остаток 1С меньше действующего резерва: ' + item.sku);
         }
         else await tx.productVariant.create({ data: { productId: product.id, name: 'Основной вариант', options: {}, sku: item.sku, price: item.price, stock: item.stock ?? 0 } });
         processed += 1;
         await progress((processed / dto.products.length) * 95);
       }
-      await tx.syncLog.create({ data: { system: '1C_KA', action: 'PRODUCTS_UPSERT', status: stockSkipped.length ? 'WARNING' : 'SUCCESS', message: `Обработано товаров: ${processed}; остатки под управлением CRM не заменены: ${stockSkipped.length}`, details: { processed, stockSkipped, externalIds: dto.products.map(item => item.externalId) } } });
+      await tx.syncLog.create({ data: { system: '1C_KA', action: 'PRODUCTS_UPSERT', status: stockSkipped.length ? 'WARNING' : 'SUCCESS', message: `Обработано товаров: ${processed}; версионные остатки и остатки с активным резервом не заменены: ${stockSkipped.length}`, details: { processed, stockSkipped, externalIds: dto.products.map(item => item.externalId) } } });
     });
     return { success: stockSkipped.length === 0, processed, stockSkipped, message: `Обработано товаров: ${processed}; остатков требуют сверки: ${stockSkipped.length}` };
   }
@@ -184,7 +232,10 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     }
     await progress(67);
 
-    const orders = await this.prisma.order.findMany({ where: { isSynced1C: false, OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] }, include: this.orderInclude(), orderBy: { createdAt: 'asc' }, take: 250 });
+    const orders = await this.prisma.order.findMany({ where: { isSynced1C: false, AND: [
+      { OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] }, mappedMarketplaceOrder,
+    ] }, include: this.orderInclude(), orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 250 });
+    const unmappedOrders = await this.prisma.order.count({ where: { isSynced1C: false, ...unmappedMarketplaceOrder } });
     const exportedOrders = await this.exportOrders(orders);
     await progress(87);
 
@@ -208,7 +259,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
       await this.prisma.syncLog.create({ data: { system: '1C_KA', action: 'ORDER_STATUSES_PULL', status: 'WARNING', message: String(error?.message || error).slice(0, 1000) } });
     }
     await progress(96);
-    const result = { products: productResult.processed, stockSkipped: productResult.stockSkipped, counterparties, exportedOrders, importedStatuses, importedFinance, requiresReview: partialFailure || productResult.stockSkipped.length > 0 || exportedOrders < orders.length, durationMs: Date.now() - startedAt.getTime() };
+    const result = { products: productResult.processed, stockSkipped: productResult.stockSkipped, counterparties, exportedOrders, unmappedOrders, importedStatuses, importedFinance, requiresReview: partialFailure || productResult.stockSkipped.length > 0 || exportedOrders < orders.length || unmappedOrders > 0, durationMs: Date.now() - startedAt.getTime() };
     await this.prisma.syncLog.create({ data: { system: '1C_KA', action: 'FULL_EXCHANGE', status: result.requiresReview ? 'WARNING' : 'SUCCESS', message: `Товары: ${result.products}, контрагенты: ${counterparties}, заказы: ${exportedOrders}, статусы склада: ${importedStatuses}`, details: result as Prisma.InputJsonValue } });
     return result;
   }
@@ -217,6 +268,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     const order = await this.prisma.order.findFirst({ where: { id: orderId, OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] }, include: this.orderInclude() });
     if (!order) throw new BadGatewayException('Заказ для выгрузки в 1С не найден');
     try {
+      if (needsMarketplaceMapping(order)) throw new ConflictException(missingMarketplaceMapping);
       const config = await this.client.configuration();
       const response = await this.client.post('ordersPath', '/hs/sarkisian/v1/orders', { orders: [this.orderPayload(order, config)] });
       await this.applyAcknowledgement(order, response);
@@ -229,6 +281,10 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
   }
 
   private async exportOrders(orders: any[]) {
+    if (!orders.length) return 0;
+    const blocked = orders.filter(needsMarketplaceMapping);
+    for (const order of blocked) await this.prisma.order.updateMany({ where: { id: order.id, updatedAt: order.updatedAt }, data: { isSynced1C: false, oneCSyncError: missingMarketplaceMapping } });
+    orders = orders.filter(order => !needsMarketplaceMapping(order));
     if (!orders.length) return 0;
     const config = await this.client.configuration();
     const response = await this.client.post('ordersPath', '/hs/sarkisian/v1/orders', { orders: orders.map(order => this.orderPayload(order, config)) });
@@ -246,10 +302,11 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     if (!accepted.has(order.id) && !item?.accepted) throw new BadGatewayException(`1С не подтвердила заказ ${order.orderNumber}`);
     const externalId = item?.external1CId || response?.externalIds?.[order.id];
     if (externalId && order.externalId && externalId !== order.externalId) throw new ConflictException('Подтверждение содержит идентификатор другого заказа 1С');
-    if (order.fulfillmentManaged) {
+    if (order.execution) {
       const acknowledged = new Set<string>((item?.acceptedOperationIds || []).map(String));
       if (item?.revision !== order.updatedAt.toISOString() || item?.executionVersion !== order.execution?.version || (order.executionOperations || []).some((operation: any) => !acknowledged.has(operation.id))) throw new BadGatewayException('1С не подтвердила версию исполнения и все документы. Нужна сверка обмена');
     }
+    if (order.items?.some((line: any) => line.productType === 'PHYSICAL') && !externalId && !order.externalId) throw new BadGatewayException('1С не передала идентификатор заказа. Требуется подтверждение передачи');
     if (order.oneCRequests?.length) {
       const acknowledged = new Set<string>((item?.acceptedRequestIds || []).map(String));
       if (item?.revision !== order.updatedAt.toISOString() || order.oneCRequests.some((entry: any) => !acknowledged.has(entry.id))) throw new BadGatewayException('1С не подтвердила получение всех запросов по заказу');
@@ -266,6 +323,16 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
 
   private orderPayload(order: any, config: Record<string, unknown>) {
     const partnerGift = order.sourceChannel === 'PARTNER_GIFT';
+    const marketplace = ['OZON', 'WILDBERRIES', 'YANDEX_MARKET', 'MEGAMARKET'].includes(order.source);
+    const sourceMode = order.sourcePayload && typeof order.sourcePayload === 'object' ? order.sourcePayload.fulfillmentMode : null;
+    const marketplaceMode = marketplace ? (sourceMode === 'FBS' || sourceMode === 'FBO' ? sourceMode : 'UNKNOWN') : null;
+    // A marketplace FBO order belongs to the marketplace's warehouse. Unknown
+    // schemes must be reconciled before any task is created at our warehouse.
+    const ownWarehouse = !marketplace || marketplaceMode === 'FBS';
+    const warehouseBasis = executionSnapshot(order);
+    // Draft orders can be exported for commercial processing. 1C must not reserve
+    // or create a warehouse task until the manager confirms this exact composition.
+    const warehouseReady = ownWarehouse && Boolean(order.execution) && order.execution.snapshotHash === warehouseBasis && !order.fulfillmentManaged && order.items.length > 0 && order.items.every((item: any) => item.productType === 'PHYSICAL' && item.variantId && Number.isSafeInteger(item.quantity) && item.quantity > 0) && ![OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.SHIPPED, OrderStatus.DELIVERED].includes(order.status);
     const payload = {
       id: order.id, external1CId: order.externalId, number: order.orderNumber, revision: order.updatedAt.toISOString(), createdAt: order.createdAt,
       protocolVersion: 4, accountingAuthority: 'ONE_C', settlementBasis: settlementBasis(order),
@@ -274,13 +341,15 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
       requiresCustomerPayment: partnerGift ? false : undefined,
       requests: (order.oneCRequests || []).map((r: any) => ({ id: r.id, kind: r.kind, comment: r.comment, operationId: r.operationId, basisHash: r.basisHash, sourceRevision: r.sourceRevision, createdAt: r.createdAt })),
       status: order.status, source: order.source, sourceChannel: order.sourceChannel, externalChannelOrderId: order.externalOrderId,
+      marketplace: marketplace ? { channel: order.source, externalOrderId: order.externalOrderId, fulfillmentMode: marketplaceMode } : null,
       organization: order.organization ? { id: order.organization.id, external1CId: order.organization.external1CId, name: order.organization.name, legalName: order.organization.legalName, inn: order.organization.inn, kpp: order.organization.kpp } : null,
       buyer: { customerId: order.customerId, name: order.buyerName, email: order.buyerEmail, phone: order.buyerPhone },
       payment: { status: order.paymentStatus, method: order.paymentMethod },
       delivery: { provider: order.shippingProvider, address: order.shippingAddress, cost: Number(order.shippingCost), deliveryDate: order.deliveryDate, trackingNumber: order.trackingNumber },
-      warehouse: { warehouseId: config.warehouseId || null, businessUnitId: config.organizationId || null, orderType: config.orderType || 'Заказ клиента', requiresPicking: !order.fulfillmentManaged && ![OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(order.status), fulfillmentMode: order.fulfillmentManaged ? 'CRM_DOCUMENTS' : 'TSD_PICKING' },
+      warehouseBasis,
+      warehouse: { warehouseId: ownWarehouse ? config.warehouseId || null : null, businessUnitId: config.organizationId || null, orderType: config.orderType || 'Заказ клиента', requiresReservation: warehouseReady, requiresPicking: warehouseReady, fulfillmentMode: marketplaceMode === 'FBO' ? 'MARKETPLACE_FBO' : marketplaceMode === 'UNKNOWN' ? 'MARKETPLACE_UNKNOWN' : order.fulfillmentManaged ? 'CRM_DOCUMENTS' : 'TSD_PICKING' },
       currency: order.currency, totalAmount: Number(order.totalAmount), discountAmount: Number(order.discountAmount), finalAmount: Number(order.finalAmount), comments: order.comments,
-      execution: order.execution ? { version: order.execution.version, confirmedAt: order.execution.confirmedAt, paymentTerms: order.execution.paymentTerms, deliveryTerms: order.execution.deliveryTerms, settlementReviewRequired: order.execution.settlementReviewRequired, managedBy: 'CRM' } : null,
+      execution: order.execution ? { version: order.execution.version, confirmedAt: order.execution.confirmedAt, paymentTerms: order.execution.paymentTerms, deliveryTerms: order.execution.deliveryTerms, settlementReviewRequired: order.execution.settlementReviewRequired, managedBy: order.fulfillmentManaged ? 'CRM' : 'ONE_C' } : null,
       operations: (order.executionOperations || []).map((operation: any) => ({ id: operation.id, kind: operation.kind, createdAt: operation.createdAt, lines: operation.lines, trackingNumber: operation.trackingNumber, reason: operation.reason, settlementStatus: operation.settlementStatus })),
       items: order.items.map((item: any) => ({ id: item.id, catalogSku: item.variant?.sku || null, variantId: item.variantId, sku: item.externalSku, offerId: item.offerId, name: item.productName, variantName: item.variantName, price: Number(item.price), quantity: item.quantity, total: Number(item.total), pickedQuantity: item.pickedQuantity, shippedQuantity: item.shippedQuantity, cancelledQuantity: item.cancelledQuantity, returnedQuantity: item.returnedQuantity, damagedReturnedQuantity: item.damagedReturnedQuantity })),
     };

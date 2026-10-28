@@ -74,6 +74,20 @@ export class OneCClientService {
     return provided.length === expected.length && timingSafeEqual(provided, expected);
   }
 
+  // Verify against the integration row locked by the caller's transaction.
+  // This prevents a key rotated between the HTTP check and the commit from being used.
+  verifyInboundSecretForRecord(value: string | undefined, integration: { isEnabled: boolean; status: IntegrationStatus; config: Prisma.JsonValue; encryptedSecrets: string | null } | null) {
+    if (!value || !integration?.isEnabled || integration.status === IntegrationStatus.NOT_CONFIGURED || integration.status === IntegrationStatus.DISABLED) return false;
+    try {
+      const config = (integration.config || {}) as Record<string, unknown>;
+      const secrets = this.secrets.decrypt(integration.encryptedSecrets);
+      const url = new URL(String(config.baseUrl || '').trim());
+      if (!['http:', 'https:'].includes(url.protocol) || !config.username || !secrets.password || !secrets.exchangeSecret) return false;
+      const provided = Buffer.from(value), expected = Buffer.from(secrets.exchangeSecret);
+      return provided.length === expected.length && timingSafeEqual(provided, expected);
+    } catch { return false; }
+  }
+
   async configuration() {
     const integration = await this.prisma.ecosystemIntegration.findUnique({ where: { key: 'ONE_C' }, select: { config: true } });
     return (integration?.config || {}) as Record<string, unknown>;

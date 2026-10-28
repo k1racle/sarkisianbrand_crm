@@ -16,6 +16,7 @@ export function notificationVisibility(actor: { id: string; role: string; access
   const crm = decisions.find(d => d.permissionKey === 'crm.read' && d.allowed && !d.denied);
   // Contact inbox uses the same company-only boundary as its existing controller.
   const contacts = ['ADMIN', 'MANAGER_SALES', 'SUPERVISOR'].includes(actor.role) && !!crm && (!actor.accessProfileMode || crm.grants.some(g => g.allowed && g.effectiveScope === 'COMPANY'));
+  const meetings = decisions.some(d => d.permissionKey === 'meetings.read' && d.allowed && !d.denied);
   return { AND: [
     { OR: [{ actorId: null }, { actorId: { not: id } }] },
     { OR: [{ recipientId: null }, { recipientId: id }] },
@@ -33,11 +34,15 @@ export function notificationVisibility(actor: { id: string; role: string; access
       { kind: { in: ['TICKET_CREATED', 'TICKET_ASSIGNED'] }, ticket },
       { kind: 'TICKET_COMMENT', ticket: { AND: [ticket, { OR: [{ assignedToId: id }, { requesterUserId: id }] }] } },
       ...(contacts ? [{ kind: 'CONTACT_CREATED', contact: { isNot: null } }] : []),
+      ...(meetings ? [{ category:'CALENDAR', recipientId:id, meeting:{ AND:[{OR:[{organizerId:id},{members:{some:{userId:id}}}]},
+        {OR:[{status:'SCHEDULED'},{notifications:{some:{kind:'MEETING_CANCELLED',recipientId:id}}}]}] },
+        OR:[{kind:{not:'MEETING_REMINDER'}},{meeting:{status:'SCHEDULED',OR:[{organizerId:id},{members:{some:{userId:id,response:{not:'DECLINED'}}}}]}}] } as Prisma.CrmNotificationEventWhereInput] : []),
     ] },
   ] };
 }
 
 const titles: Record<string, string> = {
+  MEETING_INVITED:'Вас пригласили на событие', MEETING_UPDATED:'Событие изменено', MEETING_CANCELLED:'Событие отменено', MEETING_ACCEPTED:'Участие подтверждено', MEETING_DECLINED:'Участник не сможет прийти', MEETING_REMINDER:'Скоро начнётся событие',
   TASK_MENTION: 'Вас упомянули в задаче', TASK_PARTICIPANT_ADDED: 'Вас добавили в задачу',
   CHAT_MESSAGE: 'Новое сообщение', TASK_CREATED: 'Новая задача', TASK_ASSIGNED: 'Вам назначена задача', TASK_COMMENT: 'Комментарий к задаче', TASK_STATUS: 'Изменён статус задачи', TASK_REMINDER: 'Напоминание о задаче',
   ORDER_CREATED: 'Новый заказ', ORDER_ASSIGNED: 'Вам назначен заказ', ORDER_STATUS: 'Изменён статус заказа', TICKET_CREATED: 'Новое обращение', TICKET_ASSIGNED: 'Вам назначено обращение', TICKET_COMMENT: 'Ответ в обращении', CONTACT_CREATED: 'Сообщение с сайта',
@@ -48,6 +53,7 @@ const select = (actor: string) => ({
   task: { select: { id: true, title: true } }, order: { select: { id: true, orderNumber: true, source: true } },
   ticket: { select: { id: true, number: true, subject: true } }, contact: { select: { id: true, name: true } },
   reminder: { select: { task: { select: { id: true, title: true } } } },
+  meeting: { select: {id:true,title:true,startsAt:true,timezone:true,location:true} },
   message: { select: { channelId: true, body: true, channel: { select: { name: true, directKey: true } }, author: { select: { firstName: true, lastName: true } } } },
 }) satisfies Prisma.CrmNotificationEventSelect;
 
@@ -59,6 +65,7 @@ export function notificationView(row: any) {
   if (row.order) { body = row.order.orderNumber + ' · ' + ({ WEB: 'Сайт', B2B: 'B2B', WILDBERRIES: 'Wildberries', OZON: 'Ozon', YANDEX_MARKET: 'Яндекс Маркет', MEGAMARKET: 'Мегамаркет' }[row.order.source] || row.order.source); url = '/crm/fulfillment?order=' + encodeURIComponent(row.order.id); }
   if (row.ticket) { body = row.ticket.number + ' · ' + row.ticket.subject; url = '/crm/support/tickets?ticket=' + encodeURIComponent(row.ticket.id); }
   if (row.contact) { body = row.contact.name; url = '/crm/messages?message=' + encodeURIComponent(row.contact.id); }
+  if (row.meeting) { body = row.meeting.title + ' · ' + new Date(row.meeting.startsAt).toLocaleString('ru-RU',{timeZone:row.meeting.timezone,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) + (row.meeting.location ? ' · '+row.meeting.location : ''); url='/crm/meetings?meeting='+encodeURIComponent(row.meeting.id); }
   if (row.message) {
     const author = [row.message.author?.firstName, row.message.author?.lastName].filter(Boolean).join(' ') || 'Сотрудник';
     title = row.message.channel.directKey ? author : row.message.channel.name;

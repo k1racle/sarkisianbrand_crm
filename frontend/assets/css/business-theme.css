@@ -1,0 +1,56 @@
+/* Business and salon use the same neutral light/dark palette as the CRM.
+ * The route marker keeps customer storefront pages and embedded booking intact. */
+@layer business-theme {
+  html[data-business-ui] { color-scheme:light;--ui-type-page:24px; }
+  html[data-business-ui] :is(.b2b-frame .portal > .top,.b2b-login,.business-invite) h1 {font-size:var(--ui-type-page)!important;line-height:1.2!important;letter-spacing:-.025em!important;}
+  @media(min-width:1024px) {html[data-business-ui] {--ui-type-page:28px;}}
+  html[data-business-ui] :is(.b2b-frame,.b2b-rail,.b2b-login,.admin-dialog,.profile-drawer,.ui-mobile-dock) {--ui-success:#237450!important;--ui-on-accent:#fff!important;--ui-line-soft:color-mix(in srgb,var(--ui-line) 62%,transparent)!important;--ui-surface-muted:color-mix(in srgb,var(--ui-panel) 55%,var(--ui-bg))!important;}
+  html[data-business-ui][data-business-theme="dark"] {
+    color-scheme:dark;
+    --brand-graphite:#eeeeec!important; --brand-muted:#b8babd!important; --brand-gray:#4b4d51!important;
+    --brand-bg:#222427!important; --brand-soft:#35373b!important; --brand-gray-soft:#303236!important;
+    --brand-action:#d6d6d6!important; --brand-action-hover:#fff!important;
+    --black:#eeeeec!important; --muted:#b8babd!important; --line:#4b4d51!important; --soft:#222427!important;
+    --admin-ink:#eeeeec!important; --admin-muted:#b8babd!important; --admin-bg:#222427!important; --admin-line:#4b4d51!important;
+    --sb-ink:#eeeeec!important; --sb-text:#eeeeec!important; --sb-text-soft:#b8babd!important;
+    --sb-bg:#222427!important; --sb-muted:#b8babd!important; --sb-panel:#2b2d30!important; --sb-line:#4b4d51!important;
+  }
+  html[data-business-ui][data-business-theme="dark"] body { background:#222427!important;color:#eeeeec!important; }
+  html[data-business-ui][data-business-theme="dark"] :is(.b2b-frame,.b2b-rail,.b2b-login,.ui-mobile-dock,.admin-dialog,.profile-drawer,.workspace-context,.context-notice) {
+    --ui-bg:#222427!important; --ui-surface:#2b2d30!important; --ui-panel:#2b2d30!important; --ui-soft:#35373b!important;
+    --ui-ink:#eeeeec!important; --ui-muted:#b8babd!important; --ui-line:#4b4d51!important;
+    --ui-accent:#d6d6d6!important; --ui-accent-soft:#35373b!important; --ui-on-accent:#222427!important;
+    --ui-danger:#ffa2af!important; --ui-danger-soft:#492d34!important;
+    --ui-success:#86d7ac!important; --ui-success-soft:#203d30!important;
+    --ui-rail-ink:#fff!important; --ui-rail-muted:#d6d6d6!important;
+    --ui-brand-gradient:linear-gradient(145deg,#3c3c3b,#30302f)!important;
+  }
+  html[data-business-ui][data-business-theme="dark"] .profile-drawer { background:#2b2d30!important;color:#eeeeec!important; }
+  html[data-business-ui][data-business-theme="dark"] .admin-dialog {
+    --admin-bg:#222427!important; --admin-glass:#2b2d30!important; --admin-ink:#eeeeec!important; --admin-muted:#b8babd!important; --admin-line:#4b4d51!important;
+    --sb-bg:#222427!important; --sb-panel:#2b2d30!important; --sb-ink:#eeeeec!important; --sb-muted:#b8babd!important; --sb-line:#4b4d51!important;
+    background:#2b2d30!important;color:#eeeeec!important;border-color:#4b4d51!important;
+  }
+  html[data-business-ui][data-business-theme="dark"] .admin-dialog :is(.admin-dialog-body,.drawer-body,.profile-section,.identity,.profile-tabs) { background:#2b2d30!important;color:#eeeeec!important;border-color:#4b4d51!important; }
+  html[data-business-ui][data-business-theme="dark"] .admin-dialog :is(input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea,button,.crm-button) { background:#222427!important;color:#eeeeec!important;border-color:#4b4d51!important; }
+  html[data-business-ui][data-business-theme="dark"] .admin-dialog :is(button,.crm-button):hover:not(:disabled) { background:#35373b!important;color:#eeeeec!important; }
+  html[data-business-ui][data-business-theme="dark"] .admin-dialog :is(.primary,.crm-button--primary,button.active,button[aria-selected=true]) { background:#eeeeec!important;color:#222427!important;border-color:#eeeeec!important; }
+  html[data-business-ui][data-business-theme="dark"] .admin-dialog :is(.primary,.crm-button--primary,button.active,button[aria-selected=true]) :is(span,svg) { color:inherit!important; }
+  html[data-business-ui][data-business-theme="dark"] .profile-drawer :is(input,select,textarea) { background:#222427!important;color:#eeeeec!important;border-color:#4b4d51!important; }
+  html[data-business-ui][data-business-theme="dark"] .ui-mobile-dock { background:#2b2d30!important;border-color:#4b4d51!important;color:#eeeeec!important; }
+  html[data-business-ui][data-business-theme="dark"] .ui-mobile-dock > :is(a,button) { background:transparent!important;color:#eeeeec!important; }
+  html[data-business-ui][data-business-theme="dark"] .ui-mobile-dock > a:is(.active,:hover) { background:#35373b!important;color:#fff!important; }
+  html[data-business-ui][data-business-theme="dark"] .ui-mobile-dock > .ui-mobile-menu { background:#eeeeec!important;color:#222427!important; }
+  html[data-business-ui][data-business-theme="dark"] .ui-mobile-dock > :is(a,button) :is(span,svg) { color:inherit!important; }
+  html[data-business-ui][data-business-theme="dark"] .b2b-frame .primary { background:var(--ui-ink)!important;color:var(--ui-on-accent)!important;border-color:var(--ui-ink)!important; }
+  html[data-business-ui][data-business-theme="dark"] .b2b-frame .toast { background:#eeeeec!important;color:#222427!important;border:1px solid #4b4d51!important; }
+  html[data-business-ui][data-business-theme="dark"] :is(.b2b-login,.business-invite) :is(input,select,textarea) { background:#222427!important;color:#eeeeec!important;border-color:#4b4d51!important; }
+  .business-toolbar { flex-wrap:wrap; }
+  .business-toolbar-actions { margin-left:auto; }
+  @media(max-width:600px) {
+    .business-toolbar { gap:12px!important;padding:12px 16px!important; }
+    .business-toolbar>select { flex:1 1 110px!important;width:110px!important;min-width:100px!important; }
+    .business-toolbar>select[aria-label="Организация"] { flex-basis:100%!important;width:100%!important; }
+    .b2b-frame :is(input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea) { font-size:16px!important; }
+  }
+}

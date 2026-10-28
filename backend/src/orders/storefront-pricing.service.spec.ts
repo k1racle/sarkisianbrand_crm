@@ -30,9 +30,10 @@ describe('StorefrontPricingService (mock database only)', () => {
   beforeEach(() => {
     cart = {
       id: 'cart', userId: null, user: null, currency: 'RUB',
-      items: [{ variantId: 'variant', quantity: 2, variant: { isActive: true, price: '780.25', stock: 10, reserved: 2, options: { weightGrams: 200 }, product: { isActive: true, currency: 'RUB', nameRu: 'Тестовый товар' } } }],
+      items: [{ variantId: 'variant', quantity: 2, variant: { sku: 'SKU', isActive: true, price: '780.25', stock: 10, reserved: 2, options: { weightGrams: 200 }, product: { isActive: true, productType: 'PHYSICAL', externalId: '1c-product', currency: 'RUB', nameRu: 'Тестовый товар' }, oneCWarehouseStock: { variantId: 'variant', warehouseId: 'warehouse', sku: 'SKU', externalProductId: '1c-product', stock: 10, reserved1C: 2, localPending: 0, asOf: new Date(Date.now()-1000), validUntil: new Date(Date.now()+60000) } } }],
     };
     db = {
+      ecosystemIntegration: { findUnique: jest.fn().mockResolvedValue({ isEnabled: true, configuredSecretKeys: ['password', 'exchangeSecret'], config: { baseUrl: 'https://fixture.invalid', username: 'fixture', warehouseId: 'warehouse' } }) },
       cart: { findUnique: jest.fn().mockImplementation(async () => cart) },
       loyaltyProgramSetting: { findUnique: jest.fn().mockResolvedValue(null) },
       loyaltyAccount: { findUnique: jest.fn().mockResolvedValue({ id: 'loyalty', balance: 2000 }) },
@@ -48,6 +49,14 @@ describe('StorefrontPricingService (mock database only)', () => {
     cart.items[0].variant.salePrice='500.25';
     const result=await service.quote(session,{...dto(),promoCode:'TEST'});
     expect(result.subtotalMinor).toBe(100050);expect(result.promoDiscountMinor).toBe(10005);expect(result.cart.items[0].variant.price).toBe('500.25');expect(cart.items[0].variant.price).toBe('780.25');
+  });
+  it('accepts a studio reward only for its authenticated owner',async()=>{
+    db.promoCode.findUnique.mockResolvedValue(promo({restrictedUserId:actor.sub}));
+    await expect(service.quote(session,{...dto(),promoCode:'TEST'})).rejects.toThrow('владельцу награды');
+    owned();
+    await expect(service.quote(session,{...dto(),promoCode:'TEST'},actor)).resolves.toHaveProperty('promoDiscountMinor',15605);
+    db.promoCode.findUnique.mockResolvedValue(promo({restrictedUserId:'another-user'}));
+    await expect(service.quote(session,{...dto(),promoCode:'TEST'},actor)).rejects.toThrow('владельцу награды');
   });
   it('calculates server prices in minor units and never calls a provider', async () => {
     const result = await service.quote(session, dto());
@@ -78,7 +87,7 @@ describe('StorefrontPricingService (mock database only)', () => {
     if (kind === 'productCurrency') cart.items[0].variant.product.currency = 'USD';
     if (kind === 'variant') cart.items[0].variant.isActive = false;
     if (kind === 'product') cart.items[0].variant.product.isActive = false;
-    if (kind === 'reserved') cart.items[0].variant.reserved = 9;
+    if (kind === 'reserved') { cart.items[0].variant.reserved = 9; cart.items[0].variant.oneCWarehouseStock.reserved1C = 9; }
     if (kind === 'quantity') cart.items[0].quantity = 0;
     if (kind === 'fraction') cart.items[0].quantity = 1.5;
     if (kind === 'price') cart.items[0].variant.price = 'NaN';
@@ -88,9 +97,13 @@ describe('StorefrontPricingService (mock database only)', () => {
     await expect(service.quote('', dto())).rejects.toBeInstanceOf(BadRequestException);
     expect(db.cart.findUnique).not.toHaveBeenCalled();
   });
+  it('reports unavailable 1C stock as unknown before checkout', async () => {
+    cart.items[0].variant.oneCWarehouseStock.validUntil = new Date(0);
+    await expect(service.quote(session, dto())).rejects.toMatchObject({ status: 409 });
+  });
   it('rejects a line total exceeding safe integer precision', async () => {
     cart.items[0].variant.price = '9000000000000.00';
-    cart.items[0].quantity = 20; cart.items[0].variant.stock = 30;
+    cart.items[0].quantity = 20; cart.items[0].variant.stock = 30; cart.items[0].variant.oneCWarehouseStock.stock = 30;
     await expect(service.quote(session, dto())).rejects.toBeInstanceOf(BadRequestException);
   });
 

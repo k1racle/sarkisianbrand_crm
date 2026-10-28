@@ -58,14 +58,17 @@ export class BackgroundJobsService implements OnApplicationBootstrap, OnModuleDe
   }
 
   async enqueue(jobName: string, payload: any, initiatedById?: string, correlationId?: string) {
-    if (!this.handlers.has(jobName)) throw new NotFoundException('Обработчик фоновой операции не зарегистрирован');
-    const run = await this.prisma.$transaction(async db => {
-      await this.policy.execution(db, { jobName, input: payload, initiatedById: initiatedById || null });
-      return db.jobRun.create({ data: { queueName: this.queueName, jobName, input: payload as Prisma.InputJsonValue,
-        initiatedById, correlationId, maxAttempts: 1 } });
-    });
+    const run = await this.prisma.$transaction(db => this.stage(db, jobName, payload, initiatedById, correlationId));
     await this.dispatch(run);
     return jobSummary(await this.prisma.jobRun.findUniqueOrThrow({ where: { id: run.id } }));
+  }
+
+  /** Persist work in the source transaction. dispatchPending sends it only after commit. */
+  async stage(db: Prisma.TransactionClient, jobName: string, payload: any, initiatedById?: string, correlationId?: string) {
+    if (!this.handlers.has(jobName)) throw new NotFoundException('Обработчик фоновой операции не зарегистрирован');
+    await this.policy.execution(db, { jobName, input: payload, initiatedById: initiatedById || null });
+    return db.jobRun.create({ data: { queueName: this.queueName, jobName, input: payload as Prisma.InputJsonValue,
+      initiatedById, correlationId, maxAttempts: 1 } });
   }
 
   private async dispatch(run: { id: string; jobName: string }) {

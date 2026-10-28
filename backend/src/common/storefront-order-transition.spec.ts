@@ -179,25 +179,26 @@ describe('Storefront transitions (mock only, no provider calls)', () => {
     await expect(applyStorefrontTransition(ctx.tx, ctx.order, OrderStatus.ASSEMBLING)).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it.each(['admin', 'oms', 'oneC'])('%s locks and rereads before transitioning unpaid cancellation', async (caller) => {
+  it.each(['admin', 'oms', 'oneC'])('%s locks and rereads before rejecting local warehouse cancellation', async (caller) => {
     const ctx = fixture();
-    if (caller === 'admin') await new AdminService(ctx.prisma, ctx.oneC, {} as any, ctx.notifications).updateOrderStatus('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff');
-    if (caller === 'oms') await new OmsService(ctx.prisma, ctx.oneC, ctx.notifications, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.CANCELLED, comment: 'Отмена покупателем' }, 'mock-staff');
-    if (caller === 'oneC') await new OneCSyncService(ctx.prisma, {} as any, {} as any, ctx.notifications).importOrderStatuses({ statuses: [{ platformOrderId: 'mock-order', status: 'CANCELLED' }] });
+    const call = caller === 'admin' ? new AdminService(ctx.prisma, ctx.oneC, {} as any, ctx.notifications).updateOrderStatus('MOCK-ORDER', { status: OrderStatus.CANCELLED }, 'mock-staff') :
+      caller === 'oms' ? new OmsService(ctx.prisma, ctx.oneC, ctx.notifications, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.CANCELLED, comment: 'Отмена покупателем' }, 'mock-staff') :
+      new OneCSyncService(ctx.prisma, {} as any, {} as any, ctx.notifications).importOrderStatuses({ statuses: [{ platformOrderId: 'mock-order', status: 'CANCELLED' }] });
+    await expect(call).rejects.toBeInstanceOf(ConflictException);
     const read = caller === 'admin' ? ctx.tx.order.findUnique : ctx.tx.order.findFirst;
     expect(ctx.tx.$queryRaw.mock.calls[0][0].join('?')).toContain('FOR UPDATE');
     expect(ctx.tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(read.mock.invocationCallOrder[0]);
     expect(read).toHaveBeenCalledWith(expect.objectContaining({ include: expect.objectContaining({ items: true, payments: true }) }));
-    expect(ctx.order).toMatchObject({ status: OrderStatus.CANCELLED, reservationState: 'RELEASED', reservationExpiresAt: null });
-    expect(ctx.state.stock).toBe(10); expect(ctx.state.reserved).toBe(2); expect(ctx.state.balance).toBe(1000);
-    expect(ctx.tx.orderStatusHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ fromStatus: OrderStatus.NEW, toStatus: OrderStatus.CANCELLED }) });
+    expect(ctx.order).toMatchObject({ status: OrderStatus.NEW, reservationState: 'ACTIVE' });
+    expect(ctx.tx.productVariant.updateMany).not.toHaveBeenCalled();
+    expect(ctx.tx.orderStatusHistory.create).not.toHaveBeenCalled();
   });
   it.each(['admin', 'oms', 'oneC'])('%s prohibits unpaid fulfillment through the shared helper', async (caller) => {
     const ctx = fixture(); ctx.order.status = OrderStatus.CONFIRMED;
     const call = caller === 'admin' ? new AdminService(ctx.prisma, ctx.oneC, {} as any).updateOrderStatus('MOCK-ORDER', { status: OrderStatus.ASSEMBLING }, 'mock-staff') :
       caller === 'oms' ? new OmsService(ctx.prisma, ctx.oneC, undefined, operationAccess()).update('MOCK-ORDER', { status: OrderStatus.ASSEMBLING }, 'mock-staff') :
       new OneCSyncService(ctx.prisma, {} as any, {} as any).importOrderStatuses({ statuses: [{ platformOrderId: 'mock-order', status: 'PICKING' }] });
-    await expect(call).rejects.toBeInstanceOf(BadRequestException); expect(ctx.tx.order.update).not.toHaveBeenCalled();
+    await expect(call).rejects.toBeInstanceOf(ConflictException); expect(ctx.tx.order.update).not.toHaveBeenCalled();
   });
   it('1C mapping rereads current locked terminal status and does not consume again', async () => {
     const ctx = fixture(true); ctx.order.status = OrderStatus.DELIVERED; ctx.order.reservationState = 'CONSUMED';

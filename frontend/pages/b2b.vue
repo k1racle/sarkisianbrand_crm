@@ -21,17 +21,24 @@ import {
   X,
 } from "@lucide/vue";
 import { resolveProductImageUrl } from "~/shared/product-images";
+import { requestKey as createRequestKey } from "~/shared/request-key";
+import { customerWarehouseLabel } from '~/shared/customer-warehouse-status';
+import { cartAvailabilityProblem } from '~/shared/confirmed-availability';
+import { salonMasterAvailable } from '~/shared/salon-masters';
 import {
   salonDay,
   salonInstant,
   salonMinute,
   shiftSalonDay,
+  shiftSalonMonth,
+  salonCalendarPeriod,
 } from "~/shared/salon-calendar";
 const route = useRoute();
 const {canUseSalon,area}=useBusinessWorkspace();
 const router = useRouter();
 const config = useRuntimeConfig();
 const session = useB2BSession();
+const businessSigningOut = useState<boolean>('b2b-signing-out', () => false);
 const { openContextMenu, copyText } = useContextMenu();
 const profile = ref<any>(null),
   dashboard = ref<any>({}),
@@ -50,11 +57,18 @@ const search = ref("");
 const onlineSettingsPanel = ref<{refresh:()=>Promise<void>;busy:boolean;loading:boolean}|null>(null);
 const companySettingsPanel=ref<{refresh:()=>Promise<void>}|null>(null);
 async function refreshSection(){
+  if(!portalReady.value){await startPortal();return;}
+  const previousOrganization = session.selectedOrganizationId.value;
+  try { await session.loadOrganizations(true); }
+  catch { error.value = 'Не удалось обновить список организаций. Проверьте подключение и повторите попытку.'; return; }
+  if (!session.selectedOrganizationId.value || session.selectedOrganizationId.value !== previousOrganization) { await load(); return; }
   if(section.value==='online-booking'&&onlineSettingsPanel.value)await onlineSettingsPanel.value.refresh();
   else if(section.value==='settings'&&companySettingsPanel.value)await companySettingsPanel.value.refresh();
   else await load();
 }
 const cart = reactive<Record<string, number>>({});
+const pendingCheckout = ref<{ signature: string; key: string } | null>(null);
+const pendingRepeats = ref<Record<string, string>>({});
 const draft = reactive<any>({});
 const { actionBusy: saving, runOperation } = useWorkspaceOperation(error);
 const portalReady = ref(false),
@@ -80,28 +94,26 @@ function productImage(product: any) {
 const calendarRange = computed(() => {
   const zone = bookingSettings.value.timeZone;
   const day = calendarDay.value;
-  const next = shiftSalonDay(
-    day,
-    calendarMode.value === "week" ? 7 : calendarMode.value === "day" ? 1 : 31,
-  );
+  const period = salonCalendarPeriod(day, calendarMode.value);
   return {
-    from: salonInstant(day, 0, zone)!,
-    to: salonInstant(next, 0, zone)!,
+    from: salonInstant(period.fromDay, 0, zone)!,
+    to: salonInstant(period.toDay, 0, zone)!,
   };
 });
 const calendarLabel = computed(() =>
   calendarMode.value === "month"
-    ? calendarRange.value.from.toLocaleDateString("ru-RU", {
+    ? calendarAnchor.value.toLocaleDateString("ru-RU", {
         month: "long",
         year: "numeric",
+        timeZone: bookingSettings.value.timeZone,
       })
-    : `${calendarRange.value.from.toLocaleDateString("ru-RU")} — ${new Date(calendarRange.value.to.getTime() - 1).toLocaleDateString("ru-RU")}`,
+    : `${calendarRange.value.from.toLocaleDateString("ru-RU", { timeZone: bookingSettings.value.timeZone })} — ${new Date(calendarRange.value.to.getTime() - 1).toLocaleDateString("ru-RU", { timeZone: bookingSettings.value.timeZone })}`,
 );
 function shiftCalendar(direction: number) {
   calendarAnchor.value = salonInstant(
-    shiftSalonDay(
+    calendarMode.value === 'month' ? shiftSalonMonth(calendarDay.value, direction) : shiftSalonDay(
       calendarDay.value,
-      direction * (calendarMode.value === "day" ? 1 : 7),
+      direction * (calendarMode.value === "day" ? 1 : calendarMode.value === 'list' ? 30 : 7),
     ),
     720,
     bookingSettings.value.timeZone,
@@ -116,8 +128,13 @@ function selectCalendarDate(event: Event) {
       bookingSettings.value.timeZone,
     )!;
 }
+function openCalendarDay(day: string) {
+  calendarAnchor.value = salonInstant(day, 720, bookingSettings.value.timeZone)!;
+  calendarMode.value = 'day';
+}
 let loadVersion = 0;
 let loadController: AbortController | undefined;
+let loadedOrganizationId = '';
 const section = computed(() => String(route.query.section || "dashboard"));
 const headers = computed(() => ({
   Authorization: `Bearer ${session.token.value}`,
@@ -208,12 +225,7 @@ titles["online-booking"] = [
 ];
 titles.settings=['НАСТРОЙКИ','Настройки','Данные организации и личного кабинета'];
 function fulfillmentLabel(item: any) {
-  if (item.oneCSyncError) return "Ошибка передачи";
-  if (item.packedAt) return "Упакован";
-  if (item.pickedAt) return "Товар отобран";
-  if (item.pickingStartedAt) return "Собирается на складе";
-  if (item.isSynced1C) return "Передан в 1С";
-  return "В очереди 1С";
+  return customerWarehouseLabel(item.warehouseStatus);
 }
 const cartLines = computed(() =>
   catalog.value.flatMap((p) =>
@@ -225,17 +237,18 @@ const cartLines = computed(() =>
 const cartTotal = computed(() =>
   cartLines.value.reduce((s, l) => s + l.variant.b2bPrice * l.quantity, 0),
 );
+const cartAvailabilityIssue = computed(() => {
+  const ids = new Set(cartLines.value.map(line => line.variant.id));
+  if (Object.keys(cart).some(id => cart[id] > 0 && !ids.has(id))) return 'Некоторые позиции больше недоступны. Обновите корзину в каталоге.';
+  return cartAvailabilityProblem(cartLines.value);
+});
 async function api<T>(path: string, options: any = {}) {
-  return $fetch<T>(path, {
-    baseURL: config.public.apiBase,
-    headers: headers.value,
-    ...options,
-  });
+  return session.request<T>(path, options);
 }
 async function load() {
   if (!portalReady.value || !session.token.value) return;
   const version = ++loadVersion,
-    identity = session.token.value;
+    identity = session.generation.value;
   loadController?.abort();
   const controller = new AbortController();
   loadController = controller;
@@ -248,7 +261,7 @@ async function load() {
     services: ["services"],
     calendar: ["clients", "services", "bookings", "booking-settings"],
     catalog: ["catalog"],
-    orders: ["orders"],
+    orders: [],
     team: [],
     support: ["support"],
     "online-booking": [],
@@ -259,8 +272,23 @@ async function load() {
     ...(sectionSources[section.value] || sectionSources.dashboard),
   ];
   try {
+    await session.loadOrganizations();
+    if (version !== loadVersion || session.generation.value !== identity) return;
+    const requestedOrganization = typeof route.query.organization === 'string' ? route.query.organization : '';
+    if (requestedOrganization && !session.organizations.value.some(item => item.id === requestedOrganization)) {
+      session.selectOrganization('');
+      throw { data: { message: 'Выбранная организация недоступна. Выберите другую организацию в верхней панели.' } };
+    }
+    if (requestedOrganization && requestedOrganization !== session.selectedOrganizationId.value) session.selectOrganization(requestedOrganization);
+    if (!session.selectedOrganizationId.value) throw { data: { message: session.organizations.value.length ? 'Выберите организацию в верхней панели кабинета.' : 'Для вашей учётной записи нет доступных организаций. Обратитесь в поддержку.' } };
+    if (loadedOrganizationId !== session.selectedOrganizationId.value) {
+      loadedOrganizationId = session.selectedOrganizationId.value;
+      profile.value = null; dashboard.value = {}; clients.value = []; services.value = []; bookings.value = []; catalog.value = []; orders.value = []; tickets.value = [];
+      Object.keys(cart).forEach(key => delete cart[key]); pendingCheckout.value = null; pendingRepeats.value = {}; resetDialog();
+      salonBranding.value = null; search.value = ''; bookingSettings.value = { timeZone: 'Europe/Moscow' };
+    }
     const company=await api<any>('/b2b/profile',{signal:controller.signal,timeout:20000});
-    if(version!==loadVersion||session.token.value!==identity)return;
+    if(version!==loadVersion||session.generation.value!==identity)return;
     salonBranding.value=company.presentation||null;
     canUseSalon.value=company.capabilities?.salon ?? ['OWNER','EMPLOYEE'].includes(company.membership?.role);
     if(!canUseSalon.value&&['dashboard','calendar','clients','services','online-booking'].includes(section.value)){
@@ -286,7 +314,7 @@ async function load() {
         }),
       ),
     );
-    if (version !== loadVersion || session.token.value !== identity) return;
+    if (version !== loadVersion || session.generation.value !== identity) return;
     const targets: Record<string, Ref<any>> = {
       profile,
       dashboard,
@@ -316,6 +344,7 @@ function flash(value: string) {
 function resetDialog() {
   dialog.value = "";
   draftBaseline.value = "";
+  bookingConflict.value = false;
 }
 function close() {
   if (saving.value) return false;
@@ -341,12 +370,14 @@ const { panel: dialogPanel, keyboard: dialogKeys } = useCatalogDialog(
 );
 onBeforeRouteLeave(
   () =>
+    !session.token.value ||
     !saving.value &&
     (!dialogDirty.value ||
       window.confirm("Есть несохранённые изменения. Покинуть кабинет?")),
 );
-onBeforeRouteUpdate(() => {
+onBeforeRouteUpdate((to) => {
   if (saving.value) return false;
+  if (to.query.organization && to.query.organization !== session.selectedOrganizationId.value && cartLines.value.length && !window.confirm('При смене организации корзина будет очищена. Переключить организацию?')) return false;
   if (
     dialogDirty.value &&
     !window.confirm("Есть несохранённые изменения. Перейти в другой раздел?")
@@ -363,6 +394,7 @@ watch(section, () => {
   search.value = "";
   load();
 });
+watch(() => route.query.organization, () => { if (portalReady.value) load(); });
 watch([calendarMode, calendarAnchor], () => {
   if (section.value === "calendar") load();
 });
@@ -419,6 +451,13 @@ function openCalendarBooking(value: any) {
     startTime: `${salonDay(instant, zone)}T${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`,
   });
 }
+const bookingConflict=ref(false);
+async function reloadBooking(){
+  if(saving.value||!draft.id)return;
+  if(dialogDirty.value&&!window.confirm('Заменить несохранённые изменения актуальными данными записи?'))return;
+  let current:any;const completed=await runOperation(async()=>{current=await api<any>(`/b2b/bookings/${draft.id}`);});
+  if(completed){resetDialog();openCalendarBooking(current);}
+}
 async function saveBooking() {
   await runOperation(async () => {
     const [day, time] = String(draft.startTime || "").split("T");
@@ -431,10 +470,11 @@ async function saveBooking() {
         : null;
     if (!start)
       throw { data: { message: "Укажите корректную дату и время записи" } };
-    await api(draft.id ? `/b2b/bookings/${draft.id}` : "/b2b/bookings", {
+    try { await api(draft.id ? `/b2b/bookings/${draft.id}` : "/b2b/bookings", {
       method: draft.id ? "PATCH" : "POST",
       body: draft.id
         ? {
+            version: draft.version,
             masterMemberId: draft.masterMemberId || null,
             startTime:
               start.toISOString() === draft.originalStart
@@ -450,7 +490,7 @@ async function saveBooking() {
             startTime: start.toISOString(),
             notes: draft.notes || undefined,
           },
-    });
+    }); } catch(e:any){if(e.data?.code==='BOOKING_VERSION_CONFLICT')bookingConflict.value=true;throw e;}
     resetDialog();
     await load();
     flash(draft.id ? "Запись обновлена" : "Запись сохранена");
@@ -463,6 +503,7 @@ async function moveCalendarBooking(value: any) {
     await api(`/b2b/bookings/${value.booking.id}`, {
       method: "PATCH",
       body: {
+        version: value.booking.version,
         startTime: value.startTime,
         masterMemberId: value.masterMemberId,
       },
@@ -478,24 +519,27 @@ async function bookingStatus(item: any, status: string) {
   await runOperation(async () => {
     await api(`/b2b/bookings/${item.id}`, {
       method: "PATCH",
-      body: { status },
+      body: { status, version: item.version },
     });
     await load();
     flash(status === "COMPLETED" ? "Визит завершён" : "Статус записи обновлён");
   });
 }
 async function checkout() {
-  if (!cartLines.value.length || !profile.value?.membership?.canOrder) return;
+  if (saving.value || !cartLines.value.length || !profile.value?.membership?.canOrder) return;
+  if (cartAvailabilityIssue.value) { error.value = cartAvailabilityIssue.value; return; }
+  const items = cartLines.value.map(line => ({ variantId: line.variant.id, quantity: line.quantity })).sort((a, b) => a.variantId.localeCompare(b.variantId));
+  const signature = JSON.stringify([profile.value.id, session.user.value?.id, items]);
+  if (pendingCheckout.value?.signature !== signature) pendingCheckout.value = { signature, key: createRequestKey() };
   const completed = await runOperation(async () => {
     const order: any = await api("/b2b/orders", {
       method: "POST",
       body: {
-        items: cartLines.value.map((line) => ({
-          variantId: line.variant.id,
-          quantity: line.quantity,
-        })),
+        requestKey: pendingCheckout.value!.key,
+        items,
       },
     });
+    pendingCheckout.value = null;
     Object.keys(cart).forEach((key) => delete cart[key]);
     resetDialog();
     flash(`Заказ ${order.orderNumber} создан`);
@@ -514,8 +558,10 @@ async function repeatOrder(item: any) {
   )
     return;
   await runOperation(async () => {
-    await api(`/b2b/orders/${item.id}/repeat`, { method: "POST" });
+    pendingRepeats.value[item.id] ||= createRequestKey();
+    await api(`/b2b/orders/${item.id}/repeat`, { method: "POST", body: { requestKey: pendingRepeats.value[item.id] } });
     await load();
+    delete pendingRepeats.value[item.id];
     flash("Повторный заказ создан");
   });
 }
@@ -582,13 +628,30 @@ function orderMenu(e: MouseEvent, item: any) {
     statusLabels[item.status] || item.status,
   );
 }
-onMounted(async () => {
+async function startPortal() {
   session.hydrate();
-  if (!session.token.value) return navigateTo("/b2b-login");
-  const restored = await session.restore();
-  if (!restored) return navigateTo("/b2b-login");
-  portalReady.value = true;
-  await load();
+  loading.value = true;
+  error.value = '';
+  try {
+    const restored = await session.restore();
+    if (!restored) return navigateTo('/b2b-login');
+    portalReady.value = true;
+    await load();
+  } catch {
+    error.value = 'Не удалось связаться с сервером. Проверьте подключение и нажмите «Обновить». Данные входа сохранены.';
+  } finally { loading.value = false; }
+}
+onMounted(startPortal);
+watch(() => session.token.value, (value, previous) => {
+  if (!previous || value || !portalReady.value) return;
+  // Revocation locks the old screen too; a failed refresh is not an empty list.
+  portalReady.value = false;
+  ++loadVersion; loadController?.abort(); resetDialog();
+  profile.value = null; dashboard.value = {}; clients.value = []; services.value = []; bookings.value = []; catalog.value = []; orders.value = []; tickets.value = [];
+  Object.keys(cart).forEach(key => delete cart[key]);
+  pendingCheckout.value = null; pendingRepeats.value = {}; salonBranding.value = null;
+  loading.value = false; error.value = 'Сессия завершена. Войдите в бизнес-аккаунт снова.';
+  if (!businessSigningOut.value) void navigateTo({path:'/b2b-login',query:{redirect:route.fullPath}});
 });
 </script>
 
@@ -651,11 +714,15 @@ onMounted(async () => {
       role="alert"
     >
       <span><CircleAlert :size="16" />{{ error }}</span
-      ><button type="button" class="b2b-retry" @click="load">
+      ><button type="button" class="b2b-retry" @click="refreshSection">
         <RefreshCw :size="16" />Повторить загрузку
       </button>
     </div>
     <section data-v-ui-5c3d2dc5697c v-else class="body">
+      <div v-if="['purchases','catalog','orders'].includes(section) && profile?.capabilities?.purchaseRestriction" class="salon-settings-notes" role="status">
+        <p>{{ profile.capabilities.purchaseRestriction }}</p>
+        <NuxtLink to="/b2b?section=support&area=purchases">Связаться с поддержкой</NuxtLink>
+      </div>
       <template v-if="section === 'dashboard'"><SalonDashboard :dashboard="dashboard" :profile="profile" /></template>
 
       <SalonClients v-else-if="section === 'clients'" :clients="clients" :can-see-finance="Boolean(profile.membership?.canSeeFinance)" :format-price="money" @context="clientMenu" @edit="open('client',{...$event,tags:($event.tags||[]).join(', '),personalDataConsent:Boolean($event.consentPersonalDataAt)})"/>
@@ -690,6 +757,7 @@ onMounted(async () => {
               v-for="mode in [
                 { id: 'day', label: 'День' },
                 { id: 'week', label: 'Неделя' },
+                { id: 'month', label: 'Месяц' },
                 { id: 'list', label: 'Список' },
               ]"
               :key="mode.id"
@@ -713,6 +781,7 @@ onMounted(async () => {
           @create="openCalendarBooking"
           @edit="openCalendarBooking"
           @move="moveCalendarBooking"
+          @select-day="openCalendarDay"
         />
       </template>
       <template v-else-if="section === 'online-booking'"
@@ -724,9 +793,9 @@ onMounted(async () => {
 
       <BusinessCatalog v-else-if="section === 'catalog'" :products="catalog" :cart="cart" :can-order="Boolean(profile.membership?.canOrder)" :busy="saving" :format-price="money" @quantity="(id,value)=>cart[id]=value" @checkout="open('cart')"/>
 
-      <BusinessOrders v-else-if="section === 'orders'" :orders="orders" :can-order="Boolean(profile.membership?.canOrder)" :can-see-finance="Boolean(profile.membership?.canSeeFinance)" :busy="saving" :format-price="money" :status-labels="statusLabels" :fulfillment="fulfillmentLabel" @repeat="repeatOrder" @context="orderMenu"/>
+      <BusinessOrders v-else-if="section === 'orders'" :organization-id="session.selectedOrganizationId.value || ''" :can-order="Boolean(profile.membership?.canOrder)" :can-see-finance="Boolean(profile.membership?.canSeeFinance)" :busy="saving" :format-price="money" :status-labels="statusLabels" :fulfillment="fulfillmentLabel" @repeat="repeatOrder" @context="orderMenu"/>
 
-      <SalonTeam v-else-if="section === 'team'" :profile="profile"/>
+      <SalonTeam v-else-if="section === 'team'" :profile="profile" @changed="load(); flash($event)"/>
       <BusinessSettings ref="companySettingsPanel" v-else-if="section === 'settings'" :profile="profile" :area="area"/>
 
       <template v-else-if="section === 'support'"
@@ -843,7 +912,7 @@ onMounted(async () => {
             :disabled="saving"
             @click="close"
           >
-            <X data-v-ui-5c3d2dc5697c :size="18" />
+            <X data-v-ui-5c3d2dc5697c :size="18" aria-hidden="true" /><span class="b2b-visually-hidden">Закрыть форму</span>
           </button>
         </header>
         <div data-v-ui-5c3d2dc5697c class="drawer-body admin-dialog-body">
@@ -980,8 +1049,9 @@ onMounted(async () => {
                   :disabled="draft.originalStatus === 'COMPLETED'"
                 >
                   <option value="">Не назначать</option>
+                  <option v-if="draft.masterMemberId&&!profile.members.some(item=>item.id===draft.masterMemberId&&salonMasterAvailable(item))" :value="draft.masterMemberId" disabled>Мастер недоступен</option>
                   <option
-                    v-for="item in profile.members"
+                    v-for="item in profile.members.filter(salonMasterAvailable)"
                     :key="item.id"
                     :value="item.id"
                   >
@@ -1019,6 +1089,8 @@ onMounted(async () => {
               <label
                 >Комментарий<textarea v-model="draft.notes" rows="3" />
               </label>
+              <p v-if="bookingConflict" role="alert" class="salon-booking-conflict">Запись изменилась. Проверьте актуальные данные перед сохранением. <button type="button" @click="reloadBooking">Обновить данные записи</button></p>
+              <SalonBookingHistory v-if="draft.id" :booking-id="draft.id" :time-zone="bookingSettings.timeZone" :members="profile.members"/>
             </template>
             <template v-else-if="dialog === 'support'"
               ><label data-v-ui-5c3d2dc5697c
@@ -1046,6 +1118,7 @@ onMounted(async () => {
                   required
                 /></label
             ></template>
+            <div v-else-if="!cartLines.length" class="b2b-empty-cart" role="status"><ShoppingBag :size="28" aria-hidden="true"/><h3>Корзина пока пуста</h3><p>Добавьте товары из каталога, чтобы увидеть состав и итоговую сумму заказа.</p><button type="button" @click="resetDialog(); router.push('/b2b?section=catalog')">Перейти в каталог</button></div>
             <template v-else
               ><div data-v-ui-5c3d2dc5697c class="checkout-lines">
                 <div data-v-ui-5c3d2dc5697c v-for="line in cartLines">
@@ -1059,7 +1132,7 @@ onMounted(async () => {
                   }}</b>
                 </div>
               </div>
-              <div data-v-ui-5c3d2dc5697c class="checkout-total">
+              <p v-if="cartAvailabilityIssue" class="form-error" role="status">{{ cartAvailabilityIssue }}</p><div data-v-ui-5c3d2dc5697c class="checkout-total">
                 <span data-v-ui-5c3d2dc5697c>К оплате</span
                 ><b data-v-ui-5c3d2dc5697c>{{ money(cartTotal) }}</b>
               </div>
@@ -1087,7 +1160,7 @@ onMounted(async () => {
             @click="close"
           >
             Отмена</button
-          ><button data-v-ui-5c3d2dc5697c class="primary" :disabled="saving">
+          ><button data-v-ui-5c3d2dc5697c class="primary" :disabled="saving || (dialog === 'cart' && (!cartLines.length || !profile?.membership?.canOrder || !!cartAvailabilityIssue))">
             {{
               saving
                 ? "Сохраняем…"
@@ -1099,6 +1172,6 @@ onMounted(async () => {
         </footer>
       </form>
     </div>
-    <div data-v-ui-5c3d2dc5697c v-if="notice" class="toast">{{ notice }}</div>
+    <div data-v-ui-5c3d2dc5697c v-if="notice" class="toast" role="status" aria-live="polite">{{ notice }}</div>
   </main>
 </template>

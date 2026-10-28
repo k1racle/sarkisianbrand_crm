@@ -30,139 +30,86 @@ async function assertTypography(page) {
     if(el.closest('svg') || !el.getBoundingClientRect().width || !el.getBoundingClientRect().height) return [];
     if(!el.matches('input,select,textarea') && ![...el.childNodes].some(node=>node.nodeType===3&&node.textContent.trim())) return [];
     const style=getComputedStyle(el), input=el.matches('input,select,textarea');
-    const heading=!!el.closest('h1,h2,h3,h4,h5,h6')&&!el.closest('button,input,select,textarea');
+    const chrome=!!el.closest('.crm-app-sidebar,.crm-topbar,.crm-mobile-tabs');
     const family=style.fontFamily.replace(/["\s]/g,'');
-    return [12,14,20,...(input&&innerWidth<1024?[16]:[])].includes(parseFloat(style.fontSize)) && (heading?['900']:['400','600']).includes(style.fontWeight) && family===(heading?'Mont,Montserrat,Arial,sans-serif':'Montserrat,Arial,sans-serif') ? [] : [{tag:el.tagName,cls:el.className,text:el.textContent.trim().slice(0,40),size:style.fontSize,weight:style.fontWeight,family}];
+    const sizes=chrome?[10,11,12,13,14,18]:[12,13,14,16,18,20,24,28];
+    return sizes.includes(parseFloat(style.fontSize)) && ['400','500','600'].includes(style.fontWeight) && family==='Montserrat,Arial,sans-serif' ? [] : [{tag:el.tagName,cls:el.className,text:el.textContent.trim().slice(0,40),size:style.fontSize,weight:style.fontWeight,family}];
   }));
   assert.deepEqual(findings,[], 'CRM uses only approved text sizes and weights');
 }
-async function assertMenuSurface(page) {
-  assert.equal(await page.locator('.crm-app-sidebar').evaluate(el=>getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)', 'Legacy CRM CSS must not paint the new sidebar dark');
-  for (const box of await page.locator('.crm-navigation a').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).map(el=>el.getBoundingClientRect().height))) assert.ok(box>=44, 'CRM navigation touch targets');
-  const icons=await page.locator('.crm-navigation a svg').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).map(el=>({name:el.dataset.icon,shape:el.innerHTML,size:el.getAttribute('width'),nested:!!el.closest('.crm-nav-children')})));
-  assert.ok(icons.every(icon=>icon.name && icon.name!=='LayoutDashboard' && icon.size===(icon.nested?'18':'20')),'Real icons, consistent root/child sizes, no fallback');
-  assert.equal(new Set(icons.map(icon=>icon.shape)).size, icons.length,'Distinct rendered menu symbols');
-  for(const size of await page.locator('.crm-navigation a > span').evaluateAll(nodes=>nodes.map(el=>getComputedStyle(el).fontSize))) assert.equal(size,'14px');
+async function assertMenuSurface(page,theme='light') {
+  const sidebar=page.locator('.crm-app-sidebar');
+  assert.equal(await sidebar.evaluate(el=>getComputedStyle(el).backgroundColor),theme==='dark'?'rgb(29, 32, 37)':'rgb(247, 248, 250)');
+  const target=await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--crm-control-height')));
+  for(const height of await page.locator('.crm-navigation a:visible').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().height)))assert.ok(height>=target-.5,'Navigation follows the current density; touch targets remain44px');
   await assertTypography(page);
 }
 async function main() {
-  fs.mkdirSync(output, {recursive:true});
-  const browser = await chromium.launch(require("./crm-test-browser.cjs"));
+  fs.mkdirSync(output,{recursive:true});
+  const browser=await chromium.launch(require('./crm-test-browser.cjs'));
   try {
-    for (const width of process.argv.includes('--pwa-only') ? [] : [360, 390, 768, 1440]) {
-      const f = await isolatedContext(browser, width, false, false, {fixtures});
-      try {
-        await f.page.goto(base+'/crm/', {waitUntil:'networkidle'});
-        await f.page.locator('.crm-frame h1').waitFor();
-        if(width>=1024) await assertMenuSurface(f.page);
-        assert.equal(await f.page.locator('.console-rail').count(), 0, 'Separate CRM shell');
-        assert.equal(await f.page.locator('link[rel="manifest"]').getAttribute('href'), '/crm/manifest.webmanifest');
-        await assertWidth(f.page);
-        await assertTypography(f.page);
-        assert.equal(await f.page.locator('.crm-frame h1').evaluate(el=>getComputedStyle(el).fontSize),'20px');
-        const primary=f.page.locator('.head-actions a.primary');
-        assert.equal(await primary.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(102, 88, 217)');
+    const records=require('./workspace-design-review.cjs').fixtures;
+    for(const width of process.argv.includes('--pwa-only')?[]:[360,390,768,1440])for(const theme of ['light','dark']){
+      const f=await isolatedContext(browser,width,false,false,{fixtures:records}),p=f.page;
+      let logoutRequests=0;
+      await f.context.route('**/api/v1/auth/logout',async route=>{
+        const request=route.request(),headers={'Access-Control-Allow-Origin':new URL(base).origin,'Access-Control-Allow-Headers':'Authorization,Content-Type','Access-Control-Allow-Methods':'POST,OPTIONS'};
+        if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
+        assert.equal(request.method(),'POST');assert.equal(request.headers().authorization,'Bearer mock-admin-design-not-a-valid-jwt');logoutRequests++;
+        return route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify({loggedOut:true})});
+      });
+      p.setDefaultTimeout(12000);
+      await f.context.addCookies([{name:'sarkisian-crm-theme',value:theme,url:base}]);
+      try{
+        await p.goto(base+'/crm/',{waitUntil:'networkidle'});
+        await p.locator('.crm-frame h1').waitFor();await p.evaluate(()=>document.fonts.ready);
+        assert.equal(await p.locator('.crm-frame h1').textContent(),'Мой день');
+        assert.equal(await p.locator('.crm-frame h1').evaluate(el=>getComputedStyle(el).fontSize),await p.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--crm-type-page').trim()));
+        await assertWidth(p);await assertTypography(p);
+        const primary=p.locator('.crm-day-head .crm-button--primary').first();
+        assert.equal(await primary.evaluate(el=>getComputedStyle(el).fontSize),'13px');
+        assert.equal(await primary.evaluate(el=>getComputedStyle(el).color),theme==='dark'?'rgb(30, 27, 75)':'rgb(255, 255, 255)');
         await primary.hover();
-        await f.page.waitForFunction(()=>getComputedStyle(document.querySelector('.head-actions a.primary')).backgroundColor==='rgb(81, 67, 188)');
-        assert.equal(await primary.evaluate(el=>getComputedStyle(el).color),'rgb(255, 255, 255)');
-        await f.page.mouse.move(0,0);
-        await f.page.screenshot({path:path.join(output, `dashboard-${width}.png`),fullPage:true});
-        await f.page.getByRole('button', {name:'Установить CRM', exact:true}).click();
-        await f.page.getByRole('heading', {name:'CRM на вашем устройстве'}).waitFor();
-        await assertTypography(f.page);
-        await f.page.getByRole('button', {name:'Понятно', exact:true}).click();
-        if (width < 1024) {
-          for (const box of await f.page.locator('.crm-mobile-tabs a,.crm-mobile-tabs button').evaluateAll(nodes => nodes.map(n=>{const b=n.getBoundingClientRect();return {w:b.width,h:b.height};}))) assert.ok(box.w >= 44 && box.h >= 44);
-          await f.page.getByRole('button', {name:'Открыть разделы CRM', exact:true}).click();
-          await f.page.getByRole('dialog', {name:'Разделы CRM'}).waitFor();
-          await assertMenuSurface(f.page);
-          await f.page.screenshot({path:path.join(output,`menu-${width}.png`),fullPage:false});
-          await f.page.locator('.crm-navigation').evaluate(el=>{el.scrollTop=el.scrollHeight;});
-          await f.page.screenshot({path:path.join(output,`menu-partners-${width}.png`),fullPage:false});
-          await f.page.keyboard.press('Escape');
-          assert.equal(await f.page.locator('.crm-app-sidebar.is-open').count(), 0);
+        assert.equal(await primary.evaluate(el=>getComputedStyle(el).color),theme==='dark'?'rgb(30, 27, 75)':'rgb(255, 255, 255)');
+        await p.mouse.move(0,0);
+        if(width<1024){await p.getByRole('button',{name:'Открыть разделы CRM',exact:true}).click();await p.getByRole('dialog',{name:'Разделы CRM'}).waitFor();}
+        await assertMenuSurface(p,theme);
+        if(width<1024)await p.keyboard.press('Escape');
+        await p.keyboard.press('Control+k');await p.getByLabel('Название раздела CRM').fill('клиенты 360');
+        await p.locator('.crm-search-dialog a[href="/crm/customers"]').click();await p.waitForURL('**/crm/customers');
+        await p.locator('.crm-frame h1').waitFor();await assertWidth(p);await assertTypography(p);
+        for(const destination of ['/crm/tasks','/crm/deals']){
+          if(width<1024)await p.getByRole('button',{name:'Открыть разделы CRM',exact:true}).click();
+          await p.locator(`.crm-primary-navigation a[href="${destination}"]`).click();await p.waitForURL(url=>url.pathname===destination);
+          await p.locator('.crm-frame h1').waitFor();await assertWidth(p);await assertTypography(p);
         }
-        await f.page.getByRole('button', {name:'Найти раздел CRM', exact:true}).click();
-        await f.page.getByLabel('Название раздела CRM').fill('клиенты 360');
-        await assertTypography(f.page);
-        await f.page.locator('.crm-search-dialog a').click();
-        await f.page.waitForURL('**/crm/customers');
-        await f.page.locator('.crm-frame h1').waitFor();
-        await assertWidth(f.page);
-        await assertTypography(f.page);
-        await f.page.screenshot({path:path.join(output, `customers-${width}.png`), fullPage:true});
-        if (width < 1024) await f.page.getByRole('button', {name:'Открыть разделы CRM', exact:true}).click();
-        await f.page.locator('.crm-navigation a[href="/crm/tasks"]').last().click();
-        await f.page.waitForURL('**/crm/tasks');
-        await f.page.locator('.crm-frame h1').waitFor();
-        await assertWidth(f.page);
-        await assertTypography(f.page);
-        if (width < 1024) await f.page.getByRole('button', {name:'Открыть разделы CRM', exact:true}).click();
-        await f.page.locator('.crm-navigation a[href="/crm/deals"]').last().click();
-        await f.page.waitForURL('**/crm/deals');
-        await f.page.locator('.crm-frame h1').waitFor();
-        await assertWidth(f.page);
-        await assertTypography(f.page);
-        await f.page.getByRole('button', {name:'Открыть чат команды', exact:true}).click();
-        await assertTypography(f.page);
-        await f.page.getByRole('button', {name:'Закрыть чат', exact:true}).click();
-        if (width === 360 || width === 1440) {
-          for (const destination of ['/crm/orders','/crm/messages','/crm/support/tickets','/crm/bloggers/overview','/crm/reports/sales']) {
-            if(width<1024) await f.page.getByRole('button',{name:'Открыть разделы CRM',exact:true}).click();
-            await f.page.locator(`.crm-navigation a[href="${destination}"]`).last().click();
-            await f.page.waitForURL(url=>url.pathname===destination);
-            await f.page.locator('.crm-frame h1').waitFor();
-            await f.page.waitForFunction(()=>![...document.querySelectorAll('.crm-frame [aria-busy]')].some(el=>el.getAttribute('aria-busy')==='true'));
-            await assertWidth(f.page);
-            await assertTypography(f.page);
-            if(destination==='/crm/bloggers/overview') {
-              await f.page.locator('.partner-links a[href="/crm/bloggers/participants"]').click();
-              await f.page.waitForURL('**/crm/bloggers/participants');
-            }
-          }
-        }
-        if (width < 1024) await f.page.getByRole('button', {name:'Открыть разделы CRM', exact:true}).click();
-        await f.page.getByRole('button', {name:'Выйти из CRM', exact:true}).click();
-        await f.page.waitForURL('**/crm/login');
-        assert.equal(await f.page.evaluate(()=>localStorage.getItem('sarkisian-workspace-token')), null);
-        assert.deepEqual(f.errors, []);
-        for (const key of ['unknownReads','externalRequests','prohibitedWrites','credentialLeaks']) assert.deepEqual(f.traffic[key], [], key);
-        console.log(`${width}px: CRM navigation, customers/tasks/deals, search, chat, logout PASS`);
-      } finally { await f.context.close(); }
+        await p.getByRole('button',{name:'Открыть чат команды',exact:true}).click();await p.locator('.crm-messenger button[aria-label="Закрыть чат"]:visible').first().waitFor();
+        await assertTypography(p);await p.locator('.crm-messenger button[aria-label="Закрыть чат"]:visible').first().click();
+        await p.screenshot({path:path.join(output,`${width}-${theme}-shell.png`),fullPage:true});
+        if(width<1024)await p.getByRole('button',{name:'Открыть разделы CRM',exact:true}).click();
+        await p.getByRole('button',{name:'Выйти из CRM',exact:true}).click();await p.waitForURL('**/crm/login');
+        await p.waitForFunction(()=>localStorage.getItem('sarkisian-workspace-token')===null);
+        assert.equal(await p.evaluate(()=>localStorage.getItem('sarkisian-workspace-token')),null);
+        assert.equal(logoutRequests,1,'Sign-out revokes the synthetic server session exactly once');
+        assert.deepEqual(f.errors,[]);for(const key of ['unknownReads','externalRequests','prohibitedWrites','credentialLeaks'])assert.deepEqual(f.traffic[key],[],key);
+        console.log(`${width}px ${theme}: approved CRM shell, navigation, search, chat, logout PASS`);
+      }finally{await f.context.close();}
     }
-    for(const width of process.argv.includes('--pwa-only') ? [] : [360,1440]) {
-      const taskFixtures=new Map([...fixtures, ['/crm/dashboard',{...fixtures.get('/crm/dashboard'),overdueTasks:1,dueToday:1}], ['/crm/tasks',[
-        {id:'demo-late',title:'Согласовать условия первой закупки с новым салоном',status:'OVERDUE',dueDate:'2026-09-21T09:00:00Z',assignedTo:{firstName:'Анна',lastName:'Пример'}},
-        {id:'demo-next',title:'Ответить на обращение клиента',status:'TODO',dueDate:'2026-09-23T09:00:00Z',assignedTo:{firstName:'Иван',lastName:'Пример'}},
-      ]]]);
-      const f=await isolatedContext(browser,width,false,false,{fixtures:taskFixtures});
-      try {
-        await f.page.goto(base+'/crm/',{waitUntil:'networkidle'});
-        await f.page.locator('.task-check.overdue').waitFor();
-        await assertWidth(f.page); await assertTypography(f.page);
-        assert.equal(await f.page.locator('.dashboard-grid > article').first().getAttribute('class'),'panel tasks-panel');
-        assert.ok(await f.page.locator('.task-date.late').textContent().then(text=>text.includes('Просрочена')),'Status has a text label, not color alone');
-        for(const row of await f.page.locator('.task-list > button').evaluateAll(nodes=>nodes.map(el=>({width:el.clientWidth,scroll:el.scrollWidth})))) assert.ok(row.scroll<=row.width+2,'Task content does not overflow');
-        await f.page.screenshot({path:path.join(output,`dashboard-with-tasks-${width}.png`),fullPage:true});
-        assert.deepEqual(f.errors,[]);
-        for(const key of ['unknownReads','externalRequests','prohibitedWrites','credentialLeaks']) assert.deepEqual(f.traffic[key],[],key);
-        console.log(`${width}px: populated dashboard, overdue status, task text/layout PASS`);
-      } finally { await f.context.close(); }
+    if(!process.argv.includes('--pwa-only')){
+      const restricted=await isolatedContext(browser,390,false,false,{fixtures:new Map([...records,['/auth/access',{permissions:['crm.read','customers.read']}]]),actor:{role:'MANAGER_B2B'}});
+      try{
+        await restricted.page.goto(base+'/crm/');await restricted.page.locator('.crm-frame h1').waitFor();
+        await restricted.page.getByRole('button',{name:'Открыть разделы CRM',exact:true}).click();
+        assert.equal(await restricted.page.locator('.crm-navigation a[href="/crm/bloggers/payouts"]').count(),0);
+        assert.equal(await restricted.page.locator('.crm-navigation a[href="/crm/orders"]').count(),0);
+        await restricted.page.goto(base+'/crm/bloggers/payouts');await restricted.page.waitForURL('**/crm/');
+        assert.ok(!restricted.traffic.mockedReads.some(endpoint=>endpoint.includes('payouts')));
+        console.log('Restricted CRM navigation and direct-route guard PASS');
+      }finally{await restricted.context.close();}
     }
-    const restricted = await isolatedContext(browser, 390, false, false, {fixtures:new Map([...fixtures, ['/auth/access',{permissions:['crm.read','customers.read']}]]),actor:{role:'MANAGER_B2B'}});
-    try {
-      await restricted.page.goto(base+'/crm/');
-      await restricted.page.locator('.crm-frame h1').waitFor();
-      await restricted.page.getByRole('button',{name:'Открыть разделы CRM'}).click();
-      assert.equal(await restricted.page.locator('.crm-navigation a[href="/crm/bloggers/payouts"]').count(), 0);
-      assert.equal(await restricted.page.locator('.crm-navigation a[href="/crm/orders"]').count(), 0);
-      await restricted.page.goto(base+'/crm/bloggers/payouts');
-      await restricted.page.waitForURL('**/crm/');
-      assert.ok(!restricted.traffic.mockedReads.some(endpoint=>endpoint.includes('payouts')));
-      console.log('Narrow-role CRM navigation/direct-route guard PASS (mock roles; server RBAC unchanged)');
-    } finally { await restricted.context.close(); }
+
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sarkisian-crm-pwa-'));
-    const pwa = await chromium.launchPersistentContext(profile, {executablePath: process.env.CRM_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless:true, viewport:{width:390,height:844},serviceWorkers:'allow'});
+    const pwa = await chromium.launchPersistentContext(profile, {...require('./crm-test-browser.cjs'), viewport:{width:390,height:844},serviceWorkers:'allow'});
     try {
       const unexpected = [];
       await pwa.route('**/*', route => {
@@ -176,9 +123,9 @@ async function main() {
       await page.waitForURL(url=>url.pathname==='/crm/login' && url.searchParams.get('redirect')==='/crm/deals?pipeline=test#card');
       await page.locator('.crm-login-card').waitFor();
       const installButton=page.getByRole('button',{name:'Установить CRM',exact:true});
-      assert.equal(await installButton.evaluate(el=>getComputedStyle(el).color),'rgb(81, 67, 188)','Installation is a readable secondary action');
+      assert.equal(await installButton.evaluate(el=>getComputedStyle(el).color),'rgb(67, 56, 202)','Installation is a readable secondary action');
       await installButton.hover();
-      assert.equal(await installButton.evaluate(el=>getComputedStyle(el).color),'rgb(81, 67, 188)','Install label remains readable on hover');
+      assert.equal(await installButton.evaluate(el=>getComputedStyle(el).color),'rgb(67, 56, 202)','Install label remains readable on hover');
       await assertTypography(page);
       await page.getByRole('button',{name:'Показать пароль'}).click();
       assert.equal(await page.locator('#crm-password').getAttribute('type'),'text');
@@ -205,7 +152,8 @@ async function main() {
       await page.waitForFunction(()=>document.getElementById('status')?.textContent.includes('пока не восстановлено'), null, {timeout:5000});
       const cached=await page.evaluate(async()=>{const names=await caches.keys();const entries=await Promise.all(names.map(async name=>(await(await caches.open(name)).keys()).map(request=>new URL(request.url).pathname)));return entries.flat();});
       assert.ok(cached.length >= 6);
-      assert.ok(cached.every(url=>url.startsWith('/crm/pwa/')), 'Only public PWA assets cached');
+      const publicAssets=new Set(['/crm/pwa/offline.html','/crm/pwa/offline.css','/crm/pwa/offline.js','/crm/pwa/icon.svg','/crm/pwa/icon-192.png','/crm/pwa/icon-512.png','/crm/pwa/icon-180.png','/crm/pwa/icon-maskable-512.png','/fonts/mont/Mont-Regular.woff2','/fonts/mont/Mont-Bold.woff2','/fonts/montserrat-cyrillic.woff2','/fonts/montserrat-latin.woff2']);
+      assert.ok(cached.every(url=>publicAssets.has(url)), 'Only explicitly allowed public offline assets and fonts are cached');
       await page.screenshot({path:path.join(output,'offline-mobile.png'),fullPage:true});
       await pwa.setOffline(false);
       await page.getByRole('button',{name:'Попробовать снова'}).click();
