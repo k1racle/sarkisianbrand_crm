@@ -117,15 +117,25 @@ async function verify(directory) {
     }
     phase = 'start isolated PostgreSQL';
     docker('run', '-d', '--name', name, '--network', 'none', '--tmpfs', '/var/lib/postgresql/data', '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', '-e', 'POSTGRES_DB=restore_check', 'postgres:15-alpine'); created = true;
+    // The image first starts a temporary, Unix-socket-only server while
+    // initializing the cluster. It then stops that server and starts the real
+    // one. A socket-only pg_isready can succeed during this transition and
+    // pg_restore would race the shutdown. Connect to the final TCP listener and
+    // execute a real query against the requested database instead.
     let ready = false;
-    for (let attempt = 0; attempt < 30; attempt++) {
-      try { docker('exec', name, 'pg_isready', '-U', 'postgres', '-d', 'restore_check'); ready = true; break; } catch { await new Promise(resolve => setTimeout(resolve, 1000)); }
+    for (let attempt = 0; attempt < 60; attempt++) {
+      try {
+        if (docker('exec', name, 'psql', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'restore_check', '-Atc', 'SELECT 1').trim() === '1') { ready = true; break; }
+      } catch {}
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     if (!ready) throw new Error('Temporary restore database did not start');
-    phase = 'restore isolated PostgreSQL';
+    phase = 'copy PostgreSQL backup';
     docker('cp', path.join(stage, 'database.dump'), `${name}:/tmp/database.dump`);
-    docker('exec', name, 'pg_restore', '--exit-on-error', '--no-owner', '-U', 'postgres', '-d', 'restore_check', '/tmp/database.dump');
-    const tables = Number(docker('exec', name, 'psql', '-U', 'postgres', '-d', 'restore_check', '-Atc', "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"));
+    phase = 'restore isolated PostgreSQL';
+    docker('exec', name, 'pg_restore', '--exit-on-error', '--no-owner', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'restore_check', '/tmp/database.dump');
+    phase = 'check restored PostgreSQL tables';
+    const tables = Number(docker('exec', name, 'psql', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'restore_check', '-Atc', "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"));
     if (!tables) throw new Error('No application tables restored');
     phase = 'validate Redis snapshot';
     docker('run', '--rm', '--network', 'none', '--read-only', '--mount', `type=bind,source=${stage},target=/backup,readonly`, 'redis:7-alpine', 'redis-check-rdb', '/backup/redis.rdb');

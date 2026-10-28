@@ -34,6 +34,11 @@ async function geometry(page) {
   assert.deepEqual(result.outside, [], 'Visible controls must stay within the viewport');
 }
 
+async function expectRowCount(page, selector, expected) {
+  await page.waitForFunction(({ selector, expected }) => document.querySelectorAll(selector).length === expected, { selector, expected });
+  assert.equal(await page.locator(selector).count(), expected);
+}
+
 async function contrast(page, selector) {
   const values = await page.locator(selector).evaluateAll(elements => elements.map(element => {
     const rgba = value => { const parts = value.match(/[\d.]+/g)?.map(Number) || [0, 0, 0, 0]; return [...parts.slice(0, 3), parts[3] ?? 1]; };
@@ -57,7 +62,15 @@ async function contrast(page, selector) {
       const fixture = await isolatedContext(browser, width, false, false, { b2b: true, actor, fixtures });
       const { page, context } = fixture;
       const label = `${width}-${dark ? 'dark' : 'light'}`;
+      const delayedEndpoints = new Set();
       try {
+        // Fields render before their records arrive; exercise that state deliberately.
+        // Fallback keeps the isolated fixture router responsible for every response.
+        await page.route(/\/api\/v1\/b2b\/(clients|services|orders)(?:\?.*)?$/, async route => {
+          delayedEndpoints.add(new URL(route.request().url()).pathname.split('/').pop());
+          await new Promise(resolve => setTimeout(resolve, 250));
+          await route.fallback();
+        });
         await context.addCookies([{ name: 'sarkisian-crm-theme', value: dark ? 'dark' : 'light', domain: new URL(origin).hostname, path: '/' }]);
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.goto(`${origin}/b2b?section=catalog`);
@@ -111,25 +124,25 @@ async function contrast(page, selector) {
 
         await page.goto(`${origin}/b2b?section=clients`);
         await page.getByLabel('Поиск клиентов', { exact: true }).waitFor();
-        assert.equal(await page.locator('.salon-client-row').count(), 25);
+        await expectRowCount(page, '.salon-client-row', 25);
         await page.getByLabel('Следующая страница клиентов', { exact: true }).click();
-        assert.equal(await page.locator('.salon-client-row').count(), 1);
+        await expectRowCount(page, '.salon-client-row', 1);
         await page.getByLabel('Поиск клиентов', { exact: true }).fill('client-25@');
         await page.waitForFunction(() => document.querySelectorAll('.salon-client-row').length === 1);
         assert.ok((await page.locator('.salon-client-row').innerText()).includes('Клиент 26'));
         await page.getByRole('button', { name: 'Сбросить фильтры', exact: true }).click();
-        assert.equal(await page.locator('.salon-client-row').count(), 25);
+        await expectRowCount(page, '.salon-client-row', 25);
         await geometry(page);
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
         await page.screenshot({ path: path.join(output, `${label}-clients.png`) });
 
         await page.goto(`${origin}/b2b?section=services`);
         await page.getByLabel('Поиск услуг', { exact: true }).waitFor();
-        assert.equal(await page.locator('.salon-service-row').count(), 25);
+        await expectRowCount(page, '.salon-service-row', 25);
         await page.getByLabel('Следующая страница услуг', { exact: true }).click();
-        assert.equal(await page.locator('.salon-service-row').count(), 1);
+        await expectRowCount(page, '.salon-service-row', 1);
         await page.getByLabel('Доступность услуг', { exact: true }).selectOption('inactive');
-        assert.equal(await page.locator('.salon-service-row').count(), 8);
+        await expectRowCount(page, '.salon-service-row', 8);
         await page.getByRole('button', { name: 'Сбросить фильтры', exact: true }).click();
         await contrast(page, '.salon-service-status.is-active');
         await geometry(page);
@@ -138,7 +151,7 @@ async function contrast(page, selector) {
 
         await page.goto(`${origin}/b2b?section=orders`);
         await page.getByLabel('Поиск закупочных заказов', { exact: true }).waitFor();
-        assert.equal(await page.locator('.business-order-row').count(), 20);
+        await expectRowCount(page, '.business-order-row', 20);
         await page.getByLabel('Следующая страница заказов', { exact: true }).click();
         await page.waitForFunction(() => document.querySelectorAll('.business-order-row').length === 1);
         assert.equal(await page.locator('.business-order-row').count(), 1);
@@ -176,6 +189,7 @@ async function contrast(page, selector) {
         await page.goto(`${origin}/b2b`);
         await page.getByRole('heading', { name: 'Ближайшие записи', exact: true }).waitFor();
         assert.equal(await page.getByText('Выручка за месяц', { exact: true }).count(), 0);
+        assert.deepEqual([...delayedEndpoints].sort(), ['clients', 'orders', 'services'], 'Each records fixture must exercise delayed loading');
         assert.deepEqual(fixture.traffic.prohibitedWrites, []);
         assert.deepEqual(fixture.traffic.unknownReads, []);
         assert.deepEqual(fixture.traffic.credentialLeaks, []);
