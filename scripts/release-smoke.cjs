@@ -15,6 +15,7 @@ fs.writeFileSync(envFile, Object.entries(settings).map(([name, value]) => `${nam
 const base = ['compose', '--env-file', envFile, '-f', 'docker-compose.production.yml', '-p', project];
 function run(args, input) { return execFileSync('docker', args, { cwd: root, encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 12 * 1024 * 1024 }); }
 const compose = (args, input) => run([...base, ...args], input);
+let phase = 'preflight';
 async function main() {
   const checks = []; let backupPath, migrationCount;
   try {
@@ -23,10 +24,14 @@ async function main() {
     const config = JSON.parse(compose(['--profile', 'tools', '--profile', 'edge', 'config', '--format', 'json']));
     for (const service of ['postgres', 'redis', 'backend', 'frontend']) assert.equal(config.services[service].ports, undefined, `${service} must not publish a host port`);
     for (const service of ['backend', 'frontend', 'proxy']) { assert.equal(config.services[service].read_only, true); assert.ok(config.services[service].cap_drop.includes('ALL')); }
+    phase = 'build production images';
     if (process.argv.includes('--build')) compose(['--profile', 'tools', '--profile', 'edge', 'build']);
     checks.push('Compose fail-closed secrets, read-only app filesystems, no DB/Redis/API/frontend host ports');
+    phase = 'validate proxy configuration';
     run(['run', '--rm', '--network', 'none', '-e', `SITE_HOST=${settings.SITE_HOST}`, '-e', `ACME_EMAIL=${settings.ACME_EMAIL}`, config.services.proxy.image, 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile']);
+    phase = 'start database and Redis';
     compose(['up', '-d', '--wait', '--wait-timeout', '120', 'postgres', 'redis']);
+    phase = 'deploy migrations';
     compose(['run', '--rm', 'migrations']);
     migrationCount = Number(compose(['exec', '-T', 'postgres', 'psql', '-U', 'postgres', '-d', 'sarkisian_brand', '-Atc', 'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL']));
     const expectedMigrations = fs.readdirSync(path.join(root, 'backend/prisma/migrations'), { withFileTypes: true }).filter(entry => entry.isDirectory() && fs.existsSync(path.join(root, 'backend/prisma/migrations', entry.name, 'migration.sql'))).length;
@@ -34,25 +39,32 @@ async function main() {
     const roles = JSON.parse(compose(['exec', '-T', 'postgres', 'psql', '-U', 'postgres', '-d', 'sarkisian_brand', '-Atc', "SELECT json_build_object('superuser',rolsuper,'createdb',rolcreatedb,'createrole',rolcreaterole) FROM pg_roles WHERE rolname='sarkisian'"]));
     assert.deepEqual(roles, { superuser: false, createdb: false, createrole: false });
     checks.push(`${migrationCount} migrations deploy on an empty PostgreSQL database; separate non-superuser application role; proxy configuration validates offline`);
+    phase = 'start application services';
     compose(['up', '-d', '--wait', '--wait-timeout', '180', 'backend', 'frontend']);
+    phase = 'verify administrator and API';
     const credentials = { email: 'release-admin@example.invalid', password: 'Aa1!' + crypto.randomBytes(24).toString('hex') };
     compose(['exec', '-T', 'backend', 'node', 'scripts/bootstrap-admin.cjs'], JSON.stringify(credentials));
     assert.throws(() => compose(['exec', '-T', 'backend', 'node', 'scripts/bootstrap-admin.cjs'], JSON.stringify(credentials)), 'Bootstrap must not reset an existing administrator');
     const apiCheck = `const assert=require('node:assert/strict'),fs=require('fs');(async()=>{const credentials=JSON.parse(fs.readFileSync(0,'utf8'));const base='http://127.0.0.1:3000';for(const p of ['/api/v1/health/live','/api/v1/health/ready'])assert.equal((await fetch(base+p)).status,200);assert.equal((await fetch(base+'/docs')).status,404);const login=await fetch(base+'/api/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});assert.equal(login.status,200);const session=await login.json();assert.equal(session.user.role,'ADMIN');const access=await fetch(base+'/api/v1/auth/access',{headers:{Authorization:'Bearer '+session.accessToken}});assert.equal(access.status,200);assert.ok((await access.json()).permissions.includes('system.manage'));assert.equal(process.getuid(),1000);fs.writeFileSync('/app/uploads/release-check.txt','uploads fixture');fs.writeFileSync('/app/private-crm-files/release-check.txt','private fixture');assert.throws(()=>fs.writeFileSync('/app/forbidden.txt','x'));console.log('PASS bootstrap/login/permissions, health/docs, non-root and persistent file permissions');})().catch(()=>process.exit(1));`;
     compose(['exec', '-T', 'backend', 'node', '-e', apiCheck], JSON.stringify(credentials));
+    phase = 'verify frontend';
     const frontCheck = `(async()=>{const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),forbidden=new Set(['node-forge','listhen','simple-git','shell-quote','@nuxt/devtools','deepmerge']);function scan(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())scan(file);else if(entry.name==='package.json'){const pkg=JSON.parse(fs.readFileSync(file));assert.ok(!forbidden.has(pkg.name));}else if(/\\.(?:js|cjs|mjs)$/.test(entry.name)){assert.ok(!fs.readFileSync(file,'utf8').includes('cloneUnlessOtherwiseSpecified'),'deepmerge code appears in production output');}}}scan('/app/.output');assert.equal(process.getuid(),1000);assert.equal((await fetch('http://127.0.0.1:3000/__health')).status,200);assert.equal((await fetch('http://127.0.0.1:3000/crm/login')).status,200);assert.equal((await fetch('http://127.0.0.1:3000/api/v1/health/ready')).status,200);console.log('PASS Nuxt health/login/API proxy and excluded build-time dependency tree');})().catch(()=>process.exit(1));`;
     compose(['exec', '-T', 'frontend', 'node', '-e', frontCheck]);
     checks.push('First admin creates once; real login and seeded permissions; both health checks; Nuxt API proxy; non-root + persistent file writes');
     const before = process.env.SARKISIAN_BACKUP_KEY;
     process.env.SARKISIAN_BACKUP_KEY = crypto.randomBytes(32).toString('hex');
     try {
+      phase = 'create encrypted backup';
       backupPath = await backup(envFile, project);
       const correctKey = process.env.SARKISIAN_BACKUP_KEY;
       process.env.SARKISIAN_BACKUP_KEY = crypto.randomBytes(32).toString('hex');
+      phase = 'check wrong backup key';
       try { await assert.rejects(() => verify(backupPath), 'An incorrect encryption key must not export data'); }
       finally { process.env.SARKISIAN_BACKUP_KEY = correctKey; }
+      phase = 'verify and unpack backup';
       const recovered = await unpack(backupPath);
       try {
+        phase = 'verify recovered file contents';
         const verifyFiles = `const fs=require('fs'),cp=require('child_process'),assert=require('node:assert/strict');for(const [name,expected]of [['uploads','uploads fixture'],['crm_files','private fixture']]){fs.mkdirSync('/tmp/'+name);cp.execFileSync('tar',['--no-same-owner','-xzf','/backup/'+name+'.tar.gz','-C','/tmp/'+name]);assert.equal(fs.readFileSync('/tmp/'+name+'/release-check.txt','utf8'),expected);}console.log('PASS exact public/private backup file contents');`;
         run(['run', '--rm', '--network', 'none', '--read-only', '--tmpfs', '/tmp', '--mount', `type=bind,source=${recovered},target=/backup,readonly`, 'node:22.23.3-alpine', 'node', '-e', verifyFiles]);
       } finally {
@@ -64,6 +76,7 @@ async function main() {
     assert.ok(!fs.existsSync(path.join(backupPath, 'payload.tar.gz')));
     assert.ok(!fs.existsSync(path.join(backupPath, '.env.production')));
     checks.push('AES-256-GCM backup rejects a wrong key; isolated PostgreSQL/Redis restore and exact public/private file recovery; no plaintext archive retained');
+    phase = 'verify graceful shutdown';
     compose(['up', '-d', '--wait', '--wait-timeout', '120', 'backend', 'frontend']);
     compose(['stop', '-t', '45', 'backend']);
     const backendId = compose(['ps', '-a', '-q', 'backend']).trim(), stopped = JSON.parse(run(['inspect', backendId]))[0];
@@ -80,4 +93,9 @@ async function main() {
     finally { fs.unlinkSync(envFile); }
   }
 }
-main().catch(error => { console.error(error.status ? `Release packaging command failed (exit ${error.status}); no credentials printed.` : error.message); process.exitCode = 1; });
+main().catch(error => {
+  const verification = /^Backup verification failed at [a-zA-Z ]+(?: \(exit [0-9]+\))?(?:: (?:permission denied|file or command not found|insufficient disk space|connection refused))?; sensitive output suppressed\.$/.test(error.message) ? ` ${error.message}` : '';
+  const status = Number.isInteger(error?.status) ? ` (exit ${error.status})` : '';
+  console.error(`Release packaging failed at ${phase}${status}; sensitive output suppressed.${verification}`);
+  process.exitCode = 1;
+});

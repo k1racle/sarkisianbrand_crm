@@ -11,6 +11,16 @@ const sha256 = file => new Promise((resolve, reject) => {
   const hash = crypto.createHash('sha256'), stream = fs.createReadStream(file);
   stream.on('data', chunk => hash.update(chunk)); stream.on('error', reject); stream.on('end', () => resolve(hash.digest('hex')));
 });
+function safeFailureReason(error) {
+  // Classify common system errors without exposing command arguments or stderr.
+  const text = String(error?.stderr || '').toLowerCase();
+  const code = error?.code;
+  if (code === 'EACCES' || /permission denied|operation not permitted/.test(text)) return 'permission denied';
+  if (code === 'ENOENT' || /no such file or directory/.test(text)) return 'file or command not found';
+  if (code === 'ENOSPC' || /no space left on device/.test(text)) return 'insufficient disk space';
+  if (code === 'ECONNREFUSED' || /connection refused/.test(text)) return 'connection refused';
+  return '';
+}
 function removeStage(stage) {
   const relative = path.relative(backups, stage);
   if (!/^\.(?:staging|restore)-[a-f0-9-]+$/.test(relative) || path.isAbsolute(relative)) throw new Error('Unsafe temporary backup path');
@@ -88,36 +98,50 @@ async function backup(envFile, projectOverride) {
 async function verify(directory) {
   const secret = key(), source = path.resolve(root, directory), metadata = JSON.parse(fs.readFileSync(path.join(source, 'backup.json'), 'utf8'));
   if (metadata.version !== 1 || metadata.encryption !== 'AES-256-GCM' || metadata.sha256 !== await sha256(path.join(source, 'backup.sbk'))) throw new Error('Backup checksum or format mismatch');
-  const id = crypto.randomUUID(), stage = path.join(backups, `.restore-${id}`), name = `sb-restore-check-${id}`; let created = false;
+  const id = crypto.randomUUID(), stage = path.join(backups, `.restore-${id}`), name = `sb-restore-check-${id}`; let created = false, phase = 'decrypt backup';
   fs.mkdirSync(stage, { recursive: true, mode: 0o700 });
   try {
     await decrypt(path.join(source, 'backup.sbk'), path.join(stage, 'payload.tar.gz'), secret);
     const allowed = new Set(['./', './database.dump', './redis.rdb', './uploads.tar.gz', './crm_files.tar.gz', './.env.production', './manifest.json']);
+    phase = 'inspect backup archive';
     const archiveNames = helper([`type=bind,source=${stage},target=/backup,readonly`], ['tar', '-tzf', '/backup/payload.tar.gz']).trim().split('\n');
     if (archiveNames.some(entry => !allowed.has(entry))) throw new Error('Unexpected backup entry');
+    phase = 'extract backup archive';
     helper([`type=bind,source=${stage},target=/backup`], ['tar', '--no-same-owner', '-xzf', '/backup/payload.tar.gz', '-C', '/backup'], ['--user', hostUser]);
+    phase = 'check backup manifest and file checksums';
     const manifest = JSON.parse(fs.readFileSync(path.join(stage, 'manifest.json'), 'utf8'));
     if (manifest.version !== 1 || manifest.kind !== 'sarkisian-production') throw new Error('Unsupported manifest');
     for (const expected of ['database.dump', 'redis.rdb', 'uploads.tar.gz', 'crm_files.tar.gz', '.env.production']) {
       const entries = manifest.files.filter(f => f.name === expected);
       if (entries.length !== 1 || entries[0].sha256 !== await sha256(path.join(stage, expected))) throw new Error(`Checksum mismatch: ${expected}`);
     }
+    phase = 'start isolated PostgreSQL';
     docker('run', '-d', '--name', name, '--network', 'none', '--tmpfs', '/var/lib/postgresql/data', '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', '-e', 'POSTGRES_DB=restore_check', 'postgres:15-alpine'); created = true;
     let ready = false;
     for (let attempt = 0; attempt < 30; attempt++) {
       try { docker('exec', name, 'pg_isready', '-U', 'postgres', '-d', 'restore_check'); ready = true; break; } catch { await new Promise(resolve => setTimeout(resolve, 1000)); }
     }
     if (!ready) throw new Error('Temporary restore database did not start');
+    phase = 'restore isolated PostgreSQL';
     docker('cp', path.join(stage, 'database.dump'), `${name}:/tmp/database.dump`);
     docker('exec', name, 'pg_restore', '--exit-on-error', '--no-owner', '-U', 'postgres', '-d', 'restore_check', '/tmp/database.dump');
     const tables = Number(docker('exec', name, 'psql', '-U', 'postgres', '-d', 'restore_check', '-Atc', "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"));
     if (!tables) throw new Error('No application tables restored');
+    phase = 'validate Redis snapshot';
     docker('run', '--rm', '--network', 'none', '--read-only', '--mount', `type=bind,source=${stage},target=/backup,readonly`, 'redis:7-alpine', 'redis-check-rdb', '/backup/redis.rdb');
+    phase = 'verify file archives';
     for (const volume of ['uploads', 'crm_files']) helper([`type=bind,source=${stage},target=/backup,readonly`], ['tar', '--no-same-owner', '-xzf', `/backup/${volume}.tar.gz`, '-C', '/tmp']);
+    phase = 'write verification report';
     const report = { verifiedAt: new Date().toISOString(), databaseTables: tables, redisRdb: 'validated', fileArchives: 'extracted', isolation: 'temporary containers, no network or published ports', liveSourceUntouched: true };
     fs.writeFileSync(path.join(source, 'restore-check.json'), JSON.stringify(report, null, 2));
     console.log(`PASS isolated restore: ${tables} tables, Redis RDB and both file archives; live source untouched.`);
     return report;
+  } catch (error) {
+    // Docker output may contain credentials or document contents: report only
+    // the fixed operation name and exit status, never stdout/stderr or arguments.
+    const status = Number.isInteger(error?.status) ? ` (exit ${error.status})` : '';
+    const reason = safeFailureReason(error);
+    throw new Error(`Backup verification failed at ${phase}${status}${reason ? `: ${reason}` : ''}; sensitive output suppressed.`);
   } finally { if (created) docker('rm', '-f', name); removeStage(stage); }
 }
 async function unpack(directory) {
