@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./DZI0QI3M.js";import{t as a}from"./DsX5Sa7i.js";var o=t({__name:`messages`,setup(t){let{active:o}=i();return r(()=>({title:`${o.value?.label||`Рабочее пространство`} — SARKISIAN CRM`})),(t,r)=>{let i=a;return e(),n(i)}}});export{o as default};

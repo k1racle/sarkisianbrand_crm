@@ -49,6 +49,7 @@ interface _GlobalComponents {
   IntegrationBrandLogo: typeof import("../../components/IntegrationBrandLogo.vue")['default']
   PlatformChatDrawer: typeof import("../../components/PlatformChatDrawer.vue")['default']
   SalonBookingForm: typeof import("../../components/SalonBookingForm.vue")['default']
+  SalonBookingHistory: typeof import("../../components/SalonBookingHistory.vue")['default']
   SalonCalendar: typeof import("../../components/SalonCalendar.vue")['default']
   SalonClients: typeof import("../../components/SalonClients.vue")['default']
   SalonDashboard: typeof import("../../components/SalonDashboard.vue")['default']
@@ -68,10 +69,14 @@ interface _GlobalComponents {
   WorkspaceToolbar: typeof import("../../components/WorkspaceToolbar.vue")['default']
   CrmAccessBoundary: typeof import("../../components/crm/CrmAccessBoundary.vue")['default']
   CrmAccessProfiles: typeof import("../../components/crm/CrmAccessProfiles.vue")['default']
+  CrmDayWidget: typeof import("../../components/crm/CrmDayWidget.vue")['default']
+  CrmDensityToggle: typeof import("../../components/crm/CrmDensityToggle.vue")['default']
   CrmEmployeeAccessReview: typeof import("../../components/crm/CrmEmployeeAccessReview.vue")['default']
   CrmInstallButton: typeof import("../../components/crm/CrmInstallButton.vue")['default']
   CrmKnowledgeBase: typeof import("../../components/crm/CrmKnowledgeBase.vue")['default']
   CrmMarketplaceMapping: typeof import("../../components/crm/CrmMarketplaceMapping.vue")['default']
+  CrmMeetingCalendar: typeof import("../../components/crm/CrmMeetingCalendar.vue")['default']
+  CrmMeetingCalendarSync: typeof import("../../components/crm/CrmMeetingCalendarSync.vue")['default']
   CrmMeetingGuests: typeof import("../../components/crm/CrmMeetingGuests.vue")['default']
   CrmNotificationCenter: typeof import("../../components/crm/CrmNotificationCenter.vue")['default']
   CrmOrderAdjustments: typeof import("../../components/crm/CrmOrderAdjustments.vue")['default']
@@ -87,6 +92,41 @@ interface _GlobalComponents {
   CrmTimeCorrections: typeof import("../../components/crm/CrmTimeCorrections.vue")['default']
   CrmTimesheet: typeof import("../../components/crm/CrmTimesheet.vue")['default']
   CrmWorkClock: typeof import("../../components/crm/CrmWorkClock.vue")['default']
+  NailArt: typeof import("../../components/sarkisian-studio/NailArt.vue")['default']
+  NailFinish: typeof import("../../components/sarkisian-studio/NailFinish.vue")['default']
+  NailPhotoLighting: typeof import("../../components/sarkisian-studio/NailPhotoLighting.vue")['default']
+  SarkisianStudio: typeof import("../../components/sarkisian-studio/SarkisianStudio.vue")['default']
+  Anatomy: typeof import("../../components/sarkisian-studio/anatomy")['default']
+  DesignPalette: typeof import("../../components/sarkisian-studio/atelier/DesignPalette.vue")['default']
+  FinishGame: typeof import("../../components/sarkisian-studio/atelier/FinishGame.vue")['default']
+  KeriPortrait: typeof import("../../components/sarkisian-studio/atelier/KeriPortrait.vue")['default']
+  MaterialShelf: typeof import("../../components/sarkisian-studio/atelier/MaterialShelf.vue")['default']
+  NailFit: typeof import("../../components/sarkisian-studio/atelier/NailFit.vue")['default']
+  NailPreparation: typeof import("../../components/sarkisian-studio/atelier/NailPreparation.vue")['default']
+  RewardShop: typeof import("../../components/sarkisian-studio/atelier/RewardShop.vue")['default']
+  ShiftGoals: typeof import("../../components/sarkisian-studio/atelier/ShiftGoals.vue")['default']
+  StudioClock: typeof import("../../components/sarkisian-studio/atelier/StudioClock.vue")['default']
+  StudioScene: typeof import("../../components/sarkisian-studio/atelier/StudioScene.vue")['default']
+  StudioTool: typeof import("../../components/sarkisian-studio/atelier/StudioTool.vue")['default']
+  SupplyMark: typeof import("../../components/sarkisian-studio/atelier/SupplyMark.vue")['default']
+  Preparation: typeof import("../../components/sarkisian-studio/atelier/preparation")['default']
+  Progression: typeof import("../../components/sarkisian-studio/atelier/progression")['default']
+  Supplies: typeof import("../../components/sarkisian-studio/atelier/supplies")['default']
+  Appearance: typeof import("../../components/sarkisian-studio/character/appearance")['default']
+  KeriAvatar: typeof import("../../components/sarkisian-studio/keri/KeriAvatar.vue")['default']
+  KeriChoice: typeof import("../../components/sarkisian-studio/keri/KeriChoice.vue")['default']
+  KeriWardrobe: typeof import("../../components/sarkisian-studio/keri/KeriWardrobe.vue")['default']
+  Clothing: typeof import("../../components/sarkisian-studio/keri/clothing")['default']
+  Look: typeof import("../../components/sarkisian-studio/keri/look")['default']
+  Makeup: typeof import("../../components/sarkisian-studio/keri/makeup")['default']
+  Render: typeof import("../../components/sarkisian-studio/keri/render")['default']
+  Styling: typeof import("../../components/sarkisian-studio/keri/styling")['default']
+  ManicureCatalog: typeof import("../../components/sarkisian-studio/manicure-catalog")['default']
+  Model: typeof import("../../components/sarkisian-studio/model")['default']
+  NailArtGeometry: typeof import("../../components/sarkisian-studio/nail-art-geometry")['default']
+  NailEffects: typeof import("../../components/sarkisian-studio/nail-effects")['default']
+  NailShapes: typeof import("../../components/sarkisian-studio/nail-shapes")['default']
+  PhotoLighting: typeof import("../../components/sarkisian-studio/photo-lighting")['default']
   ProductCard: typeof import("../../components/storefront/ProductCard.vue")['default']
   SiteAboutPage: typeof import("../../components/storefront/SiteAboutPage.vue")['default']
   SiteAccountAddresses: typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']
@@ -116,6 +156,7 @@ interface _GlobalComponents {
   SiteClubHub: typeof import("../../components/storefront/SiteClubHub.vue")['default']
   SiteClubReferral: typeof import("../../components/storefront/SiteClubReferral.vue")['default']
   SiteClubReferralStack: typeof import("../../components/storefront/SiteClubReferralStack.vue")['default']
+  SiteClubReferralsPage: typeof import("../../components/storefront/SiteClubReferralsPage.vue")['default']
   SiteContactForm: typeof import("../../components/storefront/SiteContactForm.vue")['default']
   SiteContentEditor: typeof import("../../components/storefront/SiteContentEditor.vue")['default']
   SiteContentPage: typeof import("../../components/storefront/SiteContentPage.vue")['default']
@@ -148,6 +189,7 @@ interface _GlobalComponents {
   SiteSocialLoginButtons: typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']
   ChannelsWorkspacePage: typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']
   ContactMessagesWorkspace: typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']
+  MarketplaceExchangePanel: typeof import("../../components/workspace/MarketplaceExchangePanel.vue")['default']
   PartnerDocumentsSettingsPage: typeof import("../../components/workspace/PartnerDocumentsSettingsPage.vue")['default']
   PartnerGiftsPage: typeof import("../../components/workspace/PartnerGiftsPage.vue")['default']
   PartnerLegalEntitiesPage: typeof import("../../components/workspace/PartnerLegalEntitiesPage.vue")['default']
@@ -158,18 +200,84 @@ interface _GlobalComponents {
   StoreWorkspacePage: typeof import("../../components/workspace/StoreWorkspacePage.vue")['default']
   SupportWorkspacePage: typeof import("../../components/workspace/SupportWorkspacePage.vue")['default']
   SystemWorkspacePage: typeof import("../../components/workspace/SystemWorkspacePage.vue")['default']
+  /**
+   * Displays the welcome screen used by new Nuxt projects.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-welcome
+   */
   NuxtWelcome: typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
+  /**
+   * Renders the selected layout around pages or error content.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-layout
+   */
   NuxtLayout: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
+  /**
+   * Catches client-side errors from its default slot and renders an error slot.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-error-boundary
+   */
   NuxtErrorBoundary: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
+  /**
+   * Renders its default slot only on the client, with an optional server fallback.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/client-only
+   */
   ClientOnly: typeof import("../../node_modules/nuxt/dist/app/components/client-only")['default']
+  /**
+   * Renders its content only during development.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/dev-only
+   */
   DevOnly: typeof import("../../node_modules/nuxt/dist/app/components/dev-only")['default']
   ServerPlaceholder: typeof import("../../node_modules/nuxt/dist/app/components/server-placeholder")['default']
+  /**
+   * A drop-in replacement for Vue Router's `<RouterLink>` and the HTML `<a>` element.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-link
+   */
   NuxtLink: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-link")['default']
+  /**
+   * Displays a progress bar during page navigation.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-loading-indicator
+   */
   NuxtLoadingIndicator: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-loading-indicator")['default']
+  /**
+   * Formats dates and times consistently across server and client using the user's locale.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-time
+   */
   NuxtTime: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-time.vue")['default']
+  /**
+   * Announces route changes to assistive technologies using the current page title.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-route-announcer
+   */
   NuxtRouteAnnouncer: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-route-announcer")['default']
+  /**
+   * Announces dynamic content changes to assistive technologies.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-announcer
+   */
+  NuxtAnnouncer: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-announcer")['default']
+  /**
+   * Renders an optimized image through the Nuxt Image module.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-img
+   */
   NuxtImg: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-stubs")['NuxtImg']
+  /**
+   * Renders responsive optimized images through the Nuxt Image module.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-picture
+   */
   NuxtPicture: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-stubs")['NuxtPicture']
+  /**
+   * Renders the current page from the `pages/` directory.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-page
+   */
   NuxtPage: typeof import("../../node_modules/nuxt/dist/pages/runtime/page")['default']
   NoScript: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['NoScript']
   Link: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Link']
@@ -180,6 +288,11 @@ interface _GlobalComponents {
   Head: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Head']
   Html: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Html']
   Body: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Body']
+  /**
+   * Renders a non-interactive server component without shipping client-side JavaScript.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-island
+   */
   NuxtIsland: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-island")['default']
   LazyAdminMediaBrowser: LazyComponent<typeof import("../../components/AdminMediaBrowser.vue")['default']>
   LazyAdminMediaPicker: LazyComponent<typeof import("../../components/AdminMediaPicker.vue")['default']>
@@ -216,6 +329,7 @@ interface _GlobalComponents {
   LazyIntegrationBrandLogo: LazyComponent<typeof import("../../components/IntegrationBrandLogo.vue")['default']>
   LazyPlatformChatDrawer: LazyComponent<typeof import("../../components/PlatformChatDrawer.vue")['default']>
   LazySalonBookingForm: LazyComponent<typeof import("../../components/SalonBookingForm.vue")['default']>
+  LazySalonBookingHistory: LazyComponent<typeof import("../../components/SalonBookingHistory.vue")['default']>
   LazySalonCalendar: LazyComponent<typeof import("../../components/SalonCalendar.vue")['default']>
   LazySalonClients: LazyComponent<typeof import("../../components/SalonClients.vue")['default']>
   LazySalonDashboard: LazyComponent<typeof import("../../components/SalonDashboard.vue")['default']>
@@ -235,10 +349,14 @@ interface _GlobalComponents {
   LazyWorkspaceToolbar: LazyComponent<typeof import("../../components/WorkspaceToolbar.vue")['default']>
   LazyCrmAccessBoundary: LazyComponent<typeof import("../../components/crm/CrmAccessBoundary.vue")['default']>
   LazyCrmAccessProfiles: LazyComponent<typeof import("../../components/crm/CrmAccessProfiles.vue")['default']>
+  LazyCrmDayWidget: LazyComponent<typeof import("../../components/crm/CrmDayWidget.vue")['default']>
+  LazyCrmDensityToggle: LazyComponent<typeof import("../../components/crm/CrmDensityToggle.vue")['default']>
   LazyCrmEmployeeAccessReview: LazyComponent<typeof import("../../components/crm/CrmEmployeeAccessReview.vue")['default']>
   LazyCrmInstallButton: LazyComponent<typeof import("../../components/crm/CrmInstallButton.vue")['default']>
   LazyCrmKnowledgeBase: LazyComponent<typeof import("../../components/crm/CrmKnowledgeBase.vue")['default']>
   LazyCrmMarketplaceMapping: LazyComponent<typeof import("../../components/crm/CrmMarketplaceMapping.vue")['default']>
+  LazyCrmMeetingCalendar: LazyComponent<typeof import("../../components/crm/CrmMeetingCalendar.vue")['default']>
+  LazyCrmMeetingCalendarSync: LazyComponent<typeof import("../../components/crm/CrmMeetingCalendarSync.vue")['default']>
   LazyCrmMeetingGuests: LazyComponent<typeof import("../../components/crm/CrmMeetingGuests.vue")['default']>
   LazyCrmNotificationCenter: LazyComponent<typeof import("../../components/crm/CrmNotificationCenter.vue")['default']>
   LazyCrmOrderAdjustments: LazyComponent<typeof import("../../components/crm/CrmOrderAdjustments.vue")['default']>
@@ -254,6 +372,41 @@ interface _GlobalComponents {
   LazyCrmTimeCorrections: LazyComponent<typeof import("../../components/crm/CrmTimeCorrections.vue")['default']>
   LazyCrmTimesheet: LazyComponent<typeof import("../../components/crm/CrmTimesheet.vue")['default']>
   LazyCrmWorkClock: LazyComponent<typeof import("../../components/crm/CrmWorkClock.vue")['default']>
+  LazyNailArt: LazyComponent<typeof import("../../components/sarkisian-studio/NailArt.vue")['default']>
+  LazyNailFinish: LazyComponent<typeof import("../../components/sarkisian-studio/NailFinish.vue")['default']>
+  LazyNailPhotoLighting: LazyComponent<typeof import("../../components/sarkisian-studio/NailPhotoLighting.vue")['default']>
+  LazySarkisianStudio: LazyComponent<typeof import("../../components/sarkisian-studio/SarkisianStudio.vue")['default']>
+  LazyAnatomy: LazyComponent<typeof import("../../components/sarkisian-studio/anatomy")['default']>
+  LazyDesignPalette: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/DesignPalette.vue")['default']>
+  LazyFinishGame: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/FinishGame.vue")['default']>
+  LazyKeriPortrait: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/KeriPortrait.vue")['default']>
+  LazyMaterialShelf: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/MaterialShelf.vue")['default']>
+  LazyNailFit: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/NailFit.vue")['default']>
+  LazyNailPreparation: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/NailPreparation.vue")['default']>
+  LazyRewardShop: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/RewardShop.vue")['default']>
+  LazyShiftGoals: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/ShiftGoals.vue")['default']>
+  LazyStudioClock: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/StudioClock.vue")['default']>
+  LazyStudioScene: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/StudioScene.vue")['default']>
+  LazyStudioTool: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/StudioTool.vue")['default']>
+  LazySupplyMark: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/SupplyMark.vue")['default']>
+  LazyPreparation: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/preparation")['default']>
+  LazyProgression: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/progression")['default']>
+  LazySupplies: LazyComponent<typeof import("../../components/sarkisian-studio/atelier/supplies")['default']>
+  LazyAppearance: LazyComponent<typeof import("../../components/sarkisian-studio/character/appearance")['default']>
+  LazyKeriAvatar: LazyComponent<typeof import("../../components/sarkisian-studio/keri/KeriAvatar.vue")['default']>
+  LazyKeriChoice: LazyComponent<typeof import("../../components/sarkisian-studio/keri/KeriChoice.vue")['default']>
+  LazyKeriWardrobe: LazyComponent<typeof import("../../components/sarkisian-studio/keri/KeriWardrobe.vue")['default']>
+  LazyClothing: LazyComponent<typeof import("../../components/sarkisian-studio/keri/clothing")['default']>
+  LazyLook: LazyComponent<typeof import("../../components/sarkisian-studio/keri/look")['default']>
+  LazyMakeup: LazyComponent<typeof import("../../components/sarkisian-studio/keri/makeup")['default']>
+  LazyRender: LazyComponent<typeof import("../../components/sarkisian-studio/keri/render")['default']>
+  LazyStyling: LazyComponent<typeof import("../../components/sarkisian-studio/keri/styling")['default']>
+  LazyManicureCatalog: LazyComponent<typeof import("../../components/sarkisian-studio/manicure-catalog")['default']>
+  LazyModel: LazyComponent<typeof import("../../components/sarkisian-studio/model")['default']>
+  LazyNailArtGeometry: LazyComponent<typeof import("../../components/sarkisian-studio/nail-art-geometry")['default']>
+  LazyNailEffects: LazyComponent<typeof import("../../components/sarkisian-studio/nail-effects")['default']>
+  LazyNailShapes: LazyComponent<typeof import("../../components/sarkisian-studio/nail-shapes")['default']>
+  LazyPhotoLighting: LazyComponent<typeof import("../../components/sarkisian-studio/photo-lighting")['default']>
   LazyProductCard: LazyComponent<typeof import("../../components/storefront/ProductCard.vue")['default']>
   LazySiteAboutPage: LazyComponent<typeof import("../../components/storefront/SiteAboutPage.vue")['default']>
   LazySiteAccountAddresses: LazyComponent<typeof import("../../components/storefront/SiteAccountAddresses.vue")['default']>
@@ -283,6 +436,7 @@ interface _GlobalComponents {
   LazySiteClubHub: LazyComponent<typeof import("../../components/storefront/SiteClubHub.vue")['default']>
   LazySiteClubReferral: LazyComponent<typeof import("../../components/storefront/SiteClubReferral.vue")['default']>
   LazySiteClubReferralStack: LazyComponent<typeof import("../../components/storefront/SiteClubReferralStack.vue")['default']>
+  LazySiteClubReferralsPage: LazyComponent<typeof import("../../components/storefront/SiteClubReferralsPage.vue")['default']>
   LazySiteContactForm: LazyComponent<typeof import("../../components/storefront/SiteContactForm.vue")['default']>
   LazySiteContentEditor: LazyComponent<typeof import("../../components/storefront/SiteContentEditor.vue")['default']>
   LazySiteContentPage: LazyComponent<typeof import("../../components/storefront/SiteContentPage.vue")['default']>
@@ -315,6 +469,7 @@ interface _GlobalComponents {
   LazySiteSocialLoginButtons: LazyComponent<typeof import("../../components/storefront/SiteSocialLoginButtons.vue")['default']>
   LazyChannelsWorkspacePage: LazyComponent<typeof import("../../components/workspace/ChannelsWorkspacePage.vue")['default']>
   LazyContactMessagesWorkspace: LazyComponent<typeof import("../../components/workspace/ContactMessagesWorkspace.vue")['default']>
+  LazyMarketplaceExchangePanel: LazyComponent<typeof import("../../components/workspace/MarketplaceExchangePanel.vue")['default']>
   LazyPartnerDocumentsSettingsPage: LazyComponent<typeof import("../../components/workspace/PartnerDocumentsSettingsPage.vue")['default']>
   LazyPartnerGiftsPage: LazyComponent<typeof import("../../components/workspace/PartnerGiftsPage.vue")['default']>
   LazyPartnerLegalEntitiesPage: LazyComponent<typeof import("../../components/workspace/PartnerLegalEntitiesPage.vue")['default']>
@@ -325,18 +480,110 @@ interface _GlobalComponents {
   LazyStoreWorkspacePage: LazyComponent<typeof import("../../components/workspace/StoreWorkspacePage.vue")['default']>
   LazySupportWorkspacePage: LazyComponent<typeof import("../../components/workspace/SupportWorkspacePage.vue")['default']>
   LazySystemWorkspacePage: LazyComponent<typeof import("../../components/workspace/SystemWorkspacePage.vue")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtWelcome>`.
+   *
+   * Displays the welcome screen used by new Nuxt projects.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-welcome
+   */
   LazyNuxtWelcome: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtLayout>`.
+   *
+   * Renders the selected layout around pages or error content.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-layout
+   */
   LazyNuxtLayout: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtErrorBoundary>`.
+   *
+   * Catches client-side errors from its default slot and renders an error slot.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-error-boundary
+   */
   LazyNuxtErrorBoundary: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>
+  /**
+   * Lazy-loaded version of `<ClientOnly>`.
+   *
+   * Renders its default slot only on the client, with an optional server fallback.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/client-only
+   */
   LazyClientOnly: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/client-only")['default']>
+  /**
+   * Lazy-loaded version of `<DevOnly>`.
+   *
+   * Renders its content only during development.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/dev-only
+   */
   LazyDevOnly: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/dev-only")['default']>
   LazyServerPlaceholder: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/server-placeholder")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtLink>`.
+   *
+   * A drop-in replacement for Vue Router's `<RouterLink>` and the HTML `<a>` element.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-link
+   */
   LazyNuxtLink: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-link")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtLoadingIndicator>`.
+   *
+   * Displays a progress bar during page navigation.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-loading-indicator
+   */
   LazyNuxtLoadingIndicator: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-loading-indicator")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtTime>`.
+   *
+   * Formats dates and times consistently across server and client using the user's locale.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-time
+   */
   LazyNuxtTime: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-time.vue")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtRouteAnnouncer>`.
+   *
+   * Announces route changes to assistive technologies using the current page title.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-route-announcer
+   */
   LazyNuxtRouteAnnouncer: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-route-announcer")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtAnnouncer>`.
+   *
+   * Announces dynamic content changes to assistive technologies.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-announcer
+   */
+  LazyNuxtAnnouncer: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-announcer")['default']>
+  /**
+   * Lazy-loaded version of `<NuxtImg>`.
+   *
+   * Renders an optimized image through the Nuxt Image module.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-img
+   */
   LazyNuxtImg: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-stubs")['NuxtImg']>
+  /**
+   * Lazy-loaded version of `<NuxtPicture>`.
+   *
+   * Renders responsive optimized images through the Nuxt Image module.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-picture
+   */
   LazyNuxtPicture: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-stubs")['NuxtPicture']>
+  /**
+   * Lazy-loaded version of `<NuxtPage>`.
+   *
+   * Renders the current page from the `pages/` directory.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-page
+   */
   LazyNuxtPage: LazyComponent<typeof import("../../node_modules/nuxt/dist/pages/runtime/page")['default']>
   LazyNoScript: LazyComponent<typeof import("../../node_modules/nuxt/dist/head/runtime/components")['NoScript']>
   LazyLink: LazyComponent<typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Link']>
@@ -347,6 +594,13 @@ interface _GlobalComponents {
   LazyHead: LazyComponent<typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Head']>
   LazyHtml: LazyComponent<typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Html']>
   LazyBody: LazyComponent<typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Body']>
+  /**
+   * Lazy-loaded version of `<NuxtIsland>`.
+   *
+   * Renders a non-interactive server component without shipping client-side JavaScript.
+   *
+   * @see https://nuxt.com/docs/4.x/api/components/nuxt-island
+   */
   LazyNuxtIsland: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-island")['default']>
 }
 

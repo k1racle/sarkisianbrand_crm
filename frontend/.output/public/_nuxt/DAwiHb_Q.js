@@ -1,0 +1,1 @@
+import{c as e,o as t}from"./C3DSachl.js";var n=t(t=>{if(typeof t.query.search==`string`&&t.query.search.trim().toLowerCase()===`нов`){let{search:n,page:r,...i}=t.query;return e({path:`/catalog`,query:{...i,sort:`new`}},{redirectCode:302,replace:!0})}});export{n as default};

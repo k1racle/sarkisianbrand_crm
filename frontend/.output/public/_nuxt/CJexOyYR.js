@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./CW5XqbM3.js";var a=t({__name:`trash`,setup(t){return r({meta:[{name:`robots`,content:`noindex, nofollow`}]}),(t,r)=>(e(),n(i,{"page-section":`trash`}))}});export{a as default};

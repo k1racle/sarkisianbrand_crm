@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./CfBsoI4x.js";var a=t({__name:`salon-subscription`,setup(t){return r({title:`Подписка салонов — SARKISIAN CRM`}),(t,r)=>{let a=i;return e(),n(a)}}});export{a as default};

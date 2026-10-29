@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./bQIHL_Vc.js";import{t as a}from"./CCeWinb6.js";var o=t({__name:`integrations`,setup(t){return i({name:`crm-marketplace-workspace-integrations`}),r({title:`Маркетплейсы — SARKISIAN CRM`}),(t,r)=>{let i=a;return e(),n(i,{"page-section":`integrations`})}}});export{o as default};

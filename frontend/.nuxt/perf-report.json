@@ -1,0 +1,13 @@
+{
+  "totalDuration": 443.36,
+  "totalMemoryDelta": {
+    "rss": 954368,
+    "heapUsed": 529272
+  },
+  "hasGCSnapshots": false,
+  "phases": [],
+  "slowHooks": [],
+  "modules": [],
+  "bundlerPlugins": [],
+  "timestamp": "2026-10-28T14:17:26.901Z"
+}

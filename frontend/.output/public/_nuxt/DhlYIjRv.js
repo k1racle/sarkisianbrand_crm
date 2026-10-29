@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./DZI0QI3M.js";import{t as a}from"./BjlEXJJy.js";var o=t({__name:`queues`,setup(t){let{active:o}=i();return r(()=>({title:`${o.value?.label||`Рабочее пространство`} — SARKISIAN CRM`})),(t,r)=>{let i=a;return e(),n(i,{"page-section":`queues`})}}});export{o as default};

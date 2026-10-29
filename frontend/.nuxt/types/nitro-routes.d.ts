@@ -6,6 +6,12 @@ declare module "nitropack/types" {
     '/api/storefront/exchange-rates': {
       'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/storefront/exchange-rates.get').default>>>>
     }
+    '/api/v1/**:path': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/v1/[...path]').default>>>>
+    }
+    '/__health': {
+      'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/routes/__health.get').default>>>>
+    }
     '/robots.txt': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/routes/robots.txt').default>>>>
     }
@@ -14,6 +20,9 @@ declare module "nitropack/types" {
     }
     '/__nuxt_error': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../node_modules/@nuxt/nitro-server/dist/runtime/handlers/renderer').default>>>>
+    }
+    '/__nuxt_dev__/error/**': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../node_modules/@nuxt/nitro-server/dist/runtime/handlers/error-channel').default>>>>
     }
     '/__nuxt_island/**': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/#internal/nuxt/island-renderer').default>>>>

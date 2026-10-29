@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./D1FzVeG3.js";import{t as a}from"./DZI0QI3M.js";var o=t({__name:`orders`,setup(t){let{active:o}=a();return r(()=>({title:`${o.value?.label||`Рабочее пространство`} — SARKISIAN CRM`})),(t,r)=>{let a=i;return e(),n(a,{"page-section":`orders`})}}});export{o as default};

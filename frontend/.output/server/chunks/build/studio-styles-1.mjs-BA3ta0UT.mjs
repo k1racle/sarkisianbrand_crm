@@ -1,0 +1,5 @@
+globalThis.__timing__.logStart('Load chunks/build/studio-styles-1-BA3ta0UT.mjs');// components/sarkisian-studio/NailArt.vue?vue&type=style&index=0&scoped=defae3d3&inline&used&lang.css
+var NailArt_vue_vue_type_style_index_0_scoped_defae3d3_inline_used_lang_default = ".nail-art[data-v-defae3d3]{-webkit-user-select:none;user-select:none;width:100%;height:auto;display:block}.nail-target[data-v-defae3d3]{cursor:crosshair;touch-action:none;outline:none}.has-brush[data-v-defae3d3],.has-brush .nail-target[data-v-defae3d3]{cursor:none}.nail-target[data-v-defae3d3]:focus-visible{filter:drop-shadow(0 0 9px #fff)}.nail-target[data-v-defae3d3]:hover{filter:brightness(1.04)}.nail-selection[data-v-defae3d3]{animation:2s linear infinite nail-outline-defae3d3}@keyframes nail-outline-defae3d3{to{stroke-dashoffset:-32px}}@media (prefers-reduced-motion:reduce){.nail-selection[data-v-defae3d3]{animation:none}}";
+
+export { NailArt_vue_vue_type_style_index_0_scoped_defae3d3_inline_used_lang_default as N };;globalThis.__timing__.logEnd('Load chunks/build/studio-styles-1-BA3ta0UT.mjs');
+//# sourceMappingURL=studio-styles-1.mjs-BA3ta0UT.mjs.map

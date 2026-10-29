@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./BjlEXJJy.js";var a=t({__name:`overview`,setup(t){return r({title:`Поддержка — SARKISIAN CRM`}),(t,r)=>{let a=i;return e(),n(a,{"page-section":`overview`})}}});export{a as default};

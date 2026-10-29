@@ -1,0 +1,17 @@
+Keri — original character artwork by Konett.
+https://konett.itch.io/
+
+Layer adaptations by LunaLucid / Namastaii.
+https://lunalucid.itch.io/free-character-creation-template-for-renpy
+
+Source: https://github.com/lunalucid/Keri-Dressup-RenPy-Template
+Revision: 4bd764315ce85296968297b30938640c2ae49000
+
+The upstream author identifies the artwork as CC-BY; no version is specified.
+Commercial use with credit to Konett is expressly allowed on the project page.
+The original upstream README is preserved as UPSTREAM-README.md.
+PNG layers are unmodified. File hashes and dimensions: provenance.json.
+
+SARKISIAN's browser interface and canvas compositor were written separately.
+This pack contains a single standing view, ending around the knees.
+It does not include walking, sitting, hand gestures or additional camera views.

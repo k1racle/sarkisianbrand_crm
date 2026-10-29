@@ -1,0 +1,10 @@
+{
+  "pid": 23000,
+  "startedAt": 1793262478862,
+  "interactive": false,
+  "command": "dev",
+  "cwd": "D:/Projects/sarkisianbrand_crm/frontend",
+  "port": 3020,
+  "hostname": "127.0.0.1",
+  "url": "http://127.0.0.1:3020"
+}

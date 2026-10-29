@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./CCeWinb6.js";var a=t({__name:`integrations`,setup(t){return r({meta:[{name:`robots`,content:`noindex, nofollow`}]}),(t,r)=>(e(),n(i,{"page-section":`integrations`}))}});export{a as default};

@@ -10,6 +10,24 @@ function shiftSalonDay(day, days) {
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
+function salonMonthDays(day) {
+  const first = `${day.slice(0, 7)}-01`;
+  const mondayOffset = ((/* @__PURE__ */ new Date(`${first}T12:00:00Z`)).getUTCDay() + 6) % 7;
+  const start = shiftSalonDay(first, -mondayOffset);
+  return Array.from({ length: 42 }, (_, index) => shiftSalonDay(start, index));
+}
+function salonCalendarPeriod(day, mode) {
+  if (mode === "month") {
+    const days = salonMonthDays(day);
+    return { fromDay: days[0], toDay: shiftSalonDay(days[41], 1) };
+  }
+  if (mode === "week") {
+    const mondayOffset = ((/* @__PURE__ */ new Date(`${day}T12:00:00Z`)).getUTCDay() + 6) % 7;
+    const fromDay = shiftSalonDay(day, -mondayOffset);
+    return { fromDay, toDay: shiftSalonDay(fromDay, 7) };
+  }
+  return { fromDay: day, toDay: shiftSalonDay(day, mode === "day" ? 1 : 30) };
+}
 function salonInstant(day, minute, timeZone = "Europe/Moscow") {
   const target = Date.parse(`${day}T00:00:00Z`) + minute * 6e4;
   let instant = target;
@@ -31,5 +49,5 @@ function salonMinute(date, timeZone) {
   return Number((_a = p.find((x) => x.type === "hour")) == null ? void 0 : _a.value) * 60 + Number((_b = p.find((x) => x.type === "minute")) == null ? void 0 : _b.value);
 }
 
-export { shiftSalonDay as a, salonInstant as b, salonMinute as c, salonDay as s };;globalThis.__timing__.logEnd('Load chunks/_/salon-calendar');
+export { salonDay as a, salonCalendarPeriod as b, salonInstant as c, salonMinute as d, salonMonthDays as e, shiftSalonDay as s };;globalThis.__timing__.logEnd('Load chunks/_/salon-calendar');
 //# sourceMappingURL=salon-calendar.mjs.map

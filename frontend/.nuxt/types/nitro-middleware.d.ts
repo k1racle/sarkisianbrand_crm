@@ -1,17 +1,11 @@
 export type MiddlewareKey = "catalog-legacy-links"
-declare module 'nitropack' {
-  interface NitroRouteConfig {
-    appMiddleware?: MiddlewareKey | MiddlewareKey[] | Record<MiddlewareKey, boolean>
-  }
-  interface NitroRouteRules {
+declare module '@nuxt/schema' {
+  interface RouteRuleConfigExtensions {
     appMiddleware?: MiddlewareKey | MiddlewareKey[] | Record<MiddlewareKey, boolean>
   }
 }
-declare module 'nitropack/types' {
-  interface NitroRouteConfig {
-    appMiddleware?: MiddlewareKey | MiddlewareKey[] | Record<MiddlewareKey, boolean>
-  }
-  interface NitroRouteRules {
+declare module 'nuxt/schema' {
+  interface RouteRuleConfigExtensions {
     appMiddleware?: MiddlewareKey | MiddlewareKey[] | Record<MiddlewareKey, boolean>
   }
 }

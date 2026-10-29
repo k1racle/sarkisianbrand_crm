@@ -29,11 +29,11 @@
       "@@/*": [
         "../*"
       ],
-      "vue-router": [
-        "../node_modules/vue-router"
+      "@nuxt/devtools": [
+        "../node_modules/@nuxt/devtools"
       ],
-      "vue-router/auto-routes": [
-        "../node_modules/vue-router/vue-router-auto-routes"
+      "@nuxt/schema": [
+        "../node_modules/@nuxt/schema"
       ],
       "nuxt": [
         "../node_modules/nuxt"
@@ -41,23 +41,23 @@
       "@unhead/vue": [
         "../node_modules/@unhead/vue"
       ],
-      "@nuxt/devtools": [
-        "../node_modules/@nuxt/devtools"
-      ],
       "@vue/runtime-core": [
         "../node_modules/@vue/runtime-core"
       ],
       "@vue/compiler-sfc": [
         "../node_modules/@vue/compiler-sfc"
       ],
-      "@nuxt/schema": [
-        "../node_modules/nuxt/node_modules/@nuxt/schema"
+      "vue-router": [
+        "../node_modules/vue-router"
+      ],
+      "vue-router/auto-routes": [
+        "../node_modules/vue-router/vue-router-auto-routes.d.mts"
+      ],
+      "vite/client": [
+        "../node_modules/vite/client"
       ],
       "defu": [
         "../node_modules/defu"
-      ],
-      "h3": [
-        "../node_modules/h3"
       ],
       "consola": [
         "../node_modules/consola"
@@ -65,41 +65,26 @@
       "ofetch": [
         "../node_modules/ofetch"
       ],
-      "crossws": [
-        "../node_modules/crossws"
-      ],
-      "unplugin-vue-router/client": [
-        "../node_modules/unplugin-vue-router/client"
-      ],
-      "nitropack": [
-        "../node_modules/nitropack"
-      ],
-      "vite/client": [
-        "../node_modules/vite/client"
-      ],
       "nitropack/types": [
         "../node_modules/nitropack/types"
       ],
       "nitropack/runtime": [
         "../node_modules/nitropack/runtime"
       ],
+      "nitropack": [
+        "../node_modules/nitropack"
+      ],
+      "h3": [
+        "../node_modules/h3"
+      ],
+      "crossws": [
+        "../node_modules/crossws"
+      ],
       "#shared": [
         "../shared"
       ],
       "#shared/*": [
         "../shared/*"
-      ],
-      "assets": [
-        "../assets"
-      ],
-      "assets/*": [
-        "../assets/*"
-      ],
-      "public": [
-        "../public"
-      ],
-      "public/*": [
-        "../public/*"
       ],
       "#server": [
         "../server"
@@ -116,8 +101,26 @@
       "#internal/nuxt/paths": [
         "../node_modules/@nuxt/nitro-server/dist/runtime/utils/paths"
       ],
+      "nuxt/app": [
+        "../node_modules/nuxt/dist/app"
+      ],
+      "nuxt/app/*": [
+        "../node_modules/nuxt/dist/app/*"
+      ],
       "#unhead/composables": [
-        "../node_modules/nuxt/dist/head/runtime/composables/v3"
+        "../node_modules/nuxt/dist/head/runtime/composables"
+      ],
+      "#app/island-hash": [
+        "../node_modules/nuxt/dist/app/island-hash"
+      ],
+      "#app/island-props": [
+        "../node_modules/nuxt/dist/app/island-props"
+      ],
+      "#app/internal/*": [
+        "../node_modules/nuxt/dist/app/internal/*"
+      ],
+      "#app/types": [
+        "../node_modules/nuxt/dist/app/types"
       ]
     },
     "lib": [
@@ -126,7 +129,8 @@
       "dom.iterable"
     ],
     "noUncheckedIndexedAccess": true,
-    "allowArbitraryExtensions": true
+    "allowArbitraryExtensions": true,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "./types/nitro-nuxt.d.ts",
@@ -134,8 +138,7 @@
     "../node_modules/dist/runtime/server",
     "../server/**/*",
     "../shared/**/*.d.ts",
-    "./types/nitro.d.ts",
-    "../**/*"
+    "./types/nitro.d.ts"
   ],
   "exclude": [
     "../node_modules",

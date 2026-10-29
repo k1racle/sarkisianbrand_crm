@@ -1,0 +1,1 @@
+import{at as e}from"./DkixGlcp.js";function t(t){let n=e(!1);async function r(e){if(n.value)return!1;n.value=!0,t.value=``;try{return await e(),!0}catch(e){let n=e?.data?.message;return t.value=Array.isArray(n)?n.join(`, `):typeof n==`string`?n:`Действие не выполнено. Повторите попытку.`,!1}finally{n.value=!1}}return{actionBusy:n,runOperation:r}}export{t};

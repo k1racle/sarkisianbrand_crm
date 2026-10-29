@@ -1,0 +1,1 @@
+import{b as e,q as t}from"./DkixGlcp.js";import{c as n}from"./C3DSachl.js";var r=e({__name:`business-registration`,async setup(e){let r,i;return[r,i]=t(()=>n({path:`/business`,query:{registration:`open`}},{replace:!0})),await r,i(),()=>{}}});export{r as default};

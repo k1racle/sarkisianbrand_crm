@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{t as r}from"./C-FZTBxG.js";import{t as i}from"./bQIHL_Vc.js";var a=t({__name:`catalog`,setup(t){return i({middleware:`catalog-legacy-links`}),(t,i)=>{let a=r;return e(),n(a)}}});export{a as default};

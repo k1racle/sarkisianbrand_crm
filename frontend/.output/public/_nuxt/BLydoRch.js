@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n}from"./DkixGlcp.js";import{n as r}from"./aGCGafga.js";import{t as i}from"./DQ2YPGzJ.js";var a=t({__name:`bloggers-payouts`,setup(t){return r({meta:[{name:`robots`,content:`noindex, nofollow`}]}),(t,r)=>{let a=i;return e(),n(a,{kind:`BLOGGER`,section:`payouts`})}}});export{a as default};

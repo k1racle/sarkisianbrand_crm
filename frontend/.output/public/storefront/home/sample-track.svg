@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="93.8554" height="93.8554" viewBox="0 0 93.8554 93.8554" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Sample rim">
+<rect width="93.8554" height="93.8554" rx="46.9277" fill="#FFE6D0" fill-opacity="0.168627"/>
+<rect x="0.858434" y="0.858434" width="92.1386" height="92.1386" rx="46.0693" stroke="#FFE6D0" stroke-opacity="0.266667" stroke-width="1.71687"/>
+<g id="Sample">
+<circle cx="46.9276" cy="46.9276" r="34.3373" fill="white"/>
+<circle cx="46.9276" cy="46.9276" r="33.5934" stroke="#FCE1CD" stroke-opacity="0.4" stroke-width="1.48795"/>
+</g>
+</g>
+</svg>

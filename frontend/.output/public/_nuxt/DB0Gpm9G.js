@@ -1,0 +1,1 @@
+import{I as e,b as t,d as n,q as r}from"./DkixGlcp.js";import{c as i}from"./C3DSachl.js";import{at as a}from"#entry";var o=t({__name:`workspace`,async setup(t){let o,s;return[o,s]=r(()=>i(`/crm/`,{replace:!0})),await o,s(),(t,r)=>{let i=a;return e(),n(i,{label:`Открываем CRM`})}}});export{o as default};

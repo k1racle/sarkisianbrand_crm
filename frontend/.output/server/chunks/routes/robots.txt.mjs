@@ -1,4 +1,8 @@
-globalThis.__timing__.logStart('Load chunks/routes//robots.txt');import { c as defineEventHandler, u as useRuntimeConfig, e as setHeader, f as createError } from '../_/nitro.mjs';
+globalThis.__timing__.logStart('Load chunks/routes//robots.txt');import { f as defineEventHandler, u as useRuntimeConfig, i as setHeader, e as createError } from '../_/nitro.mjs';
+import 'unhead/server';
+import 'vue';
+import 'unhead/legacy';
+import 'unhead/plugins';
 import 'node:http';
 import 'node:https';
 import 'node:events';

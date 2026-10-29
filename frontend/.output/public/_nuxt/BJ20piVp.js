@@ -1,0 +1,1 @@
+import{r as e}from"./BBujwZqQ.js";var t=e(`/crm/pwa/icon.svg?v=brand2`);export{t};

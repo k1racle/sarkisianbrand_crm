@@ -1,0 +1,1 @@
+import{b as e}from"./DkixGlcp.js";import{c as t}from"./C3DSachl.js";import{t as n}from"./bQIHL_Vc.js";var r=e({__name:`partner-legal-entities`,setup(e){return n({middleware:()=>t(`/crm/partners/documents`,{redirectCode:301})}),(e,t)=>null}});export{r as default};

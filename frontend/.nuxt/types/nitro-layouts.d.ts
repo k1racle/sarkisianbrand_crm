@@ -1,17 +1,17 @@
 export type LayoutKey = string
-declare module 'nitropack' {
-  interface NitroRouteConfig {
+declare module '@nuxt/schema' {
+  interface AppRouteRulesExtensions {
     appLayout?: LayoutKey | false
   }
-  interface NitroRouteRules {
+  interface RouteRuleConfigExtensions {
     appLayout?: LayoutKey | false
   }
 }
-declare module 'nitropack/types' {
-  interface NitroRouteConfig {
+declare module 'nuxt/schema' {
+  interface AppRouteRulesExtensions {
     appLayout?: LayoutKey | false
   }
-  interface NitroRouteRules {
+  interface RouteRuleConfigExtensions {
     appLayout?: LayoutKey | false
   }
 }

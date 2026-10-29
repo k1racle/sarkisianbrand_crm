@@ -1,0 +1,1 @@
+import{I as e,d as t}from"./DkixGlcp.js";import{at as n}from"#entry";import{t as r}from"./BDNMzG2s.js";var i={};function a(r,i){let a=n;return e(),t(a,{label:`Открываем раздел`})}var o=r(i,[[`render`,a]]);export{o as default};
