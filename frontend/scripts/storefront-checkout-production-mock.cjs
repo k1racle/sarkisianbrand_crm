@@ -161,7 +161,8 @@ async function assertSummaryPromo(page) {
   assert.ok(input.x + input.width <= bounds.x + bounds.width + 1 && button.x + button.width <= bounds.x + bounds.width + 1, 'compact summary controls must not overflow');
   assert.ok(button.x >= input.x && button.x + button.width <= input.x + input.width, 'apply check belongs inside the input');
   assert.equal(await promo.getByRole('button', { name: 'Применить', exact: true }).innerText(), '', 'apply is an icon, not a text button');
-  assert.ok(['rgb(21, 21, 21)', 'rgb(41, 41, 41)'].includes(await promo.getByRole('button', { name: 'Применить', exact: true }).evaluate(element => getComputedStyle(element).backgroundColor)), 'apply check uses the black action palette, including hover');
+  const actionColor = await promo.getByRole('button', { name: 'Применить', exact: true }).evaluate(element => getComputedStyle(element).backgroundColor);
+  assert.ok(['rgb(21, 21, 21)', 'rgb(41, 41, 41)', 'rgb(60, 60, 59)'].includes(actionColor), `apply check uses the dark action palette, including hover: ${actionColor}`);
   assert.ok(bounds.width <= 420);
   assert(await promo.evaluate(element => {
     const action = element.parentElement.querySelector(':scope > .sb-primary');

@@ -4,15 +4,21 @@ const { isolatedContext } = require('./admin-design-mock.cjs');
 const { assertWidth, assertTypography } = require('./crm-workspace-smoke.cjs');
 const { fixtures: rich } = require('./crm-rich-fixtures.cjs');
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
-const base = 'http://127.0.0.1:3001';
+const base = new URL(process.env.ADMIN_DESIGN_URL || 'http://127.0.0.1:3001').origin;
 const output = path.resolve(__dirname, '../.screenshots/crm-navigation');
 const fixtures = new Map([...rich, ['/platform-chat/channels', []]]);
-const expectedGroups = ['Мой день','Клиенты и продажи','Заказы и исполнение','Финансы','Команда','Маркетинг и партнёры','Поддержка','Аналитика','Настройки CRM'];
+const expectedGroups = ['Клиенты и продажи','Заказы и исполнение','Финансы','Команда','Маркетинг и партнёры','Поддержка','Аналитика','Настройки CRM'];
+const expectedPrimary = ['Мой день','Клиенты','Сделки','Заказы','Задачи','Календарь'];
 async function menu(page, width) {
   if (width < 1024 && await page.locator('.crm-app-sidebar.is-open').count() === 0) await page.getByRole('button', { name:'Открыть разделы CRM', exact:true }).click();
 }
 async function search(page, value) {
-  await page.getByRole('button', { name:'Найти раздел CRM', exact:true }).click();
+  const toolbarSearch = page.getByRole('button', { name:'Найти раздел CRM', exact:true });
+  if (await toolbarSearch.isVisible()) await toolbarSearch.click();
+  else {
+    if (!(await page.locator('.crm-sidebar-search').isVisible())) await page.getByRole('button', { name:'Открыть разделы CRM', exact:true }).click();
+    await page.locator('.crm-sidebar-search').click();
+  }
   await page.getByRole('searchbox', { name:'Название раздела CRM' }).fill(value);
 }
 async function clean(f) {
@@ -30,7 +36,14 @@ async function main() {
       try {
         await page.goto(base + '/crm/', { waitUntil:'networkidle' });
         await menu(page, width);
-        assert.deepEqual(await page.locator('.crm-navigation > section[aria-label] > h2').allTextContents(), expectedGroups);
+        await page.locator('.crm-primary-navigation a').first().waitFor();
+        assert.deepEqual(await page.locator('.crm-primary-navigation a').allTextContents(), expectedPrimary);
+        const allSections = page.getByRole('button', { name:'Все разделы', exact:true });
+        assert.equal(await allSections.getAttribute('aria-expanded'), 'false');
+        await allSections.click();
+        assert.equal(await allSections.getAttribute('aria-expanded'), 'true');
+        await page.locator('#crm-all-sections-list > section > h2').first().waitFor();
+        assert.deepEqual(await page.locator('#crm-all-sections-list > section > h2').allTextContents(), expectedGroups);
         assert.equal(await page.locator('.crm-navigation a[href="/crm/buyers"]').count(), 0);
         assert.equal(await page.locator('.crm-nav-module[open]').count(), 0);
         const summary = page.locator('[data-module="bloggers"] > summary');
@@ -39,12 +52,14 @@ async function main() {
         assert.ok((await summary.boundingBox()).height >= 44, 'Touch-sized group header');
         await page.locator('[data-module="bloggers"] a[href="/crm/bloggers/settings"]').click();
         await page.waitForURL('**/crm/bloggers/settings');
-        await page.locator('.crm-frame h1').filter({ hasText:'Настройки блогеров' }).waitFor();
+        await page.locator('.crm-frame h1').filter({ hasText:'Настройки авторов' }).waitFor();
         assert.equal(await page.locator('.crm-app-sidebar.is-open').count(), 0, 'Mobile menu closes on navigation');
-        assert.equal(await page.locator('.crm-section-title strong').textContent(), 'Настройки блогеров');
-        assert.match(await page.locator('.crm-breadcrumbs').innerText(), /Маркетинг и партнёры[\s\S]*Блогеры[\s\S]*Настройки блогеров/);
-        assert.equal(await page.locator('.crm-section-links [aria-current="page"]').textContent(), 'Настройки блогеров');
-        assert.equal(await page.locator('.crm-section-links [aria-current="page"]').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(241, 238, 255)', 'Same active surface as other CRM controls');
+        assert.equal(await page.locator('.crm-breadcrumbs [aria-current="page"]').textContent(), 'Настройки авторов');
+        assert.match(await page.locator('.crm-breadcrumbs').textContent(), /Маркетинг и партнёры[\s\S]*Авторы и блогеры[\s\S]*Настройки авторов/);
+        assert.equal(await page.locator('.crm-section-links [aria-current="page"]').textContent(), 'Настройки авторов');
+        const currentStyle = await page.locator('.crm-section-links [aria-current="page"]').evaluate(el => { const s = getComputedStyle(el); return { color: s.color, border: s.borderBottomColor, width: parseFloat(s.borderBottomWidth) }; });
+        const otherStyle = await page.locator('.crm-section-links a:not([aria-current="page"])').first().evaluate(el => { const s = getComputedStyle(el); return { color: s.color, border: s.borderBottomColor }; });
+        assert.ok(currentStyle.width >= 2 && currentStyle.color !== otherStyle.color && currentStyle.border !== otherStyle.border, 'Active subsection has distinct text and underline');
         assert.ok(await page.locator('.crm-section-links').evaluate(bar => {
           const bounds = bar.getBoundingClientRect(), item = bar.querySelector('[aria-current="page"]').getBoundingClientRect();
           return item.left >= bounds.left - 1 && item.right <= bounds.right + 1;
@@ -102,7 +117,9 @@ async function main() {
         if (variant === 'chat-only') {
           await page.goto(base + '/crm/chat', { waitUntil:'networkidle' });
           await page.locator('.platform-chat').waitFor();
-          assert.equal(new URL(page.url()).pathname, '/workspace', 'No home/chat redirect loop');
+          assert.equal(new URL(page.url()).pathname, '/crm/chat', 'Chat-only role stays on its accessible chat route');
+          await page.waitForTimeout(500);
+          assert.equal(new URL(page.url()).pathname, '/crm/chat', 'Chat-only route remains stable');
         } else {
           await page.goto(base + (variant === 'content-role' ? '/crm/content-plan' : '/crm/'), { waitUntil:'networkidle' });
           if (variant === 'schedule-deny') {
@@ -130,7 +147,7 @@ async function main() {
             assert.notEqual(new URL(page.url()).pathname, '/crm/bloggers/payouts');
             assert.ok(!f.traffic.mockedReads.includes('/partners/admin/BLOGGER/payouts'));
           } else if (variant === 'content-role') {
-            assert.deepEqual(await page.locator('.crm-navigation > section[aria-label] h2').allTextContents(), ['Команда','Маркетинг и партнёры']);
+            assert.deepEqual(await page.locator('#crm-all-sections-list > section > h2').allTextContents(), ['Команда','Маркетинг и партнёры']);
             assert.equal(await page.locator('.crm-navigation a[href="/crm/orders"]').count(), 0);
             await search(page, 'заказы');
             assert.equal(await page.locator('.crm-search-dialog nav a').count(), 0);

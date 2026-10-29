@@ -24,7 +24,7 @@ const cases=[
 {id:'deal-card',route:'/crm/deals',panel:'.admin-dialog--drawer',open:p=>p.locator('.deal').first().click()},
  {id:'publication',route:'/crm/content-plan',panel:'.crm-content-editor',open:p=>p.locator('.crm-publication').first().click()},
  {id:'new-publication',route:'/crm/content-plan',panel:'.crm-content-editor',open:p=>p.getByRole('button',{name:'Новая публикация',exact:true}).click()},
- {id:'blogger-invite',route:'/crm/bloggers/participants',panel:'.partner-dialog',open:p=>p.getByRole('button',{name:'Добавить блогера',exact:true}).click()},
+ {id:'blogger-invite',route:'/crm/bloggers/participants',panel:'.partner-dialog',open:p=>p.getByRole('button',{name:'Пригласить партнёра',exact:true}).click()},
  {id:'chat',route:'/crm/',panel:'.platform-chat',open:p=>p.getByRole('button',{name:'Открыть чат команды',exact:true}).click()}];
 // Put the synthetic publication in the current UI calendar rather than keeping
 // an expired September fixture invisible in every subsequent month.

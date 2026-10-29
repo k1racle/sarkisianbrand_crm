@@ -75,6 +75,11 @@ async function main() {
         await p.getByRole('button',{name:'Открыть шаблон'}).click();
         await p.getByRole('heading',{name:'Новая версия шаблона'}).waitFor();
         assert.equal(await p.getByLabel('Название документа').evaluate(el=>el===document.activeElement),true);
+        const program=p.getByLabel('Программа',{exact:true});
+        assert.deepEqual(await program.locator('option').allTextContents(),['Обе программы','Программа авторов и блогеров','Реферальная программа']);
+        await program.selectOption('BLOGGER');assert.equal(await program.inputValue(),'BLOGGER');
+        await program.selectOption('REFERRAL');assert.equal(await program.inputValue(),'REFERRAL');
+        await program.selectOption('ALL');
         await p.getByRole('heading',{name:'Новая версия шаблона'}).waitFor();
         await p.getByText('Выбрать поле для вставки',{exact:true}).click();
         const editor=p.getByLabel('Текст документа',{exact:true});await editor.fill('Договор с ');await editor.evaluate(el=>el.setSelectionRange(el.value.length,el.value.length));
@@ -89,7 +94,7 @@ async function main() {
         await p.getByRole('tab',{name:'SMS-подпись',exact:true}).click();await p.getByText('Подписание пока недоступно',{exact:true}).waitFor();
         assert.equal(await p.locator('.pds-doc-checks input[role=switch]').count(),0,'Document selection uses checkboxes');assert.equal(await p.locator('.pds-doc-checks input').first().evaluate(el=>getComputedStyle(el,'::before').width),'20px','Checkboxes have a square selection box');await shot('document-signature');
         await p.getByRole('tab',{name:'Реквизиты',exact:true}).click();assert.equal(await p.locator('h1').count(),1,'Embedded entity settings do not add a second page heading');await p.getByRole('button',{name:'Изменить',exact:true}).click();await p.getByLabel('Полное юридическое наименование').waitFor();await shot('document-entity');
-        await p.goto(origin+'/crm/bloggers/gifts',{waitUntil:'networkidle'});await p.getByRole('heading',{name:'Подарки партнёрам'}).waitFor();assert.equal(await p.locator('.gift-create').count(),0,'History is the initial view');
+        await p.goto(origin+'/crm/bloggers/gifts',{waitUntil:'networkidle'});await p.getByRole('heading',{name:'Подарки авторам'}).waitFor();assert.equal(await p.locator('.gift-create').count(),0,'History is the initial view');
         await presentationTop(p);
         const freshGift=await p.evaluate(()=>{const bar=document.querySelector('.crm-topbar').getBoundingClientRect(),h1=document.querySelector('h1').getBoundingClientRect(),skip=document.querySelector('.crm-skip-link'),link=skip.getBoundingClientRect(),tabs=document.querySelector('.crm-section-links'),current=tabs.querySelector('[aria-current=page]'),tb=tabs.getBoundingClientRect(),active=current.getBoundingClientRect();return{scrollY,headerTop:bar.top,headerBottom:bar.bottom,headingTop:h1.top,skipFocused:skip.matches(':focus'),skipBottom:link.bottom,tabBar:{left:tb.left,right:tb.right},activeTab:{left:active.left,right:active.right}};});
         assert.equal(freshGift.scrollY,0);assert.ok(Math.abs(freshGift.headerTop)<=1,'Fresh header starts at the top');assert.ok(freshGift.headingTop>=freshGift.headerBottom,'Fresh gift heading is below the header');assert.equal(freshGift.skipFocused,false);assert.ok(freshGift.skipBottom<=0,'Unfocused skip link stays offscreen');

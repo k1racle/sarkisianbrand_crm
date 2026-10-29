@@ -4,7 +4,7 @@ export const CRM_MODULES = [
   { id: 'marketplaces', label: 'Маркетплейсы', group: 'Заказы и исполнение', icon: 'Store' },
   { id: 'loyalty', label: 'Клуб покупателей', group: 'Маркетинг и партнёры', icon: 'BadgeCheck' },
   { id: 'referrals', label: 'Рекомендации', group: 'Маркетинг и партнёры', icon: 'Network' },
-  { id: 'bloggers', label: 'Блогеры', group: 'Маркетинг и партнёры', icon: 'Video' },
+  { id: 'bloggers', label: 'Авторы и блогеры', group: 'Маркетинг и партнёры', icon: 'Video' },
   { id: 'connections', label: 'Интеграции', group: 'Настройки CRM', icon: 'PlugZap' },
 ] as const;
 export type CrmDestination = {
@@ -37,8 +37,8 @@ export const CRM_DESTINATIONS: CrmDestination[] = [
   { id: 'loyalty-members', path: '/crm/loyalty/members', label: 'Участники клуба', group: 'Маркетинг и партнёры', parent: 'loyalty', icon: 'BadgeCheck', screen: 'store', section: 'loyalty-members' },
   { id: 'loyalty-settings', path: '/crm/loyalty/settings', label: 'Правила клуба', group: 'Маркетинг и партнёры', parent: 'loyalty', icon: 'NotebookPen', screen: 'store', section: 'loyalty-settings' },
   ...(['participants', 'rewards', 'settings'] as const).map(section => ({ id: `referral-${section}`, path: `/crm/referrals/${section}`, label: { participants: 'Участники рекомендаций', rewards: 'Начисления за рекомендации', settings: 'Настройки рекомендаций' }[section], group: 'Маркетинг и партнёры' as const, parent: 'referrals' as const, icon: { participants: 'Network', rewards: 'Coins', settings: 'SlidersHorizontal' }[section], screen: 'partner', section, kind: 'REFERRAL' })),
-  ...(['overview', 'participants', 'registrations', 'rewards', 'payouts', 'settings'] as const).map(section => ({ id: `bloggers-${section}`, path: `/crm/bloggers/${section}`, label: { overview: 'Обзор блогеров', participants: 'Заявки и партнёры', registrations: 'Привлечённые организации', rewards: 'Начисления блогерам', payouts: 'Выплаты блогерам', settings: 'Настройки блогеров' }[section], group: 'Маркетинг и партнёры' as const, parent: 'bloggers' as const, icon: { overview: 'Video', participants: 'UsersRound', registrations: 'Handshake', rewards: 'BadgeDollarSign', payouts: 'Wallet', settings: 'Settings2' }[section], screen: 'partner', section, kind: 'BLOGGER' })),
-  { id: 'bloggers-gifts', path: '/crm/bloggers/gifts', label: 'Подарки блогерам', group: 'Маркетинг и партнёры', parent: 'bloggers', icon: 'PackagePlus', screen: 'partner-gifts' },
+  ...(['overview', 'participants', 'registrations', 'rewards', 'payouts', 'settings'] as const).map(section => ({ id: `bloggers-${section}`, path: `/crm/bloggers/${section}`, label: { overview: 'Обзор авторов', participants: 'Заявки и партнёры', registrations: 'Привлечённые организации', rewards: 'Начисления авторам', payouts: 'Выплаты авторам', settings: 'Настройки авторов' }[section], group: 'Маркетинг и партнёры' as const, parent: 'bloggers' as const, icon: { overview: 'Video', participants: 'UsersRound', registrations: 'Handshake', rewards: 'BadgeDollarSign', payouts: 'Wallet', settings: 'Settings2' }[section], screen: 'partner', section, kind: 'BLOGGER' })),
+  { id: 'bloggers-gifts', path: '/crm/bloggers/gifts', label: 'Подарки авторам', group: 'Маркетинг и партнёры', parent: 'bloggers', icon: 'PackagePlus', screen: 'partner-gifts' },
   { id: 'partner-documents-settings', path: '/crm/partners/documents', label: 'Документы партнёров', group: 'Маркетинг и партнёры', icon: 'FileSignature', screen: 'partner-documents-settings', section: 'documents' },
   { id: 'promotions', path: '/crm/promotions', label: 'Промокоды', group: 'Маркетинг и партнёры', icon: 'Megaphone', screen: 'store', section: 'promotions' },
   { id: 'gift-cards', path: '/crm/gift-cards', label: 'Подарочные карты', group: 'Маркетинг и партнёры', icon: 'Gift', screen: 'store', section: 'gift-cards' },

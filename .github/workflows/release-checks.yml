@@ -139,10 +139,15 @@ jobs:
           npm run smoke:crm-unified
           npm run smoke:crm-density
           npm run smoke:crm-comfort-shared
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-navigation-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/marketplace-exchange-ui.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/b2b-orders-pagination-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/helpdesk-email-ui.cjs
           SALON_MANAGEMENT_TEST_ORIGIN=http://127.0.0.1:3001 node scripts/salon-booking-management-mock.cjs
+          node scripts/favorites-sync-isolation-check.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-favorites-complete-mock.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-compact-card-mock.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 BROWSER_EXECUTABLE="$(node -p "require('playwright-core').chromium.executablePath()")" node scripts/storefront-checkout-production-mock.cjs
           WORKSPACE_DESIGN_BATCH=ci-unified node scripts/workspace-design-review.cjs --crm-all --after
           npx playwright test salon-booking.spec.cjs salon-subscription.spec.cjs ecosystem.spec.cjs partners.spec.cjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -163,6 +168,9 @@ jobs:
             frontend/.screenshots/crm-operational-workspace
             frontend/.screenshots/crm-management-workspace
             frontend/.screenshots/crm-comfort-shell
+            frontend/.screenshots/crm-navigation
+            frontend/.screenshots/compact-product-card
+            frontend/.screenshots/checkout-production-mock
             frontend/.screenshots/marketplace-exchange-1440-light.png
             frontend/.screenshots/marketplace-exchange-390-dark.png
             frontend/.screenshots/workspace-design-ci-unified-all-after

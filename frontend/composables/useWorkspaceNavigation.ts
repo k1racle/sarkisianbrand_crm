@@ -83,14 +83,14 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
     {id:'referral-participants',label:'Участники',to:'/admin-workspace/referral-participants',roles:MARKETING,permission:'partners.read'},
     {id:'referral-rewards',label:'Начисления',to:'/admin-workspace/referral-rewards',roles:MARKETING,permission:'partners.read'},
   ] },
-  { id: 'bloggers', label: 'Блогеры', description: 'Партнёры, аналитика, привлечённые организации и выплаты.', icon: 'Users', items: [
+  { id: 'bloggers', label: 'Авторы и блогеры', description: 'Партнёры, аналитика, привлечённые организации и выплаты.', icon: 'Users', items: [
     {id:'bloggers-overview',label:'Обзор',to:'/admin-workspace/bloggers-overview',roles:MARKETING,permission:'partners.read'},
     {id:'bloggers-participants',label:'Заявки и партнёры',to:'/admin-workspace/bloggers-participants',roles:MARKETING,permission:'partners.read'},
     {id:'bloggers-registrations',label:'Привлечённые организации',to:'/admin-workspace/bloggers-registrations',roles:MARKETING,permission:'partners.read'},
-    {id:'bloggers-rewards',label:'Начисления',to:'/admin-workspace/bloggers-rewards',roles:MARKETING,permission:'partners.read'},
-    {id:'bloggers-payouts',label:'Выплаты',to:'/admin-workspace/bloggers-payouts',roles:ADMIN,permission:'partners.payouts'},
+    {id:'bloggers-rewards',label:'Начисления',to:'/admin-workspace/bloggers-rewards',roles:MARKETING,permission:'partners.read',keywords:'блогеры начисления авторы вознаграждения'},
+    {id:'bloggers-payouts',label:'Выплаты',to:'/admin-workspace/bloggers-payouts',roles:ADMIN,permission:'partners.payouts',keywords:'выплаты блогерам авторам'},
     {id:'bloggers-settings',label:'Настройки программы',to:'/admin-workspace/bloggers-settings',roles:MARKETING,permission:'partners.read'},
-    {id:'bloggers-gifts',label:'Подарки блогерам',to:'/crm/bloggers/gifts',roles:['ADMIN','SUPERVISOR'],permission:'partners.write',keywords:'товары подарок блогеру бесплатная отправка сборка склад'},
+    {id:'bloggers-gifts',label:'Подарки авторам',to:'/crm/bloggers/gifts',roles:['ADMIN','SUPERVISOR'],permission:'partners.write',keywords:'товары подарок блогеру автору бесплатная отправка сборка склад'},
   ] },
   { id: 'partner-documents', label: 'Документы партнёров', description: 'Общие документы для блогеров и участников реферальной программы.', icon: 'FileSignature', items: [
     { id: 'partner-documents-settings', label: 'Шаблоны, генератор и подпись', to: '/crm/partners/documents', roles: ['ADMIN','SUPERVISOR'], permission: 'partners.write', keywords: 'договоры документы шаблоны генератор SMS ПЭП ИП ООО рефералы блогеры' },

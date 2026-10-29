@@ -71,21 +71,24 @@ async function add() {
     </div>
   </article>
   <article v-else class="sb-product-card">
-    <NuxtLink :to="storefrontProductLink(product)" class="sb-product-card__visual">
+    <div class="sb-product-card__frame">
+      <NuxtLink :to="storefrontProductLink(product)" class="sb-product-card__visual" :aria-label="`${t('Подробнее')}: ${editorialName}`">
+        <img v-if="image && !imageFailed" :src="image" :alt="editorialName" loading="lazy" @error="imageFailed = true" />
+        <div v-else class="sb-product-placeholder" :class="{ 'sb-gift-product-art': isGiftCard }"><span>{{ isGiftCard ? 'Подарочная карта' : 'S' }}</span><small>SARKISIAN</small></div>
+      </NuxtLink>
       <div class="sb-product-badges"><span v-for="item in configuredBadges" :key="item.id" class="sb-product-badge" :style="{background:item.color,color:item.textColor}">{{item.label}}</span></div>
-      <button class="sb-favorite" :class="{ active: inFavorite }" :aria-label="inFavorite ? 'Убрать из избранного' : 'Добавить в избранное'" @click.prevent="toggleFavorite(product.id)"><Heart :size="19" :fill="inFavorite ? 'currentColor' : 'none'" /></button>
-      <img v-if="image && !imageFailed" :src="image" :alt="product.nameRu" loading="lazy" @error="imageFailed = true" />
-      <div v-else class="sb-product-placeholder" :class="{ 'sb-gift-product-art': isGiftCard }"><span>{{ isGiftCard ? 'Подарочная карта' : 'S' }}</span><small>SARKISIAN</small></div>
-      <button class="sb-quick-add sb-card-add-overlay" :disabled="busy || !available" @click.prevent="add">
-        <Check v-if="added" :size="17" /><ShoppingBag v-else :size="17" />{{ isGiftCard && available ? 'Подробнее' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии' }}
+      <button type="button" class="sb-favorite" :class="{ active: inFavorite }" :aria-pressed="inFavorite" :aria-label="t(inFavorite ? 'Убрать из избранного' : 'Добавить в избранное')" @click="toggleFavorite(product.id)"><Heart :size="19" :fill="inFavorite ? 'currentColor' : 'none'" aria-hidden="true" /></button>
+      <button type="button" class="sb-quick-add sb-card-add-overlay" :disabled="busy || !available" @click="add">
+        <Check v-if="added" :size="17" aria-hidden="true" /><ShoppingBag v-else :size="17" aria-hidden="true" />{{ t(busy ? 'Добавляем…' : isGiftCard && available ? 'Подробнее' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии') }}
       </button>
-    </NuxtLink>
+    </div>
     <div class="sb-product-card__meta">
       <p v-if="error" class="sb-form-error" role="alert">{{ error }}</p>
       <span>{{ (product.categories?.find((item: any) => item.isPrimary) || product.categories?.[0])?.category?.nameRu || 'SARKISIAN BRAND' }}</span>
       <h3><NuxtLink :to="storefrontProductLink(product)">{{ product.nameRu }}</NuxtLink></h3>
       <div class="sb-product-card__price-row"><div class="sb-product-prices"><del v-if="regularPrice>price">{{regularPrice.toLocaleString('ru-RU')}} ₽</del><strong>{{ isGiftCard && variants.length > 1 ? 'от ' : '' }}{{ price.toLocaleString('ru-RU') }} ₽</strong></div><small v-if="!isGiftCard">{{ available ? 'В наличии' : 'Нет в наличии' }}</small></div>
-      <button type="button" class="sb-quick-add sb-card-add-mobile" :disabled="busy || !available" @click="add"><Check v-if="added" :size="18" /><ShoppingBag v-else :size="18" />{{ isGiftCard && available ? 'Подробнее' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии' }}</button>
+      <button type="button" class="sb-quick-add sb-card-add-mobile" :disabled="busy || !available" @click="add"><Check v-if="added" :size="18" aria-hidden="true" /><ShoppingBag v-else :size="18" aria-hidden="true" />{{ t(busy ? 'Добавляем…' : isGiftCard && available ? 'Подробнее' : added ? 'Добавлено' : available ? 'В корзину' : 'Нет в наличии') }}</button>
+      <span class="sb-visually-hidden" role="status">{{ added ? t('Добавлено в корзину') : '' }}</span>
     </div>
   </article>
 </template>

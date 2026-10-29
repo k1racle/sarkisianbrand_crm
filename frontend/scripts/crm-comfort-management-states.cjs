@@ -60,7 +60,7 @@ for(const entityType of ['IP','LLC'])add(docs,'legal-new-'+entityType,async p=>{
 add(docs,'legal-edit',async p=>{await legal(p);await click(p,'Изменить');},'.partner-legal-editor');
 for(const kind of ['bloggers','referrals'])add('/crm/'+kind+'/participants',kind+'-participant-decision',p=>click(p,'Изменить'),'[role=dialog]');
 add('/crm/bloggers/participants','partner-recipient-verification',p=>click(p,'Получатель'),'[role=dialog]');
-for(const mode of ['Клиент уже на сайте','Новый блогер'])add('/crm/bloggers/participants','partner-invite-'+mode,async p=>{await click(p,'Добавить блогера');await click(p,mode);},'[role=dialog]');
+for(const mode of ['Клиент уже на сайте','Новый участник'])add('/crm/bloggers/participants','partner-invite-'+mode,async p=>{await click(p,'Пригласить партнёра');await click(p,mode);},'[role=dialog]');
 add('/crm/bloggers/registrations','partner-registration-verification',p=>click(p,'Проверить'),'[role=dialog]');
 add('/crm/bloggers/payouts','partner-payout-approval',p=>p.getByRole('button',{name:'Решение',exact:true}).first().click(),'[role=dialog]');
 add('/crm/bloggers/payouts','partner-payout-paid-confirmation',p=>p.getByRole('button',{name:'Решение',exact:true}).nth(1).click(),'[role=dialog]');

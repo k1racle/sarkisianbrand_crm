@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ArrowRight, Check, ChevronLeft, Heart, ShoppingBag, Trash2, X } from '@lucide/vue';
 import { storefrontVariantPrice } from '~/shared/product-merchandising';
+import { fetchFavoriteProducts } from '~/shared/favorite-products';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; 'after-leave': [] }>();
 const motionDuration = useStorefrontMotion();
 const config = useRuntimeConfig();
-const { favoriteIds, toggleFavorite, addToCart, syncFavorites } = useStorefront();
+const { favoriteIds, favoriteSyncError, toggleFavorite, addToCart, syncFavorites, accessToken, user, loadMe } = useStorefront();
 const products = ref<any[]>([]);
 const loading = ref(false);
 const loadError = ref('');
@@ -16,6 +17,7 @@ const errorId = ref('');
 const addError = ref('');
 const failedImages = ref<string[]>([]);
 let addedTimer: ReturnType<typeof setTimeout> | undefined;
+let loadRevision = 0;
 
 const favorites = computed(() => products.value.filter(product => favoriteIds.value.includes(product.id)).map(product => {
   const variants = (product.variants || []).filter((item: any) => item.isActive !== false);
@@ -34,19 +36,25 @@ const countLabel = computed(() => {
   const count = favoriteIds.value.length, last = count % 10, lastTwo = count % 100;
   return count + ' ' + (last === 1 && lastTwo !== 11 ? 'товар' : last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? 'товара' : 'товаров');
 });
+const unavailable = computed(() => Math.max(0, new Set(favoriteIds.value).size - favorites.value.length));
 
 async function load() {
+  const revision = ++loadRevision;
   loading.value = true;
   loadError.value = '';
+  products.value = [];
   try {
+    if (accessToken.value && !user.value) await loadMe();
+    if (accessToken.value && !user.value) throw new Error('Сессия недоступна');
+    const token = accessToken.value, owner = user.value?.id;
     await syncFavorites();
-    if (!favoriteIds.value.length) { products.value = []; return; }
-    const response = await $fetch<any>('/products', { baseURL: config.public.apiBase, query: { limit: 100 } });
-    products.value = response?.items || [];
+    if (revision !== loadRevision || token !== accessToken.value || owner !== user.value?.id) return;
+    const result = await fetchFavoriteProducts([...favoriteIds.value], batch => $fetch('/products', { baseURL: config.public.apiBase, query: { limit: 8, ids: batch.join(',') } }));
+    if (revision === loadRevision && token === accessToken.value && owner === user.value?.id) products.value = result;
   } catch {
-    loadError.value = 'Не удалось загрузить избранное. Попробуйте ещё раз.';
+    if (revision === loadRevision) loadError.value = 'Не удалось загрузить избранное. Попробуйте ещё раз.';
   } finally {
-    loading.value = false;
+    if (revision === loadRevision) loading.value = false;
   }
 }
 
@@ -67,14 +75,14 @@ async function add(item: (typeof favorites.value)[number]) {
   } finally { busyId.value = ''; }
 }
 
-watch(() => props.open, value => {
+watch([() => props.open, accessToken, () => user.value?.id], ([value]) => {
   if (value) {
     errorId.value = '';
     addError.value = '';
     void load();
-  }
+  } else { loadRevision++; products.value = []; }
 }, { immediate: true });
-onBeforeUnmount(() => clearTimeout(addedTimer));
+onBeforeUnmount(() => { loadRevision++; clearTimeout(addedTimer); });
 </script>
 
 <template>
@@ -94,7 +102,10 @@ onBeforeUnmount(() => clearTimeout(addedTimer));
               <p class="sb-form-error" role="alert">{{ loadError }}</p>
               <button type="button" class="sb-liquid-primary" @click="load">Повторить загрузку</button>
             </div>
+            <div v-else-if="favoriteSyncError && !favorites.length" class="sd-favorites-error"><p class="sb-form-error" role="alert">Не удалось синхронизировать избранное с аккаунтом. Попробуйте ещё раз.</p><button type="button" class="sb-liquid-primary" @click="load">Повторить загрузку</button></div>
             <template v-else-if="favorites.length">
+              <p v-if="favoriteSyncError" class="sb-form-error" role="status">Не удалось синхронизировать избранное с аккаунтом. Показаны товары, сохранённые на этом устройстве. <button type="button" @click="load">Повторить</button></p>
+              <p v-else-if="unavailable" class="sb-form-error" role="status">Некоторые сохранённые товары сейчас недоступны.</p>
               <div class="sd-cart-list sd-favorite-list" :aria-busy="Boolean(busyId)">
                 <article v-for="item in favorites" :key="item.product.id" class="sd-cart-item">
                   <div class="sd-cart-media">
@@ -120,6 +131,7 @@ onBeforeUnmount(() => clearTimeout(addedTimer));
               <div class="sd-favorites-footer"><NuxtLink to="/catalog" class="sb-liquid-primary" @click="emit('close')">Продолжить покупки <ArrowRight :size="17" /></NuxtLink></div>
             </template>
 
+            <div v-else-if="favoriteIds.length" class="sb-drawer-empty"><i><Heart :size="30" :stroke-width="1.5" /></i><h3>Сохранённые товары сейчас недоступны</h3><p>Они могут появиться позже.</p><NuxtLink to="/catalog" class="sb-liquid-primary" @click="emit('close')">Открыть каталог <ArrowRight :size="17" /></NuxtLink></div>
             <div v-else class="sb-drawer-empty">
               <i><Heart :size="30" :stroke-width="1.5" /></i>
               <h3>Сохраняйте любимое</h3>
