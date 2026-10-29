@@ -15,7 +15,7 @@ async function main() {
     for (const [width,dark] of [[1440,false],[390,true]]) {
       const f = await isolatedContext(browser,width,false,false,{ allowFixtureForms:true, fixtures:new Map([['/auth/access',access]]) });
       const {page,context}=f, calls=[];
-      let course=null, fail=false, liveEnabled=false, live=null, sequence=0;
+      let course=null, fail=false, liveEnabled=false, live=null, sequence=0, cleanupPending=false, assetRows=[{id:'published-asset',lessonId:'lesson-2',filename:'Уже опубликовано.pdf',mimeType:'application/pdf',size:12,isPublished:false,everPublished:true,createdAt:new Date().toISOString()}];
       const clone = value => JSON.parse(JSON.stringify(value));
       await context.route('**/api/v1/lms/admin/**',async route=>{
         const request=route.request(), url=new URL(request.url()), endpoint=url.pathname, method=request.method();
@@ -23,6 +23,11 @@ async function main() {
         let body={};try{body=request.postDataJSON()||{};}catch{}
         calls.push({endpoint,method,body});
         if(fail){fail=false;return route.fulfill({status:503,json:{message:'Сервис временно недоступен'}});}
+        if(endpoint.endsWith('/lessons/lesson-2/assets')) {
+          if(method==='GET')return route.fulfill({json:clone(assetRows)});
+          if(method==='POST') { assert.equal(request.headers()['content-type'],'application/octet-stream'); assert.equal(decodeURIComponent(request.headers()['x-file-name']),'урок.pdf'); assert.equal(request.postDataBuffer().toString(),'%PDF-fixture'); const row={id:'asset-1',lessonId:'lesson-2',filename:'урок.pdf',mimeType:'application/pdf',size:12,isPublished:false,everPublished:false,createdAt:new Date().toISOString()};assetRows.push(row);return route.fulfill({json:clone(row)}); }
+        }
+        if(endpoint.endsWith('/lessons/lesson-2/assets/asset-1')&&method==='DELETE'){ assetRows=assetRows.filter(item=>item.id!=='asset-1');return route.fulfill({json:{status:cleanupPending?'cleanup_pending':'deleted'}}); }
         if(endpoint.includes('/live/') || endpoint.endsWith('/live')) {
           if(!liveEnabled)return route.fulfill({status:503,json:{message:'Эфиры временно недоступны'}});
           if(endpoint.endsWith('/hosts'))return route.fulfill({json:[{id:'mock-admin',name:'Дизайн Проверка'}]});
@@ -64,6 +69,21 @@ async function main() {
         await page.getByLabel('Текст урока').fill('Выбираем материалы для работы.');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
         await page.getByText('Материалы',{exact:true}).waitFor();
+        await page.getByRole('button',{name:'Урок',exact:true}).click();
+        await page.getByLabel('Название урока *').fill('Презентация');
+        await page.getByLabel('Тип урока').selectOption('PRESENTATION');
+        await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
+        await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});
+        await page.getByText('Выбран файл: урок.pdf · 1 КБ').waitFor(); await page.getByRole('button',{name:'Отменить выбор'}).click(); assert.equal(await page.getByRole('button',{name:'Добавить файл'}).isDisabled(),true);
+        await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});
+        await page.getByRole('button',{name:'Добавить файл'}).click();
+        await page.getByText('Файл добавлен к уроку.').waitFor(); await page.getByText('урок.pdf').waitFor();
+        assert.equal(await page.getByRole('button',{name:'Удалить файл Уже опубликовано.pdf'}).count(),0);
+        page.removeAllListeners('dialog');page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Удалить файл урок.pdf'}).click();await page.getByText('Файл удалён.').waitFor();assert.equal(await page.getByText('урок.pdf',{exact:true}).count(),0);
+        await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});await page.getByRole('button',{name:'Добавить файл'}).click();await page.getByText('Файл добавлен к уроку.').waitFor();cleanupPending=true;page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Удалить файл урок.pdf'}).click();await page.getByText('Файл убран из урока. Очистка хранилища завершится позже.').waitFor();
+        await page.screenshot({path:path.join(output,`${width}-${dark?'dark':'light'}-assets.png`),fullPage:true});
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
         await page.getByRole('button',{name:'Урок',exact:true}).click();
         await page.getByLabel('Название урока *').fill('Вопросы и ответы');
         await page.getByLabel('Тип урока').selectOption('LIVE');

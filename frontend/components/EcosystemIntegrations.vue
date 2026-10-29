@@ -48,6 +48,31 @@ const audienceLabels: Record<string, string> = { EMPLOYEE: 'Сотрудники
 const statusLabels: Record<string, string> = {
   NOT_CONFIGURED: 'Требует настройки', DISABLED: 'Выключена', CONFIGURED: 'Настроена', CONNECTED: 'Подключена', ERROR: 'Ошибка',
 };
+const courseFiscalOptions: Record<string, { value: string; label: string }[]> = {
+  courseFiscalMode: [{ value: 'PROVIDER', label: 'Онлайн-касса платёжного провайдера' }],
+  courseTaxation: [
+    { value: 'osn', label: 'Общая система налогообложения' },
+    { value: 'usn_income', label: 'УСН: доходы' },
+    { value: 'usn_income_outcome', label: 'УСН: доходы минус расходы' },
+    { value: 'esn', label: 'Единый сельскохозяйственный налог' },
+    { value: 'patent', label: 'Патент' },
+  ],
+  courseTax: [
+    { value: 'none', label: 'Без НДС' }, { value: 'vat0', label: 'НДС 0%' },
+    { value: 'vat5', label: 'НДС 5%' }, { value: 'vat7', label: 'НДС 7%' },
+    { value: 'vat10', label: 'НДС 10%' }, { value: 'vat22', label: 'НДС 22%' },
+    { value: 'vat105', label: 'НДС 5/105' }, { value: 'vat107', label: 'НДС 7/107' },
+    { value: 'vat110', label: 'НДС 10/110' }, { value: 'vat122', label: 'НДС 22/122' },
+  ],
+  coursePaymentMethod: [
+    { value: 'full_payment', label: 'Полный расчёт' },
+  ],
+  coursePaymentObject: [
+    { value: 'service', label: 'Услуга' }, { value: 'intellectual_activity', label: 'Результат интеллектуальной деятельности' },
+    { value: 'another', label: 'Иной предмет расчёта' },
+  ],
+  courseFiscalConfirmed: [{ value: 'YES', label: 'Сверено с бухгалтером' }],
+};
 const categoryLabels = Object.fromEntries(categories.map((item) => [item.id, item.label]));
 const headers = computed(() => ({ Authorization: `Bearer ${token.value}` }));
 const filtered = computed(() => integrations.value.filter((item) => {
@@ -214,6 +239,8 @@ onMounted(async () => {
           <p data-v-ui-1e872dee0e70 class="drawer-description">{{ selected.description }}</p>
           <p v-if="selected.key === 'ROBOKASSA'" class="drawer-description">Укажите рабочие и тестовые пароли № 1 и № 2 одного магазина из личного кабинета Робокассы. Тестовые пароли должны отличаться от рабочих. В каждом режиме используется своя пара; для рабочего режима нужны обе пары.</p>
           <p v-if="paymentResultUrl" class="drawer-description">Адрес уведомлений об оплате: <strong>{{ paymentResultUrl }}</strong> <button class="crm-button" type="button" @click="copyText(paymentResultUrl, 'Адрес уведомлений скопирован')">Копировать</button>. Проверка заполнения не подтверждает, что платёж и чек работают.</p>
+          <p v-if="['ROBOKASSA','TBANK'].includes(selected.key)" class="drawer-description">Для продажи курсов укажите данные ИП и параметры чека, согласованные с бухгалтером. Проверьте, что этот терминал и касса оформлены на указанного ИП. Пока данные не заполнены и не сверены, оплата курсов через этот способ недоступна.</p>
+          <p v-if="['ROBOKASSA','TBANK'].includes(selected.key)" class="drawer-description">Сейчас поддерживается только полный расчёт. Не выбирайте его, пока бухгалтер не подтвердит, что он подходит для продажи курса: второй чек для предоплаты ещё не подключён.</p>
           <div data-v-ui-1e872dee0e70 class="mode-row"><label data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Режим</span><select class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.environment"><option data-v-ui-1e872dee0e70 value="TEST">Тестовый</option><option data-v-ui-1e872dee0e70 value="PRODUCTION">Рабочий</option></select></label><label data-v-ui-1e872dee0e70 class="switch-line crm-toggle-row"><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Подключение включено</b><small data-v-ui-1e872dee0e70>Разрешить фоновые процессы</small></span><input class="crm-check" data-v-ui-1e872dee0e70 v-model="draft.isEnabled" type="checkbox" /></label></div>
           <div data-v-ui-1e872dee0e70 class="security-note"><KeyRound data-v-ui-1e872dee0e70 :size="17" /><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Безопасное хранение</b><small data-v-ui-1e872dee0e70>Секреты шифруются AES-256-GCM. После сохранения их нельзя прочитать через интерфейс.</small></span></div>
           <section data-v-ui-1e872dee0e70 class="fields"><h3 data-v-ui-1e872dee0e70>Параметры подключения</h3>
@@ -221,6 +248,7 @@ onMounted(async () => {
               <span data-v-ui-1e872dee0e70 v-if="field.type !== 'secret' && field.key === 'webhookUrl'" class="webhook-input"><input class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.config[field.key]" type="url" :placeholder="field.placeholder || ''" /><button class="crm-button" data-v-ui-1e872dee0e70 type="button" title="Копировать адрес" @click="copyText(draft.config[field.key], 'Адрес webhook скопирован')"><Copy data-v-ui-1e872dee0e70 :size="14" /></button></span>
               <select v-else-if="selected.key === 'ROBOKASSA' && field.key === 'signatureAlgorithm'" v-model="draft.config[field.key]" class="crm-input"><option value="">Выберите алгоритм из кабинета Робокассы</option><option value="SHA256">SHA-256</option><option value="SHA512">SHA-512</option><option value="MD5">MD5</option></select>
               <select v-else-if="['ROBOKASSA','TBANK'].includes(selected.key) && field.key === 'fiscalMode'" v-model="draft.config[field.key]" class="crm-input"><option value="">Выберите способ фискализации</option><option value="EXTERNAL">Чеки настроены вне платёжной формы</option></select>
+              <select v-else-if="['ROBOKASSA','TBANK'].includes(selected.key) && courseFiscalOptions[field.key]" v-model="draft.config[field.key]" class="crm-input"><option value="">Выберите после сверки с бухгалтером</option><option v-for="option in courseFiscalOptions[field.key]" :key="option.value" :value="option.value">{{ option.label }}</option></select>
               <input class="crm-input" data-v-ui-1e872dee0e70 v-else-if="field.type !== 'secret'" v-model="draft.config[field.key]" :type="field.type === 'url' ? 'url' : field.type === 'number' ? 'number' : 'text'" :placeholder="field.placeholder || ''" />
               <span data-v-ui-1e872dee0e70 v-else class="secret-input"><input class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.secrets[field.key]" type="password" autocomplete="new-password" :placeholder="field.configured && !draft.clearSecrets.includes(field.key) ? 'Сохранено ••••••••' : 'Введите секрет'" /><button class="crm-button" data-v-ui-1e872dee0e70 v-if="field.configured" type="button" :class="{ danger: draft.clearSecrets.includes(field.key) }" @click="toggleClear(field.key)">{{ draft.clearSecrets.includes(field.key) ? 'Отменить удаление' : 'Удалить ключ' }}</button></span>
               <small data-v-ui-1e872dee0e70 v-if="field.hint">{{ field.hint }}</small>

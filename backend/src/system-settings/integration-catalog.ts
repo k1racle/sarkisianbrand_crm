@@ -53,6 +53,17 @@ const webhookField: IntegrationFieldDefinition = {
   placeholder: 'https://api.sarkisianbrand.ru/webhooks/...',
 };
 
+const courseFiscalFields: IntegrationFieldDefinition[] = [
+  { key: 'courseFiscalMode', label: 'Чеки курсов: способ формирования', type: 'text', hint: 'Для кассы провайдера заполните все поля ниже.' },
+  { key: 'courseTaxation', label: 'Курсы: система налогообложения', type: 'text', hint: 'Система налогообложения ИП; согласуйте с бухгалтером.' },
+  { key: 'courseTax', label: 'Курсы: ставка НДС', type: 'text', hint: 'Ставка НДС для обучения; согласуйте с бухгалтером.' },
+  { key: 'coursePaymentMethod', label: 'Курсы: признак способа расчёта', type: 'text', hint: 'Сейчас поддерживается только полный расчёт. Его применимость подтвердите с бухгалтером; второй чек пока не реализован.' },
+  { key: 'coursePaymentObject', label: 'Курсы: признак предмета расчёта', type: 'text', hint: 'Предмет расчёта для обучения; согласуйте с бухгалтером.' },
+  { key: 'courseIssuerName', label: 'Курсы: ФИО владельца ИП', type: 'text', hint: 'Владелец кассы и терминала. Должен совпадать с данными провайдера.' },
+  { key: 'courseIssuerInn', label: 'Курсы: ИНН владельца ИП', type: 'text', hint: 'Двенадцатизначный ИНН владельца кассы и терминала.' },
+  { key: 'courseFiscalConfirmed', label: 'Курсы: подтверждение настроек', type: 'text', hint: 'Подтвердите настройки после сверки реквизитов с бухгалтером и проверки терминала, оформленного на ИП.' },
+];
+
 export const integrationDefinitions: IntegrationDefinition[] = [
   {
     key: 'YANDEX_ID', provider: 'YANDEX_ID', name: 'Яндекс ID', category: IntegrationCategory.COMMUNICATION,
@@ -181,7 +192,8 @@ export const integrationDefinitions: IntegrationDefinition[] = [
       { key: 'testPassword1', label: 'Тестовый пароль № 1', type: 'secret', required: true, hint: 'Тестовый пароль из технических настроек того же магазина. Он должен отличаться от рабочего пароля № 1.' },
       { key: 'testPassword2', label: 'Тестовый пароль № 2', type: 'secret', required: true, hint: 'Тестовый пароль из технических настроек того же магазина. Он должен отличаться от рабочего пароля № 2.' },
       { key: 'signatureAlgorithm', label: 'Алгоритм подписи (SHA256, SHA512 или MD5)', type: 'text', required: true },
-      { key: 'fiscalMode', label: 'Фискализация', type: 'text', required: true, hint: 'Укажите EXTERNAL только после настройки чеков вне платёжной формы.' },
+        { key: 'fiscalMode', label: 'Фискализация товаров', type: 'text', hint: 'Укажите EXTERNAL только после настройки чеков товаров вне платёжной формы.' },
+        ...courseFiscalFields,
     ],
   },
   {
@@ -191,7 +203,8 @@ export const integrationDefinitions: IntegrationDefinition[] = [
     fields: [
       { key: 'terminalKey', label: 'TerminalKey', type: 'text', required: true },
       { key: 'password', label: 'Пароль терминала', type: 'secret', required: true },
-      { key: 'fiscalMode', label: 'Фискализация', type: 'text', required: true, hint: 'Укажите EXTERNAL только после настройки чеков вне платёжной формы.' },
+        { key: 'fiscalMode', label: 'Фискализация товаров', type: 'text', hint: 'Укажите EXTERNAL только после настройки чеков товаров вне платёжной формы.' },
+        ...courseFiscalFields,
     ],
   },
   {

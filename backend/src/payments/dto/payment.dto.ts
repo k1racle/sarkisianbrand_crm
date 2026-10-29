@@ -7,7 +7,7 @@ export class CreatePaymentDto {
 
 export class PaymentWebhookDto {
   @IsString() @IsIn(['notification']) type!: 'notification';
-  @IsString() @IsIn(['payment.succeeded', 'payment.canceled', 'payment.waiting_for_capture']) event!: string;
+  @IsString() @IsIn(['payment.succeeded', 'payment.canceled', 'payment.waiting_for_capture', 'refund.succeeded']) event!: string;
   // No nested whitelist: official payment objects contain additional evolving fields.
   // The service validates/extracts only id and ignores all supplied financial fields.
   @IsDefined() @IsObject() object!: Record<string, unknown>;

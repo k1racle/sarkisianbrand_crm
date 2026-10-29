@@ -6,6 +6,7 @@ const origin = new URL(process.env.STOREFRONT_URL || 'http://127.0.0.1:3017').or
 assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(origin).hostname));
 const output = path.join(__dirname, '../.screenshots/lms-storefront'); fs.mkdirSync(output, { recursive: true });
 const courseId = '10000000-0000-4000-8000-000000000001', lessonId = '20000000-0000-4000-8000-000000000001';
+const assetId = '30000000-0000-4000-8000-000000000001';
 const course = { id: courseId, titleRu: 'Практический курс', description: 'Материалы для мастеров.', tariffs: [{ id: 'tariff', title: 'Базовый', price: '1200.00', accessDays: 30 }], modules: [{ id: 'module', title: 'Первый модуль', sortOrder: 0, lessons: [{ id: lessonId, title: 'Введение', kind: 'TEXT', sortOrder: 0, isPreview: true }] }] };
 const material = { ...course.modules[0].lessons[0], content: 'Содержание урока', videoUrl: null, presentationUrl: null };
 async function purchaseRetry() {
@@ -77,6 +78,8 @@ async function test(width) {
         assert.equal(req.headers().authorization, `Bearer ${token}`, 'Private materials need the student token');
         if (endpoint === '/lms/my') return reply([{ id: 'enrollment', courseId, progress: 0, isCompleted: false, accessExpiresAt: null, course }]);
         if (endpoint === `/lms/my/${courseId}`) return reply({ id: 'enrollment', courseId, progress: 0, isCompleted: false, accessExpiresAt: null, course, lessonsProgress: [] });
+        if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/assets`) return reply([{id:assetId,lessonId,filename:'Материалы.pdf',mimeType:'application/pdf',size:12000,createdAt:new Date().toISOString()}]);
+        if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/assets/${assetId}/session` && req.method()==='POST') return route.fulfill({json:{url:`/api/v1/lms/media/${assetId}`,expiresIn:300},headers:{'Set-Cookie':`fixture_asset=ok; HttpOnly; SameSite=Strict; Path=/api/v1/lms/media/${assetId}`}});
         if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}` && req.method() === 'GET') return reply(material);
         if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/complete` && req.method() === 'POST') return reply({ progress: 100, isCompleted: true });
       }
@@ -105,6 +108,10 @@ async function test(width) {
     await page.goto(`${origin}/courses/my/${courseId}`, { waitUntil:'domcontentloaded' });
     await page.getByRole('button', { name:'Введение' }).click();
     await page.getByText('Содержание урока').waitFor();
+    await page.getByText('Материалы.pdf').waitFor(); await page.getByRole('button',{name:'Открыть',exact:true}).click();
+    await page.getByRole('link',{name:'Скачать документ'}).waitFor();
+    assert.equal(await page.getByRole('link',{name:'Скачать документ'}).getAttribute('href'),`/api/v1/lms/media/${assetId}`);
+    await page.screenshot({ path: path.join(output, `${width}-assets.png`), fullPage: true });
     await page.getByRole('button', { name:'Отметить пройденным' }).click();
     await page.getByRole('button', { name:'Урок пройден' }).waitFor();
     await page.screenshot({ path: path.join(output, `${width}-lesson.png`), fullPage: true });

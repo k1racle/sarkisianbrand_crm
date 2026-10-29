@@ -164,6 +164,8 @@ jobs:
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-favorites-complete-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-compact-card-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-storefront-mock.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-account-review-mock.cjs
+          node scripts/lms-assets-proxy-check.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 BROWSER_EXECUTABLE="$(node -p "require('playwright-core').chromium.executablePath()")" node scripts/storefront-checkout-production-mock.cjs
           WORKSPACE_DESIGN_BATCH=ci-unified node scripts/workspace-design-review.cjs --crm-all --after
           npx playwright test salon-booking.spec.cjs salon-subscription.spec.cjs ecosystem.spec.cjs partners.spec.cjs

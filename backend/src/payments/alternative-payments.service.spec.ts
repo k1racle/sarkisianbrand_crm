@@ -1,4 +1,6 @@
 import { AlternativePaymentsService } from './alternative-payments.service';
+import * as refunds from './refund-reconciliation';
+import * as coursePurchase from '../lms/lms-purchase.service';
 jest.mock('../orders/orders.service', () => ({ OrdersService: class MockOrdersService {} }));
 
 describe('Alternative payment orchestration without provider/network', () => {
@@ -16,7 +18,7 @@ describe('Alternative payment orchestration without provider/network', () => {
       findFirst: jest.fn(async () => payment), create: jest.fn(async ({ data }) => (payment = { id: 'local-1', invoiceId: 123, transactionId: null, ...data, order })),
       findUniqueOrThrow: jest.fn(async () => payment), update: jest.fn(async ({ data }) => (payment = { ...payment, ...data })) } };
     let queue = Promise.resolve();
-    db = { $transaction: jest.fn(fn => { const result = queue.then(() => fn(tx)); queue = result.then(() => undefined, () => undefined); return result; }), payment: {
+    db = { tx, $transaction: jest.fn(fn => { const result = queue.then(() => fn(tx)); queue = result.then(() => undefined, () => undefined); return result; }), payment: {
       findUnique: jest.fn(async () => payment), updateMany: jest.fn(async ({ data }) => { if (payment.metadata.initStarted !== false) return { count: 0 }; payment.metadata = data.metadata; return { count: 1 }; }) } };
     svc = new AlternativePaymentsService(db, orders, { get: () => 'false' } as any, { capabilities: async () => caps('YOOKASSA') } as any, bank, robo);
   });
@@ -51,6 +53,19 @@ describe('Alternative payment orchestration without provider/network', () => {
     expect(bank.getPayment).toHaveBeenCalledWith('991', expect.objectContaining({ localPaymentId: 'local-1', amount: '1250.00' }));
     expect(orders.settleVerifiedPayment).toHaveBeenCalledWith('TBANK:991', 'SUCCEEDED', expect.objectContaining({ amount: '1250.00', paid: true }));
   });
+  it('для возврата Т-Банка получает GetState и сохраняет ручную сверку без изменения заказа', async () => {
+    const record = jest.spyOn(refunds, 'recordVerifiedRefund').mockResolvedValue({ duplicate: false, state: 'REVIEW' } as any);
+    try {
+      bank.createPayment.mockRejectedValueOnce(new Error('network'));
+      await expect(svc.create('tbank', 'SB-1', {})).rejects.toThrow();
+      bank.getRefundState = jest.fn().mockResolvedValue({ id: '991', status: 'REFUNDED', test: false });
+      expect(await svc.tbankResult({ Status: 'REFUNDED' })).toBe('OK');
+      expect(bank.verifyNotification).toHaveBeenCalled();
+      expect(bank.getRefundState).toHaveBeenCalledWith('991', expect.objectContaining({ localPaymentId: 'local-1' }));
+      expect(record).toHaveBeenCalledWith(db, { paymentId: 'local-1', provider: 'TBANK', externalId: '991', state: 'REVIEW', providerState: 'REFUNDED' });
+      expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
+    } finally { record.mockRestore(); }
+  });
   it('не засчитывает тестовую оплату в рабочем окружении', async () => {
     robo.capabilities.mockResolvedValue({ ...caps('ROBOKASSA'), environment: 'TEST' } as any);
     await expect(svc.create('robokassa', 'SB-1', {})).rejects.toThrow(/Тестовые платежи/);
@@ -60,5 +75,23 @@ describe('Alternative payment orchestration without provider/network', () => {
     robo.createPayment.mockImplementation(async req => ({ ...verified(req), test: true }));
     await expect(svc.create('robokassa', 'SB-1', {})).rejects.toThrow(/окружение/i);
     expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
+  });
+  it('фиксирует налоговые данные курса и возвращает исходную форму при повторе после смены настроек', async () => {
+    const purchasable = jest.spyOn(coursePurchase, 'assertCoursePurchasable').mockResolvedValue();
+    try {
+      order.sourceChannel = 'COURSE'; order.priceSnapshot = { digitalDelivery: true }; order.buyerEmail = 'buyer@example.invalid';
+      const integration = { id: 'integration-1', isEnabled: true, environment: 'PRODUCTION', updatedAt: new Date('2026-01-01T00:00:00.000Z'), config: { courseFiscalMode: 'PROVIDER', courseFiscalConfirmed: 'YES', courseIssuerName: 'Иванова Анна Ивановна', courseIssuerInn: '500100732259', courseTaxation: 'usn_income', courseTax: 'none', coursePaymentMethod: 'full_payment', coursePaymentObject: 'service' } };
+      db.tx.ecosystemIntegration = { findUnique: jest.fn(async () => integration) };
+      db.tx.coursePurchase = { findUnique: jest.fn(async () => ({ courseTitle: 'Тест курса' })) };
+      robo.capabilities.mockResolvedValue({ ...caps('ROBOKASSA'), available: false, courseAvailable: true });
+      const form = { action: 'https://auth.robokassa.ru/Merchant/Index.aspx', method: 'POST', fields: { Receipt: 'signed-receipt', SignatureValue: 'signature' } };
+      robo.createPayment.mockImplementation(async req => ({ ...verified(req, '123'), confirmation: { type: 'form', form } }));
+      const first = await svc.create('robokassa', 'SB-1', {});
+      expect(first).toMatchObject({ confirmationUrl: null, confirmationForm: form });
+      expect(robo.createPayment).toHaveBeenCalledWith(expect.objectContaining({ courseFiscal: expect.objectContaining({ issuerInn: '500100732259', integrationVersion: '2026-01-01T00:00:00.000Z', receipt: expect.objectContaining({ name: 'Тест курса', email: 'buyer@example.invalid', amount: '1250.00', tax: 'none' }) }) }));
+      integration.config.courseTax = 'vat22'; integration.updatedAt = new Date('2026-01-02T00:00:00.000Z');
+      const second = await svc.create('robokassa', 'SB-1', {});
+      expect(second.confirmationForm).toEqual(first.confirmationForm); expect(robo.createPayment).toHaveBeenCalledTimes(1);
+    } finally { purchasable.mockRestore(); }
   });
 });

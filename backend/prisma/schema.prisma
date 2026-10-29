@@ -3124,6 +3124,7 @@ model Course {
 }
 
 model Lesson {
+  assets CourseAsset[]
   liveSessions LmsLiveSession[]
   id        String  @id @default(uuid())
   courseId  String
@@ -3137,9 +3138,29 @@ model Lesson {
   kind      String  @default("TEXT")
   presentationUrl String?
   isPreview Boolean @default(false)
+  isPublished Boolean @default(true)
   progress  LessonProgress[]
 
   @@index([courseId, moduleId, sortOrder])
+}
+
+model CourseAsset {
+  id String @id @default(uuid())
+  lessonId String
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  filename String
+  mimeType String
+  size Int
+  storageKey String @unique
+  createdBy String
+  isPublished Boolean @default(false)
+  everPublished Boolean @default(false)
+  pendingDelete Boolean @default(false)
+  storageRemovedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([lessonId, createdAt])
+  @@index([pendingDelete, storageRemovedAt])
 }
 
 model Enrollment {

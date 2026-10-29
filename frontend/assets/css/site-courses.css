@@ -43,6 +43,15 @@
 .site-course-material a { color:inherit; text-underline-offset:4px; }
 .site-course-learning .site-course-material .site-courses-button { align-self:flex-end; }
 .site-course-material video { width:100%; max-height:70vh; background:#111; }
+.site-course-assets { width:100%; min-width:0; }
+.site-course-assets h3 { margin:0 0 16px; font-size:20px; }
+.site-course-assets ul { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
+.site-course-assets li { display:flex; align-items:center; gap:12px; min-width:0; padding:12px 0; border-top:1px solid var(--site-line); }
+.site-course-assets li > svg { flex:none; }
+.site-course-assets li > span { flex:1; min-width:0; overflow-wrap:anywhere; }
+.site-course-assets li small { display:block; margin-top:4px; }
+.site-course-assets li .site-courses-button { flex:none; min-height:40px; padding:8px 16px; }
+.site-course-assets video, .site-course-assets > a { margin-top:20px; }
 .site-course-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; }
 .site-courses progress { max-width:100%; width:240px; accent-color:#fff; }
 @media(max-width:800px) {

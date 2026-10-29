@@ -6,7 +6,7 @@ import { CourseListDto, CreateCourseDto, CreateLessonDto, CreateModuleDto, Creat
 import { courseSalesEnabled } from './lms-purchase.service';
 
 const ordered = { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] };
-const adminInclude = { tariffs: { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }, modules: { ...ordered, include: { lessons: ordered } } };
+const adminInclude = { tariffs: { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }, modules: { ...ordered, include: { lessons: { ...ordered, include: { assets: { where: { pendingDelete: false }, select: { id: true, lessonId: true, filename: true, mimeType: true, size: true, isPublished: true, everPublished: true, createdAt: true } } } } } } };
 const published = { status: 'PUBLISHED', isActive: true };
 const publicLesson = { id: true, title: true, kind: true, sortOrder: true, isPreview: true };
 const publicTariff = { id: true, title: true, price: true, accessDays: true };
@@ -30,10 +30,10 @@ function lessonData(dto: CreateLessonDto | UpdateLessonDto) {
     ...(dto.presentationUrl !== undefined ? { presentationUrl: safeUrl(dto.presentationUrl) } : {}),
     ...(dto.isPreview !== undefined ? { isPreview: dto.isPreview } : {}), ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}) };
 }
-function lessonComplete(lesson: { kind: string; content: string | null; videoUrl: string | null; presentationUrl: string | null }) {
+function lessonComplete(lesson: { kind: string; isPreview: boolean; content: string | null; videoUrl: string | null; presentationUrl: string | null; assets?: Array<{ mimeType: string }> }) {
   if (lesson.kind === 'TEXT' || lesson.kind === 'LIVE') return !!lesson.content?.trim();
   const link = lesson.kind === 'VIDEO' ? lesson.videoUrl : lesson.kind === 'PRESENTATION' ? lesson.presentationUrl : null;
-  if (!link) return false;
+  if (!link) return !lesson.isPreview && !!lesson.assets?.some(asset => lesson.kind === 'VIDEO' ? ['video/mp4','video/webm'].includes(asset.mimeType) : lesson.kind === 'PRESENTATION' && asset.mimeType === 'application/pdf');
   try { return !!safeUrl(link); } catch { return false; }
 }
 function progressFor(modules: Array<{ lessons: Array<{ id: string }> }>, completed: Array<{ lessonId: string }>) {
@@ -75,7 +75,15 @@ export class LmsService {
   async adminDetail(id: string) { const item = await this.db.course.findUnique({ where: { id }, include: adminInclude }); if (!item) throw new NotFoundException('Курс не найден'); return item; }
   createCourse(dto: CreateCourseDto) { return this.db.course.create({ data: { titleRu: title(dto.titleRu), titleEn: dto.titleEn?.trim() || null, ...(dto.description != null ? { description: dto.description } : {}), price: 0, status: 'DRAFT', isActive: true }, include: adminInclude }); }
   updateCourse(id: string, dto: UpdateCourseDto) {
-    return this.updateCourseTransaction(id, tx => tx.course.update({ where: { id }, data: { ...(dto.titleRu !== undefined ? { titleRu: title(dto.titleRu) } : {}), ...(dto.titleEn !== undefined ? { titleEn: dto.titleEn?.trim() || null } : {}), ...(dto.description !== undefined ? { description: dto.description === null ? Prisma.DbNull : dto.description } : {}), ...(dto.status !== undefined ? { status: dto.status, isActive: dto.status !== 'ARCHIVED' } : {}) }, include: adminInclude }));
+    return this.updateCourseTransaction(id, async tx => {
+      if (dto.status === 'PUBLISHED') {
+        await tx.lesson.updateMany({ where: { courseId: id, moduleId: { not: null } }, data: { isPublished: true } });
+        await tx.courseAsset.updateMany({ where: { lesson: { courseId: id } }, data: { isPublished: false } });
+        await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, kind: 'VIDEO' }, mimeType: { in: ['video/mp4','video/webm'] } }, data: { isPublished: true, everPublished: true } });
+        await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, kind: 'PRESENTATION' }, mimeType: 'application/pdf' }, data: { isPublished: true, everPublished: true } });
+      }
+      return tx.course.update({ where: { id }, data: { ...(dto.titleRu !== undefined ? { titleRu: title(dto.titleRu) } : {}), ...(dto.titleEn !== undefined ? { titleEn: dto.titleEn?.trim() || null } : {}), ...(dto.description !== undefined ? { description: dto.description === null ? Prisma.DbNull : dto.description } : {}), ...(dto.status !== undefined ? { status: dto.status, isActive: dto.status !== 'ARCHIVED' } : {}) }, include: adminInclude });
+    });
   }
   createTariff(courseId: string, dto: CreateTariffDto) { return this.updateCourseTransaction(courseId, tx => tx.courseTariff.create({ data: { courseId, title: title(dto.title), price: dto.price, accessDays: dto.accessDays ?? null, isActive: dto.isActive ?? true } })); }
   async updateTariff(id: string, dto: UpdateTariffDto) {
@@ -90,7 +98,7 @@ export class LmsService {
   async createLesson(moduleId: string, dto: CreateLessonDto) {
     const module = await this.db.courseModule.findUnique({ where: { id: moduleId }, select: { courseId: true } }); if (!module) throw new NotFoundException('Модуль не найден');
     if (dto.kind === 'LIVE' && dto.isPreview) throw new BadRequestException('Прямой эфир доступен только ученикам курса');
-    return this.updateCourseTransaction(module.courseId, tx => tx.lesson.create({ data: { ...lessonData(dto), courseId: module.courseId, moduleId, title: title(dto.title), kind: dto.kind } }));
+    return this.updateCourseTransaction(module.courseId, async tx => { const course = await tx.course.findUniqueOrThrow({ where: { id: module.courseId }, select: { status: true } }); return tx.lesson.create({ data: { ...lessonData(dto), courseId: module.courseId, moduleId, title: title(dto.title), kind: dto.kind, isPublished: course.status === 'PUBLISHED' } }); });
   }
   async updateLesson(id: string, dto: UpdateLessonDto) {
     const lesson = await this.db.lesson.findUnique({ where: { id }, select: { courseId: true } }); if (!lesson) throw new NotFoundException('Урок не найден');
@@ -101,22 +109,22 @@ export class LmsService {
     });
   }
 
-  async catalog(query: CourseListDto = { page: 1, limit: 20 }) { const { page, limit } = query; const search = query.search?.trim(); const where: Prisma.CourseWhereInput = { ...published, ...(search ? { OR: [{ titleRu: { contains: search, mode: 'insensitive' } }, { titleEn: { contains: search, mode: 'insensitive' } }] } : {}) }; const [items, total] = await Promise.all([this.db.course.findMany({ where, select: { ...publicCourse, tariffs: { where: { isActive: true }, select: publicTariff, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, modules: { ...ordered, select: { id: true, title: true, sortOrder: true, lessons: { ...ordered, select: publicLesson } } } }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }), this.db.course.count({ where })]); return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)), limit, purchasingAvailable: this.purchasingAvailable(), liveAvailable: false }; }
-  async catalogDetail(id: string) { const course = await this.db.course.findFirst({ where: { id, ...published }, select: { ...publicCourse, tariffs: { where: { isActive: true }, select: publicTariff, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, modules: { ...ordered, select: { id: true, title: true, sortOrder: true, lessons: { ...ordered, select: publicLesson } } } } }); if (!course) throw new NotFoundException('Курс не найден'); return { ...course, purchasingAvailable: this.purchasingAvailable(), liveAvailable: false }; }
-  async preview(courseId: string, lessonId: string) { const lesson = await this.db.lesson.findFirst({ where: { id: lessonId, courseId, isPreview: true, kind: { not: 'LIVE' }, course: published }, select: { ...publicLesson, content: true, videoUrl: true, presentationUrl: true } }); if (!lesson) throw new NotFoundException('Урок не найден'); return materialView(lesson); }
+  async catalog(query: CourseListDto = { page: 1, limit: 20 }) { const { page, limit } = query; const search = query.search?.trim(); const where: Prisma.CourseWhereInput = { ...published, ...(search ? { OR: [{ titleRu: { contains: search, mode: 'insensitive' } }, { titleEn: { contains: search, mode: 'insensitive' } }] } : {}) }; const [items, total] = await Promise.all([this.db.course.findMany({ where, select: { ...publicCourse, tariffs: { where: { isActive: true }, select: publicTariff, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, modules: { ...ordered, where: { lessons: { some: { isPublished: true } } }, select: { id: true, title: true, sortOrder: true, lessons: { ...ordered, where: { isPublished: true }, select: publicLesson } } } }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }), this.db.course.count({ where })]); return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)), limit, purchasingAvailable: this.purchasingAvailable(), liveAvailable: false }; }
+  async catalogDetail(id: string) { const course = await this.db.course.findFirst({ where: { id, ...published }, select: { ...publicCourse, tariffs: { where: { isActive: true }, select: publicTariff, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, modules: { ...ordered, where: { lessons: { some: { isPublished: true } } }, select: { id: true, title: true, sortOrder: true, lessons: { ...ordered, where: { isPublished: true }, select: publicLesson } } } } }); if (!course) throw new NotFoundException('Курс не найден'); return { ...course, purchasingAvailable: this.purchasingAvailable(), liveAvailable: false }; }
+  async preview(courseId: string, lessonId: string) { const lesson = await this.db.lesson.findFirst({ where: { id: lessonId, courseId, isPublished: true, isPreview: true, kind: { not: 'LIVE' }, course: published }, select: { ...publicLesson, content: true, videoUrl: true, presentationUrl: true } }); if (!lesson) throw new NotFoundException('Урок не найден'); return materialView(lesson); }
 
   // Removing a course from the store must not silently revoke paid access.
   private accessWhere(userId: string, courseId?: string) { return { userId, ...(courseId ? { courseId } : {}), accessStatus: 'ACTIVE', OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: new Date() } }] }; }
   async myCourses(userId: string) {
-    const rows = await this.db.enrollment.findMany({ where: this.accessWhere(userId), select: { id: true, courseId: true, accessExpiresAt: true, lessonsProgress: { select: { lessonId: true } }, course: { select: { ...publicCourse, modules: { select: { lessons: { select: { id: true } } } } } } }, orderBy: { enrolledAt: 'desc' } });
+    const rows = await this.db.enrollment.findMany({ where: this.accessWhere(userId), select: { id: true, courseId: true, accessExpiresAt: true, lessonsProgress: { where: { lesson: { isPublished: true } }, select: { lessonId: true } }, course: { select: { ...publicCourse, modules: { select: { lessons: { where: { isPublished: true }, select: { id: true } } } } } } }, orderBy: { enrolledAt: 'desc' } });
     return rows.map(({ lessonsProgress, course, ...row }) => { const { modules, ...metadata } = course; return { ...row, ...progressFor(modules, lessonsProgress), course: metadata }; });
   }
   async myCourse(userId: string, courseId: string) {
-    const enrollment = await this.db.enrollment.findFirst({ where: this.accessWhere(userId, courseId), select: { id: true, courseId: true, progress: true, isCompleted: true, accessExpiresAt: true, lessonsProgress: { select: { lessonId: true, completedAt: true } }, course: { select: { ...publicCourse, modules: { ...ordered, select: { id: true, title: true, sortOrder: true, lessons: { ...ordered, select: publicLesson } } } } } } });
+    const enrollment = await this.db.enrollment.findFirst({ where: this.accessWhere(userId, courseId), select: { id: true, courseId: true, progress: true, isCompleted: true, accessExpiresAt: true, lessonsProgress: { where: { lesson: { isPublished: true } }, select: { lessonId: true, completedAt: true } }, course: { select: { ...publicCourse, modules: { ...ordered, where: { lessons: { some: { isPublished: true } } }, select: { id: true, title: true, sortOrder: true, lessons: { ...ordered, where: { isPublished: true }, select: publicLesson } } } } } } });
     if (!enrollment) throw new NotFoundException('Курс недоступен'); return { ...enrollment, ...progressFor(enrollment.course.modules, enrollment.lessonsProgress) };
   }
   async myLesson(userId: string, courseId: string, lessonId: string) {
-    const lesson = await this.db.lesson.findFirst({ where: { id: lessonId, courseId, moduleId: { not: null }, course: { enrollments: { some: this.accessWhere(userId, courseId) } } }, select: { ...publicLesson, content: true, videoUrl: true, presentationUrl: true } });
+    const lesson = await this.db.lesson.findFirst({ where: { id: lessonId, courseId, isPublished: true, moduleId: { not: null }, course: { enrollments: { some: this.accessWhere(userId, courseId) } } }, select: { ...publicLesson, content: true, videoUrl: true, presentationUrl: true } });
     if (!lesson) throw new NotFoundException('Курс или урок недоступен'); return materialView(lesson);
   }
   async complete(userId: string, courseId: string, lessonId: string) {
@@ -124,9 +132,9 @@ export class LmsService {
       await this.lockCourse(tx, courseId);
       await tx.$queryRaw`SELECT id FROM "Enrollment" WHERE "userId" = ${userId} AND "courseId" = ${courseId} FOR UPDATE`;
       const enrollment = await tx.enrollment.findFirst({ where: this.accessWhere(userId, courseId), select: { id: true } }); if (!enrollment) throw new NotFoundException('Курс недоступен');
-      const lesson = await tx.lesson.findFirst({ where: { id: lessonId, courseId, moduleId: { not: null } }, select: { id: true } }); if (!lesson) throw new NotFoundException('Урок не найден');
+      const lesson = await tx.lesson.findFirst({ where: { id: lessonId, courseId, isPublished: true, moduleId: { not: null } }, select: { id: true } }); if (!lesson) throw new NotFoundException('Урок не найден');
       await tx.lessonProgress.upsert({ where: { enrollmentId_lessonId: { enrollmentId: enrollment.id, lessonId } }, create: { enrollmentId: enrollment.id, lessonId }, update: {} });
-      const [total, done] = await Promise.all([tx.lesson.count({ where: { courseId, moduleId: { not: null } } }), tx.lessonProgress.count({ where: { enrollmentId: enrollment.id, lesson: { courseId, moduleId: { not: null } } } })]);
+      const [total, done] = await Promise.all([tx.lesson.count({ where: { courseId, isPublished: true, moduleId: { not: null } } }), tx.lessonProgress.count({ where: { enrollmentId: enrollment.id, lesson: { courseId, isPublished: true, moduleId: { not: null } } } })]);
       return tx.enrollment.update({ where: { id: enrollment.id }, data: { progress: total ? Math.floor(done / total * 100) : 0, isCompleted: total > 0 && done === total }, select: { progress: true, isCompleted: true } });
     });
   }

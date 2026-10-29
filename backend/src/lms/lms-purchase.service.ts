@@ -15,13 +15,21 @@ export function courseSalesEnabled(config: ConfigService) {
 export async function assertCoursePurchasable(tx: Prisma.TransactionClient, order: { id: string; sourceChannel: string; userId: string | null; finalAmount: Prisma.Decimal; currency: string; priceSnapshot: Prisma.JsonValue | null }, enabled: boolean) {
   if (order.sourceChannel !== 'COURSE') return;
   if (!enabled) throw new ServiceUnavailableException('Покупка курсов пока не подключена');
-  const identity = await tx.coursePurchase.findUnique({ where: { orderId: order.id }, select: { courseId: true } });
+  const identity = await tx.coursePurchase.findUnique({ where: { orderId: order.id }, select: { courseId: true, userId: true } });
   if (!identity) throw new ConflictException('Заказ курса требует проверки перед оплатой');
+  // Consistent with purchase creation and confirmed-payment review:
+  // order row (when present) → user → course.
+  await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${identity.userId} FOR UPDATE`;
   await tx.$queryRaw`SELECT id FROM "Course" WHERE id = ${identity.courseId} FOR UPDATE`;
   const purchase = await tx.coursePurchase.findUnique({ where: { orderId: order.id }, include: { course: true, tariff: true } });
   const snapshot = order.priceSnapshot && typeof order.priceSnapshot === 'object' && !Array.isArray(order.priceSnapshot) ? order.priceSnapshot as Record<string, unknown> : {};
   if (!purchase || purchase.status !== 'PENDING' || purchase.userId !== order.userId || purchase.courseId !== purchase.tariff.courseId || purchase.id !== snapshot.coursePurchaseId || purchase.currency !== order.currency || !purchase.amount.equals(order.finalAmount))
     throw new ConflictException('Заказ курса требует проверки перед оплатой');
+  const [otherReview, orphanReview] = await Promise.all([
+    tx.coursePurchase.findFirst({ where: { userId: purchase.userId, courseId: purchase.courseId, status: 'PAYMENT_REVIEW', id: { not: purchase.id } }, select: { id: true } }),
+    tx.order.findFirst({ where: { userId: purchase.userId, sourceChannel: 'COURSE', paymentStatus: 'SUCCEEDED', coursePurchase: { is: null }, priceSnapshot: { path: ['coursePaymentReview'], equals: true } }, select: { id: true } }),
+  ]);
+  if (otherReview || orphanReview) throw new ConflictException('Оплата курса подтверждена, заказ на проверке; обратитесь в поддержку, повторная оплата не нужна.');
   if (purchase.course.status !== 'PUBLISHED' || !purchase.course.isActive || !purchase.tariff.isActive) throw new ConflictException('Курс или тариф больше не доступны для покупки');
   // Price and duration are snapshots: an already-created order must never be
   // silently charged at a new price or give a different period of access.
@@ -58,6 +66,10 @@ export class LmsPurchaseService {
       const current = await tx.enrollment.findUnique({ where: { userId_courseId: { userId, courseId: dto.courseId } } });
       if (current && ['REVOKED','SUSPENDED'].includes(current.accessStatus)) throw new ConflictException('Доступ к курсу ограничен. Свяжитесь с поддержкой перед покупкой');
       if (current?.accessStatus === 'ACTIVE' && (!current.accessExpiresAt || current.accessExpiresAt > new Date())) throw new ConflictException('У вас уже есть доступ к этому курсу');
+      const orphanReview = await tx.order.findFirst({ where: { userId, sourceChannel: 'COURSE', paymentStatus: 'SUCCEEDED', coursePurchase: { is: null }, priceSnapshot: { path: ['coursePaymentReview'], equals: true } }, select: { id: true } });
+      if (orphanReview) throw new ConflictException('Оплаченный заказ курса требует проверки. Обратитесь в поддержку до новой покупки.');
+      const review = await tx.coursePurchase.findFirst({ where: { userId, courseId: dto.courseId, status: 'PAYMENT_REVIEW' }, select: { id: true } });
+      if (review) throw new ConflictException('Оплата курса подтверждена, заказ на проверке; обратитесь в поддержку, повторная оплата не нужна.');
       const pending = await tx.coursePurchase.findFirst({ where: { userId, courseId: dto.courseId, status: 'PENDING', order: { OR: [{ reservationState: 'ACTIVE', reservationExpiresAt: { gt: new Date() } }, { payments: { some: { status: { in: ['CREATING','PENDING','SUCCEEDED'] } } } }] } }, select: { id: true } });
       if (pending) throw new ConflictException('У вас уже есть ожидающий оплаты заказ на этот курс');
       const purchaseId = randomUUID(), expiresAt = new Date(Date.now() + 30 * 60_000);

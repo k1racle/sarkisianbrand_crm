@@ -18,6 +18,7 @@ export class PaymentsController {
   providers() { return this.alternatives.providers(); }
 
   @Post('orders/:orderNumber')
+  @Header('Cache-Control', 'private, no-store')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Создать платёж для доступного покупателю заказа' })
   create(@Param('orderNumber') orderNumber: string, @Body() dto: CreatePaymentDto, @Req() request: any, @Headers('x-order-access') accessToken?: string) {
@@ -26,6 +27,7 @@ export class PaymentsController {
   }
 
   @Post('orders/:orderNumber/:provider')
+  @Header('Cache-Control', 'private, no-store')
   @UseGuards(OptionalJwtAuthGuard)
   createAlternative(@Param('provider') provider: string, @Param('orderNumber') orderNumber: string, @Body() dto: CreatePaymentDto, @Req() request: any, @Headers('x-order-access') accessToken?: string) {
     return this.alternatives.create(provider, orderNumber, dto, request.user, accessToken);

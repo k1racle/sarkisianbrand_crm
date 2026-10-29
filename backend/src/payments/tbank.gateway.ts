@@ -5,6 +5,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntegrationSecretsService } from '../system-settings/integration-secrets.service';
 import { PaymentCapabilities, PaymentGateway, PaymentRequest, VerifiedPayment } from './payment-gateway';
+import { courseFiscalPolicyFromConfig, courseReceiptForTBank } from './course-fiscal-receipt';
 
 // T-Bank signs sorted root scalar values. Nested Receipt/DATA are excluded.
 // https://developer.tbank.ru/eacq/intro/developer/notification
@@ -31,15 +32,18 @@ export class TBankGateway extends PaymentGateway {
     const integration = await this.prisma.ecosystemIntegration.findUnique({ where: { key: 'TBANK' } });
     const settings = (integration?.config || {}) as Record<string, unknown>, secrets = this.secrets.decrypt(integration?.encryptedSecrets);
     const terminalKey = String(settings.terminalKey || '').trim(), password = String(secrets.password || '');
-    return { integration, terminalKey, password, fiscalMode: String(settings.fiscalMode || '').trim().toUpperCase(), configured: !!terminalKey && terminalKey.length <= 64 && !!password };
+    return { integration, terminalKey, password, settings, fiscalMode: String(settings.fiscalMode || '').trim().toUpperCase(), configured: !!terminalKey && terminalKey.length <= 64 && !!password };
   }
   async capabilities(): Promise<PaymentCapabilities> {
     if (!this.callsEnabled()) return { provider: 'TBANK', available: false, externalCallsEnabled: false, configured: false, environment: null, reason: 'Онлайн-оплата отключена до проверки интеграции.' };
     const s = await this.settings();
-    const reason = !s.integration?.isEnabled ? 'Т-Банк отключён в настройках CRM.' : !s.configured ? 'Заполните терминал и пароль Т-Банка.' : s.fiscalMode !== 'EXTERNAL' ? 'Сначала настройте выдачу чеков и подтвердите внешнюю фискализацию.' : null;
-    return { provider: 'TBANK', available: !reason, externalCallsEnabled: true, configured: s.configured, environment: s.integration?.environment || null, reason };
+    const baseReason = !s.integration?.isEnabled ? 'Т-Банк отключён в настройках CRM.' : !s.configured ? 'Заполните терминал и пароль Т-Банка.' : null;
+    let courseReason = baseReason;
+    if (!courseReason) try { courseFiscalPolicyFromConfig(s.settings); } catch { courseReason = 'Настройте и подтвердите кассу и налоговые данные курсов в CRM.'; }
+    const reason = baseReason || (s.fiscalMode !== 'EXTERNAL' ? 'Сначала настройте выдачу чеков товаров и подтвердите внешнюю фискализацию.' : null);
+    return { provider: 'TBANK', available: !reason, externalCallsEnabled: true, configured: s.configured, environment: s.integration?.environment || null, reason, courseAvailable: !courseReason, courseReason };
   }
-  async assertAvailable() { const value = await this.capabilities(); if (!value.available) throw new ServiceUnavailableException(value.reason!); }
+  async assertAvailable(scope: 'goods' | 'course' | 'any' = 'any') { const value = await this.capabilities(); if (!(scope === 'goods' ? value.available : scope === 'course' ? value.courseAvailable : value.available || value.courseAvailable)) throw new ServiceUnavailableException((scope === 'course' ? value.courseReason : value.reason) || 'Т-Банк не настроен.'); }
   validateReturnUrl(value?: string) {
     let app: URL;
     try { app = new URL(String(this.config.get('PUBLIC_APP_URL') || '')); if (!['http:', 'https:'].includes(app.protocol) || app.username || app.password || app.search || app.hash || (app.protocol !== 'https:' && !['localhost','127.0.0.1','[::1]'].includes(app.hostname))) throw new Error(); }
@@ -50,7 +54,7 @@ export class TBankGateway extends PaymentGateway {
   async verifyNotification(payload: Record<string, unknown>) {
     await this.assertAvailable();
     const settings = await this.settings();
-    if (!this.callsEnabled() || !settings.integration?.isEnabled || !settings.configured || settings.fiscalMode !== 'EXTERNAL') throw new ServiceUnavailableException('Т-Банк отключён или настройки изменились.');
+    if (!this.callsEnabled() || !settings.integration?.isEnabled || !settings.configured) throw new ServiceUnavailableException('Т-Банк отключён или настройки изменились.');
     const { terminalKey, password } = settings;
     if (!payload || Array.isArray(payload) || payload.TerminalKey !== terminalKey || typeof payload.Token !== 'string' || !/^[a-f0-9]{64}$/i.test(payload.Token)) throw new BadRequestException('Некорректное уведомление Т-Банка.');
     let expected: string; try { expected = tbankToken(payload, password); } catch { throw new BadRequestException('Некорректная подпись Т-Банка.'); }
@@ -60,13 +64,21 @@ export class TBankGateway extends PaymentGateway {
     return { id, orderId };
   }
   async createPayment(request: PaymentRequest): Promise<VerifiedPayment> {
-    await this.assertAvailable();
+    await this.assertAvailable(request.courseFiscal ? 'course' : 'goods');
     if (!/^\d{1,13}\.\d{2}$/.test(request.amount) || request.currency !== 'RUB' || !/^[a-zA-Z0-9-]{1,50}$/.test(request.localPaymentId)) throw new BadRequestException('Некорректная сумма платежа.');
     const amount = new Prisma.Decimal(request.amount).mul(100).toNumber();
     if (!Number.isSafeInteger(amount) || amount <= 0) throw new BadRequestException('Некорректная сумма платежа.');
     const returnUrl = this.validateReturnUrl(request.returnUrl);
     const notificationUrl = new URL('/api/v1/payments/webhook/tbank', returnUrl).href;
-    const response = await this.call('Init', { Amount: amount, OrderId: request.localPaymentId, Description: `Заказ ${request.orderNumber}`.slice(0, 140), PayType: 'O', DATA: { OperationInitiatorType: '0' }, NotificationURL: notificationUrl, SuccessURL: returnUrl, FailURL: returnUrl });
+    let receipt: ReturnType<typeof courseReceiptForTBank> | undefined;
+    if (request.courseFiscal) {
+      const settings = await this.settings(), fiscal = request.courseFiscal;
+      if (!settings.integration || settings.integration.id !== fiscal.integrationId || settings.integration.updatedAt?.toISOString() !== fiscal.integrationVersion) throw new ServiceUnavailableException('Настройки кассы изменились; платёж требует сверки.');
+      const policy = courseFiscalPolicyFromConfig(settings.settings);
+      if (policy.issuerName !== fiscal.issuerName || policy.issuerInn !== fiscal.issuerInn || fiscal.receipt.amount !== request.amount || fiscal.receipt.taxation !== policy.taxation || fiscal.receipt.tax !== policy.tax || fiscal.receipt.paymentMethod !== policy.paymentMethod || fiscal.receipt.paymentObject !== policy.paymentObject) throw new ServiceUnavailableException('Снимок фискальных данных не совпадает с настройками кассы.');
+      try { receipt = courseReceiptForTBank(fiscal.receipt); } catch { throw new BadRequestException('Некорректные данные фискального чека.'); }
+    }
+    const response = await this.call('Init', { Amount: amount, OrderId: request.localPaymentId, Description: `Заказ ${request.orderNumber}`.slice(0, 140), PayType: 'O', DATA: { OperationInitiatorType: '0' }, NotificationURL: notificationUrl, SuccessURL: returnUrl, FailURL: returnUrl, ...(receipt ? { Receipt: receipt } : {}) }, request.courseFiscal);
     return this.toVerified(response.data, request, true, response.test);
   }
   async getPayment(paymentId: string, request?: PaymentRequest): Promise<VerifiedPayment> {
@@ -75,10 +87,21 @@ export class TBankGateway extends PaymentGateway {
     if (externalId(response.data.PaymentId) !== paymentId) throw new BadGatewayException('Идентификатор ответа Т-Банка не совпадает с запросом.');
     return this.toVerified(response.data, request, false, response.test);
   }
-  private async call(method: 'Init' | 'GetState', parameters: Record<string, unknown>) {
+  async getRefundState(paymentId: string, request: PaymentRequest) {
+    if (!numericId.test(paymentId)) throw new BadRequestException('Некорректный платёж Т-Банка.');
+    const response = await this.call('GetState', { PaymentId: paymentId });
+    const data = response.data, amount = Number(data.Amount), expected = new Prisma.Decimal(request.amount).mul(100).toNumber();
+    if (externalId(data.PaymentId) !== paymentId || data.OrderId !== request.localPaymentId || request.currency !== 'RUB' || !Number.isSafeInteger(amount) || amount !== expected) throw new BadGatewayException('Данные Т-Банка не совпадают с заказом.');
+    const status = String(data.Status || '');
+    if (!['REFUNDING','REFUNDED','PARTIAL_REFUNDED','REVERSING','REVERSED','PARTIAL_REVERSED'].includes(status)) throw new BadGatewayException('Состояние возврата Т-Банка пока не подтверждено.');
+    return { id: paymentId, status, test: response.test };
+  }
+  private async call(method: 'Init' | 'GetState', parameters: Record<string, unknown>, fiscal?: PaymentRequest['courseFiscal']) {
     await this.assertAvailable();
     const s = await this.settings();
-    if (!this.callsEnabled() || !s.integration?.isEnabled || !s.configured || s.fiscalMode !== 'EXTERNAL') throw new ServiceUnavailableException('Т-Банк отключён или настройки изменились.');
+    if (!this.callsEnabled() || !s.integration?.isEnabled || !s.configured) throw new ServiceUnavailableException('Т-Банк отключён или настройки изменились.');
+    if (method === 'Init' && !fiscal && s.fiscalMode !== 'EXTERNAL') throw new ServiceUnavailableException('Фискализация товаров не настроена.');
+    if (fiscal && (s.integration.id !== fiscal.integrationId || s.integration.updatedAt?.toISOString() !== fiscal.integrationVersion)) throw new ServiceUnavailableException('Настройки кассы изменились; платёж требует сверки.');
     const payload = { TerminalKey: s.terminalKey, ...parameters };
     try {
       const base = s.integration!.environment === 'TEST' ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru';

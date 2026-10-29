@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, ServiceUnavailableE
 import { ConfigService } from '@nestjs/config';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { isDeepStrictEqual } from 'util';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { PaymentGateway, PaymentRequest, PaymentSession, VerifiedPayment } from './payment-gateway';
@@ -10,6 +11,8 @@ import { RobokassaGateway } from './robokassa.gateway';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/payment.dto';
 import { assertCoursePurchasable, courseSalesEnabled } from '../lms/lms-purchase.service';
+import { recordVerifiedRefund } from './refund-reconciliation';
+import { courseFiscalPolicyFromConfig, makeCourseFiscalSnapshot, type CourseFiscalContext } from './course-fiscal-receipt';
 
 type Provider = 'TBANK' | 'ROBOKASSA';
 const payable = [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_WAITING];
@@ -29,8 +32,9 @@ export class AlternativePaymentsService {
   }
   async providers() {
     const providers = await Promise.all([this.yoo.capabilities(), this.tbank.capabilities(), this.robo.capabilities()]);
-    return { providers: providers.map(item => item.provider !== 'YOOKASSA' && item.environment === 'TEST' && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true'
-      ? { ...item, available: false, reason: 'Тестовые платежи отключены в этом окружении.' } : item) };
+    return { providers: providers.map(item => item.environment === 'TEST' && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true'
+      ? { ...item, available: false, courseAvailable: false, courseReason: 'Тестовые платежи отключены в этом окружении.', reason: 'Тестовые платежи отключены в этом окружении.' }
+      : { ...item, courseAvailable: item.courseAvailable === true, courseReason: item.courseReason || (item.courseAvailable ? null : 'Фискализация курсов не настроена.') }) };
   }
   private assertTestAllowed(isTest: boolean) {
     if (isTest && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true') throw new ServiceUnavailableException('Тестовые платежи не могут изменить заказ в этом окружении.');
@@ -38,36 +42,58 @@ export class AlternativePaymentsService {
   private request(payment: any, orderNumber: string): PaymentRequest {
     const meta = (payment.metadata || {}) as Record<string, unknown>;
     if (typeof meta.idempotenceKey !== 'string' || typeof meta.returnUrl !== 'string') throw new ConflictException('Не найдены параметры попытки оплаты. Нужна сверка.');
-    return { orderId: payment.orderId, orderNumber, localPaymentId: payment.id, idempotenceKey: meta.idempotenceKey, amount: new Prisma.Decimal(payment.amount).toFixed(2), currency: payment.currency, returnUrl: meta.returnUrl, ...(payment.invoiceId ? { invoiceId: payment.invoiceId } : {}) };
+    if (meta.courseOrder === true && (!meta.courseFiscal || typeof meta.courseFiscal !== 'object')) throw new ConflictException('Не найдены фискальные данные оплаты курса. Требуется сверка.');
+    return { orderId: payment.orderId, orderNumber, localPaymentId: payment.id, idempotenceKey: meta.idempotenceKey, amount: new Prisma.Decimal(payment.amount).toFixed(2), currency: payment.currency, returnUrl: meta.returnUrl, ...(payment.invoiceId ? { invoiceId: payment.invoiceId } : {}), ...(meta.courseOrder === true ? { courseFiscal: meta.courseFiscal as CourseFiscalContext } : {}) };
   }
   async create(providerName: string, orderNumber: string, dto: CreatePaymentDto, actor?: { sub: string; role?: string }, accessToken?: string): Promise<PaymentSession> {
     const { provider, gateway } = this.select(providerName);
     if (dto.provider && dto.provider !== provider) throw new BadRequestException('Способ оплаты в запросе не совпадает с выбранным.');
     const authorized = await this.orders.getAccessible(orderNumber, actor, accessToken);
     if (new Prisma.Decimal(authorized.finalAmount).lte(0)) throw new BadRequestException('Этот заказ не требует онлайн-оплаты.');
-    await gateway.assertAvailable();
+    const isCourse = authorized.sourceChannel === 'COURSE';
+    await gateway.assertAvailable(isCourse ? 'course' : 'goods');
     const capability = await gateway.capabilities();
+    if (!(isCourse ? capability.courseAvailable : capability.available)) throw new ServiceUnavailableException((isCourse ? capability.courseReason : capability.reason) || 'Платёжный провайдер не настроен.');
     this.assertTestAllowed(capability.environment === 'TEST');
     const returnUrl = gateway.validateReturnUrl(dto.returnUrl || `/orders/${encodeURIComponent(orderNumber)}`);
     const payment = await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${authorized.id} FOR UPDATE`;
       const order = await tx.order.findUniqueOrThrow({ where: { id: authorized.id } });
+      if ((order.sourceChannel === 'COURSE') !== isCourse) throw new ConflictException('Тип заказа изменился; требуется сверка.');
       if (order.source === 'B2B' && await tx.orderFinanceEntry.count({ where: { orderId: order.id } })) throw new ConflictException('По заказу ведётся ручной журнал расчётов. Требуется сверка.');
       if (!payable.includes(order.status as any) || ['PAID', 'SUCCEEDED'].includes(order.paymentStatus || '')) throw new BadRequestException('Заказ уже оплачен, отменён или завершён.');
       if (order.reservationState !== 'ACTIVE' || !order.reservationExpiresAt || order.reservationExpiresAt.getTime() <= Date.now()) throw new ConflictException('Нет действующего резерва заказа.');
       const snapshot = (order.priceSnapshot || {}) as Record<string, unknown>;
       if (snapshot.deliveryConfirmed !== true && snapshot.digitalDelivery !== true) throw new BadRequestException('Сначала подтвердите стоимость доставки.');
       if (order.currency !== 'RUB' || new Prisma.Decimal(order.finalAmount).lte(0)) throw new BadRequestException('Некорректная сумма заказа.');
+      // Check again for an already-issued attempt: another order may have
+      // entered PAYMENT_REVIEW since this form was first issued.
+      if (isCourse) await assertCoursePurchasable(tx, order, courseSalesEnabled(this.config));
       const current = await tx.payment.findFirst({ where: { orderId: order.id, status: { in: active } }, orderBy: { createdAt: 'desc' } });
       if (current) {
         if (current.provider !== provider) throw new ConflictException('По заказу уже есть активная попытка оплаты. Завершите её или обратитесь в поддержку.');
         if (current.status === 'SUCCEEDED' || !new Prisma.Decimal(current.amount).equals(order.finalAmount) || current.currency !== order.currency) throw new ConflictException('Действующий платёж требует сверки.');
         const meta = (current.metadata || {}) as Record<string, unknown>;
         if (meta.environment !== capability.environment) throw new ConflictException('Окружение платежа изменилось. Требуется сверка.');
+        if (isCourse && (meta.courseOrder !== true || !meta.courseFiscal)) throw new ConflictException('У прежней попытки нет подтверждённого фискального снимка. Требуется сверка.');
         return current;
       }
-      await assertCoursePurchasable(tx, order, courseSalesEnabled(this.config));
-      const created = await tx.payment.create({ data: { orderId: order.id, amount: order.finalAmount, currency: order.currency, provider, status: 'CREATING', metadata: { idempotenceKey: randomUUID(), returnUrl, environment: capability.environment, initStarted: false } } });
+      if (!isCourse) await assertCoursePurchasable(tx, order, courseSalesEnabled(this.config));
+      let courseFiscal: CourseFiscalContext | undefined;
+      if (order.sourceChannel === 'COURSE') {
+        await tx.$queryRaw`SELECT id FROM "EcosystemIntegration" WHERE "key" = ${provider} FOR SHARE`;
+        const integration = await tx.ecosystemIntegration.findUnique({ where: { key: provider } });
+        if (!integration?.isEnabled || integration.environment !== capability.environment) throw new ServiceUnavailableException('Настройки кассы изменились; повторите оформление.');
+        const purchase = await tx.coursePurchase.findUnique({ where: { orderId: order.id } });
+        if (!purchase) throw new ConflictException('Данные покупки курса не найдены.');
+        try {
+          const policy = courseFiscalPolicyFromConfig((integration.config || {}) as Record<string, unknown>);
+          const receipt = makeCourseFiscalSnapshot({ name: purchase.courseTitle, amount: new Prisma.Decimal(order.finalAmount).toFixed(2), email: order.buyerEmail, phone: order.buyerPhone, policy });
+          if (provider === 'ROBOKASSA' && !receipt.email) throw new Error('Для чека Робокассы нужен корректный email покупателя');
+          courseFiscal = { receipt, issuerName: policy.issuerName, issuerInn: policy.issuerInn, integrationId: integration.id, integrationVersion: integration.updatedAt.toISOString() };
+        } catch { throw new ServiceUnavailableException('Проверьте данные покупателя и подтверждённые настройки чека курса в CRM.'); }
+      }
+      const created = await tx.payment.create({ data: { orderId: order.id, amount: order.finalAmount, currency: order.currency, provider, status: 'CREATING', metadata: { idempotenceKey: randomUUID(), returnUrl, environment: capability.environment, initStarted: false, ...(courseFiscal ? { courseOrder: true, courseFiscal } : {}) } as Prisma.InputJsonValue } });
       await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.PAYMENT_WAITING, paymentStatus: 'PENDING', paymentMethod: provider } });
       return created;
     });
@@ -75,13 +101,17 @@ export class AlternativePaymentsService {
     this.match(payment, provider, orderNumber, verified);
     await this.persist(payment, provider, orderNumber, verified);
     const oldUrl = ((payment.metadata || {}) as Record<string, unknown>).confirmationUrl;
-    return { provider, paymentId: verified.id, status: this.status(verified), confirmationUrl: verified.status === 'pending' ? verified.confirmation?.confirmation_url || (typeof oldUrl === 'string' ? oldUrl : null) : null };
+    return { provider, paymentId: verified.id, status: this.status(verified), confirmationUrl: verified.status === 'pending' ? verified.confirmation?.confirmation_url || (typeof oldUrl === 'string' ? oldUrl : null) : null, ...(verified.status === 'pending' && verified.confirmation?.form ? { confirmationForm: verified.confirmation.form } : {}) };
   }
   private initial(provider: Provider, gateway: TBankGateway | RobokassaGateway, payment: any, orderNumber: string): Promise<VerifiedPayment> {
     const previous = this.inflight.get(payment.id); if (previous) return previous;
     const work = (async () => {
       const request = this.request(payment, orderNumber);
-      if (provider === 'ROBOKASSA') return gateway.createPayment(request); // deterministic signed URL, no external call
+      if (provider === 'ROBOKASSA') {
+        const saved = (payment.metadata || {}).confirmationForm;
+        if (saved && payment.transactionId === prefix(provider, String(payment.invoiceId))) return { id: String(payment.invoiceId), status: 'pending', paid: false, test: (payment.metadata || {}).environment === 'TEST', amount: { value: request.amount, currency: request.currency }, metadata: { order_id: payment.orderId, order_number: orderNumber, payment_id: payment.id }, confirmation: { type: 'form', form: saved } } as VerifiedPayment;
+        return gateway.createPayment(request); // deterministic signature; no external call
+      }
       if (payment.transactionId) return this.tbank.getPayment(payment.transactionId.slice('TBANK:'.length), request);
       const meta = (payment.metadata || {}) as Record<string, unknown>;
       if (meta.initStarted !== false) throw new ConflictException('Результат предыдущего запроса Т-Банка неизвестен. Проверьте платёж перед повтором.');
@@ -108,7 +138,9 @@ export class AlternativePaymentsService {
       const latest = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
       this.match(latest, provider, orderNumber, verified);
       const old = (latest.metadata || {}) as Record<string, unknown>;
-      await tx.payment.update({ where: { id: payment.id }, data: { transactionId, ...(latest.status === 'CREATING' ? { status: 'PENDING' } : {}), metadata: { ...old, ...(verified.confirmation?.confirmation_url ? { confirmationUrl: verified.confirmation.confirmation_url } : {}) } as Prisma.InputJsonValue } });
+      const form = verified.confirmation?.form;
+      if (form && old.confirmationForm && !isDeepStrictEqual(form, old.confirmationForm)) throw new ConflictException('Подписанная форма оплаты изменилась; требуется сверка.');
+      await tx.payment.update({ where: { id: payment.id }, data: { transactionId, ...(latest.status === 'CREATING' ? { status: 'PENDING' } : {}), metadata: { ...old, ...(verified.confirmation?.confirmation_url ? { confirmationUrl: verified.confirmation.confirmation_url } : {}), ...(form ? { confirmationForm: form } : {}) } as Prisma.InputJsonValue } });
     });
     return this.orders.settleVerifiedPayment(transactionId, this.status(verified), { provider, orderId: payment.orderId, localPaymentId: payment.id, amount: verified.amount.value, currency: verified.amount.currency, providerStatus: verified.status, paid: verified.paid, test: verified.test, metadata: verified.metadata });
   }
@@ -129,6 +161,15 @@ export class AlternativePaymentsService {
     if (!payment || payment.provider !== 'TBANK' || !payment.order) throw new ServiceUnavailableException('Платёж пока не зарегистрирован. Повторите уведомление позже.');
     const cap = await this.tbank.capabilities(), meta = (payment.metadata || {}) as Record<string, unknown>;
     if (meta.environment !== cap.environment) throw new ConflictException('Окружение платежа изменилось. Требуется сверка.');
+    if (['REFUNDING','REFUNDED','PARTIAL_REFUNDED','REVERSING','REVERSED','PARTIAL_REVERSED'].includes(String(payload.Status || ''))) {
+      const state = await this.tbank.getRefundState(result.id, this.request(payment, payment.order.orderNumber));
+      if ((cap.environment === 'TEST') !== state.test) throw new ConflictException('Окружение платежа изменилось. Требуется сверка.');
+      this.assertTestAllowed(state.test);
+      // Bank statuses alone do not establish a completed SBP refund or its
+      // accounting consequences. Record a durable review instead of guessing.
+      await recordVerifiedRefund(this.prisma, { paymentId: payment.id, provider: 'TBANK', externalId: state.id, state: 'REVIEW', providerState: state.status });
+      return 'OK';
+    }
     const verified = await this.tbank.getPayment(result.id, this.request(payment, payment.order.orderNumber));
     this.match(payment, 'TBANK', payment.order.orderNumber, verified);
     await this.persist(payment, 'TBANK', payment.order.orderNumber, verified);

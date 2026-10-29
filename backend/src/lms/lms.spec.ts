@@ -16,6 +16,9 @@ import { assertCoursePurchasable, LmsPurchaseService } from './lms-purchase.serv
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { OrdersService } from '../orders/orders.service';
+import { courseReceiptForRobokassa, makeCourseFiscalSnapshot } from '../payments/course-fiscal-receipt';
+import { makeRobokassaPost } from '../payments/robokassa.protocol';
+import { AlternativePaymentsService } from '../payments/alternative-payments.service';
 
 describe('LMS validation and permission contract', () => {
   it('rejects nulls for non-nullable patch fields and unsupported lesson types', async () => {
@@ -206,10 +209,11 @@ pg('LMS against isolated PostgreSQL', () => {
     const purchases = new LmsPurchaseService(db as any,config), dto = { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true };
     const p = await purchases.create(person.id,dto,'fixture-settlement-12345');
     const saved = await db.coursePurchase.findUniqueOrThrow({ where: { id: p.id } });
-    const payment = await db.payment.create({ data: { orderId: saved.orderId, provider: 'ROBOKASSA', transactionId: `fixture-${randomUUID()}`, amount: saved.amount, currency: 'RUB', status: 'PENDING' } });
+    const receipt = makeCourseFiscalSnapshot({ name: saved.courseTitle, amount: '4500.00', email: person.email, policy: { taxation: 'usn_income', tax: 'none', paymentMethod: 'full_payment', paymentObject: 'service' } });
+    const payment = await db.payment.create({ data: { orderId: saved.orderId, provider: 'TBANK', transactionId: `TBANK:${Date.now()}${Math.floor(Math.random() * 1000)}`, amount: saved.amount, currency: 'RUB', status: 'PENDING', metadata: { courseOrder: true, environment: 'PRODUCTION', initStarted: true, courseFiscal: { integrationId: randomUUID(), integrationVersion: new Date().toISOString(), issuerName: 'Иванова Анна Ивановна', issuerInn: '500100732259', receipt } } } });
     const oneC: any = { stageOrderExport: jest.fn() };
     const orders = new OrdersService(db as any,oneC,{} as any,{} as any,config);
-    const meta = { provider: 'ROBOKASSA', orderId: saved.orderId, localPaymentId: payment.id, amount: '4500.00', currency: 'RUB', paid: true, test: false };
+    const meta = { provider: 'TBANK', orderId: saved.orderId, localPaymentId: payment.id, amount: '4500.00', currency: 'RUB', paid: true, test: false };
     await expect(orders.settleVerifiedPayment(payment.transactionId!,'SUCCEEDED',{ ...meta, amount: '1.00' })).rejects.toMatchObject({ status: 400 });
     expect(await db.enrollment.count({ where: { userId: person.id, courseId: f.course.id } })).toBe(0);
     await expect(orders.settleVerifiedPayment(payment.transactionId!,'SUCCEEDED',{ ...meta, test: true })).rejects.toMatchObject({ status: 409 });
@@ -226,6 +230,133 @@ pg('LMS against isolated PostgreSQL', () => {
     expect((await service.myLesson(person.id,f.course.id,f.lesson.id)).content).toBe('Только для ученика');
     expect((await service.catalog()).items.some(item => item.id === f.course.id)).toBe(false);
   });
+  it('records paid legacy attempts for manual review without issuing access or allowing a second order', async () => {
+    const f = await filled(); const otherTariff = await service.createTariff(f.course.id, { title: 'Другой тариф', price: 4600 }); await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    const config: any = { get: (key: string) => ['LMS_COURSE_SALES_ENABLED','STOREFRONT_EXTERNAL_CALLS_ENABLED'].includes(key) ? 'true' : 'false' };
+    const purchases = new LmsPurchaseService(db as any, config), oneC: any = { stageOrderExport: jest.fn() }, orders = new OrdersService(db as any, oneC, {} as any, {} as any, config);
+    for (const [provider, late] of [['YOOKASSA',false],['TBANK',false],['ROBOKASSA',false],['YOOKASSA',true]] as const) {
+      const person = await user(), dto = { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true };
+      const originalKey = `fixture-legacy-${randomUUID()}`;
+      const created = await purchases.create(person.id, dto, originalKey), saved = await db.coursePurchase.findUniqueOrThrow({ where: { id: created.id } });
+      let payment = await db.payment.create({ data: { orderId: saved.orderId, provider, amount: saved.amount, currency: 'RUB', status: 'PENDING', metadata: { environment: 'PRODUCTION' } } });
+      const transactionId = provider === 'YOOKASSA' ? `old-${randomUUID()}` : provider === 'TBANK' ? `TBANK:${Date.now()}${Math.floor(Math.random() * 1000)}` : `ROBOKASSA:${payment.invoiceId}`;
+      payment = await db.payment.update({ where: { id: payment.id }, data: { transactionId } });
+      if (late) {
+        payment = await db.payment.update({ where: { id: payment.id }, data: { status: 'CANCELED' } });
+        await db.coursePurchase.update({ where: { id: created.id }, data: { status: 'CANCELLED' } });
+        await db.order.update({ where: { id: saved.orderId }, data: { status: 'CANCELLED', paymentStatus: 'CANCELED', reservationState: 'RELEASED' } });
+      }
+      const actor = { sub: person.id, role: 'CUSTOMER_B2C' };
+      if (!late) expect((await orders.findOne(created.orderNumber, actor)).payments[0]).toMatchObject({ needsReview: true, retryAllowed: false });
+      const meta = { provider, orderId: saved.orderId, localPaymentId: payment.id, amount: '4500.00', currency: 'RUB', paid: true, test: false };
+      const results = await Promise.all([orders.settleVerifiedPayment(transactionId, 'SUCCEEDED', meta), orders.settleVerifiedPayment(transactionId, 'SUCCEEDED', meta)]);
+      expect(results.filter(item => !item.duplicate)).toHaveLength(1); expect(results.filter(item => item.duplicate)).toHaveLength(1);
+      expect(await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).toMatchObject({ status: 'SUCCEEDED', metadata: expect.objectContaining({ courseFiscalReview: true }) });
+      expect(await db.coursePurchase.findUniqueOrThrow({ where: { id: created.id } })).toMatchObject({ status: 'PAYMENT_REVIEW', accountingStatus: 'NEEDS_REVIEW' });
+      const visible = await orders.findOne(created.orderNumber, actor);
+      expect(visible).toMatchObject({ paymentStatus: 'SUCCEEDED', priceSnapshot: expect.objectContaining({ coursePaymentReview: true }) });
+      expect(visible.payments[0]).toMatchObject({ needsReview: true, retryAllowed: false }); expect(visible.payments[0]).not.toHaveProperty('metadata');
+      expect(await db.enrollment.count({ where: { userId: person.id, courseId: f.course.id } })).toBe(0);
+      await expect(purchases.create(person.id, dto, `fixture-next-${randomUUID()}`)).rejects.toThrow(/оплата курса подтверждена.*повторная оплата не нужна/i);
+      await expect(purchases.create(person.id, { ...dto, tariffId: otherTariff.id, expectedPrice: 4600 }, `fixture-next-${randomUUID()}`)).rejects.toMatchObject({ status: 409 });
+      expect((await purchases.create(person.id, dto, originalKey)).orderNumber).toBe(created.orderNumber);
+      expect(await db.order.count({ where: { userId: person.id, sourceChannel: 'COURSE' } })).toBe(1);
+      expect(await db.orderStatusHistory.count({ where: { orderId: saved.orderId, comment: { contains: 'фискальных данных' } } })).toBe(1);
+    }
+    expect(oneC.stageOrderExport).not.toHaveBeenCalled();
+  });
+  it('opens Robokassa-paid access only when the stored signed receipt matches the course purchase', async () => {
+    const f = await filled(); await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    const config: any = { get: (key: string) => ['LMS_COURSE_SALES_ENABLED','STOREFRONT_EXTERNAL_CALLS_ENABLED'].includes(key) ? 'true' : 'false' }, purchases = new LmsPurchaseService(db as any, config);
+    const orders = new OrdersService(db as any, { stageOrderExport: jest.fn() } as any, {} as any, {} as any, config);
+    for (const tampered of [false,true]) {
+      const person = await user(), dto = { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true }, p = await purchases.create(person.id, dto, `fixture-robo-${randomUUID()}`);
+      await db.user.update({ where: { id: person.id }, data: { notificationPreferences: { email: false } } });
+      const saved = await db.coursePurchase.findUniqueOrThrow({ where: { id: p.id } });
+      let payment = await db.payment.create({ data: { orderId: saved.orderId, provider: 'ROBOKASSA', amount: saved.amount, currency: 'RUB', status: 'PENDING' } });
+      const receipt = makeCourseFiscalSnapshot({ name: saved.courseTitle, amount: '4500.00', email: person.email, policy: { taxation: 'usn_income', tax: 'none', paymentMethod: 'full_payment', paymentObject: 'service' } });
+      const form = makeRobokassaPost({ merchantLogin: 'shop', amount: '4500.00', invoiceId: payment.invoiceId!, password1: 'fixture', algorithm: 'SHA256', isTest: false, localPaymentId: payment.id, description: p.orderNumber, receipt: courseReceiptForRobokassa(receipt), email: person.email });
+      if (tampered) form.fields.Receipt = encodeURIComponent('{}');
+      const courseFiscal = { integrationId: randomUUID(), integrationVersion: new Date().toISOString(), issuerName: 'Иванова Анна Ивановна', issuerInn: '500100732259', receipt };
+      payment = await db.payment.update({ where: { id: payment.id }, data: { transactionId: `ROBOKASSA:${payment.invoiceId}`, metadata: { courseOrder: true, environment: 'PRODUCTION', courseFiscal, confirmationForm: form } } });
+      const result = await orders.settleVerifiedPayment(payment.transactionId!, 'SUCCEEDED', { provider: 'ROBOKASSA', orderId: saved.orderId, localPaymentId: payment.id, amount: '4500.00', currency: 'RUB', paid: true, test: false });
+      const enrollment = await db.enrollment.findUnique({ where: { userId_courseId: { userId: person.id, courseId: f.course.id } } });
+      if (tampered) { expect(result).toMatchObject({ needsReview: true }); expect(enrollment).toBeNull(); }
+      else { expect((result as any).needsReview).toBeUndefined(); expect(enrollment?.accessStatus).toBe('ACTIVE'); }
+    }
+  });
+  it('permits a new purchase after a completed refund and closed access', async () => {
+    const f = await filled(), person = await user(); await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    const config: any = { get: () => 'true' }, purchases = new LmsPurchaseService(db as any, config), dto = { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true };
+    const old = await purchases.create(person.id, dto, `fixture-refunded-${randomUUID()}`), oldPurchase = await db.coursePurchase.findUniqueOrThrow({ where: { id: old.id } });
+    await db.coursePurchase.update({ where: { id: old.id }, data: { status: 'REFUNDED' } });
+    await db.order.update({ where: { id: oldPurchase.orderId }, data: { status: 'REFUNDED', paymentStatus: 'REFUNDED', reservationState: 'CONSUMED' } });
+    await db.enrollment.create({ data: { userId: person.id, courseId: f.course.id, accessStatus: 'REFUNDED' } });
+    const renewed = await purchases.create(person.id, dto, `fixture-renewed-${randomUUID()}`);
+    expect(renewed.orderNumber).not.toBe(old.orderNumber); expect(renewed.status).toBe('PENDING');
+  });
+  it('blocks new course orders if a confirmed orphaned course payment needs review', async () => {
+    const f = await filled(), person = await user(); await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    const order = await db.order.create({ data: { orderNumber: `SB-ORPHAN-${randomUUID()}`, userId: person.id, source: 'WEB', sourceChannel: 'COURSE', status: 'PAYMENT_WAITING', paymentStatus: 'PENDING', totalAmount: 4500, finalAmount: 4500, shippingAddress: {}, reservationState: 'ACTIVE', reservationExpiresAt: new Date(Date.now()+600000), priceSnapshot: { kind: 'COURSE', digitalDelivery: true } } });
+    const payment = await db.payment.create({ data: { orderId: order.id, provider: 'YOOKASSA', status: 'PENDING', transactionId: `orphan-${randomUUID()}`, amount: 4500, currency: 'RUB' } });
+    try {
+      const config: any = { get: () => 'true' }, orders = new OrdersService(db as any, {} as any, {} as any, {} as any, config);
+      await orders.settleVerifiedPayment(payment.transactionId!, 'SUCCEEDED', { provider: 'YOOKASSA', orderId: order.id, localPaymentId: payment.id, amount: '4500.00', currency: 'RUB', paid: true, test: false });
+      expect(await db.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ paymentStatus: 'SUCCEEDED', priceSnapshot: expect.objectContaining({ coursePaymentReview: true }) });
+      await expect(new LmsPurchaseService(db as any, config).create(person.id, { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true }, `fixture-orphan-${randomUUID()}`)).rejects.toThrow(/оплаченный заказ курса требует проверки/i);
+    } finally { await db.payment.deleteMany({ where: { orderId: order.id } }); await db.order.deleteMany({ where: { id: order.id } }); }
+  });
+  it('late confirmation blocks an already-issued second attempt and records any second payment without granting access', async () => {
+    const f = await filled(), person = await user(); await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    const config: any = { get: (key: string) => ['LMS_COURSE_SALES_ENABLED','STOREFRONT_EXTERNAL_CALLS_ENABLED'].includes(key) ? 'true' : 'false' };
+    const purchases = new LmsPurchaseService(db as any, config), dto = { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true };
+    const orders = new OrdersService(db as any, { stageOrderExport: jest.fn() } as any, {} as any, {} as any, config);
+    const old = await purchases.create(person.id, dto, `fixture-late-old-${randomUUID()}`), oldPurchase = await db.coursePurchase.findUniqueOrThrow({ where: { id: old.id } });
+    const oldPayment = await db.payment.create({ data: { orderId: oldPurchase.orderId, provider: 'YOOKASSA', status: 'CANCELED', transactionId: `old-${randomUUID()}`, amount: 4500, currency: 'RUB' } });
+    await db.coursePurchase.update({ where: { id: old.id }, data: { status: 'CANCELLED' } });
+    await db.order.update({ where: { id: oldPurchase.orderId }, data: { status: 'CANCELLED', paymentStatus: 'CANCELED', reservationState: 'RELEASED' } });
+    const second = await purchases.create(person.id, dto, `fixture-late-next-${randomUUID()}`), secondPurchase = await db.coursePurchase.findUniqueOrThrow({ where: { id: second.id }, include: { order: true } });
+    const receipt = makeCourseFiscalSnapshot({ name: secondPurchase.courseTitle, amount: '4500.00', email: person.email, policy: { taxation: 'usn_income', tax: 'none', paymentMethod: 'full_payment', paymentObject: 'service' } });
+    const newPayment = await db.payment.create({ data: { orderId: secondPurchase.orderId, provider: 'TBANK', status: 'PENDING', transactionId: `TBANK:${BigInt('0x' + randomUUID().replace(/-/g, '').slice(0, 12)).toString()}`, amount: 4500, currency: 'RUB', metadata: { courseOrder: true, environment: 'PRODUCTION', initStarted: true, courseFiscal: { integrationId: randomUUID(), integrationVersion: new Date().toISOString(), issuerName: 'Иванова Анна Ивановна', issuerInn: '500100732259', receipt } } } });
+    const verified = (provider: string, row: any) => ({ provider, orderId: row.orderId, localPaymentId: row.id, amount: '4500.00', currency: 'RUB', paid: true, test: false });
+    await orders.settleVerifiedPayment(oldPayment.transactionId!, 'SUCCEEDED', verified('YOOKASSA', oldPayment));
+    const visible = await orders.findOne(second.orderNumber, { sub: person.id, role: 'CUSTOMER_B2C' });
+    expect(visible).toMatchObject({ coursePaymentBlocked: true, payments: [expect.objectContaining({ needsReview: true, retryAllowed: false })] });
+    expect(visible.payments[0]).not.toHaveProperty('metadata');
+    await expect(orders.findOne(second.orderNumber, { sub: randomUUID(), role: 'CUSTOMER_B2C' })).rejects.toMatchObject({ status: 404 });
+    await expect(db.$transaction(tx => assertCoursePurchasable(tx, secondPurchase.order, true))).rejects.toThrow(/повторная оплата не нужна/i);
+    const bank: any = { assertAvailable: jest.fn(async () => {}), capabilities: jest.fn(async () => ({ provider: 'TBANK', available: false, courseAvailable: true, environment: 'PRODUCTION' })), validateReturnUrl: () => 'https://shop.example/orders/test', createPayment: jest.fn(), getPayment: jest.fn() };
+    const alternative = new AlternativePaymentsService(db as any, { getAccessible: () => db.order.findUniqueOrThrow({ where: { id: secondPurchase.orderId } }) } as any, config, {} as any, bank, {} as any);
+    await expect(alternative.create('TBANK', second.orderNumber, {})).rejects.toThrow(/повторная оплата не нужна/i);
+    expect(bank.getPayment).not.toHaveBeenCalled(); expect(bank.createPayment).not.toHaveBeenCalled();
+    const results = await Promise.all([orders.settleVerifiedPayment(newPayment.transactionId!, 'SUCCEEDED', verified('TBANK', newPayment)), orders.settleVerifiedPayment(newPayment.transactionId!, 'SUCCEEDED', verified('TBANK', newPayment))]);
+    expect(results.filter(item => !item.duplicate)).toHaveLength(1); expect(results.filter(item => item.duplicate)).toHaveLength(1);
+    expect(await db.coursePurchase.findMany({ where: { id: { in: [old.id, second.id] } }, select: { status: true } })).toEqual([{ status: 'PAYMENT_REVIEW' }, { status: 'PAYMENT_REVIEW' }]);
+    expect(await db.payment.count({ where: { id: { in: [oldPayment.id, newPayment.id] }, status: 'SUCCEEDED' } })).toBe(2);
+    expect(await db.enrollment.count({ where: { userId: person.id, courseId: f.course.id } })).toBe(0);
+  }, 30000);
+  it('serializes a late callback with concurrent creation and blocks payment on any order that won the race', async () => {
+    const f = await filled(), person = await user(); await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    const config: any = { get: (key: string) => ['LMS_COURSE_SALES_ENABLED','STOREFRONT_EXTERNAL_CALLS_ENABLED'].includes(key) ? 'true' : 'false' };
+    const purchases = new LmsPurchaseService(db as any, config), dto = { courseId: f.course.id, tariffId: f.tariff.id, expectedPrice: 4500, acceptedTerms: true };
+    const old = await purchases.create(person.id, dto, `fixture-race-old-${randomUUID()}`), purchase = await db.coursePurchase.findUniqueOrThrow({ where: { id: old.id } });
+    const payment = await db.payment.create({ data: { orderId: purchase.orderId, provider: 'YOOKASSA', status: 'CANCELED', transactionId: `old-${randomUUID()}`, amount: 4500, currency: 'RUB' } });
+    await db.coursePurchase.update({ where: { id: old.id }, data: { status: 'CANCELLED' } });
+    await db.order.update({ where: { id: purchase.orderId }, data: { status: 'CANCELLED', paymentStatus: 'CANCELED', reservationState: 'RELEASED' } });
+    const orders = new OrdersService(db as any, { stageOrderExport: jest.fn() } as any, {} as any, {} as any, config);
+    const [callback, attempt] = await Promise.allSettled([
+      orders.settleVerifiedPayment(payment.transactionId!, 'SUCCEEDED', { provider: 'YOOKASSA', orderId: purchase.orderId, localPaymentId: payment.id, amount: '4500.00', currency: 'RUB', paid: true, test: false }),
+      purchases.create(person.id, dto, `fixture-race-new-${randomUUID()}`),
+    ]);
+    expect(callback.status).toBe('fulfilled');
+    expect(await db.coursePurchase.findUniqueOrThrow({ where: { id: old.id } })).toMatchObject({ status: 'PAYMENT_REVIEW' });
+    expect(await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).toMatchObject({ status: 'SUCCEEDED' });
+    if (attempt.status === 'fulfilled') {
+      const newer = await db.coursePurchase.findUniqueOrThrow({ where: { id: attempt.value.id }, include: { order: true } });
+      await expect(db.$transaction(tx => assertCoursePurchasable(tx, newer.order, true))).rejects.toThrow(/повторная оплата не нужна/i);
+    } else expect(attempt.reason).toMatchObject({ status: 409 });
+    expect(await db.enrollment.count({ where: { userId: person.id, courseId: f.course.id } })).toBe(0);
+  }, 30000);
   it('cancels a course order without issuing access or exporting warehouse facts', async () => {
     const f = await filled(), person = await user(); await db.user.update({ where: { id: person.id }, data: { notificationPreferences: { email: false } } });
     await service.updateCourse(f.course.id,{ status: 'PUBLISHED' });

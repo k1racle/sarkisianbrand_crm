@@ -1,3 +1,5 @@
+import type { CourseFiscalContext } from './course-fiscal-receipt';
+
 export interface PaymentRequest {
   orderNumber: string;
   orderId: string;
@@ -7,6 +9,7 @@ export interface PaymentRequest {
   currency: string;
   returnUrl?: string;
   invoiceId?: number;
+  courseFiscal?: CourseFiscalContext;
 }
 
 export type PaymentProvider = 'YOOKASSA' | 'TBANK' | 'ROBOKASSA';
@@ -17,14 +20,17 @@ export interface VerifiedPayment {
   paid: boolean;
   test: boolean;
   amount: { value: string; currency: string };
+  /** Provider-verified cumulative refunds, only when explicitly returned. */
+  refunded_amount?: { value: string; currency: string };
   metadata: Record<string, string>;
-  confirmation?: { type: string; confirmation_url?: string };
+  confirmation?: { type: string; confirmation_url?: string; form?: { action: string; method: 'POST'; fields: Record<string, string> } };
 }
 
 export interface PaymentSession {
   provider: PaymentProvider;
   paymentId: string;
   confirmationUrl: string | null;
+  confirmationForm?: { action: string; method: 'POST'; fields: Record<string, string> };
   status: 'PENDING' | 'SUCCEEDED' | 'CANCELED';
 }
 
@@ -35,6 +41,8 @@ export interface PaymentCapabilities {
   configured: boolean;
   environment: 'TEST' | 'PRODUCTION' | null;
   reason: string | null;
+  courseAvailable?: boolean;
+  courseReason?: string | null;
 }
 
 export abstract class PaymentGateway {

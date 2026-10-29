@@ -142,7 +142,7 @@ async function setup(browser, options = {}) {
       state.payments++; assert.equal(body.returnUrl, origin + '/orders/SB-MOCK-001');
       assert.ok(options.auth ? request.headers().authorization === 'Bearer mock-bearer' : request.headers()['x-order-access'] === 'mock-guest-secret');
       assert.ok(['YOOKASSA','TBANK','ROBOKASSA'].includes(body.provider));
-      return reply({ provider: body.provider, confirmationUrl: state.paymentUrl, paymentId: 'mock-payment', status: 'PENDING' });
+      return reply(options.paymentForm ? { provider: body.provider, confirmationUrl:null, confirmationForm:options.paymentForm, paymentId:'mock-payment', status:'PENDING' } : { provider: body.provider, confirmationUrl: state.paymentUrl, paymentId: 'mock-payment', status: 'PENDING' });
     }
     state.unknown.push(endpoint); return reply({ message: 'Unexpected mock endpoint' }, 404);
   });
@@ -434,6 +434,40 @@ async function main() {
       assert.equal(await page.getByRole('link',{name:'Мои курсы'}).getAttribute('href'),'/courses/my');
       assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0); assert.equal(state.payments,0);
       assert.deepEqual(state.unknown,[]); assert.deepEqual(pageErrors,[]); results.push('Course: payment deadline, no physical delivery or gift card, access link only after protected paid status'); await context.close();
+    }
+    {
+      console.log('Mock: course provider filtering and Robokassa POST form');
+      const courseOrder=makeOrder(true,4500);courseOrder.sourceChannel='COURSE';courseOrder.priceSnapshot={kind:'COURSE',digitalDelivery:true,deliveryConfirmed:true};courseOrder.items=[{id:'course-item',productName:'Работа с гелем',productType:'COURSE',quantity:1,price:4500,total:4500}];
+      const form={action:'https://auth.robokassa.ru/Merchant/Index.aspx',method:'POST',fields:{MerchantLogin:'fixture',OutSum:'4500.00',InvId:'123',Description:'Курс',Receipt:'%7B%7D',Shp_payment:'30000000-0000-4000-8000-000000000001',SignatureValue:'a'.repeat(64),Email:'fixture@example.test'}};
+      const providers=[{provider:'YOOKASSA',available:true,courseAvailable:false},{provider:'TBANK',available:true,courseAvailable:true},{provider:'ROBOKASSA',available:true,courseAvailable:true}];
+      const {context,page,state,pageErrors}=await setup(browser,{auth:true,order:courseOrder,paymentEnabled:true,providers,paymentForm:form});
+      await page.addInitScript(() => { HTMLFormElement.prototype.submit = function() { window.__mockPaymentForm={action:this.action,method:this.method,target:this.target,fields:Object.fromEntries([...this.querySelectorAll('input')].map(input=>[input.name,input.value]))}; }; });
+      await page.goto(base+'/orders/SB-MOCK-001',{waitUntil:'domcontentloaded'}); await page.locator('.sb-order-summary').waitFor();
+      assert.equal(await page.getByRole('radio',{name:'ЮKassa'}).count(),0); await page.getByRole('radio',{name:'Робокасса'}).check();
+      await page.getByRole('button',{name:'Оплатить заказ'}).click();
+      await page.waitForFunction(()=>Boolean(window.__mockPaymentForm));
+      const submitted=await page.evaluate(()=>window.__mockPaymentForm); assert.equal(submitted.action,form.action);assert.equal(submitted.method,'post');assert.equal(submitted.target,'_self');assert.deepEqual(submitted.fields,form.fields);assert.equal(state.external,0);assert.equal(state.payments,1);assert.deepEqual(state.unknown,[]);assert.deepEqual(pageErrors,[]);
+      results.push('Course: available providers filtered and Robokassa receipt form submitted without external requests'); await context.close();
+      const rejected=await setup(browser,{auth:true,order:courseOrder,paymentEnabled:true,providers:[{provider:'ROBOKASSA',available:true,courseAvailable:true}],paymentUrl:'https://auth.robokassa.ru/Merchant/Index.aspx'});
+      await rejected.page.goto(base+'/orders/SB-MOCK-001',{waitUntil:'domcontentloaded'});await rejected.page.locator('.sb-order-summary').waitFor();await rejected.page.getByRole('button',{name:'Оплатить заказ'}).click();
+      await rejected.page.getByRole('alert').getByText('Получена некорректная форма оплаты',{exact:false}).waitFor();assert.equal(rejected.state.external,0);await rejected.context.close();
+    }
+    {
+      console.log('Mock: active course payment recovery and manual review');
+      const courseOrder=makeOrder(true,4500);courseOrder.sourceChannel='COURSE';courseOrder.priceSnapshot={kind:'COURSE',digitalDelivery:true,deliveryConfirmed:true};courseOrder.items=[{id:'course-item',productName:'Курс',productType:'COURSE',quantity:1,price:4500,total:4500}];courseOrder.payments=[{id:'payment-1',provider:'ROBOKASSA',status:'PENDING',retryAllowed:true,needsReview:false}];
+      const providers=[{provider:'TBANK',available:true,courseAvailable:true},{provider:'ROBOKASSA',available:true,courseAvailable:true}];
+      const {context,page,state,pageErrors}=await setup(browser,{auth:true,order:courseOrder,paymentEnabled:true,providers});
+      state.order.coursePaymentBlocked=true;state.order.payments=[];
+      await page.goto(base+'/orders/SB-MOCK-001',{waitUntil:'domcontentloaded'});await page.locator('.sb-order-summary').waitFor();
+      await page.getByText('Оплата курса временно недоступна: требуется сверка данных.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0);assert.equal(await page.getByText('На оплату осталось',{exact:false}).count(),0);
+      state.order.coursePaymentBlocked=false;state.order.payments=[{id:'payment-1',provider:'ROBOKASSA',status:'PENDING',retryAllowed:true,needsReview:false}];await page.getByRole('button',{name:'Обновить статус'}).click();
+      await page.getByText('Платёж уже начат. Продолжите оплату выбранным способом.').waitFor();
+      assert.equal(await page.getByRole('radio',{name:'Т-Банк'}).count(),0);assert.equal(await page.getByRole('radio',{name:'Робокасса'}).isChecked(),true);assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).isEnabled(),true);
+      providers[1].courseAvailable=false;await page.getByRole('button',{name:'Обновить статус'}).click();await page.getByText('Платёж уже начат и требует сверки.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0);
+      providers[1].courseAvailable=true;state.order.reservationExpiresAt=new Date(Date.now()-60000).toISOString();await page.getByRole('button',{name:'Обновить статус'}).click();await page.getByText('Платёж уже начат и требует сверки.',{exact:false}).waitFor();assert.equal(await page.getByText('Вернитесь на страницу курса, чтобы оформить новый заказ.',{exact:false}).count(),0);
+      state.order.reservationExpiresAt=new Date(Date.now()+1800000).toISOString();state.order.payments[0].needsReview=true;state.order.payments[0].retryAllowed=false;await page.getByRole('button',{name:'Обновить статус'}).click();await page.getByText('Платёж уже начат и требует сверки.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0);
+      state.order.paymentStatus='SUCCEEDED';state.order.status='PAYMENT_WAITING';state.order.priceSnapshot.coursePaymentReview=true;await page.getByRole('button',{name:'Обновить статус'}).click();await page.getByText('Оплата подтверждена. Проверяем данные заказа перед открытием доступа',{exact:false}).waitFor();assert.equal(await page.getByRole('link',{name:'Мои курсы'}).count(),0);assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0);assert.equal(state.payments,0);assert.deepEqual(state.unknown,[]);assert.deepEqual(pageErrors,[]);await context.close();
+      results.push('Course: existing provider locked, expired/disabled/legacy attempts require review, paid legacy order never promises access');
     }
     for (const [provider, label, paymentUrl] of [['TBANK','Т-Банк','https://securepayments.tbank.ru/mock'], ['ROBOKASSA','Робокасса','https://auth.robokassa.ru/mock']]) {
       const { context, page, state, pageErrors } = await setup(browser, { order: makeOrder(true, 2100), paymentEnabled: true, paymentUrl, providers: [{ provider:'YOOKASSA', available:true },{ provider, available:true }] });

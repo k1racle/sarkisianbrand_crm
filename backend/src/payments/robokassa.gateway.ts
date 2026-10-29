@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntegrationSecretsService } from '../system-settings/integration-secrets.service';
 import { PaymentCapabilities, PaymentGateway, PaymentRequest, VerifiedPayment } from './payment-gateway';
-import { makeRobokassaUrl, RobokassaHash, verifyRobokassaResult } from './robokassa.protocol';
+import { makeRobokassaUrl, makeRobokassaPost, RobokassaHash, verifyRobokassaResult } from './robokassa.protocol';
+import { courseFiscalPolicyFromConfig, courseReceiptForRobokassa } from './course-fiscal-receipt';
 
 @Injectable()
 export class RobokassaGateway extends PaymentGateway {
@@ -18,15 +19,18 @@ export class RobokassaGateway extends PaymentGateway {
     const password1 = integration?.environment === 'TEST' ? test1 : production1, password2 = integration?.environment === 'TEST' ? test2 : production2;
     const fiscalMode = String(config.fiscalMode || '').trim().toUpperCase();
     const configured = !!merchantLogin && !/[:\s]/.test(merchantLogin) && merchantLogin.length <= 100 && isolatedSecrets && ['MD5', 'SHA256', 'SHA512'].includes(algorithm);
-    return { integration, merchantLogin, algorithm, password1, password2, fiscalMode, configured, isolatedSecrets };
+    return { integration, merchantLogin, algorithm, password1, password2, fiscalMode, configured, isolatedSecrets, settings: config };
   }
   async capabilities(): Promise<PaymentCapabilities> {
     if (!this.callsEnabled()) return { provider: 'ROBOKASSA', available: false, externalCallsEnabled: false, configured: false, environment: null, reason: 'Онлайн-оплата отключена до проверки интеграции.' };
     const s = await this.settings();
-    const reason = !s.integration?.isEnabled ? 'Робокасса отключена в настройках CRM.' : !s.isolatedSecrets ? 'Укажите разные тестовые и рабочие пары паролей Робокассы для одного магазина.' : !s.configured ? 'Заполните идентификатор магазина и алгоритм подписи.' : s.fiscalMode !== 'EXTERNAL' ? 'Сначала настройте выдачу чеков и подтвердите внешнюю фискализацию.' : null;
-    return { provider: 'ROBOKASSA', available: !reason, externalCallsEnabled: true, configured: s.configured, environment: s.integration?.environment || null, reason };
+    const baseReason = !s.integration?.isEnabled ? 'Робокасса отключена в настройках CRM.' : !s.isolatedSecrets ? 'Укажите разные тестовые и рабочие пары паролей Робокассы для одного магазина.' : !s.configured ? 'Заполните идентификатор магазина и алгоритм подписи.' : null;
+    let courseReason = baseReason;
+    if (!courseReason) try { courseFiscalPolicyFromConfig(s.settings); } catch { courseReason = 'Настройте и подтвердите кассу и налоговые данные курсов в CRM.'; }
+    const reason = baseReason || (s.fiscalMode !== 'EXTERNAL' ? 'Сначала настройте выдачу чеков товаров и подтвердите внешнюю фискализацию.' : null);
+    return { provider: 'ROBOKASSA', available: !reason, externalCallsEnabled: true, configured: s.configured, environment: s.integration?.environment || null, reason, courseAvailable: !courseReason, courseReason };
   }
-  async assertAvailable() { const value = await this.capabilities(); if (!value.available) throw new ServiceUnavailableException(value.reason!); }
+  async assertAvailable(scope: 'goods' | 'course' | 'any' = 'any') { const value = await this.capabilities(); if (!(scope === 'goods' ? value.available : scope === 'course' ? value.courseAvailable : value.available || value.courseAvailable)) throw new ServiceUnavailableException((scope === 'course' ? value.courseReason : value.reason) || 'Робокасса не настроена.'); }
   validateReturnUrl(value?: string) {
     let app: URL;
     try { app = new URL(String(this.config.get('PUBLIC_APP_URL') || '')); if (!['http:', 'https:'].includes(app.protocol) || app.username || app.password || app.search || app.hash || (app.protocol !== 'https:' && !['localhost','127.0.0.1','[::1]'].includes(app.hostname))) throw new Error(); }
@@ -35,11 +39,21 @@ export class RobokassaGateway extends PaymentGateway {
     catch { throw new BadRequestException('Адрес возврата должен вести на этот интернет-магазин.'); }
   }
   async createPayment(request: PaymentRequest): Promise<VerifiedPayment> {
-    await this.assertAvailable();
+    await this.assertAvailable(request.courseFiscal ? 'course' : 'goods');
     if (!request.invoiceId || request.currency !== 'RUB') throw new BadRequestException('Некорректный номер или валюта платежа.');
     this.validateReturnUrl(request.returnUrl);
     const s = await this.settings();
-    if (!this.callsEnabled() || !s.integration?.isEnabled || !s.configured || s.fiscalMode !== 'EXTERNAL') throw new ServiceUnavailableException('Робокасса отключена или настройки изменились.');
+    if (!this.callsEnabled() || !s.integration?.isEnabled || !s.configured || (!request.courseFiscal && s.fiscalMode !== 'EXTERNAL')) throw new ServiceUnavailableException('Робокасса отключена или настройки изменились.');
+    if (request.courseFiscal) {
+      const fiscal = request.courseFiscal;
+      if (s.integration.id !== fiscal.integrationId || s.integration.updatedAt?.toISOString() !== fiscal.integrationVersion) throw new ServiceUnavailableException('Настройки кассы изменились; платёж требует сверки.');
+      const policy = courseFiscalPolicyFromConfig(s.settings);
+      if (policy.issuerName !== fiscal.issuerName || policy.issuerInn !== fiscal.issuerInn || fiscal.receipt.amount !== request.amount || fiscal.receipt.taxation !== policy.taxation || fiscal.receipt.tax !== policy.tax || fiscal.receipt.paymentMethod !== policy.paymentMethod || fiscal.receipt.paymentObject !== policy.paymentObject || !fiscal.receipt.email) throw new ServiceUnavailableException('Снимок фискальных данных не совпадает с настройками кассы или отсутствует email покупателя.');
+      let form: ReturnType<typeof makeRobokassaPost>;
+      try { form = makeRobokassaPost({ merchantLogin: s.merchantLogin, password1: s.password1, algorithm: s.algorithm, isTest: s.integration.environment === 'TEST', amount: request.amount, invoiceId: request.invoiceId!, localPaymentId: request.localPaymentId, description: `Заказ ${request.orderNumber}`, email: fiscal.receipt.email, receipt: courseReceiptForRobokassa(fiscal.receipt) }); }
+      catch { throw new BadRequestException('Не удалось сформировать фискальный платёж Робокассы.'); }
+      return { id: String(request.invoiceId), status: 'pending', paid: false, test: s.integration.environment === 'TEST', amount: { value: request.amount, currency: 'RUB' }, metadata: { order_id: request.orderId, order_number: request.orderNumber, payment_id: request.localPaymentId }, confirmation: { type: 'form', form } };
+    }
     let confirmationUrl: string;
     try { confirmationUrl = makeRobokassaUrl({ merchantLogin: s.merchantLogin, password1: s.password1, algorithm: s.algorithm, isTest: s.integration?.environment === 'TEST', amount: request.amount, invoiceId: request.invoiceId, localPaymentId: request.localPaymentId, description: `Заказ ${request.orderNumber}` }); }
     catch { throw new BadRequestException('Не удалось сформировать платёж Робокассы. Проверьте настройки.'); }
@@ -49,7 +63,7 @@ export class RobokassaGateway extends PaymentGateway {
   async verifyNotification(payload: Record<string, unknown>) {
     await this.assertAvailable();
     const s = await this.settings();
-    if (!this.callsEnabled() || !s.integration?.isEnabled || !s.configured || s.fiscalMode !== 'EXTERNAL') throw new ServiceUnavailableException('Робокасса отключена или настройки изменились.');
+    if (!this.callsEnabled() || !s.integration?.isEnabled || !s.configured) throw new ServiceUnavailableException('Робокасса отключена или настройки изменились.');
     try { return verifyRobokassaResult({ outSum: payload.OutSum, invId: payload.InvId, signatureValue: payload.SignatureValue, extra: payload }, s.password2, s.algorithm); }
     catch { throw new BadRequestException('Некорректная подпись или параметры Робокассы.'); }
   }

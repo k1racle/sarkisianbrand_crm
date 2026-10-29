@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
+import * as refunds from './refund-reconciliation';
 
 // Isolate the parent module entirely: unit tests exercise only payment-owned code.
 // OrdersService's own financial atomicity and compilation belong to its tests/build.
@@ -72,6 +73,31 @@ describe('Платежи: безопасность и идемпотентнос
   it('не применяет уже начатую тестовую оплату после отключения флага', async () => {
     verified.test = true;
     await expect(service.webhook(webhook())).rejects.toThrow(/Тестовые платежи/);
+    expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
+  });
+
+  it('проверяет у ЮKassa фактический возврат, игнорируя сумму из уведомления', async () => {
+    const record = jest.spyOn(refunds, 'recordVerifiedRefund').mockResolvedValue({ duplicate: false, state: 'FULL' } as any);
+    try {
+      verified.refunded_amount = { value: '1250.00', currency: 'RUB' };
+      await service.webhook({ type: 'notification', event: 'refund.succeeded', object: { id: 'refund-1', payment_id: 'provider-1', amount: { value: '0.01', currency: 'USD' } } });
+      expect(gateway.getPayment).toHaveBeenCalledWith('provider-1');
+      expect(record).toHaveBeenCalledWith(prisma, { paymentId: 'local-1', provider: 'YOOKASSA', externalId: 'provider-1', state: 'FULL', refundedAmount: '1250.00' });
+      verified.refunded_amount = { value: '50.00', currency: 'RUB' };
+      await service.webhook({ type: 'notification', event: 'refund.succeeded', object: { payment_id: 'provider-1' } });
+      expect(record).toHaveBeenLastCalledWith(prisma, expect.objectContaining({ state: 'PARTIAL', refundedAmount: '50.00' }));
+      for (const refund of [undefined, { value: '0.00', currency: 'RUB' }, { value: '1200.00', currency: 'USD' }, { value: '1250.01', currency: 'RUB' }]) {
+        verified.refunded_amount = refund; await expect(service.webhook({ type: 'notification', event: 'refund.succeeded', object: { payment_id: 'provider-1' } })).rejects.toThrow();
+      }
+      expect(record).toHaveBeenCalledTimes(2); expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
+    } finally { record.mockRestore(); }
+  });
+
+  it('не выдаёт курс или заказ по опоздавшему payment.succeeded после возврата', async () => {
+    verified.refunded_amount = { value: '1.00', currency: 'RUB' };
+    await expect(service.webhook(webhook())).rejects.toThrow(/возврат/);
+    expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
+    await expect(service.create('SB-TEST', {})).rejects.toThrow(/возврат/);
     expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
   });
 

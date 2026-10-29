@@ -51,6 +51,8 @@ services:
       LOYALTY_MAINTENANCE_ENABLED: "false"
       CRM_MEDIA_ENABLED: "false"
       CRM_MEDIA_GATEWAY_ENFORCED: "false"
+      # Scoped lesson-media cookies may use HTTP only for a loopback SITE_URL.
+      LMS_ALLOW_INSECURE_LOCAL_MEDIA: ${LMS_ALLOW_INSECURE_LOCAL_MEDIA:-false}
     ports:
       - "${LOCAL_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     volumes:

@@ -15,8 +15,8 @@ export class StorefrontService {
       this.prisma.order.findMany({
         where: { userId },
         select: {
-          id: true, orderNumber: true, status: true, createdAt: true, finalAmount: true,
-          source: true, sourceChannel: true, totalAmount: true, discountAmount: true, currency: true, shippingAddress: true, shippingCost: true, shippingProvider: true, paymentMethod: true,
+          id: true, orderNumber: true, status: true, paymentStatus: true, createdAt: true, finalAmount: true,
+          source: true, sourceChannel: true, priceSnapshot: true, totalAmount: true, discountAmount: true, currency: true, shippingAddress: true, shippingCost: true, shippingProvider: true, paymentMethod: true,
           execution: { select: { version: true } },
           warehouseExecution: { select: { status: true, executionVersion: true, basisHash: true, asOf: true, validUntil: true } },
           items: { select: { id: true, variantId: true, productName: true, variantName: true, quantity: true, price: true, total: true, productType: true } },
@@ -50,8 +50,9 @@ export class StorefrontService {
     return {
       summary: { orders: orderCount, spent: Number(paid._sum.finalAmount || 0), favoriteCount },
       orders: orders.map(order => {
-        const { source, totalAmount, discountAmount, currency, shippingAddress, shippingCost, shippingProvider, paymentMethod, execution, warehouseExecution, items, ...safe } = order;
-        return { ...safe, items, requiresWarehouse: items.some(item => item.productType === 'PHYSICAL'), warehouseStatus: customerWarehouseView(warehouseExecution, order) };
+        const { source, priceSnapshot, totalAmount, discountAmount, currency, shippingAddress, shippingCost, shippingProvider, paymentMethod, execution, warehouseExecution, items, ...safe } = order;
+        const snapshot = priceSnapshot && typeof priceSnapshot === 'object' && !Array.isArray(priceSnapshot) ? priceSnapshot as Record<string, unknown> : {};
+        return { ...safe, coursePaymentReview: order.sourceChannel === 'COURSE' && snapshot.coursePaymentReview === true, items, requiresWarehouse: items.some(item => item.productType === 'PHYSICAL'), warehouseStatus: customerWarehouseView(warehouseExecution, order) };
       }),
       addresses,
       giftCards: giftCards.flatMap(card => {

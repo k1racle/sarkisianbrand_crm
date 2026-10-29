@@ -7,6 +7,7 @@ import { OrdersService } from '../orders/orders.service';
 import { PaymentGateway, PaymentSession, VerifiedPayment } from './payment-gateway';
 import { CreatePaymentDto, PaymentWebhookDto } from './dto/payment.dto';
 import { assertCoursePurchasable, courseSalesEnabled } from '../lms/lms-purchase.service';
+import { recordVerifiedRefund } from './refund-reconciliation';
 
 const PAYABLE = [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_WAITING];
 const ACTIVE = ['PENDING', 'CREATING', 'SUCCEEDED'];
@@ -55,8 +56,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
   async capabilities() {
     const capability = await this.gateway.capabilities();
+    const courseUnavailable = { courseAvailable: false, courseReason: 'Фискализация курсов через ЮKassa пока не подключена.' };
     return capability.environment === 'TEST' && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true'
-      ? { ...capability, available: false, reason: 'Тестовые платежи отключены в этом окружении.' } : capability;
+      ? { ...capability, ...courseUnavailable, available: false, reason: 'Тестовые платежи отключены в этом окружении.' } : { ...capability, ...courseUnavailable };
   }
   private assertTestAllowed(isTest: boolean) {
     if (isTest && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true') throw new ServiceUnavailableException('Тестовые платежи отключены в этом окружении.');
@@ -64,6 +66,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
   async create(orderNumber: string, dto: CreatePaymentDto, actor?: { sub: string; role?: string }, accessToken?: string): Promise<PaymentSession> {
     const authorized = await this.orders.getAccessible(orderNumber, actor, accessToken);
+    if (authorized.sourceChannel === 'COURSE') throw new ServiceUnavailableException('Фискализация курсов через ЮKassa пока не подключена.');
     if (new Prisma.Decimal(authorized.finalAmount).equals(0)) throw new BadRequestException('Этот заказ не требует онлайн-оплаты. Обновите страницу заказа.');
     await this.gateway.assertAvailable();
     const capability = await this.capabilities();
@@ -126,6 +129,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async persistAndSettle(payment: { id: string; orderId: string }, orderNumber: string, verified: VerifiedPayment) {
+    this.assertNoRefundOnSettlement(verified);
     await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${payment.orderId} FOR UPDATE`;
       const latest = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
@@ -137,12 +141,20 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async webhook(dto: PaymentWebhookDto) {
-    const paymentId = dto.object?.id;
-    if (dto.type !== 'notification' || !['payment.succeeded', 'payment.canceled', 'payment.waiting_for_capture'].includes(dto.event) || typeof paymentId !== 'string' || !/^[a-zA-Z0-9-]{1,64}$/.test(paymentId)) throw new BadRequestException('Некорректное уведомление ЮKassa.');
+    const paymentId = dto.event === 'refund.succeeded' ? dto.object?.payment_id : dto.object?.id;
+    if (dto.type !== 'notification' || !['payment.succeeded', 'payment.canceled', 'payment.waiting_for_capture', 'refund.succeeded'].includes(dto.event) || typeof paymentId !== 'string' || !/^[a-zA-Z0-9-]{1,64}$/.test(paymentId)) throw new BadRequestException('Некорректное уведомление ЮKassa.');
     const payment = await this.prisma.payment.findUnique({ where: { transactionId: paymentId }, include: { order: true } });
     if (!payment || payment.provider !== 'YOOKASSA') throw new ServiceUnavailableException('Платёж пока не зарегистрирован. Повторите уведомление позже.');
     const verified = await this.fetchVerified(payment, payment.order.orderNumber);
     this.verifyMatches(payment, payment.order.orderNumber, verified);
+    if (dto.event === 'refund.succeeded') {
+      // The webhook body is untrusted. Re-fetch the payment and use only the
+      // provider's cumulative completed refund amount, not the posted amount.
+      const refunded = verified.refunded_amount;
+      if (verified.status !== 'succeeded' || !refunded || refunded.currency !== payment.currency || !/^\d{1,13}\.\d{2}$/.test(refunded.value || '') || new Prisma.Decimal(refunded.value).lte(0) || new Prisma.Decimal(refunded.value).gt(payment.amount)) throw new ConflictException('Возврат пока не подтверждён провайдером.');
+      return recordVerifiedRefund(this.prisma, { paymentId: payment.id, provider: 'YOOKASSA', externalId: paymentId, state: new Prisma.Decimal(refunded.value).equals(payment.amount) ? 'FULL' : 'PARTIAL', refundedAmount: refunded.value });
+    }
+    this.assertNoRefundOnSettlement(verified);
     const status = this.status(verified);
     return this.orders.settleVerifiedPayment(verified.id, status, this.settlementMetadata(payment, verified));
   }
@@ -154,6 +166,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       || !new Prisma.Decimal(payment.amount).equals(verified.amount.value) || payment.currency !== verified.amount.currency
       || verified.metadata?.order_id !== payment.orderId || verified.metadata?.order_number !== orderNumber || verified.metadata?.payment_id !== payment.id
       || (verified.status === 'succeeded' && verified.paid !== true)) throw new BadRequestException('Данные подтверждённого платежа не соответствуют заказу.');
+  }
+
+  private assertNoRefundOnSettlement(verified: VerifiedPayment) {
+    const refund = verified.refunded_amount;
+    if (!refund) return;
+    if (refund.currency !== verified.amount.currency || !/^\d{1,13}\.\d{2}$/.test(refund.value || '') || new Prisma.Decimal(refund.value).gt(verified.amount.value) || new Prisma.Decimal(refund.value).gt(0)) throw new ConflictException('По платежу обнаружен возврат; требуется сверка до выдачи заказа.');
   }
 
   private status(payment: VerifiedPayment): 'SUCCEEDED' | 'CANCELED' | 'PENDING' {

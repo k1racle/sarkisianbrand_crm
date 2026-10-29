@@ -25,7 +25,7 @@ export class LmsLiveService {
   }
   private async student(userId: string, courseId: string, lessonId: string) {
     const access = { userId, accessStatus: 'ACTIVE', OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: new Date() } }] };
-    const lesson = await this.db.lesson.findFirst({ where: { id: lessonId, courseId, kind: 'LIVE', moduleId: { not: null }, course: { enrollments: { some: access } } }, select: { course: { select: { enrollments: { where: access, select: { accessExpiresAt: true }, take: 1 } } } } });
+    const lesson = await this.db.lesson.findFirst({ where: { id: lessonId, courseId, kind: 'LIVE', isPublished: true, moduleId: { not: null }, course: { enrollments: { some: access } } }, select: { course: { select: { enrollments: { where: access, select: { accessExpiresAt: true }, take: 1 } } } } });
     const enrollment = lesson?.course.enrollments[0];
     if (!enrollment) throw new NotFoundException('Курс или эфир недоступен.');
     return enrollment;

@@ -56,6 +56,15 @@ export function makeRobokassaUrl(input: PaymentForm): string {
   return url.toString();
 }
 
+/** Receipt is signed URL-encoded, then a browser POST form encodes it again. */
+export function makeRobokassaPost(input: PaymentForm & { email: string }): { action: string; method: 'POST'; fields: Record<string, string> } {
+  if (!input.receipt || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email) || input.email.length > 64) throw new Error('Receipt and customer email are required');
+  const url = new URL(makeRobokassaUrl(input));
+  const fields = Object.fromEntries(url.searchParams.entries());
+  fields.Email = input.email;
+  return { action: 'https://auth.robokassa.ru/Merchant/Index.aspx', method: 'POST', fields };
+}
+
 export function verifyRobokassaResult(fields: ResultFields, password2: string, algorithm: RobokassaHash): { invoiceId: number; amount: string; localPaymentId: string } {
   if (!password2 || typeof fields.outSum !== 'string' || typeof fields.invId !== 'string' || typeof fields.signatureValue !== 'string') throw new Error('Invalid Robokassa notification');
   // Bind the signed callback to this exact local payment as invoice numbers may
