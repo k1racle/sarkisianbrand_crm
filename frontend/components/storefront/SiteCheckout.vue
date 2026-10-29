@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, CreditCard, Mail, MapPin, Package, ShoppingBag, Trash2, Truck, UserRound, X } from '@lucide/vue';
+import { officialPaymentUrl, PAYMENT_PROVIDER_NAMES } from '~/shared/payment-providers';
 
 type DeliveryMethod = 'COURIER' | 'PICKUP_POINT';
 type ShippingProvider = 'CDEK' | 'OZON_DELIVERY' | 'YANDEX_DELIVERY';
@@ -22,7 +23,8 @@ const deliveryMethod = ref<DeliveryMethod>('COURIER'), shippingProvider = ref<Sh
 const promoInput = ref(''), promoCode = ref(''), useBonuses = ref(false);
 const giftInput = ref(''), giftCardCode = ref(''), giftCodeHash = ref(''), giftRecoveryInput = ref(''), giftError = ref('');
 const quote = ref<PublicQuote | null>(null), quotePending = ref(false), shippingPending = ref(false);
-const shippingCapabilities = ref<any[]>([]), paymentCapability = ref<any>(null), capabilitiesPending = ref(true);
+const shippingCapabilities = ref<any[]>([]), capabilitiesPending = ref(true);
+const { available: paymentProviders, selected: selectedPaymentProvider, choice: paymentCapability, error: paymentAvailabilityError, load: loadPaymentProviders } = usePaymentProviders();
 const providerName = (provider: string) => provider === 'CDEK' ? 'СДЭК' : provider === 'YANDEX_DELIVERY' ? 'Яндекс Доставка' : 'Ozon Доставка';
 const shippingResult = ref<any>(null), pickupPoints = ref<PickupPoint[]>([]), pickupCode = ref(''), pickupPending = ref(false), pickupMessage = ref('');
 const savedAddresses = ref<any[]>([]), savedAddressId = ref(''), addressesError = ref('');
@@ -284,12 +286,11 @@ function cityKeydown(event: KeyboardEvent) {
 }
 async function loadCapabilities() {
   capabilitiesPending.value = true;
-  const [shipping, payments] = await Promise.allSettled([
+  const [shipping] = await Promise.allSettled([
     isGiftOrder.value ? Promise.resolve({ providers: [] }) : $fetch<any>('/shipping/capabilities', { baseURL: config.public.apiBase, timeout: 10000, retry: 0 }),
-    $fetch<any>('/payments/capabilities', { baseURL: config.public.apiBase, timeout: 10000, retry: 0 }),
+    loadPaymentProviders(),
   ]);
   shippingCapabilities.value = shipping.status === 'fulfilled' && Array.isArray(shipping.value?.providers) ? shipping.value.providers : [];
-  paymentCapability.value = payments.status === 'fulfilled' ? payments.value : { available: false, reason: 'Не удалось проверить доступность онлайн-оплаты. Заказ можно отправить на подтверждение.' };
   capabilitiesPending.value = false;
   invalidateShipping(); await loadPickupPoints();
 }
@@ -311,12 +312,6 @@ async function retryCart() {
   loading.value = true; error.value = ''; cart.value = null;
   try { await loadCart(); } catch (e: any) { error.value = friendlyError(e); }
   finally { loading.value = false; }
-}
-function officialPaymentUrl(value: unknown, provider: unknown) {
-  if (typeof value !== 'string' || provider !== 'YOOKASSA') throw new Error('Не удалось получить безопасную ссылку оплаты.');
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || !['yoomoney.ru', 'yookassa.ru'].some(host => url.hostname === host || url.hostname.endsWith('.' + host))) throw new Error('Получена некорректная ссылка оплаты. Заказ сохранён, обратитесь в поддержку.');
-  return url.href;
 }
 async function checkout() {
   if (!canSubmit.value || success.value) return;
@@ -363,14 +358,15 @@ async function checkout() {
     if (order.canPay === true && !amountUnchanged) {
       try { sessionStorage.setItem('sb-order-notice:' + order.orderNumber, 'Проверьте актуальную итоговую сумму заказа перед оплатой: автоматический переход не выполнялся.'); } catch { /* Optional notice. */ }
     }
-    if (order.canPay === true && amountUnchanged && order.requiresDeliveryConfirmation !== true && activeReservation && unpaid && Number(order.finalAmount) > 0 && paymentCapability.value?.available === true) {
+    if (order.canPay === true && amountUnchanged && order.requiresDeliveryConfirmation !== true && activeReservation && unpaid && Number(order.finalAmount) > 0 && paymentCapability.value?.available === true && selectedPaymentProvider.value) {
       try {
         const guest = sessionStorage.getItem('sb-order-access:' + order.orderNumber);
+        const provider = selectedPaymentProvider.value;
         const payment: any = await $fetch('/payments/orders/' + encodeURIComponent(order.orderNumber), {
           baseURL: config.public.apiBase, method: 'POST', headers: { ...authHeaders.value, ...(guest ? { 'x-order-access': guest } : {}) },
-          body: { returnUrl: window.location.origin + '/orders/' + encodeURIComponent(order.orderNumber) }, timeout: 20000, retry: 0,
+          body: { returnUrl: window.location.origin + '/orders/' + encodeURIComponent(order.orderNumber), provider }, timeout: 20000, retry: 0,
         });
-        if (payment.confirmationUrl) { window.location.assign(officialPaymentUrl(payment.confirmationUrl, payment.provider)); return; }
+        if (payment.confirmationUrl) { window.location.assign(officialPaymentUrl(payment.confirmationUrl, payment.provider, provider)); return; }
       } catch (e: any) {
         try { sessionStorage.setItem('sb-order-notice:' + order.orderNumber, e?.message?.startsWith('Получена') ? e.message : 'Заказ сохранён. Оплату не удалось открыть; проверьте статус и повторите на странице заказа.'); } catch { /* Optional notice. */ }
       }
@@ -554,7 +550,8 @@ onBeforeUnmount(() => {
             </section>
             </div>
             <h2><CreditCard :size="20" /> Оплата</h2>
-            <p class="sb-checkout-note">{{ coveredByGift ? 'Сумма заказа полностью покрывается подарочной картой. Подтвердите оформление — отдельный платёж не потребуется.' : onlinePayment ? 'Итоговая сумма рассчитана. После оформления откроется защищённая страница ЮKassa. Статус оплаты подтвердит сервер.' : quote?.deliveryConfirmed ? (paymentCapability?.reason || 'Онлайн-оплата пока недоступна. Заказ будет сохранён без списания денег.') : 'Стоимость и способ доставки ещё требуют подтверждения. Отправьте заказ: мы согласуем условия до оплаты. Сейчас деньги не списываются.' }}</p>
+            <PaymentProviderSelect v-if="onlinePayment" v-model="selectedPaymentProvider" :providers="paymentProviders" :disabled="locked" name="checkout-payment-provider"/>
+            <p class="sb-checkout-note">{{ coveredByGift ? 'Сумма заказа полностью покрывается подарочной картой. Подтвердите оформление — отдельный платёж не потребуется.' : onlinePayment && selectedPaymentProvider ? `После оформления откроется защищённая страница ${PAYMENT_PROVIDER_NAMES[selectedPaymentProvider]}. Статус оплаты подтвердит сервер.` : quote?.deliveryConfirmed ? (paymentAvailabilityError || 'Онлайн-оплата пока недоступна. Заказ будет сохранён без списания денег.') : 'Стоимость и способ доставки ещё требуют подтверждения. Отправьте заказ: мы согласуем условия до оплаты. Сейчас деньги не списываются.' }}</p>
             <label class="sb-checkout-check"><input v-model="accepted" type="checkbox" :disabled="busy" /><span>Принимаю <NuxtLink to="/oferta" target="_blank">условия оферты</NuxtLink> и ознакомлен с <NuxtLink to="/privacy" target="_blank">политикой конфиденциальности</NuxtLink>.</span></label>
             <div class="sb-checkout-actions"><button type="button" class="sb-checkout-text" :disabled="locked" @click="go(3)"><ArrowLeft :size="18" /> Назад</button></div>
           </section>

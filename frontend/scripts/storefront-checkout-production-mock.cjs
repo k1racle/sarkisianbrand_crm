@@ -79,7 +79,7 @@ async function setup(browser, options = {}) {
     const request = route.request(); const url = new URL(request.url());
     if (!url.pathname.startsWith('/api/v1/')) {
       if (url.origin === origin) return route.continue();
-      if (['yoomoney.ru', 'yookassa.ru'].includes(url.hostname)) { state.external++; return route.fulfill({ contentType: 'text/html', body: '<p>Mock official payment page, no external requests</p>' }); }
+      if (['yoomoney.ru', 'yookassa.ru', 'securepayments.tbank.ru', 'auth.robokassa.ru'].includes(url.hostname)) { state.external++; return route.fulfill({ contentType: 'text/html', body: '<p>Mock official payment page, no external requests</p>' }); }
       state.unknown.push(url.origin + url.pathname); return route.abort();
     }
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
@@ -95,7 +95,7 @@ async function setup(browser, options = {}) {
     if (endpoint === '/products/recommendations/cart') return reply({ items: Array.from({ length: 8 }, (_, i) => ({ ...product, id: 'rec-' + i, slug: 'rec-' + i, nameRu: 'Рекомендация ' + (i + 1), variants: [{ ...product.variants[0], id: 'rec-variant-' + i }] })) });
     if (endpoint === '/storefront/addresses') return reply([{ id: 'saved-1', label: 'Салон', recipientName: 'Анна Петрова', phone: '+79991234567', city: 'Москва', street: 'Центральная', house: '1', apartment: '15', cityCode: 44 }]);
     if (endpoint === '/shipping/capabilities') return reply({ providers: [{ provider: 'CDEK', available: Boolean(options.shippingEnabled), canEstimate: Boolean(options.shippingEnabled), canListPickupPoints: Boolean(options.shippingEnabled), message: 'Доставка подтверждается до оплаты' }, { provider: 'OZON_DELIVERY', available: false, canEstimate: false, canListPickupPoints: false, message: 'Доставка Ozon подтверждается до оплаты' }] });
-    if (endpoint === '/payments/capabilities') return reply({ provider: 'YOOKASSA', available: state.paymentEnabled, reason: state.paymentEnabled ? null : 'Онлайн-оплата отключена до проверки на VPS' });
+    if (endpoint === '/payments/providers') return reply({ providers: options.providers || [{ provider: 'YOOKASSA', available: state.paymentEnabled, reason: state.paymentEnabled ? null : 'Онлайн-оплата отключена до проверки на VPS' }] });
     if (endpoint === '/shipping/cities') { assert.ok(url.searchParams.get('search').trim().length >= 2); assert.equal(url.searchParams.get('provider'), 'CDEK'); return reply({ provider: 'CDEK', available: state.citiesAvailable, cities: state.citiesAvailable ? [{ code: 44, city: 'Москва', region: 'Москва', country: 'Россия', countryCode: 'RU' }] : [], message: 'Выберите город и регион' }); }
     if (endpoint === '/shipping/pickup-points') { state.points++; assert.equal(url.searchParams.get('cityCode'), '44'); return reply({ available: true, points: [{ code: 'PVZ-44', name: 'СДЭК Центральная', address: 'Центральная, 1', cityCode: 44 }] }); }
     if (endpoint === '/shipping/estimate') { state.shipping++; assert.equal(body.cityCode, 44); return reply({ provider: 'CDEK', available: true, amount: 300, currency: 'RUB', requiresConfirmation: false, quoteId: 'mock-shipping-quote', expiresAt: new Date(Date.now() + 900000).toISOString(), message: 'Стоимость рассчитана' }); }
@@ -141,7 +141,8 @@ async function setup(browser, options = {}) {
     if (endpoint === '/payments/orders/SB-MOCK-001') {
       state.payments++; assert.equal(body.returnUrl, origin + '/orders/SB-MOCK-001');
       assert.ok(options.auth ? request.headers().authorization === 'Bearer mock-bearer' : request.headers()['x-order-access'] === 'mock-guest-secret');
-      return reply({ provider: 'YOOKASSA', confirmationUrl: state.paymentUrl, paymentId: 'mock-payment', status: 'PENDING' });
+      assert.ok(['YOOKASSA','TBANK','ROBOKASSA'].includes(body.provider));
+      return reply({ provider: body.provider, confirmationUrl: state.paymentUrl, paymentId: 'mock-payment', status: 'PENDING' });
     }
     state.unknown.push(endpoint); return reply({ message: 'Unexpected mock endpoint' }, 404);
   });
@@ -412,6 +413,37 @@ async function main() {
       state.paymentUrl = 'https://yookassa.ru.evil.example/steal'; await page.getByRole('button', { name: 'Оплатить заказ', exact: true }).click(); await page.getByRole('alert').filter({ hasText: 'некорректная ссылка' }).waitFor(); assert.equal(state.external, 0);
       state.paymentUrl = 'https://yoomoney.ru/checkout/mock'; await page.getByRole('button', { name: 'Оплатить заказ', exact: true }).click(); await page.waitForURL('https://yoomoney.ru/checkout/mock'); assert.equal(state.external, 1);
       results.push('Protected GET: URL token/paid ignored, official HTTPS allowlist, safe payment retry (all mock)'); await context.close();
+    }
+    {
+      console.log('Mock: protected course order / access after confirmed payment');
+      const courseOrder = makeOrder(true, 4500);
+      courseOrder.sourceChannel = 'COURSE'; courseOrder.priceSnapshot = { kind:'COURSE', digitalDelivery:true, deliveryConfirmed:true, subtotal:4500, shippingAmount:0 };
+      courseOrder.items = [{ id:'course-item', productName:'Работа с гелем', productType:'COURSE', quantity:1, price:4500, total:4500 }];
+      const { context, page, state, pageErrors } = await setup(browser, { auth:true, order:courseOrder, paymentEnabled:true });
+      await page.goto(base + '/orders/SB-MOCK-001?paid=true', { waitUntil:'domcontentloaded' }); await page.locator('.sb-order-summary').waitFor();
+      await page.getByText('На оплату осталось', { exact:false }).waitFor();
+      assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),1);
+      assert.equal(await page.getByRole('link',{name:'Мои курсы'}).count(),0);
+      assert.equal(await page.getByText('Получение карты').count(),0); assert.equal(await page.getByText('Подарочные карты',{exact:true}).count(),0);
+      assert.equal(await page.getByText('Обработка на складе').count(),0); assert.equal(await page.getByText('Доставка',{exact:true}).count(),0);
+      state.order.reservationExpiresAt=new Date(Date.now()-60000).toISOString(); state.order.canPay=false;
+      await page.getByRole('button',{name:'Обновить статус'}).click(); await page.getByText('Срок оплаты заказа истёк.',{exact:false}).waitFor();
+      assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0);
+      state.order.status='DELIVERED'; state.order.paymentStatus='SUCCEEDED'; state.order.reservationState='CONSUMED';
+      await page.getByRole('button',{name:'Обновить статус'}).click(); await page.getByText('Оплата подтверждена. Проверьте доступ',{exact:false}).waitFor();
+      assert.equal(await page.getByRole('link',{name:'Мои курсы'}).getAttribute('href'),'/courses/my');
+      assert.equal(await page.getByRole('button',{name:'Оплатить заказ'}).count(),0); assert.equal(state.payments,0);
+      assert.deepEqual(state.unknown,[]); assert.deepEqual(pageErrors,[]); results.push('Course: payment deadline, no physical delivery or gift card, access link only after protected paid status'); await context.close();
+    }
+    for (const [provider, label, paymentUrl] of [['TBANK','Т-Банк','https://securepayments.tbank.ru/mock'], ['ROBOKASSA','Робокасса','https://auth.robokassa.ru/mock']]) {
+      const { context, page, state, pageErrors } = await setup(browser, { order: makeOrder(true, 2100), paymentEnabled: true, paymentUrl, providers: [{ provider:'YOOKASSA', available:true },{ provider, available:true }] });
+      await page.goto(base + '/orders/SB-MOCK-001', { waitUntil: 'domcontentloaded' }); await page.locator('.sb-order-access').waitFor();
+      await page.evaluate(() => sessionStorage.setItem('sb-order-access:SB-MOCK-001', 'mock-guest-secret')); await page.getByRole('button', { name: 'Повторить', exact: false }).click(); await page.locator('.sb-order-summary').waitFor();
+      await page.getByLabel(label, { exact:true }).check();
+      await page.getByRole('button', { name: 'Оплатить заказ', exact:true }).click(); await page.waitForURL(paymentUrl);
+      assert.equal(state.requests.filter(request => request.endpoint === '/payments/orders/SB-MOCK-001').at(-1).body.provider, provider);
+      assert.equal(state.payments,1); assert.equal(state.external,1); assert.deepEqual(state.unknown,[]); assert.deepEqual(pageErrors,[]);
+      results.push(`${provider}: choice and official mock payment destination`); await context.close();
     }
     for (const [name, paid, expired] of [['paid', true, false], ['expired', false, true]]) {
       const { context, page, state } = await setup(browser, { auth: true, order: makeOrder(true, 2100, paid, expired), paymentEnabled: true });

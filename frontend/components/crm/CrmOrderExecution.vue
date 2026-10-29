@@ -9,7 +9,7 @@ const config = useRuntimeConfig(), session = useWorkspaceSession();
 const compositionChecked = ref(false), pricesChecked = ref(false), localWarehouseConfirmed = ref(false), paymentTerms = ref(''), deliveryTerms = ref('');
 const pending = ref<{ signature: string; key: string } | null>(null);
 const marketplace = computed(() => ['OZON', 'WILDBERRIES', 'YANDEX_MARKET', 'MEGAMARKET'].includes(props.order.source));
-const physicalOrder = computed(() => props.order.items?.some((item: any) => item.productType !== 'GIFT_CARD'));
+const physicalOrder = computed(() => props.order.sourceChannel !== 'COURSE' && props.order.items?.some((item: any) => !['GIFT_CARD', 'COURSE'].includes(item.productType)));
 const confirmable = computed(() => physicalOrder.value && !props.order.execution && !['CANCELLED', 'REFUNDED', 'SHIPPED', 'DELIVERED'].includes(props.order.status) && (['WEB', 'B2B'].includes(props.order.source) || marketplace.value));
 const snapshot = computed(() => warehouseExecution(props.order));
 const transfer = computed(() => orderTransfer(props.order));

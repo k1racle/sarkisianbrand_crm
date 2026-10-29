@@ -127,7 +127,7 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
     function payment(status = 'PENDING') {
       const p = { id: 'mock-payment', transactionId: 'mock-provider-payment', orderId: state.order.id, provider: 'YOOKASSA', status, amount: state.order.finalAmount, metadata: { private: 'mock-secret' } };
       state.payments.push(p);
-      return { provider: 'YOOKASSA', localPaymentId: p.id, orderId: p.orderId, amount: p.amount, currency: 'RUB', paid: true };
+      return { provider: 'YOOKASSA', localPaymentId: p.id, orderId: p.orderId, amount: p.amount, currency: 'RUB', paid: true, test: false };
     }
     return { service, prisma, tx, pricing, oneC, notifications, mailSecrets, config, cart, giftCards, payment, shippingQuoteFixture, get state() { return state; } };
   }
@@ -338,6 +338,12 @@ describe('OrdersService atomic storefront contract (mock only)', () => {
     expect(ctx.state.entries.filter((e: any) => e.type === 'ACCRUAL')).toHaveLength(1); expect(ctx.state.entries.find((e: any) => e.type === 'ACCRUAL').amount).toBe(75);
     expect(ctx.state.account.balance).toBe(1025); expect(ctx.state.redemptions[0].status).toBe('APPLIED'); expect(ctx.state.reserved).toBe(4); expect(ctx.state.stock).toBe(10);
     expect(ctx.state.mails.filter((m: any) => m.kind === 'ORDER_PAID')).toHaveLength(1);
+  });
+  it.each(['YOOKASSA', 'TBANK', 'ROBOKASSA'])('blocks %s test settlement without explicit flag', async provider => {
+    const ctx = setup(true); await ctx.service.checkout(session, dto(), actor, key); const metadata = ctx.payment();
+    ctx.state.payments[0].provider = provider; metadata.provider = provider; metadata.test = true;
+    await expect(ctx.service.settleVerifiedPayment('mock-provider-payment', 'SUCCEEDED', metadata)).rejects.toThrow(/Тестовый платёж/);
+    expect(ctx.state.payments[0].status).toBe('PENDING'); expect(ctx.state.order.status).toBe('NEW');
   });
   it.each(['provider', 'localPaymentId', 'orderId', 'currency', 'amount', 'paid'])('atomically rejects invalid verified evidence %s', async (field) => {
     const ctx = setup(true); await ctx.service.checkout(session, dto(), actor, key); const metadata: any = ctx.payment(); metadata[field] = field === 'paid' ? false : field === 'amount' ? 1 : 'wrong';

@@ -93,6 +93,7 @@ const shipping = computed(() => { const value = warehouseTotal(selected.value, '
 const nextAction = computed(() => {
   const order = selected.value;
   if (!detailLoaded.value) return { title: 'Загружаем данные заказа', text: 'Действия станут доступны после загрузки карточки.', label: '', tab: 'general' };
+  if (order.sourceChannel === 'COURSE' || (order.items?.length && order.items.every((item: any) => item.productType === 'COURSE'))) return { title: 'Заказ курса', text: 'Обучение не требует отбора и отгрузки на складе.', label: '', tab: 'general' };
   if (order.items?.length && order.items.every((item: any) => item.productType === 'GIFT_CARD')) return { title: 'Электронный заказ', text: 'Подарочные карты не требуют отбора и отгрузки на складе.', label: '', tab: 'general' };
   if (order.marketplaceImportIssue) return { title: 'Проверьте расхождение с площадкой', text: 'Перед исполнением нужно проверить входящий состав и сопоставление товаров.', label: 'Проверить состав', tab: 'execution' };
   if (!order.managerId && canWrite.value) return { title: 'Назначьте ответственного менеджера', text: 'Он проверит состав и условия заказа перед передачей в 1С.', label: 'Назначить менеджера', tab: 'manager' };

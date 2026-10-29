@@ -39,7 +39,7 @@ async function main() {
           if (endpoint === '/products/recommendations/cart') return reply({ items: recommendations });
           if (endpoint === '/products/storefront-content') return reply({ settings: {}, categories: [], banners: [], socialLinks: [], menuItems: [] });
           if (endpoint === '/shipping/capabilities') return reply({ providers: [] });
-          if (endpoint === '/payments/capabilities') return reply({ available: false });
+          if (endpoint === '/payments/providers') return reply({ providers: [] });
           return reply({});
         }
         if (url.origin !== origin) { blocked.push(`${request.method()} ${url.origin}${url.pathname}`); return route.abort(); }

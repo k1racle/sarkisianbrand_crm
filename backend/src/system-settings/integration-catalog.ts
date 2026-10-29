@@ -171,6 +171,30 @@ export const integrationDefinitions: IntegrationDefinition[] = [
     ],
   },
   {
+    key: 'ROBOKASSA', provider: 'ROBOKASSA', name: 'Робокасса', category: IntegrationCategory.PAYMENT,
+    description: 'Платёжная форма и серверные уведомления. До включения согласуйте с бухгалтерией выдачу чеков.',
+    documentationUrl: 'https://docs.robokassa.ru/ru/quick-start',
+    fields: [
+      { key: 'merchantLogin', label: 'Идентификатор магазина', type: 'text', required: true },
+      { key: 'password1', label: 'Рабочий пароль № 1', type: 'secret', required: true },
+      { key: 'password2', label: 'Рабочий пароль № 2', type: 'secret', required: true },
+      { key: 'testPassword1', label: 'Тестовый пароль № 1', type: 'secret', required: true, hint: 'Тестовый пароль из технических настроек того же магазина. Он должен отличаться от рабочего пароля № 1.' },
+      { key: 'testPassword2', label: 'Тестовый пароль № 2', type: 'secret', required: true, hint: 'Тестовый пароль из технических настроек того же магазина. Он должен отличаться от рабочего пароля № 2.' },
+      { key: 'signatureAlgorithm', label: 'Алгоритм подписи (SHA256, SHA512 или MD5)', type: 'text', required: true },
+      { key: 'fiscalMode', label: 'Фискализация', type: 'text', required: true, hint: 'Укажите EXTERNAL только после настройки чеков вне платёжной формы.' },
+    ],
+  },
+  {
+    key: 'TBANK', provider: 'TBANK', name: 'Т-Банк', category: IntegrationCategory.PAYMENT,
+    description: 'Интернет-эквайринг Т-Банка. До включения согласуйте с бухгалтерией выдачу чеков.',
+    documentationUrl: 'https://developer.tbank.ru/eacq/api/init',
+    fields: [
+      { key: 'terminalKey', label: 'TerminalKey', type: 'text', required: true },
+      { key: 'password', label: 'Пароль терминала', type: 'secret', required: true },
+      { key: 'fiscalMode', label: 'Фискализация', type: 'text', required: true, hint: 'Укажите EXTERNAL только после настройки чеков вне платёжной формы.' },
+    ],
+  },
+  {
     key: 'CLOUDKASSIR', provider: 'CLOUDKASSIR', name: 'CloudKassir', category: IntegrationCategory.FISCAL,
     description: 'Фискализация платежей и возвратов, чеки и статусы онлайн-кассы.',
     documentationUrl: 'https://developers.cloudkassir.ru/',

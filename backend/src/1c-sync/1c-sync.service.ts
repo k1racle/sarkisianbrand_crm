@@ -92,7 +92,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
       if (!status.enabled || !status.configured) return;
       const cursor = this.recoveryCursor;
       const pending = await this.prisma.order.findMany({
-        where: { isSynced1C: false, AND: [
+        where: { isSynced1C: false, sourceChannel: { not: 'COURSE' }, AND: [
           { OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] },
           mappedMarketplaceOrder,
           ...(cursor ? [{ OR: [{ createdAt: { gt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { gt: cursor.id } }] }] : []),
@@ -235,7 +235,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     }
     await progress(67);
 
-    const orders = await this.prisma.order.findMany({ where: { isSynced1C: false, AND: [
+    const orders = await this.prisma.order.findMany({ where: { isSynced1C: false, sourceChannel: { not: 'COURSE' }, AND: [
       { OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] }, mappedMarketplaceOrder,
     ] }, include: this.orderInclude(), orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 250 });
     const unmappedOrders = await this.prisma.order.count({ where: { isSynced1C: false, ...unmappedMarketplaceOrder } });
@@ -271,6 +271,7 @@ export class OneCSyncService implements OnModuleInit, OnApplicationBootstrap, On
     const order = await this.prisma.order.findFirst({ where: { id: orderId, OR: [{ source: { not: OrderSource.ONE_C } }, { oneCRequests: { some: { status: { in: ['PENDING', 'RECEIVED'] } } } }] }, include: this.orderInclude() });
     if (!order) throw new BadGatewayException('Заказ для выгрузки в 1С не найден');
     try {
+      if (order.sourceChannel === 'COURSE') throw new ConflictException('Услугу обучения необходимо учесть в 1С по согласованной схеме');
       if (needsMarketplaceMapping(order)) throw new ConflictException(missingMarketplaceMapping);
       const config = await this.client.configuration();
       const response = await this.client.post('ordersPath', '/hs/sarkisian/v1/orders', { orders: [this.orderPayload(order, config)] });

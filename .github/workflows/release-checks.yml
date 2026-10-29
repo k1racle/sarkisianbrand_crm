@@ -46,6 +46,17 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U salon_fixture -d salon_fixture"
           --health-interval 5s --health-timeout 5s --health-retries 20
+      lms-fixture:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: lms_fixture
+          POSTGRES_PASSWORD: lms_fixture_only
+          POSTGRES_DB: lms_fixture
+        ports:
+          - 55435:5432
+        options: >-
+          --health-cmd "pg_isready -U lms_fixture -d lms_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,18 +72,20 @@ jobs:
         working-directory: backend
       - run: npx prisma generate && npm run build
         working-directory: backend
-      - name: Prepare isolated 1C, Wildberries and salon test databases
+      - name: Prepare isolated 1C, marketplace, salon and LMS test databases
         working-directory: backend
         run: |
           DATABASE_URL='postgresql://warehouse_fixture:warehouse_fixture_only@127.0.0.1:55432/warehouse_test?schema=public' npx prisma migrate deploy
           DATABASE_URL='postgresql://wb_fixture:wb_fixture_only@127.0.0.1:55433/wb_fixture?schema=public' npx prisma migrate deploy
           DATABASE_URL='postgresql://salon_fixture:salon_fixture_only@127.0.0.1:55434/salon_fixture?schema=public' npx prisma migrate deploy
+          DATABASE_URL='postgresql://lms_fixture:lms_fixture_only@127.0.0.1:55435/lms_fixture?schema=public' npx prisma migrate deploy
       - run: npm test -- --runInBand --silent
         working-directory: backend
         env:
           WAREHOUSE_TEST_DATABASE_URL: postgresql://warehouse_fixture:warehouse_fixture_only@127.0.0.1:55432/warehouse_test?schema=public
           WB_FBS_TEST_DATABASE_URL: postgresql://wb_fixture:wb_fixture_only@127.0.0.1:55433/wb_fixture?schema=public
           SALON_MANAGEMENT_TEST_DATABASE_URL: postgresql://salon_fixture:salon_fixture_only@127.0.0.1:55434/salon_fixture?schema=public
+          LMS_TEST_DATABASE_URL: postgresql://lms_fixture:lms_fixture_only@127.0.0.1:55435/lms_fixture?schema=public
       - run: node scripts/dependency-security-check.cjs
         working-directory: backend
       - run: npm ci --no-audit --no-fund
@@ -142,11 +155,15 @@ jobs:
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-navigation-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/marketplace-exchange-ui.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/b2b-orders-pagination-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-courses-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-payment-settings-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-schedule-calendar-layout-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/helpdesk-email-ui.cjs
           SALON_MANAGEMENT_TEST_ORIGIN=http://127.0.0.1:3001 node scripts/salon-booking-management-mock.cjs
           node scripts/favorites-sync-isolation-check.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-favorites-complete-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-compact-card-mock.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-storefront-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 BROWSER_EXECUTABLE="$(node -p "require('playwright-core').chromium.executablePath()")" node scripts/storefront-checkout-production-mock.cjs
           WORKSPACE_DESIGN_BATCH=ci-unified node scripts/workspace-design-review.cjs --crm-all --after
           npx playwright test salon-booking.spec.cjs salon-subscription.spec.cjs ecosystem.spec.cjs partners.spec.cjs

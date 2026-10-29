@@ -73,9 +73,7 @@ async function main() {
       for (const selector of ['.sh-hero', '.sh-products', '.sh-bloggers', '.sh-footer']) await page.locator(selector).screenshot({ path: path.join(output, `${width}-${selector.slice(1)}.png`) });
       if (width < 761) await page.getByRole('button', { name: 'Открыть меню', exact: true }).click();
       assert.equal(await page.locator('#home-navigation').getByRole('link', { name: 'Онлайн запись' }).getAttribute('href'), '/business');
-      await page.locator('#home-navigation').getByRole('button', { name: 'Курсы', exact: true }).click();
-      await page.getByText('Обучающие программы появятся здесь позже.').waitFor();
-      await page.getByRole('button', { name: 'Закрыть информацию о курсах' }).click();
+      assert.equal(await page.locator('#home-navigation').getByRole('link', { name: 'Курсы', exact: true }).getAttribute('href'), '/courses');
       await page.locator('#home-navigation').getByRole('button', { name: 'Личный кабинет', exact: true }).click();
       await page.locator('.sb-auth-drawer').waitFor();
       await page.keyboard.press('Escape');

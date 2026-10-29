@@ -6,7 +6,10 @@ export interface PaymentRequest {
   amount: string;
   currency: string;
   returnUrl?: string;
+  invoiceId?: number;
 }
+
+export type PaymentProvider = 'YOOKASSA' | 'TBANK' | 'ROBOKASSA';
 
 export interface VerifiedPayment {
   id: string;
@@ -19,14 +22,14 @@ export interface VerifiedPayment {
 }
 
 export interface PaymentSession {
-  provider: 'YOOKASSA';
+  provider: PaymentProvider;
   paymentId: string;
   confirmationUrl: string | null;
   status: 'PENDING' | 'SUCCEEDED' | 'CANCELED';
 }
 
 export interface PaymentCapabilities {
-  provider: 'YOOKASSA';
+  provider: PaymentProvider;
   available: boolean;
   externalCallsEnabled: boolean;
   configured: boolean;

@@ -197,24 +197,30 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     return { checked: orders.length };
   }
   async settleVerifiedPayment(id: string, status: 'SUCCEEDED' | 'CANCELED' | 'PENDING', metadata: any) {
+    if (typeof metadata?.test !== 'boolean' || (metadata.test && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true')) throw new ConflictException('Тестовый платёж не может изменить заказ в этом окружении');
     const payment = await this.prisma.payment.findUnique({ where: { transactionId: id } });
     if (!payment) throw new NotFoundException('Платёж не найден');
     const result = await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${payment.orderId} FOR UPDATE`;
       const current = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
       const order = await tx.order.findUniqueOrThrow({ where: { id: payment.orderId }, include: { items: true, user: true } });
-      if (metadata?.provider !== 'YOOKASSA' || current.provider !== 'YOOKASSA' || metadata.localPaymentId !== current.id || metadata.orderId !== order.id ||
+      if (!['YOOKASSA', 'ROBOKASSA', 'TBANK'].includes(current.provider) || metadata?.provider !== current.provider || metadata.localPaymentId !== current.id || metadata.orderId !== order.id ||
         metadata.currency !== order.currency || moneyMinor(metadata.amount) !== moneyMinor(current.amount) || moneyMinor(current.amount) !== moneyMinor(order.finalAmount)) throw new BadRequestException('Сумма или принадлежность платежа не подтверждены');
       if (current.status === 'SUCCEEDED') return { duplicate: true, orderNumber: order.orderNumber, status: current.status };
       if (current.status === 'CANCELED' && status !== 'CANCELED') throw new ConflictException('Статус завершённого платежа не может измениться');
       if (status === 'PENDING') return { duplicate: current.status === 'PENDING', orderNumber: order.orderNumber, status };
-      await tx.payment.update({ where: { id: current.id }, data: { status, metadata: metadata as Prisma.InputJsonValue } });
+      const existing = current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata) ? current.metadata : {};
+      await tx.payment.update({ where: { id: current.id }, data: { status, metadata: { ...existing, ...metadata } as Prisma.InputJsonValue } });
       if (status === 'CANCELED') {
         if (order.reservationState === 'ACTIVE' && UNPAID.includes(order.status as any)) await this.release(tx, order, 'Платёж отменён платёжной системой');
         return { duplicate: current.status === 'CANCELED', orderNumber: order.orderNumber, status };
       }
       if (metadata.paid !== true || !UNPAID.includes(order.status as any) || order.reservationState !== 'ACTIVE') throw new ConflictException('Оплата требует ручной проверки');
-      await this.finishPaid(tx, order, 'Оплата проверена по данным ЮKassa');
+      if (order.sourceChannel === 'COURSE') {
+        await this.finishPaidCourse(tx, order, current, metadata);
+        return { duplicate: false, orderNumber: order.orderNumber, status };
+      }
+      await this.finishPaid(tx, order, `Оплата подтверждена платёжным провайдером ${current.provider}`);
       if (!this.digitalOrder(order)) await this.oneC.stageOrderExport(tx, order.id);
       return { duplicate: false, orderNumber: order.orderNumber, status };
     }, { timeout: 30_000 });
@@ -224,6 +230,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     this.validateSession(session);
     const order = await this.getAccessible(number, actor);
     if (order.userId !== actor.sub) throw new NotFoundException('Заказ не найден');
+    if (order.sourceChannel === 'COURSE') throw new BadRequestException('Курс оформляется отдельно на странице обучения');
     return this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${'cart-user:' + actor.sub}))`;
       const repeatInclude = { items: { include: { variant: { include: { product: true, channelStocks:salesStockInclude } } } } };
@@ -267,6 +274,14 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     }, { timeout: 30_000 });
   }
   private async release(tx: Prisma.TransactionClient, order: any, comment: string) {
+    if (order.sourceChannel === 'COURSE') {
+      const purchase = await tx.coursePurchase.findUnique({ where: { orderId: order.id } });
+      if (!purchase || purchase.status !== 'PENDING') throw new ConflictException('Заказ курса требует проверки');
+      await tx.coursePurchase.update({ where: { id: purchase.id }, data: { status: 'CANCELLED' } });
+      await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.CANCELLED, paymentStatus: 'CANCELED', reservationState: 'RELEASED', reservationExpiresAt: null, history: { create: { fromStatus: order.status, toStatus: OrderStatus.CANCELLED, comment } } } });
+      await this.mail(tx, order, 'ORDER_CANCELLED', 'Заказ отменён', 'Заказ курса отменён. Доступ не предоставлен.');
+      return;
+    }
     // Same lock order as checkout: Order -> GiftCard -> LoyaltyAccount -> ProductVariant.
     if (moneyMinor(order.giftCardAmount || 0) > 0) {
       const reservation = await this.requireGiftCards().release(tx, order.id);
@@ -293,6 +308,22 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       history: { create: { fromStatus: order.status, toStatus: OrderStatus.CANCELLED, comment } } } });
     await this.mail(tx, order, 'ORDER_CANCELLED', 'Заказ отменён', comment + '. Резерв товаров снят, списанные бонусы возвращены.');
     if (!this.digitalOrder(order)) await this.oneC.stageOrderExport(tx, order.id);
+  }
+  private async finishPaidCourse(tx: Prisma.TransactionClient, order: any, payment: any, metadata: any) {
+    const purchase = await tx.coursePurchase.findUnique({ where: { orderId: order.id } });
+    const snapshot = order.priceSnapshot && typeof order.priceSnapshot === 'object' && !Array.isArray(order.priceSnapshot) ? order.priceSnapshot as Record<string, unknown> : {};
+    if (!purchase || purchase.status !== 'PENDING' || purchase.id !== snapshot.coursePurchaseId || snapshot.kind !== 'COURSE' || snapshot.digitalDelivery !== true || purchase.userId !== order.userId || !order.userId || purchase.currency !== order.currency || !purchase.amount.equals(order.finalAmount) || !purchase.amount.equals(order.totalAmount) || Number(order.discountAmount) !== 0 || Number(order.giftCardAmount) !== 0 || Number(order.bonusAmount) !== 0 || Number(order.shippingCost) !== 0 || order.items.length !== 1 || order.items[0].productType !== 'COURSE' || order.items[0].quantity !== 1 || order.items[0].variantId || order.items[0].productName !== purchase.courseTitle || order.items[0].variantName !== purchase.tariffTitle || !new Prisma.Decimal(order.items[0].price).equals(purchase.amount) || !new Prisma.Decimal(order.items[0].total).equals(purchase.amount)) throw new ConflictException('Заказ курса требует ручной сверки');
+    if (typeof metadata.test !== 'boolean' || (metadata.test && this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false') !== 'true')) throw new ConflictException('Тестовый платёж не предоставляет доступ в рабочем окружении');
+    await tx.$queryRaw`SELECT id FROM "Course" WHERE id = ${purchase.courseId} FOR UPDATE`;
+    const existing = await tx.enrollment.findUnique({ where: { userId_courseId: { userId: purchase.userId, courseId: purchase.courseId } } });
+    const now = new Date();
+    if (existing && ['REVOKED','SUSPENDED'].includes(existing.accessStatus)) throw new ConflictException('Доступ к курсу ограничен; требуется сверка оплаты');
+    if (existing?.accessStatus === 'ACTIVE' && (!existing.accessExpiresAt || existing.accessExpiresAt > now)) throw new ConflictException('Доступ уже существует; требуется сверка оплаты');
+    const expiresAt = purchase.accessDays === null ? null : new Date(now.getTime() + purchase.accessDays * 86400000);
+    await tx.enrollment.upsert({ where: { userId_courseId: { userId: purchase.userId, courseId: purchase.courseId } }, create: { userId: purchase.userId, courseId: purchase.courseId, accessStatus: 'ACTIVE', accessExpiresAt: expiresAt }, update: { accessStatus: 'ACTIVE', accessExpiresAt: expiresAt } });
+    await tx.coursePurchase.update({ where: { id: purchase.id }, data: { status: 'PAID', paidAt: now, accessStartsAt: now, accessExpiresAt: expiresAt } });
+    await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.DELIVERED, paymentStatus: 'SUCCEEDED', reservationState: 'CONSUMED', reservationExpiresAt: null, history: { create: { fromStatus: order.status, toStatus: OrderStatus.DELIVERED, comment: `Оплата подтверждена: ${payment.provider}. Доступ к курсу предоставлен.` } } } });
+    await this.mail(tx, order, 'ORDER_PAID', 'Курс доступен', 'Оплата подтверждена. Откройте курс в личном кабинете. Учёт услуги в 1С требует сверки.');
   }
   private async finishPaid(tx: Prisma.TransactionClient, order: any, comment: string, giftAlreadyApplied = false) {
     const digital = this.digitalOrder(order);
@@ -353,7 +384,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   private async withGiftCards(order: any, actor?: Actor, token?: string) {
     const safe = this.publicOrder(order);
     const customerAccess = order.userId ? actor?.sub === order.userId : !!token && !!order.guestAccessHash && !!order.guestAccessExpiresAt && order.guestAccessExpiresAt > new Date() && this.hash(token) === order.guestAccessHash;
-    if (!this.giftCards || !customerAccess || !this.digitalOrder(order) || order.paymentStatus !== 'SUCCEEDED') return safe;
+    if (!this.giftCards || !customerAccess || order.sourceChannel === 'COURSE' || !this.digitalOrder(order) || order.paymentStatus !== 'SUCCEEDED') return safe;
     const cards = await this.prisma.$transaction(tx => this.giftCards!.revealForOrder(tx, order.id));
     return { ...safe, giftCards: cards };
   }
@@ -368,7 +399,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       if (preferences && typeof preferences === 'object' && !Array.isArray(preferences) && preferences.email === false) return;
     }
     await tx.mailOutbox.create({ data: this.notifications.prepare({ kind, recipient: order.buyerEmail, subject: subject + ': ' + order.orderNumber,
-      text: 'Здравствуйте!\n' + text + '\nНомер заказа: ' + order.orderNumber + (essential ? '.' : '. Проверить заказ можно в личном кабинете. Неоплаченный заказ без активного платежа отменяется через 30 минут.'), dedupeKey: kind + ':' + order.id }) });
+      text: 'Здравствуйте!\n' + text + '\nНомер заказа: ' + order.orderNumber + (essential || order.sourceChannel === 'COURSE' ? '.' : '. Проверить заказ можно в личном кабинете. Неоплаченный заказ без активного платежа отменяется через 30 минут.'), dedupeKey: kind + ':' + order.id }) });
   }
   private publicOrder(order: any) {
     const { checkoutKey, checkoutRequestHash, guestAccessHash, guestAccessExpiresAt, internalNotes, sourcePayload, oneCSyncError,

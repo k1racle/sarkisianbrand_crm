@@ -16,7 +16,7 @@ export class StorefrontService {
         where: { userId },
         select: {
           id: true, orderNumber: true, status: true, createdAt: true, finalAmount: true,
-          source: true, totalAmount: true, discountAmount: true, currency: true, shippingAddress: true, shippingCost: true, shippingProvider: true, paymentMethod: true,
+          source: true, sourceChannel: true, totalAmount: true, discountAmount: true, currency: true, shippingAddress: true, shippingCost: true, shippingProvider: true, paymentMethod: true,
           execution: { select: { version: true } },
           warehouseExecution: { select: { status: true, executionVersion: true, basisHash: true, asOf: true, validUntil: true } },
           items: { select: { id: true, variantId: true, productName: true, variantName: true, quantity: true, price: true, total: true, productType: true } },
@@ -30,7 +30,7 @@ export class StorefrontService {
       this.prisma.order.count({ where: { userId } }),
       this.prisma.order.aggregate({
         where: {
-          userId, status: { in: ['PAID', 'ASSEMBLING', 'SHIPPED', 'DELIVERED'] },
+          userId, sourceChannel: { not: 'COURSE' }, status: { in: ['PAID', 'ASSEMBLING', 'SHIPPED', 'DELIVERED'] },
           // Verified payments take precedence; imported legacy paid orders have no payment rows.
           OR: [{ payments: { some: { status: 'SUCCEEDED' } } }, { payments: { none: {} } }],
         },
@@ -51,7 +51,7 @@ export class StorefrontService {
       summary: { orders: orderCount, spent: Number(paid._sum.finalAmount || 0), favoriteCount },
       orders: orders.map(order => {
         const { source, totalAmount, discountAmount, currency, shippingAddress, shippingCost, shippingProvider, paymentMethod, execution, warehouseExecution, items, ...safe } = order;
-        return { ...safe, items: items.map(({ productType, ...item }) => item), requiresWarehouse: items.some(item => item.productType === 'PHYSICAL'), warehouseStatus: customerWarehouseView(warehouseExecution, order) };
+        return { ...safe, items, requiresWarehouse: items.some(item => item.productType === 'PHYSICAL'), warehouseStatus: customerWarehouseView(warehouseExecution, order) };
       }),
       addresses,
       giftCards: giftCards.flatMap(card => {

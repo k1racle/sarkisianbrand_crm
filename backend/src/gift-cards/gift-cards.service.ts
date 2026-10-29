@@ -137,7 +137,7 @@ export class GiftCardsService {
     }
     const faceTotal = persisted.items.reduce((sum, item) => sum + giftMoneyMinor(item.price) * item.quantity, 0);
     if (!Number.isSafeInteger(faceTotal) || faceTotal <= 0 || giftMoneyMinor(persisted.finalAmount) !== faceTotal || giftMoneyMinor(persisted.totalAmount) !== faceTotal ||
-      !persisted.payments.some(payment => payment.orderId === persisted.id && payment.provider === 'YOOKASSA' && payment.status === 'SUCCEEDED' && payment.currency === 'RUB' &&
+      !persisted.payments.some(payment => payment.orderId === persisted.id && ['YOOKASSA', 'ROBOKASSA', 'TBANK'].includes(payment.provider) && payment.status === 'SUCCEEDED' && payment.currency === 'RUB' &&
         !!payment.transactionId && giftMoneyMinor(payment.amount) === faceTotal)) {
       throw new ConflictException('Нет подтверждённого платежа на точную сумму подарочных карт');
     }

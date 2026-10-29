@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ArrowRight, CheckCircle2, Clock3, Copy, CreditCard, LockKeyhole, Mail, MapPin, Package, RefreshCw, UserRound } from '@lucide/vue';
 import { customerWarehouseApplies, customerWarehouseAsOf, customerWarehouseLabel } from '~/shared/customer-warehouse-status';
+import { officialPaymentUrl } from '~/shared/payment-providers';
 
 const route = useRoute(), config = useRuntimeConfig();
 const { authHeaders, accessToken } = useStorefront();
 const { openAuth } = useStorefrontPanels();
 const order = ref<any>(null), loading = ref(true), paying = ref(false), error = ref(''), paymentError = ref(''), notice = ref('');
-const paymentCapability = ref<any>(null), capabilityPending = ref(true), now = ref(Date.now());
+const { available: paymentProviders, selected: selectedPaymentProvider, choice: paymentCapability, pending: capabilityPending, error: paymentAvailabilityError, load: loadPaymentProviders } = usePaymentProviders();
+const now = ref(Date.now());
 const orderNumber = computed(() => String(route.params.orderNumber || ''));
 const validNumber = computed(() => /^[A-Za-z0-9_-]{1,100}$/.test(orderNumber.value));
 const labels: Record<string, string> = { NEW: 'Заказ принят', CONFIRMED: 'Заказ подтверждён', PAYMENT_WAITING: 'Ожидает оплаты', PAID: 'Оплачен', PROCESSING: 'В обработке', ASSEMBLING: 'Собираем заказ', READY: 'Готов к отправке', SHIPPED: 'Передан в доставку', DELIVERED: 'Доставлен', COMPLETED: 'Завершён', CANCELLED: 'Отменён', CANCELED: 'Отменён', RETURNED: 'Возвращён', REFUNDED: 'Возврат оформлен' };
@@ -16,13 +18,14 @@ const reservationExpires = computed(() => Date.parse(order.value?.reservationExp
 const reservationActive = computed(() => order.value?.reservationState === 'ACTIVE' && Number.isFinite(reservationExpires.value) && reservationExpires.value > now.value);
 const payable = computed(() => Boolean(order.value && !paid.value && ['NEW', 'CONFIRMED', 'PAYMENT_WAITING'].includes(order.value.status) && reservationActive.value && confirmed.value && order.value.canPay !== false && Number.isFinite(Number(order.value.finalAmount)) && Number(order.value.finalAmount) > 0));
 const canPay = computed(() => payable.value && paymentCapability.value?.available === true && !loading.value && !paying.value && !capabilityPending.value);
-const statusLabel = computed(() => labels[order.value?.status] || 'Статус уточняется');
+const statusLabel = computed(() => courseOrder.value && paid.value ? 'Оплачен' : labels[order.value?.status] || 'Статус уточняется');
 const deliveryAddress = computed(() => {
   const value = order.value?.shippingAddress;
   return value && typeof value === 'object' ? [value.city, value.address || [value.street, value.house, value.apartment].filter(Boolean).join(', ')].filter(Boolean).join(', ') : '';
 });
 const snapshot = computed(() => order.value?.priceSnapshot || {});
-const digitalDelivery = computed(() => snapshot.value.digitalDelivery === true || Boolean(order.value?.items?.length && order.value.items.every((item: any) => item.productType === 'GIFT_CARD')));
+const courseOrder = computed(() => order.value?.sourceChannel === 'COURSE' || snapshot.value.kind === 'COURSE' || Boolean(order.value?.items?.length && order.value.items.every((item: any) => item.productType === 'COURSE')));
+const digitalDelivery = computed(() => !courseOrder.value && (snapshot.value.digitalDelivery === true || Boolean(order.value?.items?.length && order.value.items.every((item: any) => item.productType === 'GIFT_CARD'))));
 const issuedCards = computed(() => paid.value && digitalDelivery.value && Array.isArray(order.value?.giftCards) ? order.value.giftCards.filter((card: any) => typeof card.code === 'string' && /^(?:[A-Fa-f0-9]{32}|[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{8}){3})$/.test(card.code)) : []);
 const copyNotice = ref('');
 const remainingMinutes = computed(() => Math.max(0, Math.ceil((reservationExpires.value - now.value) / 60000)));
@@ -81,25 +84,18 @@ async function loadOrder(showLoading = true) {
   } finally { if (current === version) { loading.value = false; scheduleRefresh(); } }
 }
 async function loadCapability() {
-  capabilityPending.value = true;
-  try { paymentCapability.value = await $fetch('/payments/capabilities', { baseURL: config.public.apiBase, timeout: 10000, retry: 0 }); }
-  catch { paymentCapability.value = { available: false, reason: 'Не удалось проверить онлайн-оплату. Повторите проверку позже.' }; }
-  finally { capabilityPending.value = false; }
-}
-function officialPaymentUrl(value: unknown, provider: unknown) {
-  if (typeof value !== 'string' || provider !== 'YOOKASSA') throw new Error('Не удалось получить безопасную ссылку оплаты.');
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || !['yoomoney.ru', 'yookassa.ru'].some(host => url.hostname === host || url.hostname.endsWith('.' + host))) throw new Error('Получена некорректная ссылка оплаты. Обратитесь в поддержку.');
-  return url.href;
+  await loadPaymentProviders();
 }
 async function pay() {
-  if (!canPay.value) return;
+  if (!canPay.value || !selectedPaymentProvider.value) return;
+  const provider = selectedPaymentProvider.value;
   paying.value = true; paymentError.value = '';
   try {
-    await loadOrder(); await loadCapability(); now.value = Date.now();
-    if (!payable.value || paymentCapability.value?.available !== true) return;
-    const payment: any = await $fetch('/payments/orders/' + encodeURIComponent(orderNumber.value), { baseURL: config.public.apiBase, method: 'POST', headers: protectedHeaders(), body: { returnUrl: window.location.origin + '/orders/' + encodeURIComponent(orderNumber.value) }, timeout: 20000, retry: 0 });
-    if (payment.confirmationUrl) { window.location.assign(officialPaymentUrl(payment.confirmationUrl, payment.provider)); return; }
+    await loadOrder(); await loadPaymentProviders(true); now.value = Date.now();
+    if (!payable.value) return;
+    if (paymentCapability.value?.available !== true || selectedPaymentProvider.value !== provider) { paymentError.value = paymentAvailabilityError.value || 'Выбранный способ оплаты сейчас недоступен. Обновите статус и выберите другой.'; return; }
+    const payment: any = await $fetch('/payments/orders/' + encodeURIComponent(orderNumber.value), { baseURL: config.public.apiBase, method: 'POST', headers: protectedHeaders(), body: { returnUrl: window.location.origin + '/orders/' + encodeURIComponent(orderNumber.value), provider }, timeout: 20000, retry: 0 });
+    if (payment.confirmationUrl) { window.location.assign(officialPaymentUrl(payment.confirmationUrl, payment.provider, provider)); return; }
     await loadOrder(); // Even SUCCEEDED in a payment response is displayed only after protected GET.
     if (!paid.value) notice.value = 'Статус платежа ещё подтверждается. Обновите заказ через несколько секунд.';
   } catch (e: any) { paymentError.value = e?.message?.startsWith('Получена') ? e.message : friendlyError(e); }
@@ -132,8 +128,9 @@ onBeforeUnmount(() => {
       <p v-if="notice" class="sb-checkout-note" role="status">{{ notice }}</p>
       <div class="sb-checkout-flow">
         <div class="sb-checkout-stage sb-order-details">
-          <section class="sb-checkout-panel"><h2><CheckCircle2 v-if="paid" :size="24" /><Package v-else :size="24" /> {{ statusLabel }}</h2><p>{{ paid ? 'Оплата подтверждена сервером. Спасибо за покупку!' : 'Заказ сохранён. Здесь отображается актуальный статус, полученный с сервера.' }}</p><p v-if="!confirmed" class="sb-checkout-note">Способ получения и стоимость доставки требуют подтверждения. Пока итог не согласован, оплатить заказ нельзя.</p><p v-if="reservationActive && !paid" class="sb-checkout-hint"><Clock3 :size="18" /> Товары зарезервированы ещё примерно на {{ remainingMinutes }} мин.</p><p v-else-if="!paid && ['NEW', 'CONFIRMED', 'PAYMENT_WAITING'].includes(order.status)" class="sb-checkout-note">Действующий резерв отсутствует или истёк. Перед оплатой требуется проверка наличия сотрудником.</p><section v-if="!digitalDelivery && customerWarehouseApplies(order)" class="sb-order-warehouse" aria-label="Обработка заказа на складе"><h3>Обработка на складе</h3><p role="status">{{ customerWarehouseLabel(order.warehouseStatus) }}</p><small v-if="customerWarehouseAsOf(order.warehouseStatus)">Подтверждено {{ customerWarehouseAsOf(order.warehouseStatus) }}</small></section></section>
-          <section class="sb-checkout-panel"><h2><UserRound :size="20" /> Получатель</h2><p v-if="order.buyerName">{{ order.buyerName }}</p><p v-if="order.buyerEmail">{{ order.buyerEmail }}</p><p v-if="order.buyerPhone">{{ order.buyerPhone }}</p><h2 class="sb-order-delivery-title"><Mail v-if="digitalDelivery" :size="20" /><MapPin v-else :size="20" /> {{ digitalDelivery ? 'Получение карты' : 'Доставка' }}</h2><p>{{ digitalDelivery ? 'Электронная карта · ' + (order.buyerEmail || 'Email указан при оформлении') : deliveryAddress || 'Адрес уточняется' }}</p><p v-if="!digitalDelivery && order.shippingAddress?.pickupPointName">{{ order.shippingAddress.pickupPointName }}</p><p v-if="order.comments">{{ order.comments }}</p></section>
+          <section class="sb-checkout-panel"><h2><CheckCircle2 v-if="paid" :size="24" /><Package v-else :size="24" /> {{ statusLabel }}</h2><p>{{ paid ? 'Оплата подтверждена сервером. Спасибо за покупку!' : 'Заказ сохранён. Здесь отображается актуальный статус, полученный с сервера.' }}</p><p v-if="!confirmed && !courseOrder" class="sb-checkout-note">Способ получения и стоимость доставки требуют подтверждения. Пока итог не согласован, оплатить заказ нельзя.</p><p v-if="!confirmed && courseOrder" class="sb-checkout-note">Условия заказа ещё не подтверждены. Обновите статус перед оплатой.</p><p v-if="reservationActive && !paid" class="sb-checkout-hint"><Clock3 :size="18" /> {{ courseOrder ? `На оплату осталось примерно ${remainingMinutes} мин.` : `Товары зарезервированы ещё примерно на ${remainingMinutes} мин.` }}</p><p v-else-if="!paid && ['NEW', 'CONFIRMED', 'PAYMENT_WAITING'].includes(order.status)" class="sb-checkout-note">{{ courseOrder ? 'Срок оплаты заказа истёк. Вернитесь на страницу курса, чтобы оформить новый заказ.' : 'Действующий резерв отсутствует или истёк. Перед оплатой требуется проверка наличия сотрудником.' }}</p><section v-if="!courseOrder && !digitalDelivery && customerWarehouseApplies(order)" class="sb-order-warehouse" aria-label="Обработка заказа на складе"><h3>Обработка на складе</h3><p role="status">{{ customerWarehouseLabel(order.warehouseStatus) }}</p><small v-if="customerWarehouseAsOf(order.warehouseStatus)">Подтверждено {{ customerWarehouseAsOf(order.warehouseStatus) }}</small></section></section>
+          <section class="sb-checkout-panel"><h2><UserRound :size="20" /> Получатель</h2><p v-if="order.buyerName">{{ order.buyerName }}</p><p v-if="order.buyerEmail">{{ order.buyerEmail }}</p><p v-if="order.buyerPhone">{{ order.buyerPhone }}</p><template v-if="!courseOrder"><h2 class="sb-order-delivery-title"><Mail v-if="digitalDelivery" :size="20" /><MapPin v-else :size="20" /> {{ digitalDelivery ? 'Получение карты' : 'Доставка' }}</h2><p>{{ digitalDelivery ? 'Электронная карта · ' + (order.buyerEmail || 'Email указан при оформлении') : deliveryAddress || 'Адрес уточняется' }}</p><p v-if="!digitalDelivery && order.shippingAddress?.pickupPointName">{{ order.shippingAddress.pickupPointName }}</p></template><p v-if="order.comments">{{ order.comments }}</p></section>
+          <section v-if="courseOrder" class="sb-checkout-panel"><h2>Доступ к курсу</h2><p v-if="paid">Оплата подтверждена. Проверьте доступ в разделе «Мои курсы».</p><p v-else>После подтверждения оплаты курс появится в разделе «Мои курсы» этого аккаунта.</p><NuxtLink v-if="paid" to="/courses/my" class="sb-checkout-text">Мои курсы <ArrowRight :size="18" /></NuxtLink></section>
           <section v-if="digitalDelivery" class="sb-checkout-panel sb-order-gift-cards">
             <h2><CreditCard :size="20" /> Подарочные карты</h2>
             <p v-if="!paid">Коды появятся здесь после подтверждения оплаты сервером.</p>
@@ -146,16 +143,17 @@ onBeforeUnmount(() => {
         </div>
         <aside class="sb-checkout-summary sb-checkout-panel sb-order-summary">
           <p class="sb-kicker">{{ confirmed ? 'ИТОГО' : 'ПРЕДВАРИТЕЛЬНАЯ СУММА' }}</p><h2>{{ money(order.finalAmount) }}</h2>
-          <div v-if="snapshot.subtotal !== undefined || order.totalAmount !== undefined"><span>Товары</span><b>{{ money(snapshot.subtotal ?? order.totalAmount) }}</b></div>
+          <div v-if="snapshot.subtotal !== undefined || order.totalAmount !== undefined"><span>{{ courseOrder ? 'Курс' : 'Товары' }}</span><b>{{ money(snapshot.subtotal ?? order.totalAmount) }}</b></div>
           <div v-if="Number(snapshot.discount ?? order.discountAmount) > 0"><span>Скидка</span><b>−{{ money(snapshot.discount ?? order.discountAmount) }}</b></div>
           <div v-if="Number(snapshot.bonusAmount) > 0"><span>Списание бонусов</span><b>−{{ money(snapshot.bonusAmount) }}</b></div>
           <div v-if="Number(snapshot.giftCardAmount ?? order.giftCardAmount) > 0"><span>Подарочная карта</span><b>−{{ money(snapshot.giftCardAmount ?? order.giftCardAmount) }}</b></div>
-          <div><span>{{ digitalDelivery ? 'Электронная доставка' : 'Доставка' }}</span><b>{{ confirmed ? money(snapshot.shippingAmount ?? order.shippingCost) : 'Требует подтверждения' }}</b></div>
+          <div v-if="!courseOrder"><span>{{ digitalDelivery ? 'Электронная доставка' : 'Доставка' }}</span><b>{{ confirmed ? money(snapshot.shippingAmount ?? order.shippingCost) : 'Требует подтверждения' }}</b></div>
           <p v-if="!confirmed">Окончательную сумму подтвердим до оплаты.</p>
           <p v-if="paid" class="sb-checkout-note" role="status">Оплачено</p>
           <template v-else>
+            <PaymentProviderSelect v-if="payable && paymentProviders.length" v-model="selectedPaymentProvider" :providers="paymentProviders" :disabled="paying || loading || capabilityPending" name="order-payment-provider"/>
             <button v-if="payable" class="sb-primary" :disabled="!canPay" @click="pay">{{ paying ? 'Открываем оплату…' : 'Оплатить заказ' }} <CreditCard :size="18" /></button>
-            <p v-if="capabilityPending" role="status">Проверяем доступность оплаты…</p><p v-else-if="payable && paymentCapability?.available !== true" class="sb-checkout-hint">{{ paymentCapability?.reason || 'Онлайн-оплата пока недоступна. Заказ сохранён без списания денег.' }}</p>
+            <p v-if="capabilityPending" role="status">Проверяем доступность оплаты…</p><p v-else-if="payable && paymentCapability?.available !== true" class="sb-checkout-hint">{{ paymentAvailabilityError || 'Онлайн-оплата пока недоступна. Заказ сохранён без списания денег.' }}</p>
           </template>
           <p v-if="paymentError" class="sb-form-error" role="alert">{{ paymentError }}</p>
           <button class="sb-checkout-secondary" :disabled="paying || loading" @click="retry">Обновить статус <RefreshCw :size="18" /></button>

@@ -44,6 +44,8 @@ const brands: Record<string, Brand> = {
     src: '/crm/brands/yookassa.svg',
     label: 'ЮK',
   },
+  TBANK: { src: '', label: 'Т' },
+  ROBOKASSA: { src: '', label: 'Р' },
   CLOUDKASSIR: {
     src: '/crm/brands/cloudkassir.png',
     label: 'CK',
@@ -86,7 +88,7 @@ watch(() => brand.value?.src, () => { failed.value = false; });
     :style="size ? { '--brand-logo-size': `${size}px` } : undefined"
     :title="brand?.label || provider"
   >
-    <img data-v-ui-5a4be72ea064 v-if="brand && !failed" :src="brand.src" :alt="brand.label" referrerpolicy="no-referrer" @error="failed = true" />
+    <img data-v-ui-5a4be72ea064 v-if="brand && brand.src && !failed" :src="brand.src" :alt="brand.label" referrerpolicy="no-referrer" @error="failed = true" />
     <strong data-v-ui-5a4be72ea064 v-else-if="brand" class="brand-logo-label">{{ brand.label }}</strong>
     <Bot data-v-ui-5a4be72ea064 v-else />
   </span>

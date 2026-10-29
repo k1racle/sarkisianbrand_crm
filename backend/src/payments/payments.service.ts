@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { PaymentGateway, PaymentSession, VerifiedPayment } from './payment-gateway';
 import { CreatePaymentDto, PaymentWebhookDto } from './dto/payment.dto';
+import { assertCoursePurchasable, courseSalesEnabled } from '../lms/lms-purchase.service';
 
 const PAYABLE = [OrderStatus.NEW, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_WAITING];
 const ACTIVE = ['PENDING', 'CREATING', 'SUCCEEDED'];
@@ -52,12 +53,22 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     finally { this.recoveryInFlight = false; }
   }
 
-  capabilities() { return this.gateway.capabilities(); }
+  async capabilities() {
+    const capability = await this.gateway.capabilities();
+    return capability.environment === 'TEST' && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true'
+      ? { ...capability, available: false, reason: 'Тестовые платежи отключены в этом окружении.' } : capability;
+  }
+  private assertTestAllowed(isTest: boolean) {
+    if (isTest && String(this.config.get('PAYMENT_TEST_SETTLEMENT_ENABLED', 'false')) !== 'true') throw new ServiceUnavailableException('Тестовые платежи отключены в этом окружении.');
+  }
 
   async create(orderNumber: string, dto: CreatePaymentDto, actor?: { sub: string; role?: string }, accessToken?: string): Promise<PaymentSession> {
     const authorized = await this.orders.getAccessible(orderNumber, actor, accessToken);
     if (new Prisma.Decimal(authorized.finalAmount).equals(0)) throw new BadRequestException('Этот заказ не требует онлайн-оплаты. Обновите страницу заказа.');
     await this.gateway.assertAvailable();
+    const capability = await this.capabilities();
+    if (!capability.available) throw new ServiceUnavailableException(capability.reason || 'Онлайн-оплата недоступна.');
+    this.assertTestAllowed(capability.environment === 'TEST');
     const returnUrl = this.gateway.validateReturnUrl(dto.returnUrl || `/orders/${encodeURIComponent(orderNumber)}`);
     const payment = await this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${authorized.id} FOR UPDATE`;
@@ -79,6 +90,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         if (current.status === 'SUCCEEDED') throw new ConflictException('Платёж уже подтверждён. Обновите заказ.');
         return current;
       }
+      await assertCoursePurchasable(tx, order, courseSalesEnabled(this.config));
       const created = await tx.payment.create({ data: { orderId: order.id, amount: order.finalAmount, currency: order.currency, provider: 'YOOKASSA', status: 'CREATING', metadata: { idempotenceKey: randomUUID(), returnUrl } } });
       await tx.order.update({ where: { id: order.id }, data: { status: OrderStatus.PAYMENT_WAITING, paymentStatus: 'PENDING' } });
       return created;
@@ -136,6 +148,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private verifyMatches(payment: { id: string; orderId: string; transactionId: string | null; amount: any; currency: string }, orderNumber: string, verified: VerifiedPayment) {
+    if (typeof verified.test !== 'boolean') throw new BadRequestException('Окружение платежа не подтверждено.');
+    this.assertTestAllowed(verified.test);
     if ((payment.transactionId && payment.transactionId !== verified.id) || !/^\d{1,13}\.\d{2}$/.test(verified.amount?.value || '')
       || !new Prisma.Decimal(payment.amount).equals(verified.amount.value) || payment.currency !== verified.amount.currency
       || verified.metadata?.order_id !== payment.orderId || verified.metadata?.order_number !== orderNumber || verified.metadata?.payment_id !== payment.id

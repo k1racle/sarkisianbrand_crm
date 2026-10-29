@@ -24,7 +24,7 @@ describe('Платежи: безопасность и идемпотентнос
     http = jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network forbidden in pure tests'));
     order = { id: 'order-1', orderNumber: 'SB-TEST', source: 'WEB', status: 'NEW', paymentStatus: 'PENDING', finalAmount: '1250.00', currency: 'RUB', reservationState: 'ACTIVE', reservationExpiresAt: new Date(Date.now() + 1800000), priceSnapshot: { deliveryConfirmed: true } };
     payment = { id: 'local-1', orderId: order.id, transactionId: 'provider-1', provider: 'YOOKASSA', amount: '1250.00', currency: 'RUB', status: 'PENDING', createdAt: new Date(), metadata: { idempotenceKey: 'key-1', returnUrl: 'https://shop.example/payment/return' }, order };
-    verified = { id: 'provider-1', status: 'succeeded', paid: true, test: true, amount: { value: '1250.00', currency: 'RUB' }, metadata: { order_id: 'order-1', order_number: 'SB-TEST', payment_id: 'local-1' }, confirmation: { type: 'redirect', confirmation_url: 'https://yoomoney.ru/pay' } };
+    verified = { id: 'provider-1', status: 'succeeded', paid: true, test: false, amount: { value: '1250.00', currency: 'RUB' }, metadata: { order_id: 'order-1', order_number: 'SB-TEST', payment_id: 'local-1' }, confirmation: { type: 'redirect', confirmation_url: 'https://yoomoney.ru/pay' } };
     saved = null;
     settlementCalls = new Set(); financialChanges = 0;
     orders = { getAccessible: jest.fn(async () => order), settleVerifiedPayment: jest.fn(async (id, status) => {
@@ -33,7 +33,7 @@ describe('Платежи: безопасность и идемпотентнос
       settlementCalls.add(key);
       return { accepted: true, paymentId: id, status };
     }) };
-    gateway = { assertAvailable: jest.fn(async () => {}), capabilities: jest.fn(async () => ({ available: false })), validateReturnUrl: jest.fn(() => 'https://shop.example/payment/return'), createPayment: jest.fn(async request => ({ ...verified, metadata: { ...verified.metadata, payment_id: request.localPaymentId } })), getPayment: jest.fn(async () => verified) };
+    gateway = { assertAvailable: jest.fn(async () => {}), capabilities: jest.fn(async () => ({ available: true, environment: 'PRODUCTION' })), validateReturnUrl: jest.fn(() => 'https://shop.example/payment/return'), createPayment: jest.fn(async request => ({ ...verified, metadata: { ...verified.metadata, payment_id: request.localPaymentId } })), getPayment: jest.fn(async () => verified) };
     const tx: any = { $queryRaw: jest.fn(async () => [{ id: order.id }]), order: { findUniqueOrThrow: jest.fn(async () => order), update: jest.fn(async () => order) }, payment: { findFirst: jest.fn(async () => saved), create: jest.fn(async ({ data }) => (saved = { ...payment, ...data, transactionId: null })), findUniqueOrThrow: jest.fn(async () => saved || payment), update: jest.fn(async ({ data }) => { saved = { ...(saved || payment), ...data }; return saved; }) } };
     // Serialize mocked transactions just as the real PostgreSQL row lock does.
     let queue = Promise.resolve();
@@ -60,6 +60,26 @@ describe('Платежи: безопасность и идемпотентнос
     await expect(service.create('SB-TEST', {})).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(gateway.createPayment).not.toHaveBeenCalled();
+  });
+
+  it('не предлагает и не начинает тестовую ЮKassa при выключенном тестовом settlement', async () => {
+    gateway.capabilities.mockResolvedValue({ available: true, environment: 'TEST' });
+    expect(await service.capabilities()).toMatchObject({ available: false });
+    await expect(service.create('SB-TEST', {})).rejects.toThrow(/Тестовые платежи/);
+    expect(prisma.$transaction).not.toHaveBeenCalled(); expect(gateway.createPayment).not.toHaveBeenCalled();
+  });
+
+  it('не применяет уже начатую тестовую оплату после отключения флага', async () => {
+    verified.test = true;
+    await expect(service.webhook(webhook())).rejects.toThrow(/Тестовые платежи/);
+    expect(orders.settleVerifiedPayment).not.toHaveBeenCalled();
+  });
+
+  it('разрешает тестовую оплату только с явным флагом', async () => {
+    gateway.capabilities.mockResolvedValue({ available: true, environment: 'TEST' }); verified.test = true;
+    service = new PaymentsService(prisma, gateway, orders, { get: (key: string) => key === 'PAYMENT_TEST_SETTLEMENT_ENABLED' ? 'true' : 'false' } as any);
+    await service.create('SB-TEST', {});
+    expect(orders.settleVerifiedPayment).toHaveBeenCalledWith('provider-1', 'SUCCEEDED', expect.objectContaining({ test: true }));
   });
 
   it('полное покрытие сертификатом не создаёт ЮKassa payment даже при выключенном gateway', async () => {

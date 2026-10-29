@@ -27,6 +27,7 @@
  html[data-crm-ui] .crm-operational-page .crm-month-day {background:var(--crm-surface)!important;color:var(--crm-ink)!important;border-color:var(--crm-line)!important;border-radius:8px!important;}
  html[data-crm-ui] .crm-operational-page .crm-month-day>:is(strong,small) {color:inherit!important;}
  html[data-crm-ui] .crm-operational-page .crm-month-day[aria-pressed=true] {background:var(--crm-accent-soft)!important;color:var(--crm-accent-ink)!important;border-color:var(--crm-accent)!important;}
+ html[data-crm-ui] .crm-ops-work-schedule .crm-month-day .crm-month-count {display:block;box-sizing:border-box;padding:2px 4px;border-radius:5px;background:var(--crm-accent-soft);color:var(--crm-accent-ink)!important;font-size:11px!important;line-height:1.3!important;text-align:center;overflow-wrap:anywhere;}
  html[data-crm-ui] .crm-operational-page .crm-filter-form {display:flex!important;align-items:end!important;gap:14px!important;flex-wrap:wrap!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;margin-bottom:20px!important;}
  html[data-crm-ui] .crm-operational-page .crm-filter-form>label {display:grid!important;gap:6px!important;min-width:0!important;flex:1 1 170px!important;color:var(--crm-muted)!important;font-size:13px!important;}
  html[data-crm-ui] .crm-operational-page .crm-filter-form>label>input,.crm-operational-page .crm-filter-form>label>select {width:100%!important;}

@@ -2,6 +2,7 @@ import { IsDefined, IsIn, IsObject, IsOptional, IsString, MaxLength } from 'clas
 
 export class CreatePaymentDto {
   @IsOptional() @IsString() @MaxLength(2048) returnUrl?: string;
+  @IsOptional() @IsIn(['YOOKASSA', 'TBANK', 'ROBOKASSA']) provider?: 'YOOKASSA' | 'TBANK' | 'ROBOKASSA';
 }
 
 export class PaymentWebhookDto {

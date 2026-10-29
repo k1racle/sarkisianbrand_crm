@@ -22,7 +22,7 @@ export type WorkspacePreferences = { favorites: string[]; recent: string[]; star
 
 /** Shared by the workspace selector and the home screen, in business order. */
 export const WORKSPACE_AREAS = [
-  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'partner-documents', 'marketing', 'studio', 'support', 'channels', 'reports', 'settings'] },
+  { id: 'crm', label: 'CRM', description: 'Продажи, команда, маркетинг, поддержка и настройки', icon: 'Users', groupIds: ['crm', 'sales', 'loyalty', 'referral', 'bloggers', 'partner-documents', 'marketing', 'courses', 'studio', 'support', 'channels', 'reports', 'settings'] },
   { id: 'site', label: 'Админка сайта', description: 'Каталог, страницы, витрина и изображения', icon: 'ShoppingBag', groupIds: ['catalog', 'site', 'media'] },
 ] as const;
 
@@ -44,6 +44,9 @@ const ADMIN = ['ADMIN'];
  * Every protected data section uses the same permission keys as its API.
  */
 export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
+  { id: 'courses', label: 'Обучение', description: 'Курсы, программа и тарифы.', icon: 'BookOpen', items: [
+    { id: 'courses', label: 'Курсы', to: '/crm/courses', permission: 'lms.read', roles: ['ADMIN', 'SUPERVISOR', 'CONTENT_MANAGER'], keywords: 'обучение уроки тарифы программа видео презентации' },
+  ] },
   {id:'studio',label:'Игра и награды',description:'Условия обмена монет на скидки.',icon:'Gift',items:[{id:'studio-rewards',label:'Награды игры',to:'/crm/studio-rewards',permission:'promotions.read',roles:['ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR'],keywords:'игра студия скидки монеты промокоды награды'}]},
   { id: 'dashboard', label: 'Рабочий стол', description: 'Быстрые переходы и обзор интернет-магазина.', icon: 'LayoutDashboard', items: [
     { id: 'web-dashboard', label: 'Обзор магазина', to: '/admin-workspace/dashboard', permission: 'admin.read', roles: CATALOG },

@@ -272,6 +272,8 @@ model CrmDepartment {
 }
 
 model User {
+  lmsLiveHosted LmsLiveSession[] @relation("LmsLiveHost")
+  lmsLiveMessages LmsLiveMessage[]
   studioAccount StudioAccount?
   crmNotificationReads CrmNotificationRead[]
   crmNotificationPreferences CrmNotificationPreference?
@@ -332,6 +334,7 @@ model User {
   crmChatMemberships      CrmChatMember[]
   crmChatMessages         CrmChatMessage[]     @relation("CrmMessageAuthor")
   enrollments             Enrollment[]
+  coursePurchases         CoursePurchase[]
   bookings                Booking[]
   loyaltyAccount          LoyaltyAccount?
   partnerProfiles         PartnerParticipant[]
@@ -1645,6 +1648,7 @@ model CartItem {
 }
 
 model Order {
+  coursePurchase CoursePurchase?
   crmNotificationEvents CrmNotificationEvent[]
   oneCFinance OneCOrderFinance?
   warehouseExecution OneCOrderWarehouse?
@@ -2408,6 +2412,7 @@ model Payment {
   currency      Currency @default(RUB)
   provider      String
   transactionId String?  @unique
+  invoiceId     Int?     @unique @default(autoincrement())
   status        String
   metadata      Json?
 
@@ -3101,17 +3106,25 @@ model SeoData {
 // ===================== LMS =====================
 
 model Course {
+  liveSessions LmsLiveSession[]
   id          String       @id @default(uuid())
   titleRu     String
   titleEn     String?
   description Json?
   price       Decimal      @db.Decimal(15, 2)
   isActive    Boolean      @default(true)
+  status      String       @default("DRAFT")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   lessons     Lesson[]
   enrollments Enrollment[]
+  tariffs     CourseTariff[]
+  modules     CourseModule[]
+  purchases   CoursePurchase[]
 }
 
 model Lesson {
+  liveSessions LmsLiveSession[]
   id        String  @id @default(uuid())
   courseId  String
   course    Course  @relation(fields: [courseId], references: [id])
@@ -3119,6 +3132,14 @@ model Lesson {
   videoUrl  String?
   content   String?
   sortOrder Int     @default(0)
+  moduleId  String?
+  module    CourseModule? @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  kind      String  @default("TEXT")
+  presentationUrl String?
+  isPreview Boolean @default(false)
+  progress  LessonProgress[]
+
+  @@index([courseId, moduleId, sortOrder])
 }
 
 model Enrollment {
@@ -3131,8 +3152,109 @@ model Enrollment {
   isCompleted       Boolean  @default(false)
   certificateIssued Boolean  @default(false)
   enrolledAt        DateTime @default(now())
+  accessStatus      String   @default("UNVERIFIED")
+  accessExpiresAt   DateTime?
+  lessonsProgress   LessonProgress[]
 
   @@unique([userId, courseId])
+}
+
+model CourseTariff {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  title String
+  price Decimal @db.Decimal(15, 2)
+  accessDays Int?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  purchases CoursePurchase[]
+
+  @@index([courseId, isActive])
+}
+
+model CourseModule {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  title String
+  sortOrder Int @default(0)
+  lessons Lesson[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId, sortOrder])
+}
+
+model LessonProgress {
+  id String @id @default(uuid())
+  enrollmentId String
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([enrollmentId, lessonId])
+}
+
+// An immutable commercial snapshot. A pending purchase never grants access.
+model CoursePurchase {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  tariffId String
+  tariff CourseTariff @relation(fields: [tariffId], references: [id], onDelete: Restrict)
+  orderId String @unique
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  requestKeyHash String
+  requestHash String
+  courseTitle String
+  tariffTitle String
+  amount Decimal @db.Decimal(15, 2)
+  currency Currency @default(RUB)
+  accessDays Int?
+  status String @default("PREPARED")
+  accountingStatus String @default("NEEDS_REVIEW")
+  paidAt DateTime?
+  accessStartsAt DateTime?
+  accessExpiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, requestKeyHash])
+  @@index([userId, courseId, status])
+}
+
+model LmsLiveSession {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  lessonId String
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  hostId String
+  host User @relation("LmsLiveHost", fields: [hostId], references: [id], onDelete: Restrict)
+  title String
+  startsAt DateTime
+  endsAt DateTime
+  status String @default("SCHEDULED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages LmsLiveMessage[]
+  @@index([courseId, lessonId, startsAt])
+}
+
+model LmsLiveMessage {
+  id String @id @default(uuid())
+  sessionId String
+  session LmsLiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  authorId String
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body String
+  createdAt DateTime @default(now())
+  @@index([sessionId, createdAt, id])
 }
 
 // ===================== BOOKING =====================

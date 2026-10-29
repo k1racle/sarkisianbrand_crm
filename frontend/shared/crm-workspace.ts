@@ -14,6 +14,7 @@ export type CrmDestination = {
 };
 export const CRM_DESTINATIONS: CrmDestination[] = [
   {id:'studio-rewards',path:'/crm/studio-rewards',label:'Награды игры',group:'Маркетинг и партнёры',icon:'TicketPercent'},
+  {id:'courses',path:'/crm/courses',label:'Курсы',group:'Маркетинг и партнёры',icon:'BookOpen'},
   { id: 'crm-dashboard', path: '/crm/', label: 'Мой день', group: 'Мой день', icon: 'CalendarDays' },
   { id: 'pipeline', path: '/crm/deals', label: 'Воронка продаж', group: 'Клиенты и продажи', icon: 'Kanban' },
   { id: 'customers', path: '/crm/customers', label: 'Клиенты', group: 'Клиенты и продажи', icon: 'ContactRound' },

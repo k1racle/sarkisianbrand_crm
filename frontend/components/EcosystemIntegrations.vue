@@ -29,6 +29,10 @@ const audience = ref('ALL');
 const search = ref('');
 const notice = ref('');
 const error = ref('');
+const paymentResultUrl = computed(() => {
+  if (!import.meta.client || !['ROBOKASSA','TBANK'].includes(selected.value?.key)) return '';
+  return new URL(`/api/v1/payments/webhook/${selected.value.key.toLowerCase()}`, window.location.origin).href;
+});
 
 const categories = [
   { id: 'ALL', label: 'Все' },
@@ -208,11 +212,15 @@ onMounted(async () => {
         <header data-v-ui-1e872dee0e70><IntegrationBrandLogo :provider="selected.provider" :size="42" /><div data-v-ui-1e872dee0e70><p data-v-ui-1e872dee0e70 class="kicker">{{ categoryLabels[selected.category] }}</p><h2 data-v-ui-1e872dee0e70>{{ selected.name }}</h2><small data-v-ui-1e872dee0e70 v-if="selected.audience">Аудитория: {{ audienceLabels[selected.audience] }}</small></div><button data-v-ui-1e872dee0e70 type="button" class="close crm-button crm-button--icon" aria-label="Закрыть интеграцию" @click="close"><X data-v-ui-1e872dee0e70 :size="18" /></button></header>
         <div data-v-ui-1e872dee0e70 class="drawer-scroll admin-dialog-body">
           <p data-v-ui-1e872dee0e70 class="drawer-description">{{ selected.description }}</p>
+          <p v-if="selected.key === 'ROBOKASSA'" class="drawer-description">Укажите рабочие и тестовые пароли № 1 и № 2 одного магазина из личного кабинета Робокассы. Тестовые пароли должны отличаться от рабочих. В каждом режиме используется своя пара; для рабочего режима нужны обе пары.</p>
+          <p v-if="paymentResultUrl" class="drawer-description">Адрес уведомлений об оплате: <strong>{{ paymentResultUrl }}</strong> <button class="crm-button" type="button" @click="copyText(paymentResultUrl, 'Адрес уведомлений скопирован')">Копировать</button>. Проверка заполнения не подтверждает, что платёж и чек работают.</p>
           <div data-v-ui-1e872dee0e70 class="mode-row"><label data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Режим</span><select class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.environment"><option data-v-ui-1e872dee0e70 value="TEST">Тестовый</option><option data-v-ui-1e872dee0e70 value="PRODUCTION">Рабочий</option></select></label><label data-v-ui-1e872dee0e70 class="switch-line crm-toggle-row"><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Подключение включено</b><small data-v-ui-1e872dee0e70>Разрешить фоновые процессы</small></span><input class="crm-check" data-v-ui-1e872dee0e70 v-model="draft.isEnabled" type="checkbox" /></label></div>
           <div data-v-ui-1e872dee0e70 class="security-note"><KeyRound data-v-ui-1e872dee0e70 :size="17" /><span data-v-ui-1e872dee0e70><b data-v-ui-1e872dee0e70>Безопасное хранение</b><small data-v-ui-1e872dee0e70>Секреты шифруются AES-256-GCM. После сохранения их нельзя прочитать через интерфейс.</small></span></div>
           <section data-v-ui-1e872dee0e70 class="fields"><h3 data-v-ui-1e872dee0e70>Параметры подключения</h3>
             <label data-v-ui-1e872dee0e70 v-for="field in selected.fields" :key="field.key"><span data-v-ui-1e872dee0e70>{{ field.label }} <b data-v-ui-1e872dee0e70 v-if="field.required">обязательно</b></span>
               <span data-v-ui-1e872dee0e70 v-if="field.type !== 'secret' && field.key === 'webhookUrl'" class="webhook-input"><input class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.config[field.key]" type="url" :placeholder="field.placeholder || ''" /><button class="crm-button" data-v-ui-1e872dee0e70 type="button" title="Копировать адрес" @click="copyText(draft.config[field.key], 'Адрес webhook скопирован')"><Copy data-v-ui-1e872dee0e70 :size="14" /></button></span>
+              <select v-else-if="selected.key === 'ROBOKASSA' && field.key === 'signatureAlgorithm'" v-model="draft.config[field.key]" class="crm-input"><option value="">Выберите алгоритм из кабинета Робокассы</option><option value="SHA256">SHA-256</option><option value="SHA512">SHA-512</option><option value="MD5">MD5</option></select>
+              <select v-else-if="['ROBOKASSA','TBANK'].includes(selected.key) && field.key === 'fiscalMode'" v-model="draft.config[field.key]" class="crm-input"><option value="">Выберите способ фискализации</option><option value="EXTERNAL">Чеки настроены вне платёжной формы</option></select>
               <input class="crm-input" data-v-ui-1e872dee0e70 v-else-if="field.type !== 'secret'" v-model="draft.config[field.key]" :type="field.type === 'url' ? 'url' : field.type === 'number' ? 'number' : 'text'" :placeholder="field.placeholder || ''" />
               <span data-v-ui-1e872dee0e70 v-else class="secret-input"><input class="crm-input" data-v-ui-1e872dee0e70 v-model="draft.secrets[field.key]" type="password" autocomplete="new-password" :placeholder="field.configured && !draft.clearSecrets.includes(field.key) ? 'Сохранено ••••••••' : 'Введите секрет'" /><button class="crm-button" data-v-ui-1e872dee0e70 v-if="field.configured" type="button" :class="{ danger: draft.clearSecrets.includes(field.key) }" @click="toggleClear(field.key)">{{ draft.clearSecrets.includes(field.key) ? 'Отменить удаление' : 'Удалить ключ' }}</button></span>
               <small data-v-ui-1e872dee0e70 v-if="field.hint">{{ field.hint }}</small>

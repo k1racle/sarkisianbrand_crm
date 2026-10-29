@@ -41,6 +41,7 @@ import { MediaModule } from './media/media.module';
 import { PartnersModule } from './partners/partners.module';
 import { ContactMessagesModule } from './contact-messages/contact-messages.module';
 import { MeetingsModule } from './meetings/meetings.module';
+import { LmsModule } from './lms/lms.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { MeetingsModule } from './meetings/meetings.module';
     PartnersModule,
     ContactMessagesModule,
     MeetingsModule,
+    LmsModule,
     PaymentCalendarModule,
     WorkScheduleModule,
     WorkTimeModule,

@@ -78,6 +78,15 @@ describe('Storefront dashboard role eligibility (isolated mocks)', () => {
     expect(result.orders[0]).not.toHaveProperty('shippingAddress');
   });
 
+  it('labels courses and excludes their amounts from product spending', async () => {
+    const { service, prisma } = fixture();
+    prisma.order.findMany.mockResolvedValue([{ id: 'course', orderNumber: 'COURSE-1', source: 'WEB', sourceChannel: 'COURSE', createdAt: new Date(),
+      status: 'DELIVERED', finalAmount: '4500', items: [{ id: 'line', productType: 'COURSE', productName: 'Курс' }], warehouseExecution: null }]);
+    const result = await service.dashboard('customer');
+    expect(result.orders[0]).toMatchObject({ sourceChannel: 'COURSE', requiresWarehouse: false, warehouseStatus: null, items: [{ productType: 'COURSE' }] });
+    expect(prisma.order.aggregate).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ sourceChannel: { not: 'COURSE' } }) }));
+  });
+
   it.each(['CUSTOMER_B2C', 'CUSTOMER_B2B', 'ADMIN'])('returns only masked own-purchase summaries for %s', async role => {
     const { service, prisma } = fixture(role);
     prisma.giftCard.findMany.mockResolvedValue([{
