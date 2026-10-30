@@ -27,6 +27,9 @@ html[data-crm-ui] .course-detail-head { display:flex; align-items:center; flex-w
 html[data-crm-ui] .course-detail-title { display:flex; align-items:center; flex:1; flex-wrap:wrap; gap:10px; min-width:180px; }
 html[data-crm-ui] .course-detail-title h2 { margin:0; font-size:20px; }
 html[data-crm-ui] .course-actions { display:flex; flex-wrap:wrap; gap:8px; }
+html[data-crm-ui] .course-publication-note { display:grid; gap:4px; padding:12px 16px; margin-bottom:16px; border-left:3px solid var(--crm-accent); border-radius:0 6px 6px 0; background:var(--crm-tint); color:var(--crm-ink); line-height:1.5; font-size:13px; }
+html[data-crm-ui] .course-publication-note strong { font-size:14px; }
+html[data-crm-ui] .course-lesson-state { color:var(--crm-accent); font-size:12px; line-height:1.4; font-weight:600; }
 html[data-crm-ui] .course-panel { padding-top:22px; }
 html[data-crm-ui] .course-panel > header, html[data-crm-ui] .course-module > header, html[data-crm-ui] .course-editor > header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
 html[data-crm-ui] .course-panel h3, html[data-crm-ui] .course-module h4, html[data-crm-ui] .course-editor h2 { margin:0 0 5px; }

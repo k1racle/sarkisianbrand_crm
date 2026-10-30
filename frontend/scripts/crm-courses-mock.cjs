@@ -25,9 +25,9 @@ async function main() {
         if(fail){fail=false;return route.fulfill({status:503,json:{message:'Сервис временно недоступен'}});}
         if(endpoint.endsWith('/lessons/lesson-2/assets')) {
           if(method==='GET')return route.fulfill({json:clone(assetRows)});
-          if(method==='POST') { assert.equal(request.headers()['content-type'],'application/octet-stream'); assert.equal(decodeURIComponent(request.headers()['x-file-name']),'урок.pdf'); assert.equal(request.postDataBuffer().toString(),'%PDF-fixture'); const row={id:'asset-1',lessonId:'lesson-2',filename:'урок.pdf',mimeType:'application/pdf',size:12,isPublished:false,everPublished:false,createdAt:new Date().toISOString()};assetRows.push(row);return route.fulfill({json:clone(row)}); }
+          if(method==='POST') { assert.equal(request.headers()['content-type'],'application/octet-stream'); assert.equal(decodeURIComponent(request.headers()['x-file-name']),'урок.pdf'); assert.equal(request.postDataBuffer().toString(),'%PDF-fixture'); const row={id:'asset-1',lessonId:'lesson-2',filename:'урок.pdf',mimeType:'application/pdf',size:12,isPublished:false,everPublished:false,createdAt:new Date().toISOString()};assetRows.push(row);const lesson=course?.modules[0]?.lessons.find(item=>item.id==='lesson-2');if(lesson){lesson.assets=clone(assetRows);if(lesson.isPublished)lesson.hasDraftChanges=true;}return route.fulfill({json:clone(row)}); }
         }
-        if(endpoint.endsWith('/lessons/lesson-2/assets/asset-1')&&method==='DELETE'){ assetRows=assetRows.filter(item=>item.id!=='asset-1');return route.fulfill({json:{status:cleanupPending?'cleanup_pending':'deleted'}}); }
+        if(endpoint.endsWith('/lessons/lesson-2/assets/asset-1')&&method==='DELETE'){ assetRows=assetRows.filter(item=>item.id!=='asset-1');const lesson=course?.modules[0]?.lessons.find(item=>item.id==='lesson-2');if(lesson)lesson.assets=clone(assetRows);return route.fulfill({json:{status:cleanupPending?'cleanup_pending':'deleted'}}); }
         if(endpoint.includes('/live/') || endpoint.endsWith('/live')) {
           if(!liveEnabled)return route.fulfill({status:503,json:{message:'Эфиры временно недоступны'}});
           if(endpoint.endsWith('/hosts'))return route.fulfill({json:[{id:'mock-admin',name:'Дизайн Проверка'}]});
@@ -42,9 +42,10 @@ async function main() {
         if(endpoint.endsWith('/courses')&&method==='GET')return route.fulfill({json:{items:course?[clone(course)]:[],total:course?1:0,page:1,pages:1}});
         if(endpoint.endsWith('/courses')&&method==='POST'){course={id:'test-course',status:'DRAFT',...body,tariffs:[],modules:[]};return route.fulfill({json:clone(course)});}
         if(endpoint.endsWith('/courses/test-course')&&method==='GET')return route.fulfill({json:clone(course)});
-        if(endpoint.endsWith('/courses/test-course')&&method==='PATCH'){Object.assign(course,body);return route.fulfill({json:clone(course)});}
+        if(endpoint.endsWith('/courses/test-course')&&method==='PATCH'){Object.assign(course,body);if(body.status==='PUBLISHED')for(const module of course.modules)for(const lesson of module.lessons){lesson.isPublished=true;lesson.hasDraftChanges=false;lesson.revision++;}return route.fulfill({json:clone(course)});}
         if(endpoint.endsWith('/courses/test-course/modules')&&method==='POST'){const row={id:'test-module',...body,lessons:[]};course.modules.push(row);return route.fulfill({json:clone(row)});}
-        if(endpoint.endsWith('/modules/test-module/lessons')&&method==='POST'){const row={id:'lesson-'+(++sequence),...body};course.modules[0].lessons.push(row);return route.fulfill({json:clone(row)});}
+        if(endpoint.endsWith('/modules/test-module/lessons')&&method==='POST'){const row={id:'lesson-'+(++sequence),...body,revision:0,isPublished:false,hasDraftChanges:false,assets:sequence===2?clone(assetRows):[]};course.modules[0].lessons.push(row);return route.fulfill({json:clone(row)});}
+        if(/\/lessons\/lesson-[12]$/.test(endpoint)&&method==='PATCH'){const row=course.modules[0].lessons.find(item=>endpoint.endsWith('/'+item.id));if(body.revision!==row.revision)return route.fulfill({status:409,json:{message:'Урок изменён другим сотрудником'}});Object.assign(row,body,{revision:row.revision+1,hasDraftChanges:row.isPublished});return route.fulfill({json:clone(row)});}
         if(endpoint.endsWith('/courses/test-course/tariffs')&&method==='POST'){const row={id:'test-tariff',...body};course.tariffs.push(row);return route.fulfill({json:clone(row)});}
         if(endpoint.endsWith('/tariffs/test-tariff')&&method==='PATCH'){Object.assign(course.tariffs[0],body);return route.fulfill({json:clone(course.tariffs[0])});}
         return route.fulfill({status:404,json:{message:'Unexpected LMS fixture endpoint'}});
@@ -75,6 +76,9 @@ async function main() {
         await page.getByLabel('Тип урока').selectOption('PRESENTATION');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
         await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
+        // Simulate another employee saving while this editor remains open.
+        // Upload refreshes course data, but cannot refresh the form's revision.
+        course.modules[0].lessons.find(item=>item.id==='lesson-2').revision++;
         await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});
         await page.getByText('Выбран файл: урок.pdf · 1 КБ').waitFor(); await page.getByRole('button',{name:'Отменить выбор'}).click(); assert.equal(await page.getByRole('button',{name:'Добавить файл'}).isDisabled(),true);
         await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});
@@ -83,6 +87,12 @@ async function main() {
         assert.equal(await page.getByRole('button',{name:'Удалить файл Уже опубликовано.pdf'}).count(),0);
         page.removeAllListeners('dialog');page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Удалить файл урок.pdf'}).click();await page.getByText('Файл удалён.').waitFor();assert.equal(await page.getByText('урок.pdf',{exact:true}).count(),0);
         await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});await page.getByRole('button',{name:'Добавить файл'}).click();await page.getByText('Файл добавлен к уроку.').waitFor();cleanupPending=true;page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Удалить файл урок.pdf'}).click();await page.getByText('Файл убран из урока. Очистка хранилища завершится позже.').waitFor();
+        await page.getByLabel('Название урока *').fill('Несохранённый заголовок');
+        await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('alert').getByText('Урок изменился или был опубликован',{exact:false}).waitFor();
+        assert.equal(await page.getByLabel('Название урока *').inputValue(),'Несохранённый заголовок','Conflict keeps the unsaved form');
+        assert.equal(await page.getByRole('button',{name:'Сохранить',exact:true}).isDisabled(),true);
+        page.once('dialog',dialog=>dialog.accept());
         await page.screenshot({path:path.join(output,`${width}-${dark?'dark':'light'}-assets.png`),fullPage:true});
         await page.getByRole('button',{name:'Отмена',exact:true}).click();
         await page.getByRole('button',{name:'Урок',exact:true}).click();
@@ -123,6 +133,62 @@ async function main() {
         await page.getByText('Самостоятельно',{exact:true}).waitFor();
         await page.getByRole('button',{name:'Опубликовать'}).click();
         await page.getByText('Курс опубликован',{exact:true}).waitFor();
+        await page.getByRole('tab',{name:'Программа'}).click();
+        assert.equal(await page.getByRole('button',{name:'Опубликовать изменения'}).count(),0);
+        await page.getByRole('button',{name:'Изменить урок Материалы'}).click();
+        await page.getByText('Вы редактируете черновик урока').waitFor();
+        await page.getByText('После сохранения ученики продолжат видеть опубликованную версию.',{exact:false}).waitFor();
+        await page.getByLabel('Текст урока').fill('Обновлённые материалы.');
+        const firstLesson = course.modules[0].lessons.find(item=>item.id==='lesson-1');
+        firstLesson.revision++; firstLesson.content='Текст другого сотрудника';
+        await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('alert').getByText('Урок изменился или был опубликован',{exact:false}).waitFor();
+        assert.equal(await page.getByLabel('Текст урока').inputValue(),'Обновлённые материалы.','Conflict keeps entered text');
+        assert.equal(firstLesson.content,'Текст другого сотрудника','Stale form did not overwrite the newer version');
+        page.once('dialog',dialog=>dialog.accept()); await page.getByRole('button',{name:'Отмена',exact:true}).click();
+        await page.getByRole('button',{name:'Изменить урок Материалы'}).click();
+        assert.equal(await page.getByLabel('Текст урока').inputValue(),'Текст другого сотрудника');
+        await page.getByLabel('Текст урока').fill('Обновлённые материалы.');
+        await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByText('Есть неопубликованные уроки или изменения').waitFor();
+        await page.getByText('Есть неопубликованные изменения',{exact:true}).waitFor();
+        await page.screenshot({path:path.join(output,`${width}-${dark?'dark':'light'}-lesson-changes.png`),fullPage:true});
+        page.removeAllListeners('dialog');page.once('dialog',dialog=>dialog.accept());
+        await page.getByRole('button',{name:'Опубликовать изменения'}).click();
+        await page.getByRole('status').getByText('Изменения уроков опубликованы').waitFor();
+        assert.equal(await page.getByText('Есть неопубликованные уроки или изменения').count(),0);
+        assert.equal(await page.getByRole('button',{name:'Опубликовать изменения'}).count(),0);
+        await page.getByRole('button',{name:'Урок',exact:true}).click();
+        await page.getByLabel('Название урока *').fill('Новый урок');
+        await page.getByLabel('Текст урока').fill('Ещё один материал.');
+        await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByText('Новый урок не опубликован',{exact:true}).waitFor();
+        page.once('dialog',dialog=>dialog.dismiss());
+        await page.getByRole('button',{name:'Опубликовать изменения'}).click();
+        assert.equal(await page.getByRole('button',{name:'Опубликовать изменения'}).count(),1,'Cancelled publication keeps pending lesson');
+        page.once('dialog',dialog=>dialog.accept());
+        await page.getByRole('button',{name:'Опубликовать изменения'}).click();
+        await page.getByRole('status').getByText('Изменения уроков опубликованы').waitFor();
+        assert.equal(await page.getByText('Новый урок не опубликован',{exact:true}).count(),0);
+        await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
+        await page.getByLabel('Выбрать файл').setInputFiles({name:'урок.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-fixture')});
+        await page.getByRole('button',{name:'Добавить файл'}).click();
+        await page.getByText('Файл добавлен к уроку.').waitFor();
+        await page.getByText('Не опубликован',{exact:true}).waitFor();
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
+        await page.getByRole('button',{name:'Опубликовать изменения'}).waitFor();
+        await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
+        await page.getByLabel('Тип урока').selectOption('TEXT');
+        await page.getByLabel('Текст урока').fill('Текст вместо презентации.');
+        await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
+        await page.getByText('Здесь перечислены файлы предыдущего типа урока.',{exact:false}).waitFor();
+        assert.equal(await page.getByLabel('Выбрать файл').count(),0,'Cannot upload assets to a text lesson');
+        await page.getByRole('button',{name:'Удалить файл урок.pdf'}).waitFor();
+        page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Удалить файл урок.pdf'}).click();
+        await page.getByText('Файл убран из урока. Очистка хранилища завершится позже.').waitFor();
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
+        await page.getByRole('tab',{name:'Тарифы'}).click();
         assert.ok(calls.some(item=>item.method==='POST'&&item.endpoint.endsWith('/lessons')&&item.body.content==='Выбираем материалы для работы.'));
         assert.ok(calls.some(item=>item.method==='POST'&&item.endpoint.endsWith('/lessons')&&item.body.kind==='LIVE'&&item.body.isPreview===false&&item.body.content==='Разбор вопросов участников.'));
         assert.ok(calls.some(item=>item.method==='POST'&&item.endpoint.endsWith('/tariffs')&&item.body.price===4500&&item.body.accessDays===90));
@@ -133,7 +199,7 @@ async function main() {
         await page.screenshot({path:path.join(output,`${width}-${dark?'dark':'light'}.png`),fullPage:true});
         assert.deepEqual(f.traffic.prohibitedWrites,[]); assert.deepEqual(f.traffic.unknownReads,[]); assert.deepEqual(f.traffic.externalRequests,[]);
         assert.ok(f.errors.filter(error=>error.includes('status of 503')).length>=1,'Expected simulated 503 responses');
-        assert.deepEqual(f.errors.filter(error=>!error.includes('status of 503')),[]);
+        assert.deepEqual(f.errors.filter(error=>!error.includes('status of 503')&&!error.includes('status of 409')),[]);
         console.log(`${width}: create course, module, lesson, tariff and publish PASS`);
       } finally { await context.close(); }
     }

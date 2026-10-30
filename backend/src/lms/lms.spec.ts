@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { LmsService } from './lms.service';
-import { CreateCoursePurchaseDto, CreateLessonDto, UpdateCourseDto, UpdateTariffDto } from './lms.dto';
+import { CreateCoursePurchaseDto, CreateLessonDto, UpdateCourseDto, UpdateLessonDto, UpdateTariffDto } from './lms.dto';
 import { LmsAdminController, LmsStudentController } from './lms.controller';
 import { PERMISSIONS_KEY } from '../common/decorators/permissions.decorator';
 import { Test } from '@nestjs/testing';
@@ -26,6 +26,8 @@ describe('LMS validation and permission contract', () => {
     expect(await validate(plainToInstance(UpdateTariffDto, { price: null }))).not.toHaveLength(0);
     expect(await validate(plainToInstance(CreateLessonDto, { title: 'Урок', kind: 'OTHER' }))).not.toHaveLength(0);
     expect(await validate(plainToInstance(CreateLessonDto, { title: 'Урок', kind: 'LIVE' }))).toHaveLength(0);
+    expect(await validate(plainToInstance(UpdateLessonDto, { title: 'Урок' }))).not.toHaveLength(0);
+    expect(await validate(plainToInstance(UpdateLessonDto, { title: 'Урок', revision: 0 }))).toHaveLength(0);
     expect(await validate(plainToInstance(CreateCoursePurchaseDto, { courseId: randomUUID(), tariffId: randomUUID(), expectedPrice: 1, acceptedTerms: 'false' }, { enableImplicitConversion: true }))).not.toHaveLength(0);
   });
   it('requires explicit read/write permission for every administrative mutation', () => {
@@ -39,12 +41,13 @@ describe('LMS validation and permission contract', () => {
 const url = process.env.LMS_TEST_DATABASE_URL;
 if (url) {
   const parsed = new URL(url);
-  if (!['127.0.0.1','localhost'].includes(parsed.hostname) || parsed.pathname !== '/lms_fixture' || !['56432','55435'].includes(parsed.port)) throw new Error('LMS tests require the dedicated local lms_fixture database');
+  if (!['127.0.0.1','localhost'].includes(parsed.hostname) || ![['56432','/lms_fixture'],['55435','/lms_fixture'],['56437','/lms_revision_fixture']].some(([port,path]) => parsed.port === port && parsed.pathname === path)) throw new Error('LMS tests require the dedicated local fixture database');
 }
 const pg = url ? describe : describe.skip;
 pg('LMS against isolated PostgreSQL', () => {
   const db = url ? new PrismaClient({ datasources: { db: { url } } }) : undefined as unknown as PrismaClient;
   const service = new LmsService(db as any);
+  async function editLesson(id: string, dto: Omit<Parameters<LmsService['updateLesson']>[1], 'revision'>) { const { revision } = await db.lesson.findUniqueOrThrow({ where: { id }, select: { revision: true } }); return service.updateLesson(id, { ...dto, revision }); }
   const userIds: string[] = [], courses: string[] = [];
   async function user() { const row = await db.user.create({ data: { email: `lms-${randomUUID()}@example.invalid`, password: 'fixture', role: 'CUSTOMER_B2C' } }); userIds.push(row.id); return row; }
   async function draft() { const course = await service.createCourse({ titleRu: 'Курс', description: 'Описание' }); courses.push(course.id); return course; }
@@ -95,18 +98,101 @@ pg('LMS against isolated PostgreSQL', () => {
     const module = await service.createModule(course.id, { title: 'Модуль' });
     const lesson = await service.createLesson(module.id, { title: 'Видео', kind: 'VIDEO' });
     await expect(service.updateCourse(course.id, { status: 'PUBLISHED' })).rejects.toMatchObject({ status: 400 });
-    await expect(service.updateLesson(lesson.id, { videoUrl: 'javascript:alert(1)' })).rejects.toMatchObject({ status: 400 });
-    await service.updateLesson(lesson.id, { videoUrl: 'https://video.example.invalid/lesson' });
+    await expect(editLesson(lesson.id, { videoUrl: 'javascript:alert(1)' })).rejects.toMatchObject({ status: 400 });
+    await editLesson(lesson.id, { videoUrl: 'https://video.example.invalid/lesson' });
     await service.updateCourse(course.id, { status: 'PUBLISHED' });
     await expect(service.updateTariff(tariff.id, { isActive: false })).rejects.toMatchObject({ status: 400 });
     expect((await db.courseTariff.findUniqueOrThrow({ where: { id: tariff.id } })).isActive).toBe(true);
-    await expect(service.updateLesson(lesson.id, { videoUrl: null })).rejects.toMatchObject({ status: 400 });
+    await editLesson(lesson.id, { videoUrl: null });
+    await expect(service.updateCourse(course.id, { status: 'PUBLISHED' })).rejects.toMatchObject({ status: 400 });
     expect((await db.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).videoUrl).toBe('https://video.example.invalid/lesson');
+  });
+  it('keeps changed lesson fields and new lessons private until explicit atomic publication', async () => {
+    const f = await filled(), student = await user();
+    await editLesson(f.lesson.id, { isPreview: true });
+    await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
+    await db.enrollment.create({ data: { userId: student.id, courseId: f.course.id, accessStatus: 'ACTIVE' } });
+    await service.complete(student.id, f.course.id, f.lesson.id);
+    await editLesson(f.lesson.id, { title:'Новое название', content:'Новый текст', isPreview:false, sortOrder:5 });
+    const next = await service.createLesson(f.module.id, { title:'Новый урок', kind:'TEXT', content:'Секрет нового урока' });
+    expect(next.isPublished).toBe(false);
+    expect(await service.myLesson(student.id,f.course.id,f.lesson.id)).toMatchObject({ title:'Текст', content:'Только для ученика', isPreview:true, sortOrder:0 });
+    expect(await service.preview(f.course.id,f.lesson.id)).toMatchObject({ content:'Только для ученика' });
+    await expect(service.myLesson(student.id,f.course.id,next.id)).rejects.toMatchObject({ status:404 });
+    expect((await service.myCourse(student.id,f.course.id)).progress).toBe(100);
+    const admin = await service.adminDetail(f.course.id);
+    expect(admin.modules[0].lessons.find(item => item.id === f.lesson.id)).toMatchObject({ title:'Новое название', content:'Новый текст', isPreview:false, hasDraftChanges:true });
+    expect(JSON.stringify(await service.catalogDetail(f.course.id))).not.toContain('Новое название');
+    await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    expect(await service.myLesson(student.id,f.course.id,f.lesson.id)).toMatchObject({ title:'Новое название', content:'Новый текст', isPreview:false, sortOrder:5 });
+    await expect(service.preview(f.course.id,f.lesson.id)).rejects.toMatchObject({status:404});
+    expect(await service.myLesson(student.id,f.course.id,next.id)).toMatchObject({ content:'Секрет нового урока' });
+    expect((await service.myCourse(student.id,f.course.id)).progress).toBe(50);
+    expect((await service.adminDetail(f.course.id)).modules[0].lessons.find(item => item.id === f.lesson.id)).toMatchObject({hasDraftChanges:false});
+  });
+  it('does not expose a private preview flag early and preserves the paid version through draft, archive and failed publication', async () => {
+    const f=await filled(), student=await user();
+    await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    await db.enrollment.create({data:{userId:student.id,courseId:f.course.id,accessStatus:'ACTIVE'}});
+    await editLesson(f.lesson.id,{isPreview:true,content:''});
+    await expect(service.preview(f.course.id,f.lesson.id)).rejects.toMatchObject({status:404});
+    await service.updateTariff(f.tariff.id,{price:4600});
+    await expect(service.updateCourse(f.course.id,{status:'PUBLISHED'})).rejects.toMatchObject({status:400});
+    await service.updateCourse(f.course.id,{status:'DRAFT'});
+    expect((await service.myLesson(student.id,f.course.id,f.lesson.id)).content).toBe('Только для ученика');
+    await service.updateCourse(f.course.id,{status:'ARCHIVED'});
+    expect((await service.myLesson(student.id,f.course.id,f.lesson.id)).content).toBe('Только для ученика');
+    await editLesson(f.lesson.id,{content:'Новый общедоступный текст'});
+    await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    expect((await service.preview(f.course.id,f.lesson.id)).content).toBe('Новый общедоступный текст');
+  });
+  it('clears a no-op or reverted draft without changing published content', async () => {
+    const f=await filled(); await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    await editLesson(f.lesson.id,{title:'Текст',kind:'TEXT',content:'Только для ученика',isPreview:false,sortOrder:0});
+    expect((await service.adminDetail(f.course.id)).modules[0].lessons[0].hasDraftChanges).toBe(false);
+    await editLesson(f.lesson.id,{content:'Изменение'});
+    await editLesson(f.lesson.id,{content:'Только для ученика'});
+    expect((await service.adminDetail(f.course.id)).modules[0].lessons[0].hasDraftChanges).toBe(false);
+  });
+  it('serializes concurrent edit and publication without a partial version', async () => {
+    const f=await filled(), student=await user(); await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    await db.enrollment.create({data:{userId:student.id,courseId:f.course.id,accessStatus:'ACTIVE'}});
+    const results = await Promise.allSettled([editLesson(f.lesson.id,{title:'Новая версия',content:'Новое содержимое'}),service.updateCourse(f.course.id,{status:'PUBLISHED'})]);
+    expect(results[1].status).toBe('fulfilled');
+    const visible=await service.myLesson(student.id,f.course.id,f.lesson.id);
+    const edited=(await service.adminDetail(f.course.id)).modules[0].lessons[0];
+    if (results[0].status === 'rejected') {
+      expect(results[0].reason).toMatchObject({status:409});
+      expect(edited).toMatchObject({title:'Текст',content:'Только для ученика'});
+      expect(visible).toMatchObject({title:'Текст',content:'Только для ученика'});
+      return;
+    }
+    expect(edited).toMatchObject({title:'Новая версия',content:'Новое содержимое'});
+    if (edited.hasDraftChanges) expect(visible).toMatchObject({title:'Текст',content:'Только для ученика'});
+    else expect(visible).toMatchObject({title:'Новая версия',content:'Новое содержимое'});
+  });
+  it('rejects stale lesson forms after another edit or publication', async () => {
+    const f = await filled(); await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    const { revision } = await db.lesson.findUniqueOrThrow({ where:{id:f.lesson.id}, select:{revision:true} });
+    const outcomes = await Promise.allSettled([
+      service.updateLesson(f.lesson.id,{revision,title:'Первая правка'}),
+      service.updateLesson(f.lesson.id,{revision,title:'Вторая правка'}),
+    ]);
+    expect(outcomes.filter(item=>item.status==='fulfilled')).toHaveLength(1);
+    const rejected=outcomes.find(item=>item.status==='rejected') as PromiseRejectedResult;
+    expect(rejected.reason).toMatchObject({status:409});
+    const after=(await service.adminDetail(f.course.id)).modules[0].lessons[0];
+    expect(['Первая правка','Вторая правка']).toContain(after.title);
+    await expect(service.updateLesson(f.lesson.id,{revision,title:'Устаревшая форма'})).rejects.toMatchObject({status:409});
+    await expect(service.updateLesson(f.lesson.id,{title:'Без версии'} as any)).rejects.toMatchObject({status:409});
+    await service.updateCourse(f.course.id,{status:'PUBLISHED'});
+    await expect(service.updateLesson(f.lesson.id,{revision:after.revision,title:'Форма до публикации'})).rejects.toMatchObject({status:409});
+    expect((await service.adminDetail(f.course.id)).modules[0].lessons[0].title).toBe(after.title);
   });
   it('never exposes non-preview lesson content in the public catalog', async () => {
     const f = await filled();
     const preview = await service.createLesson(f.module.id, { title: 'Открытый', kind: 'TEXT', content: 'Открытый текст', isPreview: true });
-    await service.updateLesson(preview.id, { videoUrl: 'https://video.example.invalid/private-old-link' });
+    await editLesson(preview.id, { videoUrl: 'https://video.example.invalid/private-old-link' });
     await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
     const publicData = await service.catalogDetail(f.course.id);
     expect(JSON.stringify(publicData)).not.toContain('Только для ученика');
@@ -119,9 +205,9 @@ pg('LMS against isolated PostgreSQL', () => {
     await expect(service.createLesson(f.module.id, { title: 'Эфир', kind: 'LIVE', isPreview: true })).rejects.toMatchObject({ status: 400 });
     const live = await service.createLesson(f.module.id, { title: 'Эфир', kind: 'LIVE' });
     await expect(service.updateCourse(f.course.id, { status: 'PUBLISHED' })).rejects.toMatchObject({ status: 400 });
-    await service.updateLesson(live.id, { content: 'Обсуждение урока', videoUrl: 'https://video.example.invalid/private' });
+    await editLesson(live.id, { content: 'Обсуждение урока', videoUrl: 'https://video.example.invalid/private' });
     await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
-    await expect(service.updateLesson(live.id, { isPreview: true })).rejects.toMatchObject({ status: 400 });
+    await expect(editLesson(live.id, { isPreview: true })).rejects.toMatchObject({ status: 400 });
     await expect(service.preview(f.course.id, live.id)).rejects.toMatchObject({ status: 404 });
     const student = await user();
     await db.enrollment.create({ data: { userId: student.id, courseId: f.course.id, accessStatus: 'ACTIVE' } });
@@ -139,6 +225,8 @@ pg('LMS against isolated PostgreSQL', () => {
     expect(one).toMatchObject({ progress: 100, isCompleted: true }); expect(two).toEqual(one);
     expect(await db.lessonProgress.count({ where: { enrollmentId: access.id } })).toBe(1);
     await service.createLesson(f.module.id, { title: 'Следующий', kind: 'TEXT', content: 'Новое содержание' });
+    expect(await service.myCourse(a.id,f.course.id)).toMatchObject({ progress: 100, isCompleted: true });
+    await service.updateCourse(f.course.id, { status: 'PUBLISHED' });
     expect(await service.myCourse(a.id,f.course.id)).toMatchObject({ progress: 50, isCompleted: false });
     expect((await service.myCourses(a.id)).find(item => item.courseId === f.course.id)).toMatchObject({ progress: 50, isCompleted: false });
     await db.enrollment.update({ where: { id: access.id }, data: { accessExpiresAt: new Date(Date.now() - 1000) } });

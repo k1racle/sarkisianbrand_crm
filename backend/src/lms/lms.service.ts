@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +29,24 @@ function lessonData(dto: CreateLessonDto | UpdateLessonDto) {
     ...(dto.content !== undefined ? { content: dto.content } : {}), ...(dto.videoUrl !== undefined ? { videoUrl: safeUrl(dto.videoUrl) } : {}),
     ...(dto.presentationUrl !== undefined ? { presentationUrl: safeUrl(dto.presentationUrl) } : {}),
     ...(dto.isPreview !== undefined ? { isPreview: dto.isPreview } : {}), ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}) };
+}
+type LessonFields = { title: string; kind: string; content: string | null; videoUrl: string | null; presentationUrl: string | null; isPreview: boolean; sortOrder: number };
+function draftFields(lesson: LessonFields & { draftData?: Prisma.JsonValue | null }): LessonFields {
+  // Only server-generated keys are applied; never spread arbitrary JSON into
+  // Prisma updates or public responses.
+  const d = lesson.draftData as Partial<LessonFields> | null;
+  return { title: d?.title ?? lesson.title, kind: d?.kind ?? lesson.kind,
+    content: d && 'content' in d ? d.content ?? null : lesson.content,
+    videoUrl: d && 'videoUrl' in d ? d.videoUrl ?? null : lesson.videoUrl,
+    presentationUrl: d && 'presentationUrl' in d ? d.presentationUrl ?? null : lesson.presentationUrl,
+    isPreview: d?.isPreview ?? lesson.isPreview, sortOrder: d?.sortOrder ?? lesson.sortOrder };
+}
+function adminCourse<T extends { modules: Array<{ lessons: Array<LessonFields & { id: string; draftData: Prisma.JsonValue | null; isPublished: boolean; assets: Array<{ mimeType: string; isPublished: boolean; everPublished: boolean }> }> }> }>(course: T) {
+  return { ...course, modules: course.modules.map(module => ({ ...module, lessons: module.lessons.map(lesson => {
+    const { draftData, ...rest } = lesson, fields = draftFields(lesson);
+    const pendingAsset = lesson.assets.some(asset => !asset.isPublished && !asset.everPublished && (fields.kind === 'VIDEO' && ['video/mp4','video/webm'].includes(asset.mimeType) || fields.kind === 'PRESENTATION' && asset.mimeType === 'application/pdf'));
+    return { ...rest, ...fields, hasDraftChanges: draftData !== null || pendingAsset };
+  }).sort((a,b) => a.sortOrder-b.sortOrder || a.id.localeCompare(b.id)) })) };
 }
 function lessonComplete(lesson: { kind: string; isPreview: boolean; content: string | null; videoUrl: string | null; presentationUrl: string | null; assets?: Array<{ mimeType: string }> }) {
   if (lesson.kind === 'TEXT' || lesson.kind === 'LIVE') return !!lesson.content?.trim();
@@ -63,7 +81,7 @@ export class LmsService {
     const course = await tx.course.findUnique({ where: { id }, include: adminInclude });
     if (!course) throw new NotFoundException('Курс не найден');
     if (course.status !== 'PUBLISHED') return;
-    const lessons = course.modules.flatMap(module => module.lessons);
+    const lessons = course.modules.flatMap(module => module.lessons).filter(lesson => lesson.isPublished);
     if (!course.tariffs.some(tariff => tariff.isActive) || !lessons.length || lessons.some(lesson => !lessonComplete(lesson) || (lesson.kind === 'LIVE' && lesson.isPreview)))
       throw new BadRequestException('Для публикации добавьте действующий тариф и заполните все уроки');
   }
@@ -71,13 +89,20 @@ export class LmsService {
     return this.db.$transaction(async tx => { await this.lockCourse(tx, id); const result = await action(tx); await this.validatePublished(tx, id); return result; });
   }
 
-  async adminList(query: CourseListDto = { page: 1, limit: 20 }) { const { page, limit } = query; const search = query.search?.trim(); const where: Prisma.CourseWhereInput = search ? { OR: [{ titleRu: { contains: search, mode: 'insensitive' } }, { titleEn: { contains: search, mode: 'insensitive' } }] } : {}; const [items, total] = await Promise.all([this.db.course.findMany({ where, include: adminInclude, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }), this.db.course.count({ where })]); return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)), limit }; }
-  async adminDetail(id: string) { const item = await this.db.course.findUnique({ where: { id }, include: adminInclude }); if (!item) throw new NotFoundException('Курс не найден'); return item; }
+  async adminList(query: CourseListDto = { page: 1, limit: 20 }) { const { page, limit } = query; const search = query.search?.trim(); const where: Prisma.CourseWhereInput = search ? { OR: [{ titleRu: { contains: search, mode: 'insensitive' } }, { titleEn: { contains: search, mode: 'insensitive' } }] } : {}; const [items, total] = await Promise.all([this.db.course.findMany({ where, include: adminInclude, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }), this.db.course.count({ where })]); return { items: items.map(adminCourse), total, page, pages: Math.max(1, Math.ceil(total / limit)), limit }; }
+  async adminDetail(id: string) { const item = await this.db.course.findUnique({ where: { id }, include: adminInclude }); if (!item) throw new NotFoundException('Курс не найден'); return adminCourse(item); }
   createCourse(dto: CreateCourseDto) { return this.db.course.create({ data: { titleRu: title(dto.titleRu), titleEn: dto.titleEn?.trim() || null, ...(dto.description != null ? { description: dto.description } : {}), price: 0, status: 'DRAFT', isActive: true }, include: adminInclude }); }
   updateCourse(id: string, dto: UpdateCourseDto) {
     return this.updateCourseTransaction(id, async tx => {
       if (dto.status === 'PUBLISHED') {
-        await tx.lesson.updateMany({ where: { courseId: id, moduleId: { not: null } }, data: { isPublished: true } });
+        // The course row lock serialises edits, publication and file uploads.
+        // Draft values are promoted inside this transaction; failed validation
+        // rolls back both visibility and the previous published version.
+        const drafts = await tx.lesson.findMany({ where: { courseId: id, moduleId: { not: null }, draftData: { not: Prisma.DbNull } } });
+        for (const lesson of drafts) await tx.lesson.update({ where: { id: lesson.id }, data: { ...draftFields(lesson), draftData: Prisma.DbNull } });
+        // Publication also changes what a form is editing. Stale forms must
+        // not overwrite a version that another employee has just published.
+        await tx.lesson.updateMany({ where: { courseId: id, moduleId: { not: null } }, data: { isPublished: true, revision: { increment: 1 } } });
         await tx.courseAsset.updateMany({ where: { lesson: { courseId: id } }, data: { isPublished: false } });
         await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, kind: 'VIDEO' }, mimeType: { in: ['video/mp4','video/webm'] } }, data: { isPublished: true, everPublished: true } });
         await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, kind: 'PRESENTATION' }, mimeType: 'application/pdf' }, data: { isPublished: true, everPublished: true } });
@@ -98,14 +123,23 @@ export class LmsService {
   async createLesson(moduleId: string, dto: CreateLessonDto) {
     const module = await this.db.courseModule.findUnique({ where: { id: moduleId }, select: { courseId: true } }); if (!module) throw new NotFoundException('Модуль не найден');
     if (dto.kind === 'LIVE' && dto.isPreview) throw new BadRequestException('Прямой эфир доступен только ученикам курса');
-    return this.updateCourseTransaction(module.courseId, async tx => { const course = await tx.course.findUniqueOrThrow({ where: { id: module.courseId }, select: { status: true } }); return tx.lesson.create({ data: { ...lessonData(dto), courseId: module.courseId, moduleId, title: title(dto.title), kind: dto.kind, isPublished: course.status === 'PUBLISHED' } }); });
+    return this.updateCourseTransaction(module.courseId, tx => tx.lesson.create({ data: { ...lessonData(dto), courseId: module.courseId, moduleId, title: title(dto.title), kind: dto.kind, isPublished: false } }));
   }
   async updateLesson(id: string, dto: UpdateLessonDto) {
+    if (!Number.isSafeInteger(dto.revision) || dto.revision < 0) throw new ConflictException('Версия урока неизвестна. Обновите страницу и откройте урок заново.');
     const lesson = await this.db.lesson.findUnique({ where: { id }, select: { courseId: true } }); if (!lesson) throw new NotFoundException('Урок не найден');
     return this.updateCourseTransaction(lesson.courseId, async tx => {
-      const current = await tx.lesson.findUniqueOrThrow({ where: { id }, select: { kind: true, isPreview: true } });
-      if ((dto.kind ?? current.kind) === 'LIVE' && (dto.isPreview ?? current.isPreview)) throw new BadRequestException('Прямой эфир доступен только ученикам курса');
-      return tx.lesson.update({ where: { id }, data: lessonData(dto) });
+      const current = await tx.lesson.findUniqueOrThrow({ where: { id } });
+      if (current.revision !== dto.revision) throw new ConflictException('Урок изменён другим сотрудником или опубликован. Скопируйте ваши изменения и откройте урок заново.');
+      const next = { ...draftFields(current), ...lessonData(dto) };
+      if (next.kind === 'LIVE' && next.isPreview) throw new BadRequestException('Прямой эфир доступен только ученикам курса');
+      if (current.isPublished) {
+        const original = draftFields({ ...current, draftData: null });
+        const hasDraftChanges = Object.keys(original).some(key => original[key as keyof LessonFields] !== next[key as keyof LessonFields]);
+        const row = await tx.lesson.update({ where: { id }, data: { draftData: hasDraftChanges ? next : Prisma.DbNull, revision: { increment: 1 } } });
+        const { draftData, ...rest } = row; return { ...rest, ...draftFields(row), hasDraftChanges };
+      }
+      return tx.lesson.update({ where: { id }, data: { ...lessonData(dto), revision: { increment: 1 } } });
     });
   }
 

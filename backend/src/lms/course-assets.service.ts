@@ -36,11 +36,13 @@ export function assetMime(bytes: Buffer): string {
   if (bytes.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return 'video/webm';
   throw new BadRequestException('Поддерживаются PDF, MP4 и WebM');
 }
-function assertUploadable(lesson: { kind: string; moduleId: string | null; course: { status: string } } | null, mimeType?: string) {
+function assertUploadable(lesson: { kind: string; draftData?: Prisma.JsonValue | null; moduleId: string | null; course: { status: string } } | null, mimeType?: string) {
   if (!lesson || !lesson.moduleId) throw new NotFoundException('Урок не найден');
-  if (lesson.course.status !== 'DRAFT') throw new ConflictException('Загружать файлы можно только в черновике курса');
-  if (!['VIDEO', 'PRESENTATION'].includes(lesson.kind)) throw new BadRequestException('Файлы можно добавлять в видеоуроки и презентации');
-  if (mimeType && !(lesson.kind === 'VIDEO' ? ['video/mp4', 'video/webm'].includes(mimeType) : mimeType === 'application/pdf')) throw new BadRequestException('Формат файла не соответствует типу урока');
+  if (!['DRAFT','PUBLISHED'].includes(lesson.course.status)) throw new ConflictException('Загружать файлы можно только в действующем курсе или черновике');
+  const draft = lesson.draftData as { kind?: unknown } | null | undefined;
+  const kind = typeof draft?.kind === 'string' ? draft.kind : lesson.kind;
+  if (!['VIDEO', 'PRESENTATION'].includes(kind)) throw new BadRequestException('Файлы можно добавлять в видеоуроки и презентации');
+  if (mimeType && !(kind === 'VIDEO' ? ['video/mp4', 'video/webm'].includes(mimeType) : mimeType === 'application/pdf')) throw new BadRequestException('Формат файла не соответствует типу урока');
 }
 export function parseRange(value: string | undefined, size: number): { start: number; end: number } | null {
   if (!value) return null;
@@ -133,7 +135,7 @@ export class CourseAssetService implements OnModuleInit, OnModuleDestroy {
       await activeSession(this.db, user); await revalidate();
       if (asset.everPublished || asset.isPublished) throw new ConflictException('Опубликованный ранее файл удалить нельзя');
       if (!asset.pendingDelete) {
-        if (asset.lesson.course.status !== 'DRAFT') throw new ConflictException('Удалять файлы можно только в черновике курса');
+        if (!['DRAFT','PUBLISHED'].includes(asset.lesson.course.status)) throw new ConflictException('Удалять файлы можно только в действующем курсе или черновике');
         const updated = await tx.courseAsset.updateMany({ where: { id: assetId, lessonId, pendingDelete: false, isPublished: false, everPublished: false }, data: { pendingDelete: true, filename: '' } });
         if (updated.count !== 1) throw new ConflictException('Материал изменился. Обновите страницу');
         await tx.auditLog.create({ data: { actorId: user.sub, action: 'lms.asset.delete', resource: 'course_asset', resourceId: assetId, payload: { lessonId } } });
@@ -149,7 +151,7 @@ export class CourseAssetService implements OnModuleInit, OnModuleDestroy {
     const length = Number(rawLength);
     if (!Number.isSafeInteger(length) || length < 5 || length > COURSE_ASSET_MAX_BYTES) throw new BadRequestException('Размер файла должен быть не более 500 МиБ');
     const filename = assetName(req.headers['x-file-name'] as string | undefined);
-    const lesson = await this.db.lesson.findUnique({ where: { id: lessonId }, select: { id: true, courseId: true, moduleId: true, kind: true, course: { select: { status: true } } } });
+    const lesson = await this.db.lesson.findUnique({ where: { id: lessonId }, select: { id: true, courseId: true, moduleId: true, kind: true, draftData: true, course: { select: { status: true } } } });
     assertUploadable(lesson);
     if (this.uploads >= MAX_UPLOADS_PER_PROCESS) throw new ServiceUnavailableException('Другие файлы ещё загружаются. Попробуйте позже');
     this.uploads++; this.reserved += length;
@@ -172,7 +174,7 @@ export class CourseAssetService implements OnModuleInit, OnModuleDestroy {
         // Publication takes this same row lock. Never attach a file after a
         // concurrent status/type change or to a different lesson/course.
         await tx.$queryRaw`SELECT id FROM "Course" WHERE id = ${lesson!.courseId} FOR UPDATE`;
-        const currentLesson = await tx.lesson.findUnique({ where: { id: lessonId }, select: { courseId: true, moduleId: true, kind: true, course: { select: { status: true } } } });
+        const currentLesson = await tx.lesson.findUnique({ where: { id: lessonId }, select: { courseId: true, moduleId: true, kind: true, draftData: true, course: { select: { status: true } } } });
         if (!currentLesson || currentLesson.courseId !== lesson!.courseId) throw new NotFoundException('Урок не найден');
         assertUploadable(currentLesson, mimeType);
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('lms-course-assets-quota', 0))`;

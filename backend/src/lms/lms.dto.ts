@@ -58,6 +58,7 @@ export class CreateLessonDto {
   @WhenPresent() @IsInt() @Min(0) @Max(10000) sortOrder?: number;
 }
 export class UpdateLessonDto {
+  @IsInt() @Min(0) revision!: number;
   @WhenPresent() @IsString() @MinLength(1) @MaxLength(200) title?: string;
   @WhenPresent() @IsIn(['TEXT','VIDEO','PRESENTATION','LIVE']) kind?: string;
   @IsOptional() @IsString() @MaxLength(50000) content?: string | null;

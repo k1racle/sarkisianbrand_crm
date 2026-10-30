@@ -9,11 +9,12 @@ import { CourseAssetService } from './course-assets.service';
 import { LmsService } from './lms.service';
 
 const url = process.env.LMS_ASSET_TEST_DATABASE_URL || process.env.LMS_TEST_DATABASE_URL;
-if (url) { const value = new URL(url); if (!['localhost','127.0.0.1'].includes(value.hostname) || ![['56436','/assets_fixture'],['55436','/assets_fixture'],['56432','/lms_fixture'],['55435','/lms_fixture']].some(([port,path]) => value.port === port && value.pathname === path)) throw new Error('LMS asset test requires an isolated local fixture database'); }
+if (url) { const value = new URL(url); if (!['localhost','127.0.0.1'].includes(value.hostname) || ![['56436','/assets_fixture'],['55436','/assets_fixture'],['56432','/lms_fixture'],['55435','/lms_fixture'],['56437','/lms_revision_fixture']].some(([port,path]) => value.port === port && value.pathname === path)) throw new Error('LMS asset test requires an isolated local fixture database'); }
 const run = url ? describe : describe.skip;
 
 run('LMS private asset access with isolated PostgreSQL', () => {
   let db: PrismaClient, service: CourseAssetService, lms: LmsService, dir: string, userId: string, courseId: string, moduleId: string, lessonId: string, assetId: string, author: {sub:string;sid:string;exp:number};
+  async function editLesson(id: string, dto: Omit<Parameters<LmsService['updateLesson']>[1], 'revision'>) { const { revision } = await db.lesson.findUniqueOrThrow({ where: { id }, select: { revision: true } }); return lms.updateLesson(id, { ...dto, revision }); }
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'lms-asset-pg-')); db = new PrismaClient({ datasources: { db: { url } } }); await db.$connect();
     const user = await db.user.create({ data: { email: `${randomUUID()}@example.invalid`, password:'fixture' } }); userId = user.id;
@@ -36,13 +37,17 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     await expect(lms.myLesson(userId,courseId,lessonId)).rejects.toThrow();
     await expect(service.listStudent(userId,courseId,lessonId)).rejects.toThrow();
     await expect(lms.updateCourse(courseId, { status:'PUBLISHED' })).resolves.toMatchObject({ status:'PUBLISHED' });
-    await expect(lms.updateLesson(lessonId, { isPreview:true })).rejects.toThrow();
+    await editLesson(lessonId, { isPreview:true });
+    await expect(lms.updateCourse(courseId, { status:'PUBLISHED' })).rejects.toThrow();
+    await editLesson(lessonId, { isPreview:false });
     expect(await service.listStudent(userId, courseId, lessonId)).toEqual([expect.objectContaining({ id:assetId, mimeType:'video/mp4' })]);
   });
-  it('permits uploads only in draft for matching video/PDF types and hides additions until republished', async () => {
+  it('permits matching uploads to published courses while hiding additions until republished', async () => {
     const bytes = Buffer.from('0000ftypisom-fixture-video');
     const request = () => { const r: any = Readable.from([bytes]); r.headers = { 'content-type':'application/octet-stream', 'content-length':String(bytes.length), 'x-file-name':'video.mp4' }; return r; };
-    await expect(service.upload(lessonId,author,request(),async () => {})).rejects.toThrow(/черновике/);
+    const publishedDraft = await service.upload(lessonId,author,request(),async () => {});
+    expect((await lms.adminDetail(courseId)).modules[0].lessons[0].hasDraftChanges).toBe(true);
+    expect(await service.listStudent(userId,courseId,lessonId)).not.toEqual(expect.arrayContaining([expect.objectContaining({id:publishedDraft.id})]));
     await lms.updateCourse(courseId,{status:'DRAFT'});
     const textLesson = await lms.createLesson(moduleId,{title:'Draft text',kind:'TEXT',content:'Fixture'});
     const liveLesson = await lms.createLesson(moduleId,{title:'Draft live',kind:'LIVE',content:'Fixture'});
@@ -53,9 +58,36 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual([expect.objectContaining({ id:assetId })]);
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:next.id})]));
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:publishedDraft.id})]));
     await expect(lms.myLesson(userId,courseId,textLesson.id)).resolves.toMatchObject({id:textLesson.id});
   });
-  it('rejects an upload if the course is published while its stream is in progress', async () => {
+  it('keeps the published asset accessible when a draft changes type, then switches assets only at publication', async () => {
+    const pdf=Buffer.from('%PDF-type-change'), req:any=Readable.from([pdf]);
+    req.headers={'content-type':'application/octet-stream','content-length':String(pdf.length),'x-file-name':'draft.pdf'};
+    await editLesson(lessonId,{kind:'PRESENTATION'});
+    const draft=await service.upload(lessonId,author,req,async()=>{});
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:assetId})]));
+    expect(await service.listStudent(userId,courseId,lessonId)).not.toEqual(expect.arrayContaining([expect.objectContaining({id:draft.id})]));
+    await lms.updateCourse(courseId,{status:'PUBLISHED'});
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual([expect.objectContaining({id:draft.id})]);
+    await editLesson(lessonId,{kind:'VIDEO'});
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual([expect.objectContaining({id:draft.id})]);
+    await lms.updateCourse(courseId,{status:'PUBLISHED'});
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:assetId})]));
+  });
+  it('retains unrelated draft files privately without a permanent unpublished indicator', async () => {
+    const pdf=Buffer.from('%PDF-unused-draft'), req:any=Readable.from([pdf]);
+    req.headers={'content-type':'application/octet-stream','content-length':String(pdf.length),'x-file-name':'unused.pdf'};
+    await editLesson(lessonId,{kind:'PRESENTATION'});
+    const draft=await service.upload(lessonId,author,req,async()=>{});
+    await editLesson(lessonId,{kind:'TEXT',content:'Текст вместо презентации'});
+    await lms.updateCourse(courseId,{status:'PUBLISHED'});
+    expect((await lms.adminDetail(courseId)).modules[0].lessons.find(item=>item.id===lessonId)).toMatchObject({kind:'TEXT',hasDraftChanges:false});
+    expect(await db.courseAsset.findUniqueOrThrow({where:{id:draft.id}})).toMatchObject({isPublished:false,everPublished:false});
+    expect(await service.remove(lessonId,draft.id,author,async()=>{})).toEqual({status:'deleted'});
+    await editLesson(lessonId,{kind:'VIDEO'}); await lms.updateCourse(courseId,{status:'PUBLISHED'});
+  });
+  it('keeps an in-flight upload private if publication completes before the upload', async () => {
     await lms.updateCourse(courseId,{status:'DRAFT'});
     const bytes = Buffer.from('0000ftypisom-race-video'), req: any = new Readable({read(){}});
     req.headers = { 'content-type':'application/octet-stream', 'content-length':String(bytes.length), 'x-file-name':'race.mp4' };
@@ -64,7 +96,9 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     for (let i=0;i<100 && !(await readdir(folder)).some(v => v.startsWith('.upload-'));i++) await new Promise(resolve => setTimeout(resolve,10));
     expect((await readdir(folder)).some(v => v.startsWith('.upload-'))).toBe(true);
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
-    req.push(null); await expect(pending).rejects.toThrow(/черновике/);
+    req.push(null); const result = await pending;
+    expect(result.isPublished).toBe(false);
+    expect(await service.listStudent(userId,courseId,lessonId)).not.toEqual(expect.arrayContaining([expect.objectContaining({id:result.id})]));
     expect((await readdir(folder)).some(v => v.startsWith('.upload-'))).toBe(false);
   });
   it('removes only unpublished draft assets, with permission checks, audit and idempotent retry', async () => {
@@ -107,12 +141,12 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     await lms.updateCourse(courseId,{status:'DRAFT'});
   });
   it('does not permit deletion of previously published files hidden by a lesson type change', async () => {
-    await lms.updateLesson(lessonId,{kind:'TEXT',content:'Fixture'});
+    await editLesson(lessonId,{kind:'TEXT',content:'Fixture'});
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
     expect(await db.courseAsset.findUniqueOrThrow({where:{id:assetId}})).toMatchObject({isPublished:false,everPublished:true});
     await lms.updateCourse(courseId,{status:'DRAFT'});
     await expect(service.remove(lessonId,assetId,author,async()=>{})).rejects.toThrow(/Опубликованный/);
-    await lms.updateLesson(lessonId,{kind:'VIDEO'});
+    await editLesson(lessonId,{kind:'VIDEO'});
   });
   it('never publishes a deleted asset or treats it as a complete lesson', async () => {
     const lesson=await lms.createLesson(moduleId,{title:'Draft presentation',kind:'PRESENTATION'});

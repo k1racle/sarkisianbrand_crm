@@ -3139,6 +3139,8 @@ model Lesson {
   presentationUrl String?
   isPreview Boolean @default(false)
   isPublished Boolean @default(true)
+  revision Int @default(0)
+  draftData Json?
   progress  LessonProgress[]
 
   @@index([courseId, moduleId, sortOrder])
