@@ -25,7 +25,7 @@ try {
   run('run', '-d', '--name', backend, '--network', app, '--network-alias', 'backend', '-e', 'ROLE=replaced', '--entrypoint', 'node', 'node:22.23.3-alpine', '-e', server);
   const after = run('inspect', '-f', `{{(index .NetworkSettings.Networks "${app}").IPAddress}}`, backend);
   assert.notEqual(before, after, 'The replacement must have a different container IP');
-  const reconnect = `const assert=require('assert/strict');(async()=>{await new Promise(r=>setTimeout(r,6500));const v=await(await fetch('http://npm:8080/api/v1/orders')).json();assert.equal(v.role,'replaced');console.log('PASS DNS refresh after replacing backend');})().catch(e=>{console.error(e.message);process.exit(1)});`;
+  const reconnect = `const assert=require('assert/strict');(async()=>{await new Promise(r=>setTimeout(r,6500));const v=await(await fetch('http://npm:8080/api/v1/orders')).json();assert.equal(v.role,'replaced');for(const p of ['/api/v1/lms-live-gateway','/api/v1/lms-live-gateway/authorize'])assert.equal((await fetch('http://npm:8080'+p)).status,404,p);console.log('PASS DNS refresh and private LMS gateway endpoint');})().catch(e=>{console.error(e.message);process.exit(1)});`;
   console.log(run('exec', client, 'node', '-e', reconnect));
 } finally {
   if (!/^sb-proxy-check-[a-f0-9]{10}$/.test(prefix)) throw new Error('Unexpected fixture name');

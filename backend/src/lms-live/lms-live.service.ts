@@ -1,21 +1,22 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AccessToken, TrackSource } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionClaims } from '../auth/active-session';
 import { CreateLmsLiveDto } from './lms-live.dto';
+import { LmsLiveMediaService } from './lms-live-media.service';
+import { LMS_LIVE_ACCESS_ENFORCEMENT_READY } from './lms-live-media.adapter';
 
 const sessionSelect = { id: true, courseId: true, lessonId: true, hostId: true, title: true, startsAt: true, endsAt: true, status: true, createdAt: true } as const;
 // A short-lived LiveKit token does not revoke an existing connection. This is
 // deliberately not configurable: implement and test active-session revocation
 // before enabling the feature, even on a server with credentials configured.
-const LIVE_ACCESS_ENFORCEMENT_READY: boolean = false;
 
 @Injectable()
 export class LmsLiveService {
-  constructor(private readonly db: PrismaService, private readonly config: ConfigService) {}
+  constructor(private readonly db: PrismaService, private readonly config: ConfigService, private readonly media: LmsLiveMediaService) {}
 
   private settings() {
-    if (!LIVE_ACCESS_ENFORCEMENT_READY) throw new ServiceUnavailableException('Прямые эфиры готовятся: защита доступа подключённых участников ещё не завершена.');
+    if (!LMS_LIVE_ACCESS_ENFORCEMENT_READY) throw new ServiceUnavailableException('Прямые эфиры готовятся: защита доступа подключённых участников ещё не завершена.');
     if (String(this.config.get('LMS_LIVE_ENABLED', 'false')) !== 'true') throw new ServiceUnavailableException('Прямые эфиры пока не подключены.');
     const url = String(this.config.get('LMS_LIVEKIT_URL') || ''), key = String(this.config.get('LMS_LIVEKIT_API_KEY') || ''), secret = String(this.config.get('LMS_LIVEKIT_API_SECRET') || '');
     try { const parsed = new URL(url); if (parsed.protocol !== 'wss:' || parsed.username || parsed.password || parsed.hash || parsed.search || parsed.pathname !== '/') throw new Error(); }
@@ -70,19 +71,11 @@ export class LmsLiveService {
     const status = action === 'start' ? 'LIVE' : action === 'end' ? 'ENDED' : 'CANCELLED';
     const updated = await this.db.lmsLiveSession.updateMany({ where: { id: s.id, status: expected, hostId: userId }, data: { status } });
     if (updated.count !== 1) throw new ConflictException('Состояние эфира уже изменилось.');
+    if (action === 'end') return { id:s.id, status, disconnectPending:!await this.media.closeRemote(s.id) };
     return { id: s.id, status };
   }
-  private async token(userId: string, session: { id: string; status: string; startsAt: Date; endsAt: Date }, role: 'host' | 'viewer', accessExpiresAt?: Date | null) {
-    const { url, key, secret } = this.settings(); this.live(session);
-    const expiresAt = Math.min(session.endsAt.getTime(), accessExpiresAt?.getTime() ?? Infinity);
-    const ttl = Math.min(60, Math.floor((expiresAt - Date.now()) / 1000));
-    if (ttl < 1) throw new ConflictException('Срок доступа к эфиру истёк.');
-    const at = new AccessToken(key, secret, { identity: userId, ttl });
-    at.addGrant({ room: `lms-${session.id}`, roomJoin: true, canPublish: role === 'host', canSubscribe: true, canPublishData: false, canUpdateOwnMetadata: false, ...(role === 'host' ? { canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO] } : {}) });
-    return { url, token: await at.toJwt(), room: `lms-${session.id}`, role, expiresIn: ttl };
-  }
-  async joinStudent(userId: string, courseId: string, lessonId: string, sessionId: string) { this.settings(); const enrollment = await this.student(userId, courseId, lessonId); return this.token(userId, await this.session(courseId, lessonId, sessionId), 'viewer', enrollment.accessExpiresAt); }
-  async joinHost(userId: string, sessionId: string) { this.settings(); return this.token(userId, await this.host(userId, sessionId), 'host'); }
+  async joinStudent(user:SessionClaims, courseId:string, lessonId:string, sessionId:string) { this.settings(); return this.media.issue(user,sessionId,'viewer',courseId,lessonId); }
+  async joinHost(user:SessionClaims, sessionId:string) { this.settings(); return this.media.issue(user,sessionId,'host'); }
   private async authorizeChat(userId: string, sessionId: string, courseId?: string, lessonId?: string) {
     this.settings();
     let session;

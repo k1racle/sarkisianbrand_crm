@@ -3264,7 +3264,25 @@ model LmsLiveSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   messages LmsLiveMessage[]
+  mediaGrants LmsLiveMediaGrant[]
+  mediaOpen Boolean @default(false)
   @@index([courseId, lessonId, startsAt])
+}
+
+// Opaque participant identity bound to a real application login session.
+// A LiveKit token is not sufficient without this live record and entitlement.
+model LmsLiveMediaGrant {
+  id String @id @default(uuid())
+  liveSessionId String
+  liveSession LmsLiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  userId String
+  userSessionId String
+  role String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([liveSessionId, revokedAt])
+  @@index([userId, userSessionId])
 }
 
 model LmsLiveMessage {

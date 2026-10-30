@@ -1,0 +1,5 @@
+FROM nginx:1.30.6-alpine
+COPY deploy/lms-media-gateway.conf.template /etc/nginx/lms-media-gateway.conf.template
+COPY deploy/lms-media-gateway-entrypoint.sh /usr/local/bin/lms-media-gateway-entrypoint.sh
+USER nginx
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/lms-media-gateway-entrypoint.sh"]

@@ -29,7 +29,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiProxyBase: process.env.NUXT_API_PROXY_BASE || '',
     seoApiBase: process.env.NUXT_SEO_API_BASE || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3000/api/v1',
-    public: { apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3000/api/v1', apiProxyEnabled: process.env.NUXT_PUBLIC_API_PROXY_ENABLED || 'false', apiRealtimePort: process.env.NUXT_PUBLIC_API_REALTIME_PORT || '', siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3001', seoIndexingEnabled: process.env.NUXT_PUBLIC_SEO_INDEXING_ENABLED || 'false' },
+    public: { apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3000/api/v1', apiProxyEnabled: process.env.NUXT_PUBLIC_API_PROXY_ENABLED || 'false', apiRealtimePort: process.env.NUXT_PUBLIC_API_REALTIME_PORT || '', siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3001', seoIndexingEnabled: process.env.NUXT_PUBLIC_SEO_INDEXING_ENABLED || 'false', lmsMediaOrigin: process.env.NUXT_PUBLIC_LMS_MEDIA_ORIGIN || '' },
   },
   app: {
     head: {

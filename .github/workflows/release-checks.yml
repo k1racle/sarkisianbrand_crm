@@ -94,6 +94,8 @@ jobs:
         working-directory: frontend
       - run: npm run check:crm-design
         working-directory: frontend
+      - run: node scripts/lms-live-validation-check.cjs
+        working-directory: frontend
       - run: node scripts/workspace-session-check.cjs && node scripts/b2b-session-check.cjs && node scripts/crm-chat-session-check.cjs && node scripts/salon-calendar-period-check.cjs && node scripts/workspace-operations-check.cjs
         working-directory: frontend
       - run: node scripts/dependency-audit.cjs
@@ -165,6 +167,7 @@ jobs:
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-compact-card-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-storefront-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-account-review-mock.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-live-student-mock.cjs
           node scripts/lms-assets-proxy-check.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 BROWSER_EXECUTABLE="$(node -p "require('playwright-core').chromium.executablePath()")" node scripts/storefront-checkout-production-mock.cjs
           WORKSPACE_DESIGN_BATCH=ci-unified node scripts/workspace-design-review.cjs --crm-all --after
@@ -213,6 +216,12 @@ jobs:
         run: |
           docker build -f deploy/Dockerfile.portainer-gateway -t codex-portainer-gateway-check:local .
           node scripts/portainer-proxy-check.cjs
+          docker build -f deploy/Dockerfile.lms-media-gateway -t codex-lms-media-gateway-check:local .
+          node scripts/lms-media-compose-check.cjs
+          node scripts/lms-media-gateway-check.cjs
+          docker pull livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
+          node scripts/lms-livekit-protocol-check.cjs
+          node scripts/lms-live-supervisor-check.cjs
           node scripts/portainer-stack-check.cjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

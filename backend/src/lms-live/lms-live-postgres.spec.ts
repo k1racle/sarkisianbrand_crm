@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { LmsLiveService } from './lms-live.service';
 
 const url = process.env.LMS_TEST_DATABASE_URL;
-const safe = url && (() => { try { const parsed = new URL(url); return parsed.hostname === '127.0.0.1' && parsed.port === '56432' && parsed.pathname === '/lms_fixture'; } catch { return false; } })();
+const safe = url && (() => { try { const parsed = new URL(url); return ['127.0.0.1','localhost'].includes(parsed.hostname) && ['56432','55435'].includes(parsed.port) && parsed.pathname === '/lms_fixture'; } catch { return false; } })();
 if (url && !safe) throw new Error('LMS live integration tests require the isolated local lms_fixture database');
 const pg = safe ? describe : describe.skip;
 pg('LMS live state transition on isolated PostgreSQL', () => {
@@ -26,7 +26,7 @@ pg('LMS live state transition on isolated PostgreSQL', () => {
     await db.$disconnect();
   });
   it('разрешает единственный переход при параллельном старте', async () => {
-    const service = new LmsLiveService(db as any, {} as any);
+    const service = new LmsLiveService(db as any, {} as any, {} as any);
     jest.spyOn(service as any, 'settings').mockReturnValue({ url: 'wss://example.invalid', key: 'fixture', secret: 'fixture-secret-at-least-32-bytes' });
     const results = await Promise.allSettled(Array.from({ length: 8 }, () => service.transition(hostId, sessionId, 'start')));
     expect(results.filter(row => row.status === 'fulfilled')).toHaveLength(1);

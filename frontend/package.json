@@ -84,6 +84,7 @@
   },
   "dependencies": {
     "@lucide/vue": "^1.46.0",
+    "livekit-client": "2.23.0",
     "nuxt": "4.6.2",
     "pdfjs-dist": "6.3.289",
     "socket.io-client": "^4.8.3",

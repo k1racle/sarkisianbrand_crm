@@ -34,7 +34,8 @@ async function main() {
           if(endpoint.endsWith('/course/test-course'))return route.fulfill({json:live?[clone(live)]:[]});
           if(endpoint.endsWith('/live')&&method==='POST'){live={id:'live-1',...body,status:'SCHEDULED'};return route.fulfill({json:clone(live)});}
           if(endpoint.endsWith('/live-1/start')&&method==='POST'){live.status='LIVE';return route.fulfill({json:{id:live.id,status:live.status}});}
-          if(endpoint.endsWith('/live-1/end')&&method==='POST'){live.status='ENDED';return route.fulfill({json:{id:live.id,status:live.status}});}
+          if(endpoint.endsWith('/live-1/end')&&method==='POST'){live.status='ENDED';return route.fulfill({json:{id:live.id,status:live.status,disconnectPending:true}});}
+          if(endpoint.endsWith('/live-1/join')&&method==='POST')return route.fulfill({status:503,json:{message:'Эфир пока недоступен'}});
           if(endpoint.endsWith('/live-1/chat')&&method==='GET')return route.fulfill({json:[{id:'message-1',authorId:'student',authorName:'Ученик',body:'Здравствуйте!',createdAt:new Date().toISOString()}]});
           return route.fulfill({status:404,json:{message:'Unexpected live fixture endpoint'}});
         }
@@ -103,9 +104,16 @@ async function main() {
         await page.getByRole('button',{name:'Запланировать',exact:true}).last().click();
         await page.getByText('Эфир запланирован.',{exact:true}).waitFor();
         await page.getByRole('button',{name:'Начать',exact:true}).click(); await page.getByText('Идёт эфир',{exact:true}).waitFor();
+        await page.getByRole('button',{name:'Открыть студию',exact:true}).click();
+        await page.getByRole('button',{name:'Подключиться к эфиру',exact:true}).click();
+        await page.getByRole('alert').getByText('Не удалось подключиться к эфиру.',{exact:false}).waitFor();
+        assert.equal(await page.getByRole('button',{name:'Включить камеру'}).count(),0,'No camera controls until media server confirms access');
+        await page.locator('.course-live-studio').getByRole('button',{name:'Закрыть',exact:true}).click();
         await page.getByRole('button',{name:'Чат',exact:true}).click(); await page.getByText('Здравствуйте!',{exact:true}).waitFor();
         await page.evaluate(()=>window.scrollTo(0,0)); await page.screenshot({path:path.join(output,`${width}-${dark?'dark':'light'}-live-chat.png`),fullPage:true});
         page.removeAllListeners('dialog'); page.once('dialog', dialog=>dialog.accept()); await page.getByRole('button',{name:'Завершить',exact:true}).click(); await page.getByText('Завершён',{exact:true}).waitFor();
+        await page.getByRole('status').filter({hasText:'отключение участников видеосервером ещё не подтверждено'}).waitFor();
+        assert.equal(await page.getByRole('heading',{name:'Чат: Вопросы с преподавателем'}).count(),0,'Chat closes only after the server confirms the end');
         await page.getByRole('tab',{name:'Тарифы'}).click();
         await page.getByRole('button',{name:'Добавить тариф'}).click();
         await page.getByLabel('Название тарифа *').fill('Самостоятельно');

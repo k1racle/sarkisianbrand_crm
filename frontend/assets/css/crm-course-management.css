@@ -46,6 +46,25 @@ html[data-crm-ui] .course-live-messages { display:grid; gap:12px; margin-top:16p
 html[data-crm-ui] .course-live-messages article { padding:12px; border:1px solid var(--crm-line); border-radius:8px; }
 html[data-crm-ui] .course-live-messages small { display:block; color:var(--crm-muted); margin-top:4px; }
 html[data-crm-ui] .course-live-messages p { margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+html[data-crm-ui] .course-live-studio { margin-top:16px; padding:20px; min-width:0; }
+html[data-crm-ui] .course-live-studio > header, html[data-crm-ui] .course-live-host-chat > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
+html[data-crm-ui] .course-live-studio > header p { margin:0; color:var(--crm-muted); }
+html[data-crm-ui] .course-live-studio-grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(250px,.8fr); gap:16px; }
+html[data-crm-ui] .course-live-video-area { min-width:0; }
+html[data-crm-ui] .course-live-preview { display:grid; place-items:center; aspect-ratio:16/9; min-height:180px; overflow:hidden; border-radius:8px; background:#17191e; color:#fff; }
+html[data-crm-ui] .course-live-preview video, html[data-crm-ui] .course-live-screen video { width:100%; height:100%; object-fit:contain; }
+html[data-crm-ui] .course-live-screen { position:relative; margin-top:8px; aspect-ratio:16/9; overflow:hidden; border-radius:8px; background:#17191e; color:#fff; }
+html[data-crm-ui] .course-live-screen span { position:absolute; left:10px; bottom:10px; padding:4px 8px; border-radius:4px; background:rgba(0,0,0,.72); color:#fff; font-size:12px; }
+html[data-crm-ui] .course-live-controls { margin-top:12px; }
+html[data-crm-ui] .course-live-host-chat { display:flex; flex-direction:column; min-width:0; min-height:300px; max-height:620px; padding:14px; border:1px solid var(--crm-line); border-radius:8px; }
+html[data-crm-ui] .course-live-host-chat h4 { margin:0; }
+html[data-crm-ui] .course-live-host-messages { flex:1; overflow:auto; min-height:100px; display:flex; flex-direction:column; gap:12px; }
+html[data-crm-ui] .course-live-host-messages article { min-width:0; font-size:13px; }
+html[data-crm-ui] .course-live-host-messages time { margin-left:8px; color:var(--crm-muted); font-size:12px; }
+html[data-crm-ui] .course-live-host-messages p { margin:4px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+html[data-crm-ui] .course-live-host-chat form { display:grid; justify-items:start; gap:8px; margin-top:14px; }
+html[data-crm-ui] .course-live-host-chat label { font-size:13px; font-weight:600; }
+html[data-crm-ui] .course-live-host-chat textarea { width:100%; resize:vertical; }
 html[data-crm-ui] .course-editor { display:grid; gap:16px; max-width:920px; padding:24px; }
 html[data-crm-ui] .course-editor > header { margin-bottom:0; }
 html[data-crm-ui] .course-editor label:not(.course-check) { display:grid; gap:7px; color:var(--crm-ink); font-weight:600; }
@@ -74,4 +93,6 @@ html[data-crm-ui] .course-editor footer { display:flex; flex-wrap:wrap; justify-
   html[data-crm-ui] .course-tariff > b { grid-column:2; grid-row:2; }
   html[data-crm-ui] .course-tariff > button { grid-column:3; grid-row:1 / span 2; }
   html[data-crm-ui] .course-editor, html[data-crm-ui] .course-module { padding:16px; }
+  html[data-crm-ui] .course-live-studio { padding:16px; }
+  html[data-crm-ui] .course-live-studio-grid { grid-template-columns:1fr; }
 }

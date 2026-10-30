@@ -1,0 +1,59 @@
+# Candidate overlay for an isolated LMS media environment. Do not use it to
+# enable real broadcasts until the backend enforcement gate and acceptance
+# described in docs/LMS_MEDIA_GATEWAY.md have been completed.
+# Apply after docker-compose.production.yml and docker-compose.portainer.yml.
+services:
+  backend:
+    networks: [app, data, lms_media]
+    environment:
+      LMS_LIVE_ENABLED: ${LMS_LIVE_ENABLED:-false}
+      LMS_LIVEKIT_URL: ${LMS_LIVEKIT_URL:?Set the public WSS origin}
+      LMS_LIVEKIT_API_URL: http://livekit-lms:7880
+      LMS_LIVEKIT_API_KEY: ${LMS_LIVEKIT_API_KEY:?Set a separate LMS media API key}
+      LMS_LIVEKIT_API_SECRET: ${LMS_LIVEKIT_API_SECRET:?Set a separate LMS media secret}
+      LMS_LIVEKIT_GATEWAY_KEY: ${LMS_LIVEKIT_GATEWAY_KEY:?Set a separate 64-digit hexadecimal gateway key}
+  frontend:
+    environment:
+      NUXT_PUBLIC_LMS_MEDIA_ORIGIN: ${LMS_LIVEKIT_URL:?Set the public WSS origin}
+  livekit-lms:
+    image: livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    environment:
+      LIVEKIT_KEYS: "${LMS_LIVEKIT_API_KEY:?Set the API key}: ${LMS_LIVEKIT_API_SECRET:?Set the API secret}"
+      LIVEKIT_CONFIG: |
+        port: 7880
+        log_level: warn
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: true
+    # Signalling / control API on 7880 is deliberately not published.
+    ports: ["7881:7881/tcp", "7882:7882/udp"]
+    networks: [lms_media]
+  lms-media-gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.lms-media-gateway
+    image: ${RELEASE_IMAGE_PREFIX:-sarkisian-crm}/lms-media-gateway:${RELEASE_TAG:-local}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,mode=1777,size=32m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    environment:
+      LMS_GATEWAY_KEY: ${LMS_LIVEKIT_GATEWAY_KEY:?Set a separate 64-digit hexadecimal gateway key}
+    networks:
+      lms_media: {}
+      portainer_proxy:
+        aliases: [sarkisian-lms-gateway]
+    depends_on:
+      backend: {condition: service_healthy}
+      livekit-lms: {condition: service_started}
+networks:
+  lms_media: {}
