@@ -169,6 +169,8 @@ jobs:
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-favorites-complete-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/storefront-compact-card-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-storefront-mock.cjs
+          STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-media-pdf-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/lms-quiz-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-account-review-mock.cjs
           STOREFRONT_URL=http://127.0.0.1:3001 node scripts/lms-live-student-mock.cjs
           node scripts/lms-assets-proxy-check.cjs

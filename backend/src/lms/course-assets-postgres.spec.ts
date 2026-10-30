@@ -51,8 +51,8 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     await lms.updateCourse(courseId,{status:'DRAFT'});
     const textLesson = await lms.createLesson(moduleId,{title:'Draft text',kind:'TEXT',content:'Fixture'});
     const liveLesson = await lms.createLesson(moduleId,{title:'Draft live',kind:'LIVE',content:'Fixture'});
-    await expect(service.upload(textLesson.id,author,request(),async () => {})).rejects.toThrow(/видеоуроки/);
-    await expect(service.upload(liveLesson.id,author,request(),async () => {})).rejects.toThrow(/видеоуроки/);
+    const textVideo=await service.upload(textLesson.id,author,request(),async () => {});
+    const liveVideo=await service.upload(liveLesson.id,author,request(),async () => {});
     await expect(lms.myLesson(userId,courseId,textLesson.id)).rejects.toThrow();
     const next = await service.upload(lessonId,author,request(),async () => {});
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual([expect.objectContaining({ id:assetId })]);
@@ -60,8 +60,22 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:next.id})]));
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:publishedDraft.id})]));
     await expect(lms.myLesson(userId,courseId,textLesson.id)).resolves.toMatchObject({id:textLesson.id});
+    expect(await service.listStudent(userId,courseId,textLesson.id)).toEqual(expect.arrayContaining([expect.objectContaining({id:textVideo.id})]));
+    expect(await service.listStudent(userId,courseId,liveLesson.id)).toEqual(expect.arrayContaining([expect.objectContaining({id:liveVideo.id})]));
   });
-  it('keeps the published asset accessible when a draft changes type, then switches assets only at publication', async () => {
+  it('keeps a validated image private until publication and exposes it only to the enrolled student', async () => {
+    const bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
+    const request:any=Readable.from([bytes]);request.headers={'content-type':'application/octet-stream','content-length':String(bytes.length),'x-file-name':'image.png'};
+    const image=await service.upload(lessonId,author,request,async()=>{});
+    expect(await service.listStudent(userId,courseId,lessonId)).not.toEqual(expect.arrayContaining([expect.objectContaining({id:image.id})]));
+    await expect(service.listStudent(randomUUID(),courseId,lessonId)).rejects.toThrow();
+    await lms.updateCourse(courseId,{status:'PUBLISHED'});
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:image.id,mimeType:'image/png'})]));
+    const invalid=Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0,0,0,0]);
+    const bad:any=Readable.from([invalid]);bad.headers={'content-type':'application/octet-stream','content-length':String(invalid.length),'x-file-name':'bad.png'};
+    await expect(service.upload(lessonId,author,bad,async()=>{})).rejects.toThrow();
+  });
+  it('keeps published assets accessible when a draft changes type and publishes new attachments atomically', async () => {
     const pdf=Buffer.from('%PDF-type-change'), req:any=Readable.from([pdf]);
     req.headers={'content-type':'application/octet-stream','content-length':String(pdf.length),'x-file-name':'draft.pdf'};
     await editLesson(lessonId,{kind:'PRESENTATION'});
@@ -69,22 +83,23 @@ run('LMS private asset access with isolated PostgreSQL', () => {
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:assetId})]));
     expect(await service.listStudent(userId,courseId,lessonId)).not.toEqual(expect.arrayContaining([expect.objectContaining({id:draft.id})]));
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
-    expect(await service.listStudent(userId,courseId,lessonId)).toEqual([expect.objectContaining({id:draft.id})]);
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:draft.id}),expect.objectContaining({id:assetId})]));
     await editLesson(lessonId,{kind:'VIDEO'});
-    expect(await service.listStudent(userId,courseId,lessonId)).toEqual([expect.objectContaining({id:draft.id})]);
+    expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:draft.id}),expect.objectContaining({id:assetId})]));
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
     expect(await service.listStudent(userId,courseId,lessonId)).toEqual(expect.arrayContaining([expect.objectContaining({id:assetId})]));
   });
-  it('retains unrelated draft files privately without a permanent unpublished indicator', async () => {
+  it('publishes attachments independently of lesson type and clears the pending indicator', async () => {
     const pdf=Buffer.from('%PDF-unused-draft'), req:any=Readable.from([pdf]);
     req.headers={'content-type':'application/octet-stream','content-length':String(pdf.length),'x-file-name':'unused.pdf'};
     await editLesson(lessonId,{kind:'PRESENTATION'});
     const draft=await service.upload(lessonId,author,req,async()=>{});
     await editLesson(lessonId,{kind:'TEXT',content:'Текст вместо презентации'});
+    expect((await lms.adminDetail(courseId)).modules[0].lessons.find(item=>item.id===lessonId)).toMatchObject({kind:'TEXT',hasDraftChanges:true});
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
     expect((await lms.adminDetail(courseId)).modules[0].lessons.find(item=>item.id===lessonId)).toMatchObject({kind:'TEXT',hasDraftChanges:false});
-    expect(await db.courseAsset.findUniqueOrThrow({where:{id:draft.id}})).toMatchObject({isPublished:false,everPublished:false});
-    expect(await service.remove(lessonId,draft.id,author,async()=>{})).toEqual({status:'deleted'});
+    expect(await db.courseAsset.findUniqueOrThrow({where:{id:draft.id}})).toMatchObject({isPublished:true,everPublished:true});
+    await expect(service.remove(lessonId,draft.id,author,async()=>{})).rejects.toThrow(/Опубликованный/);
     await editLesson(lessonId,{kind:'VIDEO'}); await lms.updateCourse(courseId,{status:'PUBLISHED'});
   });
   it('keeps an in-flight upload private if publication completes before the upload', async () => {
@@ -143,7 +158,7 @@ run('LMS private asset access with isolated PostgreSQL', () => {
   it('does not permit deletion of previously published files hidden by a lesson type change', async () => {
     await editLesson(lessonId,{kind:'TEXT',content:'Fixture'});
     await lms.updateCourse(courseId,{status:'PUBLISHED'});
-    expect(await db.courseAsset.findUniqueOrThrow({where:{id:assetId}})).toMatchObject({isPublished:false,everPublished:true});
+    expect(await db.courseAsset.findUniqueOrThrow({where:{id:assetId}})).toMatchObject({isPublished:true,everPublished:true});
     await lms.updateCourse(courseId,{status:'DRAFT'});
     await expect(service.remove(lessonId,assetId,author,async()=>{})).rejects.toThrow(/Опубликованный/);
     await editLesson(lessonId,{kind:'VIDEO'});

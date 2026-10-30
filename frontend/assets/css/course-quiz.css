@@ -1,0 +1,27 @@
+/* Course tests follow the existing CRM and storefront visual systems. */
+html[data-crm-ui] .course-quiz-editor { display:grid; gap:14px; padding:18px; border:1px solid var(--crm-line); border-radius:8px; background:var(--crm-surface); }
+html[data-crm-ui] .course-quiz-editor > header, html[data-crm-ui] .course-quiz-question > header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+html[data-crm-ui] .course-quiz-editor h3 { margin:0 0 4px; font-size:16px; }
+html[data-crm-ui] .course-quiz-editor p { margin:0; color:var(--crm-muted); line-height:1.5; }
+html[data-crm-ui] .course-quiz-empty { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+html[data-crm-ui] .course-quiz-controls { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+html[data-crm-ui] .course-quiz-controls label { width:min(100%,170px); }
+html[data-crm-ui] .course-quiz-question { display:grid; gap:10px; padding:14px; border:1px solid var(--crm-line); border-radius:7px; }
+html[data-crm-ui] .course-quiz-question textarea { min-height:72px; }
+html[data-crm-ui] .course-quiz-option { display:flex; align-items:center; gap:10px; }
+html[data-crm-ui] .course-quiz-option > input[type=radio] { flex:none; }
+html[data-crm-ui] .course-quiz-option > input:not([type=radio]) { flex:1; min-width:0; }
+html[data-crm-ui] .course-quiz-save { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:12px; border-top:1px solid var(--crm-line); color:var(--crm-muted); }
+html[data-crm-ui] .course-quiz-editor > .crm-button, html[data-crm-ui] .course-quiz-question > .crm-button { justify-self:start; }
+.site-courses .site-course-quiz { display:grid; gap:18px; width:100%; min-width:0; margin:24px 0; padding:22px; border:1px solid rgba(255,255,255,.35); border-radius:12px; color:#fff; }
+.site-courses .site-course-quiz h3, .site-courses .site-course-quiz p { margin:0; color:inherit; }
+.site-courses .site-course-quiz header { display:grid; gap:8px; }
+.site-courses .site-course-quiz header p { opacity:.8; }
+.site-courses .site-course-quiz-question { display:grid; gap:10px; min-width:0; margin:0; padding:16px 0 0; border:0; border-top:1px solid rgba(255,255,255,.25); }
+.site-courses .site-course-quiz-question legend { max-width:100%; padding:0 8px 0 0; font-weight:700; overflow-wrap:anywhere; }
+.site-courses .site-course-quiz-question label { display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+.site-courses .site-course-quiz-question input { flex:none; accent-color:#fff; margin-top:4px; }
+.site-courses .site-course-quiz-question span { overflow-wrap:anywhere; }
+.site-courses .site-course-quiz-result { display:grid; gap:6px; padding:14px; border:1px solid rgba(255,255,255,.35); border-radius:8px; }
+.site-courses .site-course-quiz > button { justify-self:end; }
+@media (max-width:680px) { html[data-crm-ui] .course-quiz-editor { padding:14px; } .site-courses .site-course-quiz { padding:16px; } }

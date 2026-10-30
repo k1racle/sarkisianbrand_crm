@@ -31,4 +31,5 @@ useSeoMeta({ title: 'Моё обучение — SARKISIAN', robots: 'noindex,no
     <div v-else-if="!courses.length" class="site-courses-state"><h3>У вас пока нет доступных курсов</h3><p>Посмотрите программы обучения SARKISIAN.</p><NuxtLink class="site-courses-button" to="/courses">Открыть курсы</NuxtLink></div>
     <div v-else class="site-courses-grid"><article v-for="item in courses" :key="item.id" class="site-course-card"><div><h3>{{item.course.titleRu}}</h3><p>{{item.isCompleted ? 'Курс пройден' : `Пройдено ${item.progress}%`}}</p><progress :value="item.progress" max="100" :aria-label="`Пройдено ${item.progress}%`"/></div><NuxtLink class="site-courses-link" :to="`/courses/my/${encodeURIComponent(item.courseId)}`">Продолжить <ArrowRight :size="18"/></NuxtLink></article></div>
   </section>
+  <CourseCertificatesList v-if="accessToken" :key="accessToken" :token="accessToken" />
 </div></SiteShell></template>

@@ -1,7 +1,7 @@
 export type PublicLesson = { id: string; title: string; kind: 'TEXT' | 'VIDEO' | 'PRESENTATION' | 'LIVE'; sortOrder: number; isPreview: boolean };
 export type CourseModule = { id: string; title: string; sortOrder: number; lessons: PublicLesson[] };
 export type CourseTariff = { id: string; title: string; price: string | number; accessDays: number | null };
-export type PublicCourse = { id: string; titleRu: string; titleEn?: string | null; description?: unknown; modules: CourseModule[]; tariffs: CourseTariff[] };
+export type PublicCourse = { id: string; titleRu: string; titleEn?: string | null; description?: unknown; coverImageUrl?: string | null; modules: CourseModule[]; tariffs: CourseTariff[] };
 export type CourseMaterial = PublicLesson & { content?: string | null; videoUrl?: string | null; presentationUrl?: string | null };
 export type CourseEnrollment = { id: string; courseId: string; progress: number; isCompleted: boolean; accessExpiresAt: string | null; course: PublicCourse; lessonsProgress?: { lessonId: string; completedAt: string }[] };
 export type CourseAsset = { id: string; lessonId: string; filename: string; mimeType: string; size: number; createdAt: string; isPublished?: boolean; everPublished?: boolean };
@@ -17,4 +17,7 @@ export function coursePrice(value: string | number): string {
 export function safeCourseLink(value: string | null | undefined): string | null {
   if (!value) return null;
   try { const u = new URL(value); return u.protocol === 'https:' && !u.username && !u.password ? u.href : null; } catch { return null; }
+}
+export function safeCourseCover(value: string | null | undefined): string | null {
+  return value && /^\/api\/v1\/media\/files\/[0-9a-f-]{36}\.(?:jpg|png|webp|avif)$/i.test(value) ? value : null;
 }

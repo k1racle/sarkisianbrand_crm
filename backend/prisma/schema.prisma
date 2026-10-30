@@ -3111,6 +3111,7 @@ model Course {
   titleRu     String
   titleEn     String?
   description Json?
+    coverImageUrl String?
   price       Decimal      @db.Decimal(15, 2)
   isActive    Boolean      @default(true)
   status      String       @default("DRAFT")
@@ -3126,6 +3127,8 @@ model Course {
 model Lesson {
   assets CourseAsset[]
   liveSessions LmsLiveSession[]
+  quiz LmsLessonQuiz?
+  quizAttempts LmsQuizAttempt[]
   id        String  @id @default(uuid())
   courseId  String
   course    Course  @relation(fields: [courseId], references: [id])
@@ -3144,6 +3147,20 @@ model Lesson {
   progress  LessonProgress[]
 
   @@index([courseId, moduleId, sortOrder])
+}
+
+// Issued certificates are immutable snapshots of completed training.
+model LmsCertificate {
+  id           String   @id @default(uuid())
+  enrollmentId String   @unique
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  userId       String
+  courseId     String
+  fullName     String
+  courseTitle  String
+  issuedAt     DateTime @default(now())
+
+  @@index([userId, courseId])
 }
 
 model CourseAsset {
@@ -3174,12 +3191,40 @@ model Enrollment {
   progress          Int      @default(0)
   isCompleted       Boolean  @default(false)
   certificateIssued Boolean  @default(false)
+  certificate       LmsCertificate?
   enrolledAt        DateTime @default(now())
   accessStatus      String   @default("UNVERIFIED")
   accessExpiresAt   DateTime?
   lessonsProgress   LessonProgress[]
+  quizAttempts      LmsQuizAttempt[]
 
   @@unique([userId, courseId])
+}
+
+// Quiz definitions are private: only the published snapshot is used for marking.
+model LmsLessonQuiz {
+  lessonId String @id
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  draftData Json?
+  publishedData Json?
+  draftRemoved Boolean @default(false)
+  hasDraftChanges Boolean @default(false)
+  revision Int @default(0)
+  publishedRevision Int @default(0)
+}
+
+model LmsQuizAttempt {
+  id String @id @default(uuid())
+  lessonId String
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  enrollmentId String
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  publishedRevision Int
+  score Int
+  passed Boolean
+  createdAt DateTime @default(now())
+
+  @@index([enrollmentId, lessonId, createdAt])
 }
 
 model CourseTariff {

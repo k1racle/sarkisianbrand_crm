@@ -57,20 +57,27 @@
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
+    "pdfkit": "0.20.2",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
     "winston": "^3.10.0"
   },
   "overrides": {
-    "exceljs": { "uuid": "11.1.1" },
-    "bullmq": { "uuid": "11.1.1" },
+    "exceljs": {
+      "uuid": "11.1.1"
+    },
+    "bullmq": {
+      "uuid": "11.1.1"
+    },
     "body-parser@^1.0.0": "1.20.9",
     "multer": "2.5.0",
     "js-yaml@^4.0.0": "4.3.2",
     "lodash": "4.18.1",
     "qs": "6.16.1",
-    "@nestjs/common": { "file-type": "21.3.2" }
+    "@nestjs/common": {
+      "file-type": "21.3.2"
+    }
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
@@ -83,6 +90,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/passport-jwt": "^3.0.9",
     "@types/passport-local": "^1.0.35",
+    "@types/pdfkit": "0.17.5",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.42.0",

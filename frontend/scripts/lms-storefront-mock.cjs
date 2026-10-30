@@ -21,6 +21,7 @@ async function purchaseRetry() {
       if (endpoint === '/cart' || endpoint === '/storefront/cart/bind') return reply({ items: [], total: 0 });
       if (endpoint === '/auth/me') return reply({ id: 'buyer', role: 'CUSTOMER_B2C', firstName: 'Тест', email: 'buyer@example.invalid' });
       if (endpoint === '/storefront/favorites') return reply([]);
+      if (endpoint === '/lms/certificates/my' && req.method() === 'GET') return reply([]);
       if (endpoint === '/payments/providers') return reply({ providers: [] });
       if (endpoint === '/orders/SB-C-8ED571E4-0F14-4FAC-A435-AC4F88754D80') return reply({ orderNumber: 'SB-C-8ED571E4-0F14-4FAC-A435-AC4F88754D80', sourceChannel: 'COURSE', status: 'NEW', paymentStatus: 'PENDING', finalAmount: 1200, items: [], reservationState: 'ACTIVE', reservationExpiresAt: new Date(Date.now()+1800000).toISOString() });
       if (endpoint === `/lms/catalog/${courseId}`) return reply({ ...course, purchasingAvailable: true, liveAvailable: false });
@@ -71,6 +72,9 @@ async function test(width) {
       if (endpoint === '/storefront/cart/bind' && req.method() === 'POST') return reply({ items: [], total: 0 });
       if (endpoint === '/auth/me') return reply({ id: 'student', role: 'CUSTOMER_B2C', firstName: 'Тест', email: 'student@example.invalid' });
       if (endpoint === '/storefront/favorites') return reply([]);
+      if (endpoint === `/lms/media/${assetId}` && req.method() === 'GET') return route.fulfill({contentType:'application/pdf',body:'%PDF-1.4\n%%EOF'});
+      if (endpoint === `/lms/certificates/course/${courseId}` && req.method() === 'GET') return reply(null);
+      if (endpoint === '/lms/certificates/my' && req.method() === 'GET') return reply([]);
       if (endpoint === '/lms/catalog') { const page = Number(url.searchParams.get('page') || 1); return reply({ items: [page === 1 ? course : { ...course, titleRu: 'Второй курс' }], page, pages: 2, purchasingAvailable: false, liveAvailable: false }); }
       if (endpoint === `/lms/catalog/${courseId}`) return reply({ ...course, purchasingAvailable: false, liveAvailable: false });
       if (endpoint === `/lms/catalog/${courseId}/preview/${lessonId}`) return reply(material);
@@ -79,6 +83,7 @@ async function test(width) {
         if (endpoint === '/lms/my') return reply([{ id: 'enrollment', courseId, progress: 0, isCompleted: false, accessExpiresAt: null, course }]);
         if (endpoint === `/lms/my/${courseId}`) return reply({ id: 'enrollment', courseId, progress: 0, isCompleted: false, accessExpiresAt: null, course, lessonsProgress: [] });
         if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/assets`) return reply([{id:assetId,lessonId,filename:'Материалы.pdf',mimeType:'application/pdf',size:12000,createdAt:new Date().toISOString()}]);
+        if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/quiz`) return reply(null);
         if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/assets/${assetId}/session` && req.method()==='POST') return route.fulfill({json:{url:`/api/v1/lms/media/${assetId}`,expiresIn:300},headers:{'Set-Cookie':`fixture_asset=ok; HttpOnly; SameSite=Strict; Path=/api/v1/lms/media/${assetId}`}});
         if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}` && req.method() === 'GET') return reply(material);
         if (endpoint === `/lms/my/${courseId}/lessons/${lessonId}/complete` && req.method() === 'POST') return reply({ progress: 100, isCompleted: true });
@@ -109,8 +114,8 @@ async function test(width) {
     await page.getByRole('button', { name:'Введение' }).click();
     await page.getByText('Содержание урока').waitFor();
     await page.getByText('Материалы.pdf').waitFor(); await page.getByRole('button',{name:'Открыть',exact:true}).click();
-    await page.getByRole('link',{name:'Скачать документ'}).waitFor();
-    assert.equal(await page.getByRole('link',{name:'Скачать документ'}).getAttribute('href'),`/api/v1/lms/media/${assetId}`);
+    await page.getByRole('link',{name:'Скачать презентацию PDF'}).waitFor();
+    assert.equal(await page.getByRole('link',{name:'Скачать презентацию PDF'}).getAttribute('href'),`/api/v1/lms/media/${assetId}`);
     await page.screenshot({ path: path.join(output, `${width}-assets.png`), fullPage: true });
     await page.getByRole('button', { name:'Отметить пройденным' }).click();
     await page.getByRole('button', { name:'Урок пройден' }).waitFor();

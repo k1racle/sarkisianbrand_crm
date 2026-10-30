@@ -4,13 +4,14 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CourseListDto, CreateCourseDto, CreateLessonDto, CreateModuleDto, CreateTariffDto, UpdateCourseDto, UpdateLessonDto, UpdateModuleDto, UpdateTariffDto } from './lms.dto';
 import { courseSalesEnabled } from './lms-purchase.service';
+import { publishQuizDrafts } from './lms-quiz.service';
 
 const ordered = { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] };
-const adminInclude = { tariffs: { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }, modules: { ...ordered, include: { lessons: { ...ordered, include: { assets: { where: { pendingDelete: false }, select: { id: true, lessonId: true, filename: true, mimeType: true, size: true, isPublished: true, everPublished: true, createdAt: true } } } } } } };
+const adminInclude = { tariffs: { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }, modules: { ...ordered, include: { lessons: { ...ordered, include: { quiz: { select: { hasDraftChanges:true } }, assets: { where: { pendingDelete: false }, select: { id: true, lessonId: true, filename: true, mimeType: true, size: true, isPublished: true, everPublished: true, createdAt: true } } } } } } };
 const published = { status: 'PUBLISHED', isActive: true };
 const publicLesson = { id: true, title: true, kind: true, sortOrder: true, isPreview: true };
 const publicTariff = { id: true, title: true, price: true, accessDays: true };
-const publicCourse = { id: true, titleRu: true, titleEn: true, description: true };
+const publicCourse = { id: true, titleRu: true, titleEn: true, description: true, coverImageUrl: true };
 
 function title(value: string) {
   if (typeof value !== 'string' || !value.trim()) throw new BadRequestException('Название не может быть пустым');
@@ -41,11 +42,11 @@ function draftFields(lesson: LessonFields & { draftData?: Prisma.JsonValue | nul
     presentationUrl: d && 'presentationUrl' in d ? d.presentationUrl ?? null : lesson.presentationUrl,
     isPreview: d?.isPreview ?? lesson.isPreview, sortOrder: d?.sortOrder ?? lesson.sortOrder };
 }
-function adminCourse<T extends { modules: Array<{ lessons: Array<LessonFields & { id: string; draftData: Prisma.JsonValue | null; isPublished: boolean; assets: Array<{ mimeType: string; isPublished: boolean; everPublished: boolean }> }> }> }>(course: T) {
+function adminCourse<T extends { modules: Array<{ lessons: Array<LessonFields & { id: string; draftData: Prisma.JsonValue | null; isPublished: boolean; quiz: {hasDraftChanges:boolean} | null; assets: Array<{ mimeType: string; isPublished: boolean; everPublished: boolean }> }> }> }>(course: T) {
   return { ...course, modules: course.modules.map(module => ({ ...module, lessons: module.lessons.map(lesson => {
-    const { draftData, ...rest } = lesson, fields = draftFields(lesson);
-    const pendingAsset = lesson.assets.some(asset => !asset.isPublished && !asset.everPublished && (fields.kind === 'VIDEO' && ['video/mp4','video/webm'].includes(asset.mimeType) || fields.kind === 'PRESENTATION' && asset.mimeType === 'application/pdf'));
-    return { ...rest, ...fields, hasDraftChanges: draftData !== null || pendingAsset };
+    const { draftData, quiz, ...rest } = lesson, fields = draftFields(lesson);
+    const pendingAsset = lesson.assets.some(asset => !asset.isPublished && !asset.everPublished && ['video/mp4','video/webm','application/pdf','image/jpeg','image/png','image/webp'].includes(asset.mimeType));
+    return { ...rest, ...fields, hasDraftChanges: draftData !== null || pendingAsset || !!quiz?.hasDraftChanges };
   }).sort((a,b) => a.sortOrder-b.sortOrder || a.id.localeCompare(b.id)) })) };
 }
 function lessonComplete(lesson: { kind: string; isPreview: boolean; content: string | null; videoUrl: string | null; presentationUrl: string | null; assets?: Array<{ mimeType: string }> }) {
@@ -132,11 +133,12 @@ export class LmsService {
         // Publication also changes what a form is editing. Stale forms must
         // not overwrite a version that another employee has just published.
         await tx.lesson.updateMany({ where: { courseId: id, moduleId: { not: null } }, data: { isPublished: true, revision: { increment: 1 } } });
+        await publishQuizDrafts(tx,id);
         await tx.courseAsset.updateMany({ where: { lesson: { courseId: id } }, data: { isPublished: false } });
-        await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, kind: 'VIDEO' }, mimeType: { in: ['video/mp4','video/webm'] } }, data: { isPublished: true, everPublished: true } });
-        await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, kind: 'PRESENTATION' }, mimeType: 'application/pdf' }, data: { isPublished: true, everPublished: true } });
+        await tx.courseAsset.updateMany({ where: { pendingDelete: false, lesson: { courseId: id, moduleId: { not: null } }, mimeType: { in: ['video/mp4','video/webm','application/pdf','image/jpeg','image/png','image/webp'] } }, data: { isPublished: true, everPublished: true } });
       }
-      return tx.course.update({ where: { id }, data: { ...(dto.titleRu !== undefined ? { titleRu: title(dto.titleRu) } : {}), ...(dto.titleEn !== undefined ? { titleEn: dto.titleEn?.trim() || null } : {}), ...(dto.description !== undefined ? { description: dto.description === null ? Prisma.DbNull : dto.description } : {}), ...(dto.status !== undefined ? { status: dto.status, isActive: dto.status !== 'ARCHIVED' } : {}) }, include: adminInclude });
+      const updated=await tx.course.update({ where: { id }, data: { ...(dto.titleRu !== undefined ? { titleRu: title(dto.titleRu) } : {}), ...(dto.titleEn !== undefined ? { titleEn: dto.titleEn?.trim() || null } : {}), ...(dto.description !== undefined ? { description: dto.description === null ? Prisma.DbNull : dto.description } : {}), ...(dto.status !== undefined ? { status: dto.status, isActive: dto.status !== 'ARCHIVED' } : {}) }, include: adminInclude });
+      return adminCourse(updated);
     });
   }
   createTariff(courseId: string, dto: CreateTariffDto) { return this.updateCourseTransaction(courseId, tx => tx.courseTariff.create({ data: { courseId, title: title(dto.title), price: dto.price, accessDays: dto.accessDays ?? null, isActive: dto.isActive ?? true } })); }
@@ -196,6 +198,8 @@ export class LmsService {
       await tx.$queryRaw`SELECT id FROM "Enrollment" WHERE "userId" = ${userId} AND "courseId" = ${courseId} FOR UPDATE`;
       const enrollment = await tx.enrollment.findFirst({ where: this.accessWhere(userId, courseId), select: { id: true } }); if (!enrollment) throw new NotFoundException('Курс недоступен');
       const lesson = await tx.lesson.findFirst({ where: { id: lessonId, courseId, isPublished: true, moduleId: { not: null } }, select: { id: true } }); if (!lesson) throw new NotFoundException('Урок не найден');
+      const quiz=await tx.lmsLessonQuiz.findUnique({where:{lessonId},select:{publishedData:true}});
+      if (quiz?.publishedData && !await tx.lessonProgress.findUnique({where:{enrollmentId_lessonId:{enrollmentId:enrollment.id,lessonId}},select:{id:true}})) throw new ConflictException('Для завершения урока сначала пройдите тест.');
       await tx.lessonProgress.upsert({ where: { enrollmentId_lessonId: { enrollmentId: enrollment.id, lessonId } }, create: { enrollmentId: enrollment.id, lessonId }, update: {} });
       const [total, done] = await Promise.all([tx.lesson.count({ where: { courseId, isPublished: true, moduleId: { not: null } } }), tx.lessonProgress.count({ where: { enrollmentId: enrollment.id, lesson: { courseId, isPublished: true, moduleId: { not: null } } } })]);
       return tx.enrollment.update({ where: { id: enrollment.id }, data: { progress: total ? Math.floor(done / total * 100) : 0, isCompleted: total > 0 && done === total }, select: { progress: true, isCompleted: true } });

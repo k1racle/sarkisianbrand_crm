@@ -23,10 +23,12 @@ async function main() {
         let body={};try{body=request.postDataJSON()||{};}catch{}
         calls.push({endpoint,method,body});
         if(fail){fail=false;return route.fulfill({status:503,json:{message:'Сервис временно недоступен'}});}
+        if(/\/lessons\/lesson-\d+\/quiz$/.test(endpoint) && method==='GET') return route.fulfill({json:{revision:0,enabled:false,passingPercent:70,questions:[],isPublished:false,hasDraftChanges:false}});
         if(endpoint.endsWith('/lessons/lesson-2/assets')) {
           if(method==='GET')return route.fulfill({json:clone(assetRows)});
           if(method==='POST') { assert.equal(request.headers()['content-type'],'application/octet-stream'); assert.equal(decodeURIComponent(request.headers()['x-file-name']),'урок.pdf'); assert.equal(request.postDataBuffer().toString(),'%PDF-fixture'); const row={id:'asset-1',lessonId:'lesson-2',filename:'урок.pdf',mimeType:'application/pdf',size:12,isPublished:false,everPublished:false,createdAt:new Date().toISOString()};assetRows.push(row);const lesson=course?.modules[0]?.lessons.find(item=>item.id==='lesson-2');if(lesson){lesson.assets=clone(assetRows);if(lesson.isPublished)lesson.hasDraftChanges=true;}return route.fulfill({json:clone(row)}); }
         }
+        if(/\/lessons\/lesson-\d+\/assets$/.test(endpoint) && method==='GET') return route.fulfill({json:[]});
         if(endpoint.endsWith('/lessons/lesson-2/assets/asset-1')&&method==='DELETE'){ assetRows=assetRows.filter(item=>item.id!=='asset-1');const lesson=course?.modules[0]?.lessons.find(item=>item.id==='lesson-2');if(lesson)lesson.assets=clone(assetRows);return route.fulfill({json:{status:cleanupPending?'cleanup_pending':'deleted'}}); }
         if(endpoint.includes('/live/') || endpoint.endsWith('/live')) {
           if(!liveEnabled)return route.fulfill({status:503,json:{message:'Эфиры временно недоступны'}});
@@ -41,6 +43,7 @@ async function main() {
         }
         if(endpoint.endsWith('/courses')&&method==='GET')return route.fulfill({json:{items:course?[clone(course)]:[],total:course?1:0,page:1,pages:1}});
         if(endpoint.endsWith('/courses')&&method==='POST'){course={id:'test-course',status:'DRAFT',...body,tariffs:[],modules:[]};return route.fulfill({json:clone(course)});}
+        if(endpoint.endsWith('/courses/test-course/cover')&&method==='POST') { assert.match(request.headers()['content-type'],/^multipart\/form-data;/);assert.ok(request.postDataBuffer().includes(Buffer.from('filename="cover.png"')));course.coverImageUrl='/api/v1/media/files/123e4567-e89b-42d3-a456-426614174001.png';return route.fulfill({json:{coverImageUrl:course.coverImageUrl}}); }
         if(endpoint.endsWith('/courses/test-course')&&method==='GET')return route.fulfill({json:clone(course)});
         if(endpoint.endsWith('/courses/test-course')&&method==='PATCH'){Object.assign(course,body);if(body.status==='PUBLISHED')for(const module of course.modules)for(const lesson of module.lessons){lesson.isPublished=true;lesson.hasDraftChanges=false;lesson.revision++;}return route.fulfill({json:clone(course)});}
         if(endpoint.endsWith('/courses/test-course/modules')&&method==='POST'){const row={id:'test-module',...body,lessons:[]};course.modules.push(row);return route.fulfill({json:clone(row)});}
@@ -61,6 +64,12 @@ async function main() {
         await page.getByLabel('Название курса *').fill('Работа с гелем');
         await page.getByLabel('Описание',{exact:true}).fill('Обучение для мастеров');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('region',{name:'Обложка курса'}).waitFor();
+        await page.getByLabel('Выбрать обложку').setInputFiles({name:'cover.png',mimeType:'image/png',buffer:Buffer.from('fixture-image')});
+        await page.getByRole('button',{name:'Загрузить обложку'}).click();
+        await page.getByText('Обложка обновлена.').waitFor();
+        await page.getByRole('img',{name:'Обложка курса'}).waitFor();
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
         await page.getByRole('heading',{name:'Работа с гелем'}).waitFor();
         await page.getByRole('button',{name:'Добавить модуль'}).click();
         await page.getByLabel('Название модуля *').fill('Подготовка');
@@ -70,12 +79,14 @@ async function main() {
         await page.getByLabel('Название урока *').fill('Материалы');
         await page.getByLabel('Текст урока').fill('Выбираем материалы для работы.');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('region',{name:'Тест урока'}).waitFor();
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
         await page.getByText('Материалы',{exact:true}).waitFor();
         await page.getByRole('button',{name:'Урок',exact:true}).click();
         await page.getByLabel('Название урока *').fill('Презентация');
         await page.getByLabel('Тип урока').selectOption('PRESENTATION');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
-        await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
+        await page.getByRole('region',{name:'Тест урока'}).waitFor();
         // Simulate another employee saving while this editor remains open.
         // Upload refreshes course data, but cannot refresh the form's revision.
         course.modules[0].lessons.find(item=>item.id==='lesson-2').revision++;
@@ -101,6 +112,8 @@ async function main() {
         await page.getByLabel('Описание эфира *').fill('Разбор вопросов участников.');
         assert.equal(await page.getByLabel('Разрешить открытый просмотр').count(),0);
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('region',{name:'Тест урока'}).waitFor();
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
         await page.getByText('Вопросы и ответы',{exact:true}).waitFor();
         await page.getByRole('tab',{name:'Эфиры'}).click();
         await page.getByRole('alert').getByText('Прямые эфиры готовятся.',{exact:false}).waitFor();
@@ -162,6 +175,8 @@ async function main() {
         await page.getByLabel('Название урока *').fill('Новый урок');
         await page.getByLabel('Текст урока').fill('Ещё один материал.');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
+        await page.getByRole('region',{name:'Тест урока'}).waitFor();
+        await page.getByRole('button',{name:'Отмена',exact:true}).click();
         await page.getByText('Новый урок не опубликован',{exact:true}).waitFor();
         page.once('dialog',dialog=>dialog.dismiss());
         await page.getByRole('button',{name:'Опубликовать изменения'}).click();
@@ -182,8 +197,8 @@ async function main() {
         await page.getByLabel('Текст урока').fill('Текст вместо презентации.');
         await page.getByRole('button',{name:'Сохранить',exact:true}).click();
         await page.getByRole('button',{name:'Изменить урок Презентация'}).click();
-        await page.getByText('Здесь перечислены файлы предыдущего типа урока.',{exact:false}).waitFor();
-        assert.equal(await page.getByLabel('Выбрать файл').count(),0,'Cannot upload assets to a text lesson');
+        await page.getByRole('heading',{name:'Видео, изображения и презентации'}).waitFor();
+        assert.equal(await page.getByLabel('Выбрать файл').count(),1,'A text lesson can include media');
         await page.getByRole('button',{name:'Удалить файл урок.pdf'}).waitFor();
         page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Удалить файл урок.pdf'}).click();
         await page.getByText('Файл убран из урока. Очистка хранилища завершится позже.').waitFor();

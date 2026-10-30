@@ -5,21 +5,21 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { createHmac, randomUUID } from 'crypto';
 import { constants, createWriteStream } from 'fs';
-import { mkdir, open, readdir, rename, stat, unlink } from 'fs/promises';
+import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'fs/promises';
 import { resolve, join } from 'path';
 import { Transform } from 'stream';
 import { pipeline } from 'stream/promises';
 import { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { activeSession, SessionClaims } from '../auth/active-session';
+import { inspectMediaRaster } from '../media/media.service';
 
 export const COURSE_ASSET_MAX_BYTES = 500 * 1024 * 1024;
 const COURSE_ASSET_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
 const MAX_UPLOADS_PER_PROCESS = 2;
 const meta = { id: true, lessonId: true, filename: true, mimeType: true, size: true, isPublished: true, everPublished: true, createdAt: true } as const;
 const validStudentAsset: Prisma.CourseAssetWhereInput = { OR: [
-  { mimeType: { in: ['video/mp4', 'video/webm'] }, lesson: { kind: 'VIDEO' } },
-  { mimeType: 'application/pdf', lesson: { kind: 'PRESENTATION' } },
+  { mimeType: { in: ['video/mp4', 'video/webm', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'] } },
 ] };
 type AccessClaims = SessionClaims & { purpose: string; assetId: string; courseId: string; lessonId: string; authExp: number };
 
@@ -32,17 +32,17 @@ export function assetName(raw: string | undefined): string {
 }
 export function assetMime(bytes: Buffer): string {
   if (bytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) return 'application/pdf';
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))) return 'image/png';
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 12 && bytes.toString('ascii',0,4) === 'RIFF' && bytes.toString('ascii',8,12) === 'WEBP') return 'image/webp';
   if (bytes.length >= 12 && bytes.subarray(4, 8).toString('ascii') === 'ftyp') return 'video/mp4';
   if (bytes.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return 'video/webm';
-  throw new BadRequestException('Поддерживаются PDF, MP4 и WebM');
+  throw new BadRequestException('Поддерживаются PDF, MP4, WebM, JPEG, PNG и WebP');
 }
 function assertUploadable(lesson: { kind: string; draftData?: Prisma.JsonValue | null; moduleId: string | null; course: { status: string } } | null, mimeType?: string) {
   if (!lesson || !lesson.moduleId) throw new NotFoundException('Урок не найден');
   if (!['DRAFT','PUBLISHED'].includes(lesson.course.status)) throw new ConflictException('Загружать файлы можно только в действующем курсе или черновике');
-  const draft = lesson.draftData as { kind?: unknown } | null | undefined;
-  const kind = typeof draft?.kind === 'string' ? draft.kind : lesson.kind;
-  if (!['VIDEO', 'PRESENTATION'].includes(kind)) throw new BadRequestException('Файлы можно добавлять в видеоуроки и презентации');
-  if (mimeType && !(kind === 'VIDEO' ? ['video/mp4', 'video/webm'].includes(mimeType) : mimeType === 'application/pdf')) throw new BadRequestException('Формат файла не соответствует типу урока');
+  if (mimeType && !['video/mp4','video/webm','application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)) throw new BadRequestException('Формат файла не поддерживается');
 }
 export function parseRange(value: string | undefined, size: number): { start: number; end: number } | null {
   if (!value) return null;
@@ -168,6 +168,10 @@ export class CourseAssetService implements OnModuleInit, OnModuleDestroy {
       await pipeline(req, limiter, createWriteStream(temporary, { flags: 'wx', mode: 0o600 }));
       if (count !== length) throw new BadRequestException('Файл загружен не полностью');
       const mimeType = assetMime(prefix);
+      if (mimeType.startsWith('image/')) {
+        if (count > 8 * 1024 * 1024) throw new BadRequestException('Изображение должно быть не больше 8 МиБ');
+        if (inspectMediaRaster(await readFile(temporary)).mime !== mimeType) throw new BadRequestException('Повреждённое изображение');
+      }
       assertUploadable(lesson, mimeType);
       await rename(temporary, destination); moved = true;
       const item = await this.db.$transaction(async tx => {

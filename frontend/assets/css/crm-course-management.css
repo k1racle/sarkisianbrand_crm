@@ -1,5 +1,8 @@
 /* Course authoring uses the shared CRM surfaces and controls. */
 html[data-crm-ui] .course-workspace { min-width: 0; }
+html[data-crm-ui] .course-cover-editor { display:grid; gap:10px; margin-top:24px; padding-top:20px; border-top:1px solid var(--crm-line); }
+html[data-crm-ui] .course-cover-editor h3, html[data-crm-ui] .course-cover-editor p { margin:0; }
+html[data-crm-ui] .course-cover-preview { width:min(100%,280px); max-height:200px; object-fit:cover; border-radius:8px; }
 html[data-crm-ui] .course-settings-status { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
 html[data-crm-ui] .course-settings-status article { display:flex; align-items:flex-start; gap:12px; padding:16px; min-width:0; }
 html[data-crm-ui] .course-settings-status article > svg { color:var(--crm-accent); flex:none; }

@@ -22,8 +22,12 @@ async function test(width, enabled) {
       if(endpoint==='/cart'||endpoint==='/storefront/cart/bind')return reply({items:[],total:0});
       if(endpoint==='/auth/me')return reply({id:'student',role:'CUSTOMER_B2C',firstName:'Тест',email:'student@example.invalid'});
       if(endpoint==='/storefront/favorites')return reply([]);
+      if(endpoint==='/lms/certificates/my' && req.method()==='GET')return reply([]);
       if(endpoint===`/lms/my/${courseId}`)return reply({id:'enrollment',courseId,progress:0,isCompleted:false,accessExpiresAt:null,course,lessonsProgress:[]});
       if(endpoint===`/lms/my/${courseId}/lessons/${lessonId}`)return reply(lesson);
+      if(endpoint===`/lms/my/${courseId}/lessons/${lessonId}/quiz`)return reply(null);
+      if(endpoint===`/lms/certificates/course/${courseId}` && req.method()==='GET')return reply(null);
+      if(endpoint===`/lms/my/${courseId}/lessons/${lessonId}/assets`)return reply([]);
       if(endpoint===`/lms/my/${courseId}/lessons/${lessonId}/live`) {
         assert.equal(req.headers().authorization,`Bearer ${token}`);
         return enabled ? reply([{id:liveId,title:'Встреча с мастером',startsAt:'2026-10-30T09:00:00.000Z',endsAt:'2026-10-30T10:00:00.000Z',status:'LIVE'}]) : reply({message:'Сервис ещё не подключён'},503);

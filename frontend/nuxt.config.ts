@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   ] },
   devtools: { enabled: true },
   experimental: { appManifest: false, defaults: { useAsyncData: { deep: true } } },
-  css: ['~/assets/css/foundation.css', '~/assets/css/site.css', '~/assets/css/site-courses.css', '~/assets/css/admin.css'],
+  css: ['~/assets/css/foundation.css', '~/assets/css/site.css', '~/assets/css/site-courses.css', '~/assets/css/admin.css', '~/assets/css/course-quiz.css'],
   components: [{ path: '~/components', pathPrefix: false }],
   routeRules: {
     '/admin': { redirect: '/admin-workspace' }, '/marketplaces': { redirect: '/crm-marketplaces' },

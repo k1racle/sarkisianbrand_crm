@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowRight, PlayCircle } from '@lucide/vue';
-import { courseDescription, coursePrice, type PublicCourse, type CourseMaterial, type CourseTariff, safeCourseLink } from '~/shared/course-types';
+import { courseDescription, coursePrice, type PublicCourse, type CourseMaterial, type CourseTariff, safeCourseLink, safeCourseCover } from '~/shared/course-types';
 import { requestKey } from '~/shared/request-key';
 const route = useRoute(), config = useRuntimeConfig();
 const { accessToken, user, loadMe } = useStorefront();
@@ -49,7 +49,7 @@ useSeoMeta({ title: () => data.value ? `${data.value.titleRu} — SARKISIAN` : '
     <p v-if="status==='pending'" class="site-courses-state" role="status">Загружаем курс…</p>
     <div v-else-if="error || !data" class="site-courses-state" role="alert"><h1>Курс недоступен</h1><p>Не удалось загрузить программу. Проверьте соединение и повторите попытку.</p><button type="button" class="site-courses-button" @click="refresh()">Повторить</button></div>
     <template v-else>
-      <header class="site-courses-hero"><h1>{{data.titleRu}}</h1><div><p v-if="courseDescription(data.description)">{{courseDescription(data.description)}}</p><NuxtLink class="site-courses-link" to="/courses/my">Моё обучение <ArrowRight :size="18"/></NuxtLink></div></header>
+      <header class="site-courses-hero"><h1>{{data.titleRu}}</h1><div><img v-if="safeCourseCover(data.coverImageUrl)" class="site-course-cover" :src="safeCourseCover(data.coverImageUrl)!" :alt="`Обложка курса ${data.titleRu}`"/><p v-if="courseDescription(data.description)">{{courseDescription(data.description)}}</p><NuxtLink class="site-courses-link" to="/courses/my">Моё обучение <ArrowRight :size="18"/></NuxtLink></div></header>
       <section class="site-courses-section" aria-labelledby="program"><div class="site-courses-section-head"><h2 id="program">Программа курса</h2><p>Откройте доступные уроки, чтобы познакомиться с форматом.</p></div><div v-if="data.modules.length" class="site-course-modules"><article v-for="module in data.modules" :key="module.id" class="site-course-module"><h3>{{module.title}}</h3><ul><li v-for="lesson in module.lessons" :key="lesson.id"><span>{{lesson.title}}</span><button v-if="lesson.isPreview" type="button" @click="openPreview(lesson.id)"><PlayCircle :size="16"/> Посмотреть</button><span v-else>Доступ после покупки</span></li></ul></article></div><p v-else class="site-courses-state">Программа готовится.</p>
         <div v-if="previewLoading" class="site-courses-state" role="status">Открываем урок…</div><p v-if="previewError" role="alert">{{previewError}}</p><article v-if="preview" class="site-course-material"><h3>{{preview.title}}</h3><p v-if="preview.content" class="site-course-text">{{preview.content}}</p><a v-if="safeCourseLink(preview.videoUrl)" :href="safeCourseLink(preview.videoUrl)!" target="_blank" rel="noopener noreferrer">Открыть видео</a><a v-if="safeCourseLink(preview.presentationUrl)" :href="safeCourseLink(preview.presentationUrl)!" target="_blank" rel="noopener noreferrer">Открыть презентацию</a></article>
       </section>
