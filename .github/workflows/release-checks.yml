@@ -158,6 +158,9 @@ jobs:
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/marketplace-exchange-ui.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/b2b-orders-pagination-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-courses-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-course-settings-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-course-live-mock.cjs
+          ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-course-students-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-payment-settings-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/crm-schedule-calendar-layout-mock.cjs
           ADMIN_DESIGN_URL=http://127.0.0.1:3001 node scripts/helpdesk-email-ui.cjs

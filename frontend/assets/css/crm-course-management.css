@@ -1,5 +1,14 @@
 /* Course authoring uses the shared CRM surfaces and controls. */
 html[data-crm-ui] .course-workspace { min-width: 0; }
+html[data-crm-ui] .course-settings-status { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+html[data-crm-ui] .course-settings-status article { display:flex; align-items:flex-start; gap:12px; padding:16px; min-width:0; }
+html[data-crm-ui] .course-settings-status article > svg { color:var(--crm-accent); flex:none; }
+html[data-crm-ui] .course-settings-status article > div { flex:1; min-width:0; }
+html[data-crm-ui] .course-settings-status p { margin:5px 0 3px; color:var(--crm-ink); }
+html[data-crm-ui] .course-settings-status small, html[data-crm-ui] .course-settings-restricted p { color:var(--crm-muted); line-height:1.5; }
+html[data-crm-ui] .course-settings-restricted { padding:18px; }
+html[data-crm-ui] .course-settings-restricted p { margin:6px 0 0; }
+@media (max-width: 800px) { html[data-crm-ui] .course-settings-status { grid-template-columns:1fr; } }
 html[data-crm-ui] .course-notice { display:flex; align-items:flex-start; gap:10px; padding:13px 16px; margin-bottom:20px; border:1px solid var(--crm-line); border-radius:8px; background:var(--crm-surface); color:var(--crm-muted); line-height:1.5; }
 html[data-crm-ui] .course-notice svg { color:var(--crm-accent); flex:none; }
 html[data-crm-ui] .course-error, html[data-crm-ui] .course-success { padding:12px 14px; margin:0 0 16px; border:1px solid var(--crm-line); border-radius:8px; background:var(--crm-surface); color:var(--crm-ink); }

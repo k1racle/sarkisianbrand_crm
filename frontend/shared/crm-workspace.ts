@@ -1,5 +1,5 @@
 /** Presentation only: every destination still uses the platform's existing roles and permissions. */
-export const CRM_GROUPS = ['Мой день', 'Клиенты и продажи', 'Заказы и исполнение', 'Финансы', 'Команда', 'Маркетинг и партнёры', 'Поддержка', 'Аналитика', 'Настройки CRM'] as const;
+export const CRM_GROUPS = ['Мой день', 'Клиенты и продажи', 'Заказы и исполнение', 'Финансы', 'Команда', 'Обучение', 'Маркетинг и партнёры', 'Поддержка', 'Аналитика', 'Настройки CRM'] as const;
 export const CRM_MODULES = [
   { id: 'marketplaces', label: 'Маркетплейсы', group: 'Заказы и исполнение', icon: 'Store' },
   { id: 'loyalty', label: 'Клуб покупателей', group: 'Маркетинг и партнёры', icon: 'BadgeCheck' },
@@ -14,7 +14,10 @@ export type CrmDestination = {
 };
 export const CRM_DESTINATIONS: CrmDestination[] = [
   {id:'studio-rewards',path:'/crm/studio-rewards',label:'Награды игры',group:'Маркетинг и партнёры',icon:'TicketPercent'},
-  {id:'courses',path:'/crm/courses',label:'Курсы',group:'Маркетинг и партнёры',icon:'BookOpen'},
+  {id:'courses',path:'/crm/courses',label:'Курсы',group:'Обучение',icon:'GraduationCap'},
+  {id:'course-students',path:'/crm/course-students',label:'Ученики',group:'Обучение',icon:'BookUser'},
+  {id:'course-settings',path:'/crm/course-settings',label:'Настройки',group:'Обучение',icon:'Cog'},
+  {id:'course-live',path:'/crm/course-live',label:'Онлайн-трансляции',group:'Обучение',icon:'Radio'},
   { id: 'crm-dashboard', path: '/crm/', label: 'Мой день', group: 'Мой день', icon: 'CalendarDays' },
   { id: 'pipeline', path: '/crm/deals', label: 'Воронка продаж', group: 'Клиенты и продажи', icon: 'Kanban' },
   { id: 'customers', path: '/crm/customers', label: 'Клиенты', group: 'Клиенты и продажи', icon: 'ContactRound' },

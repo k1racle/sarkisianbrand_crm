@@ -44,8 +44,11 @@ const ADMIN = ['ADMIN'];
  * Every protected data section uses the same permission keys as its API.
  */
 export const WORKSPACE_NAVIGATION: readonly WorkspaceGroup[] = [
-  { id: 'courses', label: 'Обучение', description: 'Курсы, программа и тарифы.', icon: 'BookOpen', items: [
+  { id: 'courses', label: 'Обучение', description: 'Курсы, ученики, настройки и трансляции.', icon: 'BookOpen', items: [
     { id: 'courses', label: 'Курсы', to: '/crm/courses', permission: 'lms.read', roles: ['ADMIN', 'SUPERVISOR', 'CONTENT_MANAGER'], keywords: 'обучение уроки тарифы программа видео презентации' },
+    { id: 'course-students', label: 'Ученики', to: '/crm/course-students', permission: 'lms.read', roles: ['ADMIN', 'SUPERVISOR', 'CONTENT_MANAGER'], keywords: 'обучение курсы ученики доступ зачисления прогресс' },
+    { id: 'course-settings', label: 'Настройки', to: '/crm/course-settings', permission: 'lms.read', roles: ['ADMIN', 'SUPERVISOR', 'CONTENT_MANAGER'], keywords: 'обучение курсы настройки оплата касса' },
+    { id: 'course-live', label: 'Онлайн-трансляции', to: '/crm/course-live', permission: 'lms.read', requires: ['lms.write'], roles: ['ADMIN', 'SUPERVISOR', 'CONTENT_MANAGER'], keywords: 'обучение курсы эфир трансляция видео ведущий' },
   ] },
   {id:'studio',label:'Игра и награды',description:'Условия обмена монет на скидки.',icon:'Gift',items:[{id:'studio-rewards',label:'Награды игры',to:'/crm/studio-rewards',permission:'promotions.read',roles:['ADMIN','CONTENT_MANAGER','MANAGER_SALES','SUPERVISOR'],keywords:'игра студия скидки монеты промокоды награды'}]},
   { id: 'dashboard', label: 'Рабочий стол', description: 'Быстрые переходы и обзор интернет-магазина.', icon: 'LayoutDashboard', items: [

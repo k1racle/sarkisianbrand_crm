@@ -8,6 +8,9 @@ sheet.walkDecls(decl=>{
 });
 assert.equal(sizes,3);assert.match(css,/@layer workspace-typography/);
 assert.doesNotMatch(css,/\.sb-storefront|\.login-page[),]/);assert.match(css,/\.b2b-frame/);
-const config=fs.readFileSync(path.join(root,'nuxt.config.ts'),'utf8');assert.match(config,/css: \['~\/assets\/css\/foundation.css', '~\/assets\/css\/site.css', '~\/assets\/css\/admin.css'\]/);
+const config=fs.readFileSync(path.join(root,'nuxt.config.ts'),'utf8');
+const cssList=config.match(/\bcss:\s*\[([^\]]+)\]/)?.[1] || '';
+const styles=[...cssList.matchAll(/['"]([^'"]+)['"]/g)].map(match=>match[1]);
+assert.ok(styles.indexOf('~/assets/css/foundation.css')>=0 && styles.indexOf('~/assets/css/foundation.css')<styles.indexOf('~/assets/css/site.css') && styles.indexOf('~/assets/css/site.css')<styles.indexOf('~/assets/css/admin.css'),'Foundation and storefront must load before admin styles');
 const owner=fs.readFileSync(path.join(root,'assets/css/admin.css'),'utf8');assert.ok(owner.indexOf('workspace-dialogs.css')<owner.indexOf('workspace-typography.css'));
 console.log('Three typography tokens, shared layer, internal-only scope and final stylesheet registration PASS.');

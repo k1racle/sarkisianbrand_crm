@@ -17,6 +17,7 @@ const uuid = () => new ParseUUIDPipe({ version: '4' });
 export class LmsAdminController {
   constructor(private readonly lms: LmsService) {}
   @Get('courses') @Header('Cache-Control', 'private, no-store') list(@Query() query: CourseListDto) { return this.lms.adminList(query); }
+  @Get('students') @Header('Cache-Control', 'private, no-store') students(@Query() query: CourseListDto) { return this.lms.adminStudents(query); }
   @Get('courses/:id') @Header('Cache-Control', 'private, no-store') detail(@Param('id', uuid()) id: string) { return this.lms.adminDetail(id); }
   @Post('courses') @Permissions('lms.read','lms.write') create(@Body() dto: CreateCourseDto) { return this.lms.createCourse(dto); }
   @Patch('courses/:id') @Permissions('lms.read','lms.write') update(@Param('id', uuid()) id: string, @Body() dto: UpdateCourseDto) { return this.lms.updateCourse(id,dto); }

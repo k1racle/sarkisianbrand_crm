@@ -43,6 +43,11 @@ async function main() {
   for (const path of ['/crm-marketplaces/orders', '/system-settings/staff']) {
     await denied.handler(route(path)); assert.equal(denied.navigations.pop().to, '/crm/');
   }
+  const learningRead = middleware('middleware/workspace-auth.global.ts', { token: 'fixture', role: 'CONTENT_MANAGER', permissions: ['lms.read'] });
+  for (const path of ['/crm/courses', '/crm/course-students', '/crm/course-settings']) { await learningRead.handler(route(path)); assert.equal(learningRead.navigations.length, 0, `${path} requires lms.read`); }
+  await learningRead.handler(route('/crm/course-live')); assert.notEqual(learningRead.navigations.pop().to, undefined, 'Live requires both lms.read and lms.write');
+  const learningWrite = middleware('middleware/workspace-auth.global.ts', { token: 'fixture', role: 'CONTENT_MANAGER', permissions: ['lms.read', 'lms.write'] });
+  await learningWrite.handler(route('/crm/course-live')); assert.equal(learningWrite.navigations.length, 0);
   const guest = middleware('middleware/workspace-auth.global.ts');
   await guest.handler(route('/admin-workspace/orders', { status: 'NEW' }));
   assert.deepEqual(guest.navigations.pop().to, { path: '/workspace-login', query: { redirect: '/admin-workspace/orders?status=NEW' } });

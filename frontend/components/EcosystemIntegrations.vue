@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check, CheckCircle2, ChevronRight, CircleAlert, Copy, ExternalLink, KeyRound, RefreshCw, Save, Search, X } from '@lucide/vue';
 
+const props = withDefaults(defineProps<{ coursePaymentsOnly?: boolean }>(), { coursePaymentsOnly: false });
 const config = useRuntimeConfig();
 const route = useRoute();
 const { token } = useWorkspaceSession();
@@ -92,7 +93,8 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    integrations.value = await $fetch<any[]>('/system-settings/integrations', { baseURL: config.public.apiBase, headers: headers.value });
+    const result = await $fetch<any[]>('/system-settings/integrations', { baseURL: config.public.apiBase, headers: headers.value });
+    integrations.value = props.coursePaymentsOnly ? result.filter(item => ['ROBOKASSA', 'TBANK'].includes(item.key)) : result;
     loaded.value = true;
     if (selected.value) selected.value = integrations.value.find((item) => item.key === selected.value.key) || null;
   } catch (reason: any) {
@@ -206,7 +208,7 @@ onMounted(async () => {
 <template>
   <section data-v-ui-1e872dee0e70 class="integration-settings">
     <WorkspaceLoading v-if="loading && !loaded" label="Загружаем настройки…"/><div v-else-if="error && !loaded" class="crm-management-error" role="alert"><p>{{error}}</p><button type="button" class="crm-button" :disabled="loading" @click="load">Повторить загрузку</button></div>
-    <div data-v-ui-1e872dee0e70 v-if="loaded" class="integration-kpis">
+    <div data-v-ui-1e872dee0e70 v-if="loaded && !coursePaymentsOnly" class="integration-kpis">
       <article class="crm-surface" data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Подключений в реестре</span><strong data-v-ui-1e872dee0e70>{{ counts.total }}</strong><small data-v-ui-1e872dee0e70>все каналы экосистемы</small></article>
       <article class="crm-surface" data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Включено</span><strong data-v-ui-1e872dee0e70>{{ counts.enabled }}</strong><small data-v-ui-1e872dee0e70>участвуют в процессах</small></article>
       <article class="crm-surface" data-v-ui-1e872dee0e70><span data-v-ui-1e872dee0e70>Настроено</span><strong data-v-ui-1e872dee0e70>{{ counts.configured }}</strong><small data-v-ui-1e872dee0e70>обязательные поля заполнены</small></article>
@@ -215,10 +217,10 @@ onMounted(async () => {
 
     <article data-v-ui-1e872dee0e70 v-if="loaded" class="registry panel crm-surface">
       <header data-v-ui-1e872dee0e70 class="registry-head">
-        <div data-v-ui-1e872dee0e70><p data-v-ui-1e872dee0e70 class="kicker">ЦЕНТР ПОДКЛЮЧЕНИЙ</p><h2 data-v-ui-1e872dee0e70>Интеграции экосистемы</h2><span data-v-ui-1e872dee0e70>Ключи хранятся зашифрованно и не возвращаются из API.</span></div>
-        <div data-v-ui-1e872dee0e70 class="registry-actions"><label class="crm-input-group" data-v-ui-1e872dee0e70><Search data-v-ui-1e872dee0e70 :size="15" /><input class="crm-input" data-v-ui-1e872dee0e70 v-model="search" placeholder="Найти подключение" /></label><button class="crm-button crm-button--refresh" data-v-ui-1e872dee0e70 @click="load"><RefreshCw data-v-ui-1e872dee0e70 :size="15" :class="{ spin: loading }" /> Обновить</button></div>
+        <div data-v-ui-1e872dee0e70><p v-if="!coursePaymentsOnly" data-v-ui-1e872dee0e70 class="kicker">ЦЕНТР ПОДКЛЮЧЕНИЙ</p><h2 data-v-ui-1e872dee0e70>{{ coursePaymentsOnly ? 'Оплата и чеки' : 'Интеграции экосистемы' }}</h2><span data-v-ui-1e872dee0e70>{{ coursePaymentsOnly ? 'Подключения общие для сайта и курсов. Данные чека курсов задаются в карточке провайдера.' : 'Ключи хранятся зашифрованно и не возвращаются из API.' }}</span></div>
+        <div data-v-ui-1e872dee0e70 class="registry-actions"><label v-if="!coursePaymentsOnly" class="crm-input-group" data-v-ui-1e872dee0e70><Search data-v-ui-1e872dee0e70 :size="15" /><input class="crm-input" data-v-ui-1e872dee0e70 v-model="search" placeholder="Найти подключение" /></label><button class="crm-button crm-button--refresh" data-v-ui-1e872dee0e70 @click="load"><RefreshCw data-v-ui-1e872dee0e70 :size="15" :class="{ spin: loading }" /> Обновить</button></div>
       </header>
-      <nav ref="categoryTabs" data-v-ui-1e872dee0e70 class="category-tabs" aria-label="Категории интеграций"><button type="button" class="crm-button" data-v-ui-1e872dee0e70 v-for="item in categories" :key="item.id" :class="{ active: category === item.id }" :aria-pressed="category === item.id" @click="category = item.id">{{ item.label }}</button></nav>
+      <nav v-if="!coursePaymentsOnly" ref="categoryTabs" data-v-ui-1e872dee0e70 class="category-tabs" aria-label="Категории интеграций"><button type="button" class="crm-button" data-v-ui-1e872dee0e70 v-for="item in categories" :key="item.id" :class="{ active: category === item.id }" :aria-pressed="category === item.id" @click="category = item.id">{{ item.label }}</button></nav>
       <div data-v-ui-1e872dee0e70 v-if="category === 'BOT' || audience !== 'ALL'" class="audience-filter"><span data-v-ui-1e872dee0e70>Аудитория бота</span><button class="crm-button" data-v-ui-1e872dee0e70 v-for="item in [{id:'ALL',label:'Все'}, {id:'EMPLOYEE',label:'Сотрудники'}, {id:'B2C',label:'B2C'}, {id:'B2B',label:'B2B'}]" :key="item.id" :class="{ active: audience === item.id }" @click="audience = item.id">{{ item.label }}</button></div>
       <div data-v-ui-1e872dee0e70 v-if="loading" class="loading-state">Загружаем реестр подключений…</div>
       <div data-v-ui-1e872dee0e70 v-else class="integration-grid">

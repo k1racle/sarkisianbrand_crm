@@ -19,14 +19,15 @@ const orderDestination = computed(() => items.value.find(item => item.id === 'b2
 const primaryNavigation = computed(() => ['crm-dashboard', 'customers', 'pipeline', orderDestination.value?.id, 'tasks', 'crm-meetings']
   .flatMap(id => items.value.filter(item => item.id === id)));
 const primaryName: Record<string, string> = { 'crm-dashboard': 'Мой день', customers: 'Клиенты', pipeline: 'Сделки', 'b2b-orders': 'Заказы', 'web-orders': 'Заказы', tasks: 'Задачи', 'crm-meetings': 'Календарь' };
+const learningItems = computed(() => items.value.filter(item => item.group === 'Обучение'));
 const shortcutItems = computed(() => favorites.value.length ? favorites.value : ['order-fulfillment', 'partner-documents-settings', 'leadership'].flatMap(id => items.value.filter(item => item.id === id)));
-const remainingGroups = computed(() => groups.value.map(group => ({ ...group, entries: group.entries.filter(entry => !entry.item || !primaryNavigation.value.some(item => item.id === entry.item!.id)) })).filter(group => group.entries.length));
+const remainingGroups = computed(() => groups.value.filter(group => group.label !== 'Обучение').map(group => ({ ...group, entries: group.entries.filter(entry => !entry.item || !primaryNavigation.value.some(item => item.id === entry.item!.id)) })).filter(group => group.entries.length));
 const initials = computed(() => [user.value?.firstName?.[0], user.value?.lastName?.[0]].filter(Boolean).join('').toLocaleUpperCase('ru-RU') || user.value?.email?.[0]?.toLocaleUpperCase('ru-RU') || 'Я');
 function toggleSections() {
   if (railCollapsed.value) { railCollapsed.value = false; allSectionsOpen.value = true; }
   else allSectionsOpen.value = !allSectionsOpen.value;
 }
-watch([active, primaryNavigation], ([current, primary]) => { if (current && !primary.some(item => item.id === current.id)) allSectionsOpen.value = true; }, { immediate: true });
+watch([active, primaryNavigation], ([current, primary]) => { if (current && current.group !== 'Обучение' && !primary.some(item => item.id === current.id)) allSectionsOpen.value = true; }, { immediate: true });
 function moduleToggle(id: string, event: Event) {
   const open = (event.currentTarget as HTMLDetailsElement).open;
   expandedModules.value = open ? [...new Set([...expandedModules.value, id])] : expandedModules.value.filter(value => value !== id);
@@ -41,6 +42,7 @@ async function openCompactModule(id: string, event: MouseEvent) {
   summary.focus();
 }
 watch(() => active.value?.parent, id => { if (id && !expandedModules.value.includes(id)) expandedModules.value.push(id); }, { immediate: true });
+watch(() => active.value?.group, group => { if (group === 'Обучение' && !expandedModules.value.includes('learning')) expandedModules.value.push('learning'); }, { immediate: true });
 const { panel: menuPanel, keyboard: menuKeys } = useCatalogDialog(computed(() => menuOpen.value), () => { menuOpen.value = false; });
 const { panel: searchPanel, keyboard: searchKeys } = useCatalogDialog(computed(() => searchOpen.value), () => { searchOpen.value = false; });
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -94,6 +96,10 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll); window.removeEventListene
       <nav class="crm-navigation" aria-label="Основная навигация CRM">
         <section class="crm-primary-navigation" aria-label="Частые разделы">
           <NuxtLink v-for="item in primaryNavigation" :key="item.id" :to="item.to" :title="primaryName[item.id] || item.label" :aria-current="active?.id === item.id ? 'page' : undefined" @click="menuOpen = false"><WorkspaceSectionIcon :name="item.icon" :size="18" /><span>{{ primaryName[item.id] || item.label }}</span></NuxtLink>
+          <details v-if="learningItems.length" class="crm-nav-module" data-module="learning" :data-active="active?.group === 'Обучение' || undefined" :open="expandedModules.includes('learning')" @toggle="moduleToggle('learning', $event)">
+            <summary title="Обучение" @click="openCompactModule('learning', $event)"><WorkspaceSectionIcon name="BookOpen" :size="18" /><span>Обучение</span><ChevronRight class="crm-nav-chevron" :size="16" /></summary>
+            <div class="crm-nav-children"><NuxtLink v-for="item in learningItems" :key="item.id" :to="item.to" :aria-current="active?.id === item.id ? 'page' : undefined" @click="menuOpen = false"><WorkspaceSectionIcon :name="item.icon" :size="18" /><span>{{ item.label }}</span></NuxtLink></div>
+          </details>
           <button type="button" class="crm-all-sections" aria-controls="crm-all-sections-list" :aria-expanded="allSectionsOpen" title="Все разделы CRM" @click="toggleSections"><Grid2X2 :size="18" /><span>Все разделы</span><ChevronRight :size="14" class="crm-all-sections-chevron" /></button>
         </section>
         <section v-if="shortcutItems.length" class="crm-shortcuts"><h2><Star v-if="favorites.length" :size="14" />{{ favorites.length ? 'Избранное' : 'Быстрый доступ' }}</h2><NuxtLink v-for="item in shortcutItems" :key="item.id" :to="item.to" :title="item.label" :aria-current="active?.id === item.id ? 'page' : undefined" @click="menuOpen = false"><WorkspaceSectionIcon :name="item.icon" :size="18" /><span>{{ item.label }}</span></NuxtLink></section>

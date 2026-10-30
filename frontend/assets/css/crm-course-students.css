@@ -1,0 +1,11 @@
+html[data-crm-ui] .course-students-count { margin: 0 0 12px; }
+html[data-crm-ui] .course-students-list { display: grid; gap: 8px; }
+html[data-crm-ui] .course-student { display: grid; grid-template-columns: minmax(180px, 1.05fr) minmax(180px, 1fr) minmax(160px, .8fr); gap: 18px; align-items: start; padding: 16px; color: var(--crm-ink); }
+html[data-crm-ui] .course-student :is(.course-student-person,.course-student-course,.course-student-access) { display: grid; gap: 5px; min-width: 0; }
+html[data-crm-ui] .course-student :is(strong, span, small) { overflow-wrap: anywhere; }
+html[data-crm-ui] .course-student :is(span,small) { color: var(--crm-muted); font-size: 13px; }
+html[data-crm-ui] .course-student .course-student-label { font-size: 12px; }
+html[data-crm-ui] .course-student .course-status { justify-self: start; color: var(--crm-ink); }
+html[data-crm-ui] .course-student .course-status[data-status='ACTIVE'] { border-color: var(--crm-accent); color: var(--crm-accent); }
+@media (max-width: 800px) { html[data-crm-ui] .course-student { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 520px) { html[data-crm-ui] .course-student { grid-template-columns: minmax(0, 1fr); gap: 13px; } }

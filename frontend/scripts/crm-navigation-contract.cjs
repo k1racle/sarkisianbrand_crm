@@ -13,11 +13,25 @@ const itemsFor = (role = 'ADMIN', can = () => true) => h.crmNavigationItems(h.fl
 const all = itemsFor();
 const checks = [];
 function check(name, run) { run(); checks.push(name); }
-check('nine-approved-groups-including-finance', () => {
-  assert.deepEqual(plain(h.crmNavigationGroups(all).map(g => g.label)), ['Мой день', 'Клиенты и продажи', 'Заказы и исполнение', 'Финансы', 'Команда', 'Маркетинг и партнёры', 'Поддержка', 'Аналитика', 'Настройки CRM']);
+check('approved-groups-including-training-and-finance', () => {
+  assert.deepEqual(plain(h.crmNavigationGroups(all).map(g => g.label)), ['Мой день', 'Клиенты и продажи', 'Заказы и исполнение', 'Финансы', 'Команда', 'Обучение', 'Маркетинг и партнёры', 'Поддержка', 'Аналитика', 'Настройки CRM']);
   assert.deepEqual(plain(all.map(item=>item.id).sort()),plain(h.CRM_DESTINATIONS.map(item=>item.id).sort()));
   assert.equal(new Set(all.map(i => i.id)).size, all.length);
   assert.equal(new Set(all.map(i => i.to)).size, all.length);
+});
+check('learning-destinations-have-own-group-and-proper-permissions', () => {
+  const learning = h.crmNavigationGroups(all).find(group => group.label === 'Обучение');
+  assert.deepEqual(plain(learning.entries.map(entry => [entry.label, entry.item.to])), [
+    ['Курсы','/crm/courses'], ['Ученики','/crm/course-students'], ['Настройки','/crm/course-settings'], ['Онлайн-трансляции','/crm/course-live'],
+  ]);
+  assert.ok(!h.crmNavigationGroups(all).find(group => group.label === 'Маркетинг и партнёры').entries.some(entry => entry.id === 'courses'));
+  for (const id of ['courses','course-students','course-settings','course-live']) assert.equal(all.find(item => item.id === id).group, 'Обучение');
+  for (const role of ['ADMIN','SUPERVISOR','CONTENT_MANAGER']) assert.ok(itemsFor(role, key => key === 'lms.read').some(item => item.id === 'course-students'));
+  assert.ok(!itemsFor('ADMIN', key => key === 'lms.read').some(item => item.id === 'course-live'));
+  assert.ok(itemsFor('ADMIN', key => ['lms.read','lms.write'].includes(key)).some(item => item.id === 'course-live'));
+  assert.ok(!itemsFor('MANAGER_SALES').some(item => item.group === 'Обучение'));
+  assert.ok(h.searchCrmNavigation(all,'обучение ученики').some(item => item.id === 'course-students'));
+  assert.ok(h.searchCrmNavigation(all,'обучение эфир').some(item => item.id === 'course-live'));
 });
 check('each-primary-leaf-exactly-once-and-no-empty-folders', () => {
   const leaves = h.crmNavigationGroups(all).flatMap(g => g.entries.flatMap(e => {
@@ -96,4 +110,4 @@ check('shared-recipes-and-native-summary-keyboard', () => {
   assert.ok(read('composables/useCatalogDialog.ts').includes('a[href],summary,'));
   assert.ok(!parse(read('components/crm/CrmSectionNavigation.vue')).descriptor.styles.length);
 });
-console.log(`CRM navigation contract PASS: ${checks.length} checks, 9 groups, ${all.length} destinations, roles/DENY, legacy fallback, program search, SFC/CSS compile.`);
+console.log(`CRM navigation contract PASS: ${checks.length} checks, 10 groups, ${all.length} destinations, roles/DENY, legacy fallback, program search, SFC/CSS compile.`);

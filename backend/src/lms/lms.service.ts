@@ -91,6 +91,35 @@ export class LmsService {
 
   async adminList(query: CourseListDto = { page: 1, limit: 20 }) { const { page, limit } = query; const search = query.search?.trim(); const where: Prisma.CourseWhereInput = search ? { OR: [{ titleRu: { contains: search, mode: 'insensitive' } }, { titleEn: { contains: search, mode: 'insensitive' } }] } : {}; const [items, total] = await Promise.all([this.db.course.findMany({ where, include: adminInclude, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit }), this.db.course.count({ where })]); return { items: items.map(adminCourse), total, page, pages: Math.max(1, Math.ceil(total / limit)), limit }; }
   async adminDetail(id: string) { const item = await this.db.course.findUnique({ where: { id }, include: adminInclude }); if (!item) throw new NotFoundException('Курс не найден'); return adminCourse(item); }
+  async adminStudents(query: CourseListDto = { page: 1, limit: 20 }) {
+    const { page, limit } = query;
+    const search = query.search?.trim();
+    const where: Prisma.EnrollmentWhereInput = search ? { AND: search.split(/\s+/).filter(Boolean).slice(0, 10).map(term => ({ OR: [
+      { user: { firstName: { contains: term, mode: 'insensitive' } } },
+      { user: { lastName: { contains: term, mode: 'insensitive' } } },
+      { user: { email: { contains: term, mode: 'insensitive' } } },
+      { user: { phone: { contains: term, mode: 'insensitive' } } },
+      { course: { titleRu: { contains: term, mode: 'insensitive' } } },
+    ] })) } : {};
+    const publishedLesson = { isPublished: true, moduleId: { not: null } };
+    const [rows, total] = await Promise.all([
+      this.db.enrollment.findMany({ where, orderBy: [{ enrolledAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit,
+        select: { id: true, enrolledAt: true, accessStatus: true, accessExpiresAt: true,
+          user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, isActive: true } },
+          course: { select: { id: true, titleRu: true, _count: { select: { lessons: { where: publishedLesson } } } } },
+          lessonsProgress: { where: { lesson: publishedLesson }, select: { lesson: { select: { courseId: true } } } },
+        } }),
+      this.db.enrollment.count({ where }),
+    ]);
+    const now = Date.now();
+    return { items: rows.map(({ course, lessonsProgress, ...row }) => {
+      const totalLessons = course._count.lessons;
+      const completedLessons = Math.min(totalLessons, lessonsProgress.filter(progress => progress.lesson.courseId === course.id).length);
+      const effectiveStatus = row.accessStatus === 'ACTIVE' && !row.user.isActive ? 'ACCOUNT_DISABLED' : row.accessStatus === 'ACTIVE' && row.accessExpiresAt && row.accessExpiresAt.getTime() <= now ? 'EXPIRED' : row.accessStatus;
+      return { ...row, effectiveStatus, course: { id: course.id, title: course.titleRu }, totalLessons, completedLessons,
+        progress: totalLessons ? Math.floor(completedLessons * 100 / totalLessons) : 0 };
+    }), total, page, pages: Math.max(1, Math.ceil(total / limit)), limit };
+  }
   createCourse(dto: CreateCourseDto) { return this.db.course.create({ data: { titleRu: title(dto.titleRu), titleEn: dto.titleEn?.trim() || null, ...(dto.description != null ? { description: dto.description } : {}), price: 0, status: 'DRAFT', isActive: true }, include: adminInclude }); }
   updateCourse(id: string, dto: UpdateCourseDto) {
     return this.updateCourseTransaction(id, async tx => {

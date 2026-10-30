@@ -7,6 +7,7 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), path = re
 const base = new URL(process.env.ADMIN_DESIGN_URL || 'http://127.0.0.1:3001').origin;
 const output = path.resolve(__dirname, '../.screenshots/crm-navigation');
 const fixtures = new Map([...rich, ['/platform-chat/channels', []]]);
+fixtures.set('/auth/access', { ...fixtures.get('/auth/access'), permissions: [...fixtures.get('/auth/access').permissions, 'lms.read', 'lms.write'] });
 const expectedGroups = ['Клиенты и продажи','Заказы и исполнение','Финансы','Команда','Маркетинг и партнёры','Поддержка','Аналитика','Настройки CRM'];
 const expectedPrimary = ['Мой день','Клиенты','Сделки','Заказы','Задачи','Календарь'];
 async function menu(page, width) {
@@ -36,14 +37,29 @@ async function main() {
       try {
         await page.goto(base + '/crm/', { waitUntil:'networkidle' });
         await menu(page, width);
-        await page.locator('.crm-primary-navigation a').first().waitFor();
-        assert.deepEqual(await page.locator('.crm-primary-navigation a').allTextContents(), expectedPrimary);
+        await page.locator('.crm-primary-navigation > a').first().waitFor();
+        assert.deepEqual(await page.locator('.crm-primary-navigation > a').allTextContents(), expectedPrimary);
+        const learning = page.locator('.crm-primary-navigation [data-module="learning"]');
+        const learningSummary = learning.locator('summary');
+        await learningSummary.focus(); await learningSummary.press('Enter');
+        await page.locator('.crm-primary-navigation [data-module="learning"][open]').waitFor();
+        assert.deepEqual(await learning.locator('a').allTextContents(), ['Курсы','Ученики','Настройки','Онлайн-трансляции']);
+        assert.deepEqual(await learning.locator('a').evaluateAll(links => links.map(link => link.getAttribute('href'))), ['/crm/courses','/crm/course-students','/crm/course-settings','/crm/course-live']);
+        await learningSummary.press('Enter');
+        if (width >= 1024) {
+          await page.getByRole('button', { name:'Свернуть меню CRM' }).click();
+          assert.equal(await page.locator('.crm-app--compact').count(), 1);
+          await learningSummary.click();
+          await page.waitForFunction(() => !document.querySelector('.crm-app--compact') && document.querySelector('[data-module="learning"]')?.open);
+          await learningSummary.click();
+        }
         const allSections = page.getByRole('button', { name:'Все разделы', exact:true });
         assert.equal(await allSections.getAttribute('aria-expanded'), 'false');
         await allSections.click();
         assert.equal(await allSections.getAttribute('aria-expanded'), 'true');
         await page.locator('#crm-all-sections-list > section > h2').first().waitFor();
         assert.deepEqual(await page.locator('#crm-all-sections-list > section > h2').allTextContents(), expectedGroups);
+        assert.equal(await page.locator('#crm-all-sections-list section[aria-label="Обучение"]').count(), 0, 'Learning stays only in the primary menu');
         assert.equal(await page.locator('.crm-navigation a[href="/crm/buyers"]').count(), 0);
         assert.equal(await page.locator('.crm-nav-module[open]').count(), 0);
         const summary = page.locator('[data-module="bloggers"] > summary');
